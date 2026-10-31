@@ -1,0 +1,58 @@
+# Triển khai Tà Xùa Trip trên VPS bằng Docker.
+# Chạy: docker compose up -d --build
+# Lần đầu, seed dữ liệu mẫu (tuỳ chọn): docker compose exec app npm run db:seed
+#
+# Kiến trúc: web (nginx, cân bằng tải + nén + cache ảnh) → app ×2 (Next.js) → db (Postgres).
+# Truy cập qua cổng ${APP_PORT:-3000} của nginx; app KHÔNG phơi cổng trực tiếp.
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-taxua}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-taxua_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-taxua_trip}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-taxua} -d ${POSTGRES_DB:-taxua_trip}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    # 2 bản chạy song song — nginx tự chia tải (Docker DNS round-robin).
+    deploy:
+      replicas: 2
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # connection_limit: mỗi replica tối đa 10 kết nối Postgres (2×10 < max_connections 100).
+      DATABASE_URL: postgresql://${POSTGRES_USER:-taxua}:${POSTGRES_PASSWORD:-taxua_secret}@db:5432/${POSTGRES_DB:-taxua_trip}?schema=public&connection_limit=10&pool_timeout=20
+      AUTH_SECRET: ${AUTH_SECRET:-doi-chuoi-bi-mat-nay-that-dai-va-ngau-nhien}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-taxua@2026}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+    volumes:
+      # Ảnh upload lưu bền trên host — DÙNG CHUNG giữa các replica.
+      - uploads:/app/public/uploads
+
+  web:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "${APP_PORT:-3000}:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - nginx_cache:/var/cache/nginx
+
+volumes:
+  pgdata:
+  uploads:
+  nginx_cache:

@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+/* ===========================================================
+   TÀ XÙA TRIP — Design system
+   Màu xanh núi rừng + trắng + cam điểm nhấn
+   =========================================================== */
+@theme {
+  /* Xanh núi rừng (forest) — màu thương hiệu chính */
+  --color-forest-50: #f0f9f3;
+  --color-forest-100: #dcf0e2;
+  --color-forest-200: #bbe1c9;
+  --color-forest-300: #8cc9a6;
+  --color-forest-400: #56a97d;
+  --color-forest-500: #328a5f;
+  --color-forest-600: #226e4b;
+  --color-forest-700: #1b583d;
+  --color-forest-800: #164632;
+  --color-forest-900: #123a2a;
+  --color-forest-950: #082018;
+
+  /* Cam hoàng hôn (sunset) — điểm nhấn */
+  --color-sunset-50: #fff7ed;
+  --color-sunset-100: #ffedd5;
+  --color-sunset-200: #fed7aa;
+  --color-sunset-300: #fdba74;
+  --color-sunset-400: #fb923c;
+  --color-sunset-500: #f97316;
+  --color-sunset-600: #ea580c;
+  --color-sunset-700: #c2410c;
+
+  /* Nền mây & chữ */
+  --color-cloud: #f6f8f7;
+  --color-ink: #16241d;
+
+  --font-sans: var(--font-be-vietnam), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: var(--color-ink);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-cloud);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Hiệu ứng chuyển động nhẹ nhàng */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up {
+    animation: none;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Tiện ích chung */
+.container-page {
+  width: 100%;
+  max-width: 76rem;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+@media (min-width: 640px) {
+  .container-page {
+    padding-inline: 1.5rem;
+  }
+}

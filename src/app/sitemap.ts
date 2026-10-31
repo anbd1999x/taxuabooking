@@ -1,0 +1,49 @@
+import type { MetadataRoute } from "next";
+import { prisma } from "@/lib/prisma";
+import { CATEGORIES, CATEGORY_LIST } from "@/lib/constants";
+import { SITE } from "@/lib/site";
+
+export const dynamic = "force-dynamic";
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const base = SITE.url.replace(/\/$/, "");
+
+  const [services, articles] = await Promise.all([
+    prisma.service.findMany({
+      where: { published: true },
+      select: { slug: true, category: true, updatedAt: true },
+    }),
+    prisma.article.findMany({
+      where: { published: true },
+      select: { slug: true, updatedAt: true },
+    }),
+  ]);
+
+  const staticRoutes: MetadataRoute.Sitemap = [
+    { url: `${base}/`, changeFrequency: "daily", priority: 1 },
+    { url: `${base}/kinh-nghiem`, changeFrequency: "weekly", priority: 0.6 },
+    { url: `${base}/lien-he`, changeFrequency: "monthly", priority: 0.4 },
+  ];
+
+  const categoryRoutes: MetadataRoute.Sitemap = CATEGORY_LIST.map((c) => ({
+    url: `${base}/${c.slug}`,
+    changeFrequency: "daily",
+    priority: 0.8,
+  }));
+
+  const serviceRoutes: MetadataRoute.Sitemap = services.map((s) => ({
+    url: `${base}/${CATEGORIES[s.category].slug}/${s.slug}`,
+    lastModified: s.updatedAt,
+    changeFrequency: "daily",
+    priority: 0.7,
+  }));
+
+  const articleRoutes: MetadataRoute.Sitemap = articles.map((a) => ({
+    url: `${base}/kinh-nghiem/${a.slug}`,
+    lastModified: a.updatedAt,
+    changeFrequency: "monthly",
+    priority: 0.5,
+  }));
+
+  return [...staticRoutes, ...categoryRoutes, ...serviceRoutes, ...articleRoutes];
+}

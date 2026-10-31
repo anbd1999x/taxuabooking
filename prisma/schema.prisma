@@ -1,0 +1,503 @@
+// Tà Xùa Trip — Prisma schema
+// Thiết kế vừa đủ: bài đăng dịch vụ + giá & tình trạng còn chỗ theo ngày + yêu cầu đặt.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================ ENUMS ============================
+
+/// Danh mục dịch vụ (cố định, dùng enum để chống dữ liệu sai).
+enum ServiceCategory {
+  CABIN // Xe cabin
+  HOMESTAY // Homestay
+  BUNGALOW // Bungalow
+  MOTORBIKE // Thuê xe máy
+  XEOM // Xe ôm
+  TAXI // Taxi
+  COMBO // Combo du lịch
+}
+
+/// Tình trạng còn chỗ — phân biệt rõ, không mặc định "còn chỗ" khi chưa có dữ liệu.
+enum AvailabilityStatus {
+  AVAILABLE // Còn chỗ
+  LIMITED // Còn ít chỗ
+  SOLD_OUT // Hết chỗ
+  NOT_UPDATED // Chưa cập nhật
+  PENDING_CONFIRM // Chờ xác nhận
+}
+
+/// Chiều của lộ trình xe cabin.
+enum CabinDirection {
+  OUTBOUND // Chiều đi
+  RETURN // Chiều về
+}
+
+/// Loại vé xe cabin.
+enum CabinTicketType {
+  ROUND_TRIP // Khứ hồi (2 chiều)
+  OUTBOUND // Chiều đi
+  RETURN // Chiều về
+}
+
+/// Trạng thái từng phòng riêng theo ngày (quản lý dạng lưới như bảng Excel).
+enum RoomStatus {
+  AVAILABLE // Trống
+  BOOKED // Đã đặt
+  PENDING // Chờ
+  CLOSED // Đóng (không bán)
+}
+
+/// Trạng thái yêu cầu đặt dịch vụ.
+enum BookingStatus {
+  NEW // Mới
+  CONTACTING // Đang liên hệ
+  CONFIRMED // Đã xác nhận
+  COMPLETED // Đã hoàn thành
+  CANCELLED // Đã hủy
+}
+
+// ============================ MODELS ============================
+
+/// Vai trò tài khoản.
+enum UserRole {
+  ADMIN // Quản trị toàn hệ thống
+  CTV // Cộng tác viên (đặt đơn)
+  PROVIDER // Chủ nhà xe / chủ homestay
+}
+
+/// Trạng thái thanh toán của đơn (giữa CTV/hệ thống với chủ dịch vụ).
+enum PaymentStatus {
+  UNPAID // Chưa thanh toán
+  PAID // Đã thanh toán
+}
+
+/// Tài khoản (Admin / CTV / Chủ dịch vụ).
+model AdminUser {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  name         String
+  phone        String?
+  role         UserRole @default(ADMIN)
+  active       Boolean  @default(true)
+  providerId   String? // với CTV: thuộc chủ cơ sở nào
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  provider      AdminUser?       @relation("ProviderCtv", fields: [providerId], references: [id], onDelete: SetNull)
+  ctvs          AdminUser[]      @relation("ProviderCtv")
+  ownedServices Service[]        @relation("ServiceOwner")
+  ctvBookings   BookingRequest[] @relation("BookingCtv")
+
+  @@index([providerId])
+}
+
+/// Bài đăng dịch vụ — thực thể trung tâm.
+model Service {
+  id          String          @id @default(cuid())
+  slug        String          @unique
+  category    ServiceCategory
+  title       String
+  summary     String // mô tả ngắn
+  description String // mô tả chi tiết
+  area        String? // khu vực hoặc tuyến đường
+  mapUrl      String? // link Google Maps (chia sẻ hoặc nhúng) để hiển thị bản đồ
+  policy      String? // chính sách homestay (nhận/trả phòng, huỷ, nội quy...) hiển thị cho khách
+  basePrice   Decimal?        @db.Decimal(12, 0) // giá tham khảo (null = liên hệ)
+  priceUnit   String? // đơn vị giá: "/đêm", "/ngày", "/vé", "/chuyến"...
+  contactName String?
+  contactPhone String?
+  contactZalo String?
+  featured    Boolean         @default(false)
+  published   Boolean         @default(true)
+  easyRoad    Boolean         @default(false) // đường dễ đi (dùng cho combo homestay)
+  pool        Boolean         @default(false) // có hồ bơi (tiện ích homestay)
+  // Đồng bộ lịch phòng từ Google Sheet công khai (mỗi homestay 1 link; bố trí cột tự dò).
+  sheetUrl      String? // link Google Sheet (bất kỳ dạng /edit, /htmlview, #gid=...) chứa lịch phòng
+  sheetSyncedAt DateTime? // lần đồng bộ gần nhất
+  sheetSyncResult String? // kết quả lần đồng bộ ("12 phòng · 30 ngày" | "Lỗi: ...")
+  ownerId     String? // chủ dịch vụ (nhà xe / homestay)
+  owner       AdminUser?      @relation("ServiceOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  images         ServiceImage[]
+  roomTypes      RoomType[]
+  cabinTrips     CabinTrip[]
+  rentalVehicles RentalVehicle[]
+  transport      TransportInfo?
+  bookings       BookingRequest[]
+  cabinPriceRows CabinPriceRow[]
+  cabinRoutes    CabinRoute[]
+
+  @@index([category, published])
+  @@index([featured])
+}
+
+/// Ảnh của bài đăng (upload nhiều ảnh).
+model ServiceImage {
+  id        String   @id @default(cuid())
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  url       String
+  alt       String?
+  sortOrder Int      @default(0)
+  isCover   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([serviceId])
+}
+
+/// Loại phòng cho homestay / bungalow.
+model RoomType {
+  id           String   @id @default(cuid())
+  serviceId    String
+  service      Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  name         String
+  capacity     Int      @default(2)
+  weekdayPrice Decimal  @db.Decimal(12, 0) // giá ngày thường (mặc định cho T2–T6)
+  weekendPrice Decimal  @db.Decimal(12, 0) // giá cuối tuần (mặc định cho T7, CN)
+  holidayPrice Decimal? @db.Decimal(12, 0) // giá ngày lễ (tùy chọn)
+  // Giá riêng theo từng thứ trong tuần (tùy chọn). null = dùng weekday/weekend.
+  priceMon     Decimal? @db.Decimal(12, 0) // Thứ 2
+  priceTue     Decimal? @db.Decimal(12, 0) // Thứ 3
+  priceWed     Decimal? @db.Decimal(12, 0) // Thứ 4
+  priceThu     Decimal? @db.Decimal(12, 0) // Thứ 5
+  priceFri     Decimal? @db.Decimal(12, 0) // Thứ 6
+  priceSat     Decimal? @db.Decimal(12, 0) // Thứ 7
+  priceSun     Decimal? @db.Decimal(12, 0) // Chủ nhật
+  totalRooms   Int      @default(1)
+  imageUrl     String? // ảnh bìa (tương thích cũ; ưu tiên images[])
+  // Tiện ích (dùng để lọc combo)
+  hasBathtub   Boolean  @default(false) // bồn tắm
+  cloudView    Boolean  @default(false) // view săn mây
+  breakfast    Boolean  @default(false) // ăn sáng
+  airCon       Boolean  @default(false) // điều hòa
+  heating      Boolean  @default(false) // đêm sưởi / máy sưởi
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  availabilities RoomAvailability[]
+  images         RoomTypeImage[]
+  rooms          Room[]
+
+  @@index([serviceId])
+}
+
+/// Phòng riêng lẻ (có tên) thuộc một hạng phòng. VD: Rustic 1, Samu 3...
+model Room {
+  id          String          @id @default(cuid())
+  roomTypeId  String
+  roomType    RoomType        @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+  name        String
+  amenities   String? // tiện ích, phân tách bằng dấu phẩy (Wifi, Nóng lạnh, Ban công...)
+  description String?
+  // Giá & sức chứa ở cấp phòng con (nguồn chính). listPrice = giá niêm yết (giá thường);
+  // salePrice = giá chiết khấu (giá bán thực, null = không giảm). Giá theo thứ ghi đè.
+  capacity    Int             @default(2)
+  listPrice   Decimal         @default(0) @db.Decimal(12, 0)
+  salePrice   Decimal?        @db.Decimal(12, 0)
+  priceMon    Decimal?        @db.Decimal(12, 0)
+  priceTue    Decimal?        @db.Decimal(12, 0)
+  priceWed    Decimal?        @db.Decimal(12, 0)
+  priceThu    Decimal?        @db.Decimal(12, 0)
+  priceFri    Decimal?        @db.Decimal(12, 0)
+  priceSat    Decimal?        @db.Decimal(12, 0)
+  priceSun    Decimal?        @db.Decimal(12, 0)
+  sortOrder   Int             @default(0)
+  icalToken   String?         @unique // token bí mật cho link xuất lịch iCal (OTA)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  dayStatuses RoomDayStatus[]
+  images      RoomImage[]
+  icalSources RoomIcalSource[]
+
+  @@index([roomTypeId])
+}
+
+/// Lịch iCal của phòng trên một OTA (Booking/Agoda/Airbnb…) để nhập ngày bận về.
+model RoomIcalSource {
+  id           String    @id @default(cuid())
+  roomId       String
+  room         Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  label        String // "Booking.com" | "Agoda" | "Airbnb"…
+  url          String // link .ics OTA cung cấp
+  lastSyncedAt DateTime?
+  lastResult   String? // "12 ngày bận" | "Lỗi: ..."
+  createdAt    DateTime  @default(now())
+
+  @@index([roomId])
+}
+
+/// Ảnh của một phòng riêng lẻ.
+model RoomImage {
+  id        String   @id @default(cuid())
+  roomId    String
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  url       String
+  alt       String?
+  sortOrder Int      @default(0)
+  isCover   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([roomId])
+}
+
+/// Trạng thái của một phòng riêng trong một ngày (ô trong lưới).
+model RoomDayStatus {
+  id        String     @id @default(cuid())
+  roomId    String
+  room      Room       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  date      DateTime   @db.Date
+  status    RoomStatus @default(AVAILABLE)
+  bookingId String? // đơn đang chiếm phòng (để tự trả khi huỷ)
+  note      String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([roomId, date])
+  @@index([date])
+}
+
+/// Nhiều ảnh / video cho mỗi hạng phòng.
+model RoomTypeImage {
+  id         String   @id @default(cuid())
+  roomTypeId String
+  roomType   RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+  url        String
+  type       String   @default("image") // "image" | "video"
+  alt        String?
+  sortOrder  Int      @default(0)
+  isCover    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([roomTypeId])
+}
+
+/// Lịch theo ngày của loại phòng: số phòng trống + giá riêng + tình trạng.
+model RoomAvailability {
+  id            String             @id @default(cuid())
+  roomTypeId    String
+  roomType      RoomType           @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+  date          DateTime           @db.Date
+  availableRooms Int               @default(0)
+  priceOverride Decimal?           @db.Decimal(12, 0)
+  status        AvailabilityStatus @default(NOT_UPDATED)
+  note          String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@unique([roomTypeId, date]) // chống trùng ngày
+  @@index([date])
+}
+
+/// Chuyến xe cabin — mỗi chuyến gắn với một ngày khởi hành cụ thể.
+model CabinTrip {
+  id            String             @id @default(cuid())
+  serviceId     String
+  service       Service            @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  operatorName  String // nhà xe
+  route         String // tuyến đường
+  direction     CabinDirection     @default(OUTBOUND) // chiều đi / chiều về
+  departureDate DateTime           @db.Date
+  departureTime String // giờ khởi hành "06:30"
+  pickupPoint   String
+  dropoffPoint  String
+  // Cabin đơn: price = giá, seatsAvailable = số chỗ còn
+  price         Decimal            @db.Decimal(12, 0)
+  seatsTotal    Int                @default(0)
+  seatsAvailable Int               @default(0)
+  // Cabin đôi (tuỳ chọn): null/0 = không bán đôi
+  priceDouble          Decimal?    @db.Decimal(12, 0)
+  seatsDoubleTotal     Int         @default(0)
+  seatsDoubleAvailable Int         @default(0)
+  status        AvailabilityStatus @default(AVAILABLE)
+  note          String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([serviceId, departureDate, direction])
+  @@index([departureDate])
+}
+
+/// Loại xe máy cho thuê.
+model RentalVehicle {
+  id          String   @id @default(cuid())
+  serviceId   String
+  service     Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  vehicleType String // loại xe (Honda Wave, Vision...)
+  pricePerDay Decimal  @db.Decimal(12, 0)
+  totalUnits  Int      @default(1)
+  deliveryFee Decimal? @db.Decimal(12, 0) // phí giao nhận
+  imageUrl    String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  availabilities RentalAvailability[]
+
+  @@index([serviceId])
+}
+
+/// Lịch theo ngày của xe máy: số xe khả dụng + giá riêng + tình trạng.
+model RentalAvailability {
+  id              String             @id @default(cuid())
+  rentalVehicleId String
+  rentalVehicle   RentalVehicle      @relation(fields: [rentalVehicleId], references: [id], onDelete: Cascade)
+  date            DateTime           @db.Date
+  availableUnits  Int                @default(0)
+  priceOverride   Decimal?           @db.Decimal(12, 0)
+  status          AvailabilityStatus @default(NOT_UPDATED)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@unique([rentalVehicleId, date])
+  @@index([date])
+}
+
+/// Thông tin xe ôm / taxi (1-1 với Service). Giá có thể null = "Liên hệ xác nhận giá".
+model TransportInfo {
+  id         String   @id @default(cuid())
+  serviceId  String   @unique
+  service    Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  fromPoint  String // điểm đón
+  toArea     String // điểm đến hoặc khu vực phục vụ
+  vehicleType String?
+  fixedPrice Decimal? @db.Decimal(12, 0) // null = chưa có giá -> liên hệ xác nhận
+  priceNote  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+/// Yêu cầu đặt dịch vụ (khách không cần đăng ký tài khoản).
+model BookingRequest {
+  id              String        @id @default(cuid())
+  code            String        @unique // mã yêu cầu VD: TX-A1B2C3
+  category        ServiceCategory
+  serviceId       String?
+  service         Service?      @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  serviceTitle    String // snapshot tên dịch vụ tại thời điểm đặt
+
+  customerName    String
+  phone           String
+  note            String?
+
+  useDate         DateTime      @db.Date // ngày đi / nhận phòng / nhận xe
+  endDate         DateTime?     @db.Date // ngày trả (lưu trú / thuê xe)
+  nights          Int? // số đêm (nếu lưu trú)
+  quantity        Int           @default(1) // số người / phòng / xe / vé
+
+  // Tham chiếu tùy loại dịch vụ (ghi nhận lựa chọn cụ thể của khách).
+  roomTypeId      String?
+  roomId          String? // phòng cụ thể được đặt (homestay)
+  cabinTripId     String? // chuyến đi (cabin)
+  cabinReturnTripId String? // chuyến về (cabin khứ hồi)
+  seatsSingle     Int? // số vé cabin đơn (mỗi chiều)
+  seatsDouble     Int? // số vé cabin đôi (mỗi chiều)
+  rentalVehicleId String?
+  selectionLabel  String? // mô tả lựa chọn (loại phòng/chuyến/xe) dạng text
+
+  referencePrice  Decimal?      @db.Decimal(12, 0) // giá tham khảo khi gửi
+  needsConfirmation Boolean     @default(true) // tình trạng cần admin xác nhận lại
+  inventoryApplied Boolean      @default(false) // đã trừ tồn (vé/phòng/xe) hay chưa
+
+  // Cộng tác viên & thanh toán
+  ctvId         String? // CTV đã đặt đơn này
+  ctv           AdminUser?    @relation("BookingCtv", fields: [ctvId], references: [id], onDelete: SetNull)
+  paymentStatus PaymentStatus @default(UNPAID)
+  paidAt        DateTime?
+
+  status          BookingStatus @default(NEW)
+  adminNote       String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([serviceId])
+  @@index([ctvId])
+  @@index([paymentStatus])
+}
+
+/// Bài viết kinh nghiệm du lịch Tà Xùa.
+model Article {
+  id         String   @id @default(cuid())
+  slug       String   @unique
+  title      String
+  excerpt    String?
+  content    String // markdown / html đơn giản
+  coverImage String?
+  published  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([published])
+}
+
+/// Cấu hình site dạng key-value (SĐT, Zalo, địa chỉ, text hero...).
+model SiteSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+/// Bảng giá xe cabin theo chặng (điểm đón → đích). serviceId null = bảng giá chung
+/// hiển thị ở trang chủ; serviceId có giá trị = bảng giá riêng của một nhà xe.
+model CabinPriceRow {
+  id          String   @id @default(cuid())
+  serviceId   String?
+  service     Service? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  pickupPoint String // điểm đón (VD: Hà Nội, Hải Dương...)
+  destination String          @default("Tà Xùa")
+  ticketType  CabinTicketType @default(ROUND_TRIP)
+  price       Decimal         @db.Decimal(12, 0)
+  note        String?
+  sortOrder   Int             @default(0)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([serviceId])
+  @@index([sortOrder])
+}
+
+/// Lộ trình xe cabin theo chiều (đi / về) của một nhà xe.
+model CabinRoute {
+  id         String          @id @default(cuid())
+  serviceId  String
+  service    Service         @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  direction  CabinDirection
+  title      String? // tagline hiển thị (VD: "Ngủ một giấc, mở mắt là tới mây.")
+  totalTime  String? // tổng thời gian (VD: "~8 tiếng")
+  startLabel String? // nhãn mốc khởi hành (VD: "Khởi hành" / "Đón khách")
+  startInfo  String? // thông tin khởi hành (VD: "21:00 hằng tối")
+  fromPoint  String? // điểm đón
+  toPoint    String? // điểm trả
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  stops      CabinRouteStop[]
+
+  @@unique([serviceId, direction])
+}
+
+/// Một điểm dừng trong lộ trình (giờ + địa điểm).
+model CabinRouteStop {
+  id        String     @id @default(cuid())
+  routeId   String
+  route     CabinRoute @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  sortOrder Int        @default(0)
+  time      String // VD: "21:00"
+  place     String // VD: "Phú Thọ"
+  note      String?
+  tag       String? // VD: "Nghỉ chân", "Lên xe", "Tới nơi"
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([routeId])
+}
