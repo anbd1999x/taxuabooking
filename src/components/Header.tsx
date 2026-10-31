@@ -10,10 +10,10 @@ export function Header({ phone }: { phone: string }) {
 
   return (
     <header className="sticky top-0 z-40 border-b border-black/5 bg-white/95 backdrop-blur">
-      <div className="container-page flex h-16 items-center justify-between gap-4">
+      <div className="container-page flex h-11 items-center justify-between gap-4 sm:h-16">
         <Link href="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-forest-600 font-bold text-white">TX</span>
-          <span className="text-lg font-extrabold tracking-tight text-forest-800">
+          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-forest-600 text-[10px] font-bold text-white sm:h-9 sm:w-9 sm:rounded-xl sm:text-base">TX</span>
+          <span className="text-[15px] font-extrabold tracking-tight text-forest-800 sm:text-lg">
             Tà Xùa <span className="text-sunset-500">Booking</span>
           </span>
         </Link>
@@ -40,10 +40,10 @@ export function Header({ phone }: { phone: string }) {
           <button
             type="button"
             aria-label="Mở menu"
-            className="rounded-lg p-2 text-forest-700 hover:bg-forest-50 lg:hidden"
+            className="rounded-lg p-1 text-forest-700 hover:bg-forest-50 sm:p-2 lg:hidden"
             onClick={() => setOpen((o) => !o)}
           >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg className="h-[18px] w-[18px] sm:h-6 sm:w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               {open ? <path d="M18 6 6 18M6 6l12 12" /> : <path d="M3 12h18M3 6h18M3 18h18" />}
             </svg>
           </button>

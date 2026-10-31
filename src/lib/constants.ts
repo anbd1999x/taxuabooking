@@ -85,12 +85,12 @@ export const CATEGORIES: Record<ServiceCategory, CategoryMeta> = {
 
 /** Danh sách danh mục theo thứ tự hiển thị. (Bungalow đã gộp vào Homestay.) */
 export const CATEGORY_LIST: CategoryMeta[] = [
+  CATEGORIES.COMBO,
   CATEGORIES.CABIN,
   CATEGORIES.HOMESTAY,
   CATEGORIES.MOTORBIKE,
   CATEGORIES.XEOM,
   CATEGORIES.TAXI,
-  CATEGORIES.COMBO,
 ];
 
 export function categoryBySlug(slug: string): CategoryMeta | undefined {

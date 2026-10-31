@@ -76,7 +76,7 @@ src/middleware.ts  Bảo vệ /admin + phân quyền theo vai trò
 ## 9. Lưu ý môi trường (Windows)
 - **Không đặt mật khẩu DB trên dòng lệnh** (vd `PGPASSWORD=...`) — trình phân loại auto-mode chặn. Luôn để trong `.env`, chạy Prisma.
 - **Trước khi `npm run build`**: dừng tiến trình đang giữ cổng 3000 (next dev khoá DLL Prisma gây lỗi EPERM). Pattern: tìm PID theo port 3000 rồi `Stop-Process -Id <pid> -Force`.
-- **`server-only`** không import được khi chạy script bằng `tsx` thường → script test chỉ dùng prisma thuần, không import các file có `import "server-only"`.
+- **`server-only`** không import được khi chạy script bằng `tsx` thường. Script chỉ cần DB thì dùng prisma thuần; script cần import file có `import "server-only"` (vd `src/lib/sheet-sync.ts`) thì chạy `npx tsx --tsconfig scripts/tsconfig.scripts.json <script>` (map `server-only` → stub rỗng `scripts/server-only-stub.ts`).
 - Prisma deprecation: cấu hình `prisma` trong package.json sẽ bỏ ở Prisma 7 (chưa cần đổi). `middleware.ts` Next 16 cảnh báo nên dùng `proxy` (vẫn chạy).
 
 ## 10. Triển khai

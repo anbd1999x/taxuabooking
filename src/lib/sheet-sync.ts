@@ -43,14 +43,17 @@ const HEADER_LABELS = new Set([
   "stt", "loai phong", "note", "ghi chu", "tong", "total",
 ]);
 
-/** Bỏ dấu + thường hoá + gộp khoảng trắng để so khớp tên phòng linh hoạt. */
+/**
+ * Bỏ dấu + thường hoá + bỏ ký tự không phải chữ/số để so khớp tên phòng linh hoạt
+ * ("Phòng 3 ( không view )" ≡ "Phòng 3 (không view)").
+ */
 function norm(s: string): string {
   return s
     .normalize("NFD")
     .replace(/\p{M}/gu, "") // bỏ dấu tiếng Việt (mọi combining mark)
     .replace(/đ/gi, "d")
     .toLowerCase()
-    .replace(/\s+/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
     .trim();
 }
 
@@ -273,6 +276,26 @@ function detectDateColumns(
   return dateCols.length >= 3 ? { headerRow: bestRow, dateCols } : null;
 }
 
+/** Xoay bảng (hàng↔cột) — hỗ trợ sheet kiểu ngày dọc cột A, tên phòng ngang hàng đầu. */
+function transpose(rows: string[][]): string[][] {
+  const width = Math.max(0, ...rows.map((r) => r.length));
+  const out: string[][] = [];
+  for (let c = 0; c < width; c++) out.push(rows.map((r) => r[c] ?? ""));
+  return out;
+}
+
+/** Dò hướng bảng: thử kiểu ngày-ngang trước, thất bại thì xoay bảng rồi dò lại. */
+function detectLayout(
+  rows: string[][],
+  ref: Date,
+): { rows: string[][]; headerRow: number; dateCols: { col: number; date: Date }[] } | null {
+  const direct = detectDateColumns(rows, ref);
+  if (direct) return { rows, ...direct };
+  const flipped = transpose(rows);
+  const viaTranspose = detectDateColumns(flipped, ref);
+  return viaTranspose ? { rows: flipped, ...viaTranspose } : null;
+}
+
 type RoomRef = { id: string; name: string; roomTypeId: string };
 type SheetEntry = { room: RoomRef; date: Date; status: RoomStatus };
 
@@ -356,13 +379,12 @@ export async function syncServiceSheet(serviceId: string): Promise<SheetSyncResu
     const tabRows = await Promise.all(tabs.map((t) => fetchTabCsv(id, t.gid)));
     for (let ti = 0; ti < tabs.length; ti++) {
       const tab = tabs[ti];
-      const rows = tabRows[ti];
-      const detected = rows ? detectDateColumns(rows, ref) : null;
-      if (!rows || !detected) {
+      const detected = tabRows[ti] ? detectLayout(tabRows[ti]!, ref) : null;
+      if (!detected) {
         skippedTabs.push(tab.name);
         continue;
       }
-      const { headerRow, dateCols } = detected;
+      const { rows, headerRow, dateCols } = detected;
       const firstDateCol = Math.min(...dateCols.map((d) => d.col));
       const futureCols = dateCols.filter((d) => toDateKey(d.date) >= todayKey);
       if (futureCols.length === 0) {

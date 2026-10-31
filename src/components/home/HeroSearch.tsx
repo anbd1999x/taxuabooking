@@ -14,7 +14,7 @@ const FROMS = ["Hà Nội", "Bắc Ninh", "Bắc Giang", "Thái Nguyên", "Vĩnh
 
 export function HeroSearch() {
   const router = useRouter();
-  const [slug, setSlug] = useState("homestay");
+  const [slug, setSlug] = useState(CATEGORY_LIST[0].slug);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [qty, setQty] = useState(2);
@@ -23,10 +23,11 @@ export function HeroSearch() {
   const cat = CATEGORY_LIST.find((c) => c.slug === slug)!;
   const kind = cat.availabilityKind;
   const isTrip = kind === "trip";
+  const isCombo = cat.key === "COMBO";
   const needsRange = kind === "stay" || kind === "rental";
   const showReturn = needsRange || isTrip; // xe cabin: cho chọn ngày về (tuỳ chọn)
-  const fromLabel = isTrip ? "Ngày đi" : kind === "transport" ? "Ngày" : needsRange ? "Nhận" : "Ngày";
-  const toLabel = isTrip ? "Ngày về" : "Trả";
+  const fromLabel = isTrip || isCombo ? "Ngày đi" : kind === "transport" ? "Ngày" : needsRange ? "Nhận" : "Ngày";
+  const toLabel = isTrip || isCombo ? "Ngày về" : "Trả";
   const qtyLabel = kind === "stay" ? "Số khách" : kind === "rental" ? "Số xe" : "Số khách";
 
   function submit() {
@@ -34,6 +35,7 @@ export function HeroSearch() {
     if (from) params.set("from", from);
     if (to && showReturn) params.set("to", to);
     if (isTrip && pickup && pickup !== "Hà Nội") params.set("pickup", pickup);
+    if (isCombo && qty !== 2) params.set("people", String(qty));
     const qs = params.toString();
     router.push(`/${slug}${qs ? `?${qs}` : ""}`);
   }

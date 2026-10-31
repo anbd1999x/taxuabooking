@@ -45,6 +45,11 @@
 
 html {
   scroll-behavior: smooth;
+  /* Khoá tràn ngang trên mobile (trang chỉ cuộn dọc, không lắc trái/phải).
+     clip không tạo scroll container nên sticky/position vẫn hoạt động;
+     hidden là fallback cho trình duyệt cũ. */
+  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 body {
@@ -52,6 +57,8 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 /* Hiệu ứng chuyển động nhẹ nhàng */
