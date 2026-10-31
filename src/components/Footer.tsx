@@ -57,6 +57,7 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
             <li><Link href="/tra-cuu" className="hover:text-white">Tra cứu đơn đặt</Link></li>
             <li><Link href="/kinh-nghiem" className="hover:text-white">Kinh nghiệm du lịch</Link></li>
             <li><Link href="/lien-he" className="hover:text-white">Thông tin liên hệ</Link></li>
+            <li><Link href="/chinh-sach-bao-mat" className="hover:text-white">Chính sách bảo mật</Link></li>
           </ul>
         </div>
       </div>
