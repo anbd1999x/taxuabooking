@@ -24,7 +24,7 @@ export function ActionForm({
   className?: string;
   success?: string;
 }) {
-  const [state, formAction] = useActionState<FormResult, FormData>(action, {});
+  const [state, formAction, pending] = useActionState<FormResult, FormData>(action, {});
   const last = useRef(state);
 
   useEffect(() => {
@@ -36,7 +36,10 @@ export function ActionForm({
 
   return (
     <form action={formAction} className={className}>
-      {children}
+      {/* Khoá toàn bộ input + nút khi đang gửi — chặn bấm lặp tạo bản ghi trùng. */}
+      <fieldset disabled={pending} className="contents">
+        {children}
+      </fieldset>
     </form>
   );
 }
