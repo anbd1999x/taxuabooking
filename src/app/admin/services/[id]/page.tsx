@@ -8,6 +8,7 @@ import { toDateKey, today, addDays } from "@/lib/dates";
 import { ServiceForm } from "@/components/admin/ServiceForm";
 import { MoneyInput } from "@/components/admin/MoneyInput";
 import { ImageUploader } from "@/components/admin/ImageUploader";
+import { DriveImport } from "@/components/admin/DriveImport";
 import { ServiceTabNav } from "@/components/admin/ServiceTabNav";
 import { CabinScheduleEditor } from "@/components/admin/CabinScheduleEditor";
 import { ActionForm } from "@/components/admin/ActionForm";
@@ -26,6 +27,7 @@ import {
   deleteRoomType,
   upsertRoom,
   deleteRoom,
+  duplicateRoom,
   deleteRoomImage,
   setRoomImageCover,
   deleteRoomPhoto,
@@ -176,7 +178,10 @@ export default async function EditServicePage({
                     <div className="text-[17px] font-extrabold text-ink">Hình ảnh</div>
                     <div className="text-[13px] text-gray-500">Ảnh đầu tiên là ảnh bìa.</div>
                   </div>
-                  <ImageUploader serviceId={service.id} />
+                  <div className="flex flex-wrap items-center justify-end gap-1.5">
+                    <ImageUploader serviceId={service.id} />
+                    <DriveImport serviceId={service.id} />
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {service.images.map((img) => (
@@ -414,7 +419,10 @@ export default async function EditServicePage({
                     <div className="text-[17px] font-extrabold text-ink">Ảnh homestay</div>
                     <div className="text-[13px] text-gray-500">Toàn cảnh, khu chung, view. Ảnh đầu là ảnh bìa.</div>
                   </div>
-                  <ImageUploader serviceId={service.id} />
+                  <div className="flex flex-wrap items-center justify-end gap-1.5">
+                    <ImageUploader serviceId={service.id} />
+                    <DriveImport serviceId={service.id} />
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {service.images.map((img) => (
@@ -484,7 +492,7 @@ export default async function EditServicePage({
                         <div className="mt-3 border-t border-gray-100 pt-3">
                           <div className="mb-2 flex items-center justify-between">
                             <span className="text-xs font-medium text-gray-500">Ảnh / video hạng phòng ({rt.images.length})</span>
-                            <ImageUploader roomTypeId={rt.id} label="📤 Thêm ảnh / video" compact accept="image/*,video/*" />
+                            <div className="flex flex-wrap items-center justify-end gap-1.5"><ImageUploader roomTypeId={rt.id} label="📤 Thêm ảnh / video" compact accept="image/*,video/*" /><DriveImport roomTypeId={rt.id} compact /></div>
                           </div>
                           {rt.images.length > 0 && (
                             <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
@@ -591,13 +599,14 @@ export default async function EditServicePage({
                                       <RoomConDayPrices room={room} />
                                       <div className="flex gap-1 sm:col-span-12">
                                         <button className="rounded-lg bg-forest-600 px-3 py-2 text-sm text-white">Lưu</button>
+                                        <CopyBtn action={duplicateRoom} />
                                         <DeleteBtn action={deleteRoom} />
                                       </div>
                                     </ActionForm>
                                     <div className="mt-2 rounded-xl border border-gray-200 bg-white p-2">
                                       <div className="mb-2 flex items-center justify-between gap-2">
                                         <span className="text-xs font-medium text-gray-500">Ảnh của phòng <b className="text-forest-800">{room.name}</b> ({room.images.length})</span>
-                                        <ImageUploader roomId={room.id} label="📤 Thêm ảnh / video cho phòng này" compact accept="image/*,video/*" />
+                                        <div className="flex flex-wrap items-center justify-end gap-1.5"><ImageUploader roomId={room.id} label="📤 Thêm ảnh / video cho phòng này" compact accept="image/*,video/*" /><DriveImport roomId={room.id} compact /></div>
                                       </div>
                                       {room.images.length > 0 && (
                                         <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
@@ -792,7 +801,10 @@ export default async function EditServicePage({
       {/* Hình ảnh */}
       <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
         <h2 className="mb-4 text-lg font-semibold text-ink">Hình ảnh</h2>
-        <ImageUploader serviceId={service.id} />
+        <div className="flex flex-wrap items-center gap-1.5">
+          <ImageUploader serviceId={service.id} />
+          <DriveImport serviceId={service.id} />
+        </div>
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {service.images.map((img) => (
             <div key={img.id} className="group relative overflow-hidden rounded-xl ring-1 ring-black/5">
@@ -845,7 +857,7 @@ export default async function EditServicePage({
                 <div className="mt-3 border-t border-gray-200 pt-3">
                   <div className="mb-2 flex items-center justify-between">
                     <span className="text-xs font-medium text-gray-500">Ảnh / video hạng phòng ({r.images.length})</span>
-                    <ImageUploader roomTypeId={r.id} label="📤 Thêm ảnh / video" compact accept="image/*,video/*" />
+                    <div className="flex flex-wrap items-center justify-end gap-1.5"><ImageUploader roomTypeId={r.id} label="📤 Thêm ảnh / video" compact accept="image/*,video/*" /><DriveImport roomTypeId={r.id} compact /></div>
                   </div>
                   {r.images.length > 0 && (
                     <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
@@ -930,6 +942,7 @@ export default async function EditServicePage({
                         <RoomConDayPrices room={room} />
                         <div className="flex gap-1 sm:col-span-12">
                           <button className="rounded-lg bg-forest-600 px-3 py-2 text-sm text-white">Lưu</button>
+                          <CopyBtn action={duplicateRoom} />
                           <DeleteBtn action={deleteRoom} />
                         </div>
                       </ActionForm>
@@ -940,7 +953,7 @@ export default async function EditServicePage({
                           <span className="text-xs font-medium text-gray-500">
                             Ảnh của phòng <b className="text-forest-800">{room.name}</b> ({room.images.length})
                           </span>
-                          <ImageUploader roomId={room.id} label="📤 Thêm ảnh / video cho phòng này" compact accept="image/*,video/*" />
+                          <div className="flex flex-wrap items-center justify-end gap-1.5"><ImageUploader roomId={room.id} label="📤 Thêm ảnh / video cho phòng này" compact accept="image/*,video/*" /><DriveImport roomId={room.id} compact /></div>
                         </div>
                         {room.images.length > 0 && (
                           <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
@@ -1431,6 +1444,20 @@ function CabinRouteBlock({
         </ActionForm>
       </div>
     </div>
+  );
+}
+
+function CopyBtn({ action }: { action: (fd: FormData) => void }) {
+  // id/serviceId lấy từ input ẩn của form cha; formAction đổi action sang nhân bản.
+  return (
+    <button
+      formAction={action}
+      className="rounded-lg border border-sky-200 px-3 py-2 text-sm text-sky-700 hover:bg-sky-50"
+      formNoValidate
+      title="Tạo một phòng mới giống hệt phòng này (kèm ảnh)"
+    >
+      Nhân bản
+    </button>
   );
 }
 

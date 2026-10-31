@@ -489,6 +489,49 @@ export async function upsertRoom(_prev: ActionState, formData: FormData): Promis
   return { ok: true, message: id ? "Đã lưu phòng" : "Đã thêm phòng" };
 }
 
+/** Nhân bản một phòng: copy toàn bộ giá/sức chứa/tiện ích + ảnh (dùng chung file). */
+export async function duplicateRoom(formData: FormData): Promise<void> {
+  const id = s(formData.get("id"));
+  const serviceId = s(formData.get("serviceId"));
+  if (!id) return;
+  const src = await prisma.room.findUnique({ where: { id }, include: { images: true } });
+  if (!src) return;
+  const siblings = await prisma.room.aggregate({
+    where: { roomTypeId: src.roomTypeId },
+    _max: { sortOrder: true },
+  });
+  await prisma.room.create({
+    data: {
+      roomTypeId: src.roomTypeId,
+      name: `${src.name} (bản sao)`,
+      amenities: src.amenities,
+      description: src.description,
+      capacity: src.capacity,
+      listPrice: src.listPrice,
+      salePrice: src.salePrice,
+      priceMon: src.priceMon,
+      priceTue: src.priceTue,
+      priceWed: src.priceWed,
+      priceThu: src.priceThu,
+      priceFri: src.priceFri,
+      priceSat: src.priceSat,
+      priceSun: src.priceSun,
+      sortOrder: (siblings._max.sortOrder ?? 0) + 1,
+      images: {
+        create: src.images.map((img) => ({
+          url: img.url,
+          alt: img.alt,
+          sortOrder: img.sortOrder,
+          isCover: img.isCover,
+        })),
+      },
+    },
+  });
+  await resyncRoomTypeWindow(src.roomTypeId);
+  if (serviceId) revalidatePath(`/admin/services/${serviceId}`);
+  revalidatePath("/admin/availability");
+}
+
 export async function deleteRoom(formData: FormData): Promise<void> {
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
