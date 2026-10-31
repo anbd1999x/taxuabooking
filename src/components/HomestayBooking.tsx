@@ -14,6 +14,12 @@ export interface HomestayRoom {
   typeName: string;
   name: string;
   capacity: number;
+  /** Sức chứa tối đa (nhận thêm kèm phụ thu). null = bằng capacity. */
+  maxCapacity: number | null;
+  /** Phụ thu mỗi người vượt chuẩn / đêm (đ). null = không phụ thu. */
+  extraFee: number | null;
+  earlyFee: number | null; // phụ thu check-in sớm
+  lateFee: number | null; // phụ thu check-out muộn
   amenities: string[];
   media: HomestayMedia[];
   base: number; // giá hiệu lực (sale ?? list)
@@ -276,8 +282,12 @@ export function HomestayBooking({
 
   const dateQS = ci && co ? `?from=${ci}&to=${co}` : "";
   const sel = roomView.find((v) => v.r.id === selected && v.free) ?? null;
-  const total = sel ? sel.stayPrice : 0;
-  const over = sel ? guests > sel.r.capacity : false;
+  // Sức chứa tối đa (nhận thêm người kèm phụ thu) & phụ thu người thêm.
+  const selMax = sel ? Math.max(sel.r.capacity, sel.r.maxCapacity ?? sel.r.capacity) : 0;
+  const extraGuests = sel ? Math.max(0, Math.min(guests, selMax) - sel.r.capacity) : 0;
+  const extraCost = sel && extraGuests > 0 && sel.r.extraFee ? extraGuests * sel.r.extraFee * nN : 0;
+  const total = sel ? sel.stayPrice + extraCost : 0;
+  const over = sel ? guests > selMax : false;
   const phoneOk = /^0\d{9}$/.test(cphone.replace(/\s/g, ""));
   const ready = nN > 0 && Boolean(sel) && !over;
 
@@ -490,7 +500,11 @@ export function HomestayBooking({
                         <div className="min-w-0">
                           <div className="text-[11px] font-semibold uppercase tracking-wide text-forest-700">{v.r.typeName}</div>
                           <div className="truncate text-lg font-extrabold text-ink">{v.r.name}</div>
-                          <div className="mt-0.5 text-xs text-gray-500">Tối đa {v.r.capacity} người</div>
+                          <div className="mt-0.5 text-xs text-gray-500">
+                            {v.r.maxCapacity && v.r.maxCapacity > v.r.capacity
+                              ? `${v.r.capacity} khách · tối đa ${v.r.maxCapacity} (phụ thu)`
+                              : `Tối đa ${v.r.capacity} người`}
+                          </div>
                         </div>
                         <StatusChip tone={v.tone} label={v.status} />
                       </div>
@@ -506,6 +520,18 @@ export function HomestayBooking({
                         <span>Cuối tuần <b className="text-ink">{fmt(v.weP)}</b></span>
                         {v.r.hasSale && <span className="text-gray-400 line-through">{fmt(v.r.listPrice)}</span>}
                       </div>
+                      {(v.r.extraFee || v.r.earlyFee || v.r.lateFee) && (
+                        <div className="text-xs leading-relaxed text-gray-400">
+                          Phụ thu:{" "}
+                          {[
+                            v.r.extraFee ? `người thêm ${fmt(v.r.extraFee)}/đêm` : null,
+                            v.r.earlyFee ? `check-in sớm ${fmt(v.r.earlyFee)}` : null,
+                            v.r.lateFee ? `check-out muộn ${fmt(v.r.lateFee)}` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </div>
+                      )}
                       <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-3">
                         <div>
                           <div className="text-xs text-gray-500">{nN ? `${nN} đêm` : "Mỗi đêm từ"}</div>
@@ -517,7 +543,8 @@ export function HomestayBooking({
                           onClick={() => {
                             setSelected(v.r.id);
                             setResult(null);
-                            if (guests > v.r.capacity) setGuests(v.r.capacity);
+                            const mx = Math.max(v.r.capacity, v.r.maxCapacity ?? v.r.capacity);
+                            if (guests > mx) setGuests(mx);
                           }}
                           className={[
                             "rounded-xl px-5 py-2.5 text-sm font-bold transition",
@@ -684,7 +711,13 @@ export function HomestayBooking({
                 <div>
                   <div className="text-sm font-bold text-ink">Số khách</div>
                   <div className={`text-xs ${over ? "text-red-600" : "text-gray-500"}`}>
-                    {sel ? (over ? `Vượt sức chứa (${sel.r.capacity} người)` : `Sức chứa ${sel.r.capacity} người`) : "Chọn phòng để biết sức chứa"}
+                    {sel
+                      ? over
+                        ? `Vượt tối đa ${selMax} người`
+                        : extraGuests > 0
+                          ? `${extraGuests} người vượt chuẩn${sel.r.extraFee ? ` · phụ thu ${fmt(sel.r.extraFee)}/người/đêm` : ""}`
+                          : `Sức chứa ${sel.r.capacity}${selMax > sel.r.capacity ? ` · tối đa ${selMax}` : ""} người`
+                      : "Chọn phòng để biết sức chứa"}
                   </div>
                 </div>
                 <div className="flex items-center gap-2.5">
@@ -701,6 +734,12 @@ export function HomestayBooking({
                     <span className="min-w-0 text-gray-600">{sel.r.typeName} · {sel.r.name} · {nN} đêm</span>
                     <span className="whitespace-nowrap font-bold text-ink">{fmt(sel.stayPrice)}</span>
                   </div>
+                  {extraCost > 0 && (
+                    <div className="flex justify-between gap-2 text-[13px]">
+                      <span className="min-w-0 text-gray-600">Phụ thu {extraGuests} người thêm × {nN} đêm</span>
+                      <span className="whitespace-nowrap font-bold text-ink">{fmt(extraCost)}</span>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="rounded-xl border border-dashed border-gray-300 p-3.5 text-[13px] leading-relaxed text-gray-500">

@@ -601,6 +601,11 @@ export async function upsertRoom(_prev: ActionState, formData: FormData): Promis
     sortOrder: num(formData.get("sortOrder")) ?? 0,
     // Giá & sức chứa ở cấp phòng con.
     capacity: num(formData.get("capacity")) ?? 2,
+    // Sức chứa tối đa + phụ thu (0/trống = không có).
+    maxCapacity: num(formData.get("maxCapacity")) || null,
+    extraPersonFee: num(formData.get("extraPersonFee")) || null,
+    earlyCheckinFee: num(formData.get("earlyCheckinFee")) || null,
+    lateCheckoutFee: num(formData.get("lateCheckoutFee")) || null,
     listPrice: num(formData.get("listPrice")) ?? 0,
     // 0 = không giảm giá → lưu null (0 thật sẽ làm giá hiệu lực = 0đ).
     salePrice: (num(formData.get("salePrice")) || null) as number | null,
@@ -667,6 +672,10 @@ export async function duplicateRoom(formData: FormData): Promise<void> {
       amenities: src.amenities,
       description: src.description,
       capacity: src.capacity,
+      maxCapacity: src.maxCapacity,
+      extraPersonFee: src.extraPersonFee,
+      earlyCheckinFee: src.earlyCheckinFee,
+      lateCheckoutFee: src.lateCheckoutFee,
       listPrice: src.listPrice,
       salePrice: src.salePrice,
       priceMon: src.priceMon,

@@ -108,6 +108,10 @@ export default async function ServiceDetailPage({
         typeName: rt.name,
         name: r.name,
         capacity: r.capacity,
+        maxCapacity: r.maxCapacity,
+        extraFee: toNumber(r.extraPersonFee),
+        earlyFee: toNumber(r.earlyCheckinFee),
+        lateFee: toNumber(r.lateCheckoutFee),
         amenities: (r.amenities ?? "").split(",").map((a) => a.trim()).filter(Boolean),
         media: r.images.map((i) => ({
           url: i.url,

@@ -109,9 +109,27 @@ export default async function RoomDetailPage({
             </div>
             <div>
               <p className="text-xs text-gray-500">Sức chứa</p>
-              <p className="text-xl font-bold text-ink">{room.capacity} người</p>
+              <p className="text-xl font-bold text-ink">
+                {room.capacity} người
+                {room.maxCapacity && room.maxCapacity > room.capacity && (
+                  <span className="text-sm font-medium text-gray-500"> · tối đa {room.maxCapacity}</span>
+                )}
+              </p>
             </div>
           </div>
+
+          {(room.extraPersonFee || room.earlyCheckinFee || room.lateCheckoutFee) && (
+            <div className="mt-3 rounded-2xl bg-sunset-50 p-4 text-sm leading-relaxed text-gray-700 ring-1 ring-sunset-100">
+              <p className="font-semibold text-sunset-700">Phụ thu (thanh toán tại chỗ)</p>
+              <ul className="mt-1 list-inside list-disc text-gray-600">
+                {room.extraPersonFee && (
+                  <li>Thêm người (vượt {room.capacity} khách): {formatPrice(room.extraPersonFee)}/người/đêm</li>
+                )}
+                {room.earlyCheckinFee && <li>Check-in sớm: {formatPrice(room.earlyCheckinFee)}</li>}
+                {room.lateCheckoutFee && <li>Check-out muộn: {formatPrice(room.lateCheckoutFee)}</li>}
+              </ul>
+            </div>
+          )}
 
           {amenities.length > 0 && (
             <section className="mt-6">
