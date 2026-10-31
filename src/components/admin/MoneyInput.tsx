@@ -26,6 +26,18 @@ export function MoneyInput({
   const [raw, setRaw] = useState(() =>
     defaultValue == null || defaultValue === "" ? "" : String(defaultValue).replace(/\D/g, ""),
   );
+
+  // Ô hiển thị KHÔNG được React điều khiển (chỉ defaultValue): format trực tiếp
+  // trong onInput. Nếu để value={...} thì bàn phím điện thoại (IME) chèn lại cả
+  // chuỗi đang gõ mỗi lần React ghi đè → số bị nhân đôi (vd 300000 → 33.300.000).
+  function onInput(e: React.FormEvent<HTMLInputElement>) {
+    const el = e.currentTarget;
+    const digits = el.value.replace(/\D/g, "").slice(0, 12);
+    const shown = group(digits);
+    if (el.value !== shown) el.value = shown; // ghi đồng bộ, con trỏ về cuối
+    setRaw(digits);
+  }
+
   return (
     <>
       <input type="hidden" name={name} value={raw} />
@@ -33,8 +45,8 @@ export function MoneyInput({
         type="text"
         inputMode="numeric"
         autoComplete="off"
-        value={group(raw)}
-        onChange={(e) => setRaw(e.target.value.replace(/\D/g, "").slice(0, 12))}
+        defaultValue={group(raw)}
+        onInput={onInput}
         placeholder={placeholder}
         className={className}
       />
