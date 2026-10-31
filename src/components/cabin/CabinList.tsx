@@ -421,7 +421,8 @@ export function CabinList({
             <div className="mt-1 text-[15px] text-gray-500">{searched ? "Thử đổi ngày, hoặc gọi 0397 943 155 để được hỗ trợ." : "Vui lòng quay lại sau."}</div>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,330px),1fr))] sm:gap-[22px]">
+          // Thẻ nhà xe chứa sơ đồ tuyến + nút đặt → mobile để 1 cột (2 cột bị vỡ chữ).
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,330px),1fr))] sm:gap-[22px]">
             {sorted.map((op, j) => {
               const sm = ST[op.state];
               const full = op.state === "full";
@@ -443,7 +444,7 @@ export function CabinList({
                 >
                   <div className="relative aspect-[16/10] overflow-hidden bg-gray-100">
                     {op.coverImage ? (
-                      <Image src={op.coverImage} alt={op.title} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" />
+                      <Image src={op.coverImage} alt={op.title} fill sizes="(max-width:640px) 100vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" />
                     ) : (
                       <div className="flex h-full items-center justify-center text-4xl">🚐</div>
                     )}
