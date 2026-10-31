@@ -512,11 +512,12 @@ model CabinRouteStop {
 // ---- Khách hàng (đăng nhập để đánh giá) ----
 model CustomerUser {
   id           String   @id @default(cuid())
-  phone        String   @unique
+  phone        String?  @unique // tài khoản Google/Facebook có thể không có SĐT
+  email        String?  @unique // lấy từ Google/Facebook (nếu có)
   passwordHash String? // null nếu đăng nhập bằng Google/Facebook
   name         String
   provider     String   @default("phone") // phone | google | facebook
-  providerId   String? // id từ nhà cung cấp OAuth (sau này)
+  providerId   String? // id từ nhà cung cấp OAuth
   createdAt    DateTime @default(now())
   reviews      Review[]
 

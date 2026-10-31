@@ -6,7 +6,15 @@ import { loginAction, registerAction, type AuthState } from "@/app/(site)/tai-kh
 const field =
   "w-full rounded-xl border border-gray-200 px-3.5 py-3 text-[15px] outline-none focus:border-forest-500 focus:ring-2 focus:ring-forest-200";
 
-export function CustomerAuthForms({ next }: { next: string }) {
+export function CustomerAuthForms({
+  next,
+  googleEnabled = false,
+  facebookEnabled = false,
+}: {
+  next: string;
+  googleEnabled?: boolean;
+  facebookEnabled?: boolean;
+}) {
   const [tab, setTab] = useState<"login" | "register">("login");
   const [loginState, login, lp] = useActionState<AuthState, FormData>(loginAction, {});
   const [regState, register, rp] = useActionState<AuthState, FormData>(registerAction, {});
@@ -54,14 +62,28 @@ export function CustomerAuthForms({ next }: { next: string }) {
         <span className="h-px flex-1 bg-gray-200" /> hoặc <span className="h-px flex-1 bg-gray-200" />
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2">
-        <button type="button" disabled title="Đang cập nhật" className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-400">
-          <span>G</span> Google
-        </button>
-        <button type="button" disabled title="Đang cập nhật" className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-400">
-          <span>f</span> Facebook
-        </button>
+        {googleEnabled ? (
+          <a href={`/api/auth/google?next=${encodeURIComponent(next)}`} className="flex items-center justify-center gap-2 rounded-xl border border-gray-300 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+            <span className="font-bold text-[#ea4335]">G</span> Google
+          </a>
+        ) : (
+          <button type="button" disabled title="Đang cập nhật" className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-400">
+            <span>G</span> Google
+          </button>
+        )}
+        {facebookEnabled ? (
+          <a href={`/api/auth/facebook?next=${encodeURIComponent(next)}`} className="flex items-center justify-center gap-2 rounded-xl border border-[#1877f2] py-2.5 text-sm font-semibold text-[#1877f2] hover:bg-[#1877f2]/5">
+            <span className="font-bold">f</span> Facebook
+          </a>
+        ) : (
+          <button type="button" disabled title="Đang cập nhật" className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-400">
+            <span>f</span> Facebook
+          </button>
+        )}
       </div>
-      <p className="mt-2 text-center text-xs text-gray-400">Đăng nhập Google/Facebook sẽ bật sau khi cấu hình.</p>
+      {!googleEnabled && !facebookEnabled && (
+        <p className="mt-2 text-center text-xs text-gray-400">Đăng nhập Google/Facebook sẽ bật sau khi cấu hình.</p>
+      )}
     </div>
   );
 }

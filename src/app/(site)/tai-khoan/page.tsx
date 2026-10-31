@@ -22,7 +22,10 @@ export default async function AccountPage({
 }) {
   const sp = await searchParams;
   const next = str(sp.next) || "/";
+  const err = str(sp.err);
   const customer = await getCustomer();
+  const googleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID);
+  const facebookEnabled = Boolean(process.env.FACEBOOK_APP_ID);
 
   return (
     <div className="container-page py-10">
@@ -53,7 +56,14 @@ export default async function AccountPage({
             </div>
           </div>
         ) : (
-          <CustomerAuthForms next={next} />
+          <>
+            {err && (
+              <p className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-600">
+                Đăng nhập mạng xã hội chưa thành công, vui lòng thử lại hoặc dùng số điện thoại.
+              </p>
+            )}
+            <CustomerAuthForms next={next} googleEnabled={googleEnabled} facebookEnabled={facebookEnabled} />
+          </>
         )}
       </div>
     </div>

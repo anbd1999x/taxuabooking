@@ -68,7 +68,7 @@ export async function registerCustomer(name: string, phoneRaw: string, password:
   if (existing) return { error: "Số điện thoại đã đăng ký — hãy đăng nhập." };
   const passwordHash = await bcrypt.hash(password, 10);
   const user = await prisma.customerUser.create({ data: { name: name.trim(), phone, passwordHash, provider: "phone" } });
-  await setCookie({ id: user.id, name: user.name, phone: user.phone });
+  await setCookie({ id: user.id, name: user.name, phone: user.phone ?? "" });
   return {};
 }
 
@@ -78,6 +78,33 @@ export async function loginCustomer(phoneRaw: string, password: string): Promise
   if (!user || !user.passwordHash) return { error: "Sai số điện thoại hoặc mật khẩu." };
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) return { error: "Sai số điện thoại hoặc mật khẩu." };
-  await setCookie({ id: user.id, name: user.name, phone: user.phone });
+  await setCookie({ id: user.id, name: user.name, phone: user.phone ?? "" });
   return {};
+}
+
+/** Đăng nhập/đăng ký qua Google/Facebook: khớp theo providerId (hoặc email), tạo mới nếu chưa có. */
+export async function loginWithOAuth(input: {
+  provider: "google" | "facebook";
+  providerId: string;
+  email: string | null;
+  name: string;
+}): Promise<void> {
+  let user = await prisma.customerUser.findFirst({
+    where: { provider: input.provider, providerId: input.providerId },
+  });
+  if (!user && input.email) {
+    const byEmail = await prisma.customerUser.findUnique({ where: { email: input.email } });
+    if (byEmail) {
+      user = await prisma.customerUser.update({
+        where: { id: byEmail.id },
+        data: { provider: input.provider, providerId: input.providerId, name: byEmail.name || input.name },
+      });
+    }
+  }
+  if (!user) {
+    user = await prisma.customerUser.create({
+      data: { provider: input.provider, providerId: input.providerId, email: input.email, name: input.name || "Khách" },
+    });
+  }
+  await setCookie({ id: user.id, name: user.name, phone: user.phone ?? "" });
 }
