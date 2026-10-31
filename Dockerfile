@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1
 # ---- Base ----
 FROM node:22-alpine AS base
-RUN apk add --no-cache openssl libc6-compat
+# libheif-tools + libde265: giải mã HEIC nén HEVC (ảnh iPhone) qua heif-convert.
+RUN apk add --no-cache openssl libc6-compat libheif-tools libde265
 WORKDIR /app
 
 # ---- Dependencies ----
