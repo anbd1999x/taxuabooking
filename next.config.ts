@@ -5,8 +5,11 @@ const nextConfig: NextConfig = {
   output: "standalone", // tối ưu cho Docker (chỉ copy file cần thiết)
   serverExternalPackages: ["sharp"], // sharp là native, không bundle
   images: {
+    // Không tối ưu ảnh phía server: ảnh /uploads do nginx phục vụ tĩnh, còn ảnh
+    // Unsplash tải thẳng từ trình duyệt (container không có DNS ra ngoài cho bộ
+    // tối ưu). next/image sẽ phát URL gốc thay vì đi qua /_next/image.
+    unoptimized: true,
     remotePatterns: [
-      // Cho phép ảnh seed từ Unsplash trong môi trường dev.
       { protocol: "https", hostname: "images.unsplash.com" },
     ],
   },
