@@ -6,8 +6,10 @@
 	email {$ACME_EMAIL}
 }
 
-# Domain chính + www — HTTPS tự động. HTTP (80) tự chuyển hướng sang HTTPS.
-{$SITE_DOMAIN}, www.{$SITE_DOMAIN} {
+# Các domain phục vụ (cách nhau bằng dấu cách) — HTTPS tự động, HTTP(80) tự
+# chuyển hướng sang HTTPS. Mỗi domain Caddy cấp chứng chỉ độc lập; domain nào
+# chưa trỏ về server thì bỏ qua, không ảnh hưởng domain đã trỏ đúng.
+{$SITE_DOMAINS} {
 	encode zstd gzip
 	reverse_proxy web:80 {
 		header_up Host {host}

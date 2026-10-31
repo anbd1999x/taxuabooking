@@ -71,7 +71,8 @@ services:
       - "443:443"
       - "443:443/udp"
     environment:
-      SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
+      # Danh sách domain phục vụ, cách nhau bằng dấu cách (xem .env → SITE_DOMAINS).
+      SITE_DOMAINS: ${SITE_DOMAINS:-localhost}
       SERVER_IP: ${SERVER_IP:-127.0.0.1}
       ACME_EMAIL: ${ACME_EMAIL:-}
     volumes:
