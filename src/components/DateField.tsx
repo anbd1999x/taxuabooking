@@ -20,6 +20,7 @@ export function DateField({
   displayClassName = "",
   placeholder = "dd/mm/yyyy",
   ariaLabel,
+  required,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -29,6 +30,7 @@ export function DateField({
   displayClassName?: string;
   placeholder?: string;
   ariaLabel?: string;
+  required?: boolean;
 }) {
   const display = formatDMY(value);
   return (
@@ -38,6 +40,7 @@ export function DateField({
         value={value}
         min={min}
         max={max}
+        required={required}
         aria-label={ariaLabel}
         onChange={(e) => {
           const el = e.currentTarget;
@@ -54,7 +57,7 @@ export function DateField({
       />
       <span
         aria-hidden
-        className={`pointer-events-none absolute inset-0 flex items-center ${display ? "" : "text-gray-400"} ${displayClassName}`}
+        className={`pointer-events-none absolute inset-0 flex items-center ${displayClassName} ${display ? "" : "!text-gray-400"}`}
       >
         {display || placeholder}
       </span>

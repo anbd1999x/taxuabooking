@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { DateField } from "@/components/DateField";
 
 export interface XeomRouteCard {
   id: string;
@@ -310,7 +311,7 @@ export function XeomList({ routes }: { routes: XeomRouteCard[] }) {
             </label>
             <label className={cell}>
               <span className="text-xs font-semibold text-gray-500">Ngày</span>
-              <input type="date" value={day} onChange={(e) => setDay(e.target.value)} className={inp} />
+              <DateField value={day} onChange={setDay} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Ngày" />
             </label>
             <label className={cell}>
               <span className="text-xs font-semibold text-gray-500">Giờ đón</span>

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CATEGORY_LIST } from "@/lib/constants";
+import { DateField } from "@/components/DateField";
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -45,12 +46,12 @@ export function SearchBar() {
 
       <label className={`${cell} lg:border-l lg:border-gray-100`}>
         <span className={label}>Nhận phòng</span>
-        <input type="date" value={from} min={todayKey()} onChange={(e) => setFrom(e.target.value)} className={control} />
+        <DateField value={from} min={todayKey()} onChange={setFrom} className={control} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Nhận phòng" />
       </label>
 
       <label className={`${cell} lg:border-l lg:border-gray-100`}>
         <span className={label}>Trả phòng</span>
-        <input type="date" value={to} min={from || todayKey()} onChange={(e) => setTo(e.target.value)} className={control} />
+        <DateField value={to} min={from || todayKey()} onChange={setTo} className={control} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Trả phòng" />
       </label>
 
       <label className={`${cell} lg:border-l lg:border-gray-100`}>

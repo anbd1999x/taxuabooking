@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ServiceCategory, AvailabilityStatus } from "@prisma/client";
+import { DateField } from "@/components/DateField";
 import { AVAILABILITY_META } from "@/lib/constants";
 import type { AvailabilityKind } from "@/lib/constants";
 import { Badge } from "./ui/Badge";
@@ -220,24 +221,26 @@ export function BookingPanel({
           <span className="text-xs font-medium text-gray-500">
             {kind === "trip" ? "Ngày đi" : needsRange ? "Nhận" : "Ngày dùng"}
           </span>
-          <input
-            type="date"
+          <DateField
             value={from}
             min={todayKey()}
-            onChange={(e) => { setFrom(e.target.value); setAvail(null); }}
+            onChange={(v) => { setFrom(v); setAvail(null); }}
             className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-200"
+            displayClassName="px-3 text-sm text-gray-900"
+            ariaLabel={kind === "trip" ? "Ngày đi" : needsRange ? "Nhận" : "Ngày dùng"}
             required
           />
         </label>
         {needsRange && (
           <label className="flex flex-col gap-1">
             <span className="text-xs font-medium text-gray-500">Trả</span>
-            <input
-              type="date"
+            <DateField
               value={to}
               min={from || todayKey()}
-              onChange={(e) => { setTo(e.target.value); setAvail(null); }}
+              onChange={(v) => { setTo(v); setAvail(null); }}
               className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-200"
+              displayClassName="px-3 text-sm text-gray-900"
+              ariaLabel="Trả"
             />
           </label>
         )}
