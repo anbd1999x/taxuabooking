@@ -253,10 +253,12 @@ export default async function AvailabilityPage({
                   </div>
                 )}
               </div>
+              {/* key theo dịch vụ+tháng: buộc remount khi đổi tháng để state trong
+                  component không giữ dữ liệu tháng cũ (lưới tháng mới từng hiện trống sai). */}
               {view === "overview" ? (
-                <MonthOverview groups={groups} days={days} statuses={initial} prices={priceMap} monthLabel={`Tháng ${m}/${y}`} todayKey={todayInMonth} />
+                <MonthOverview key={`${selected.id}|${month}`} groups={groups} days={days} statuses={initial} prices={priceMap} monthLabel={`Tháng ${m}/${y}`} todayKey={todayInMonth} />
               ) : (
-                <RoomGrid groups={groups} days={days} initial={initial} />
+                <RoomGrid key={`${selected.id}|${month}`} groups={groups} days={days} initial={initial} />
               )}
             </>
           )}
@@ -282,6 +284,7 @@ export default async function AvailabilityPage({
         <div className="mt-5">
           <h2 className="mb-3 text-lg font-bold text-ink">{selected.title}</h2>
           <CabinMonth
+            key={`${selected.id}|${month}`}
             serviceId={selected.id}
             month={month}
             monthLabel={`Tháng ${m}/${y}`}
