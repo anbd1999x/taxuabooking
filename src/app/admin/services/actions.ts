@@ -602,6 +602,32 @@ export async function duplicateRoom(formData: FormData): Promise<void> {
   revalidatePath("/admin/availability");
 }
 
+/** Đổi vị trí phòng trong cùng hạng phòng (nút ↑ ↓ ở form phòng). */
+async function moveRoomDir(formData: FormData, dir: "left" | "right"): Promise<void> {
+  const id = s(formData.get("id"));
+  const serviceId = s(formData.get("serviceId"));
+  if (!id) return;
+  const room = await prisma.room.findUnique({ where: { id }, select: { roomTypeId: true } });
+  if (!room) return;
+  const rows = await prisma.room.findMany({
+    where: { roomTypeId: room.roomTypeId },
+    orderBy: { sortOrder: "asc" },
+    select: { id: true, sortOrder: true },
+  });
+  await swapOrder(rows, id, dir, (iid, so) =>
+    prisma.room.update({ where: { id: iid }, data: { sortOrder: so } }),
+  );
+  if (serviceId) revalidatePath(`/admin/services/${serviceId}`);
+}
+
+export async function moveRoomUp(formData: FormData): Promise<void> {
+  await moveRoomDir(formData, "left");
+}
+
+export async function moveRoomDown(formData: FormData): Promise<void> {
+  await moveRoomDir(formData, "right");
+}
+
 export async function deleteRoom(formData: FormData): Promise<void> {
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));

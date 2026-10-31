@@ -28,6 +28,8 @@ import {
   upsertRoom,
   deleteRoom,
   duplicateRoom,
+  moveRoomUp,
+  moveRoomDown,
   moveServiceImage,
   moveRoomTypeImage,
   moveRoomImage,
@@ -605,6 +607,8 @@ export default async function EditServicePage({
                                       <RoomConDayPrices room={room} />
                                       <div className="flex gap-1 sm:col-span-12">
                                         <button className="rounded-lg bg-forest-600 px-3 py-2 text-sm text-white">Lưu</button>
+                                        <OrderBtn action={moveRoomUp} label="↑" title="Chuyển phòng lên trên" />
+                                        <OrderBtn action={moveRoomDown} label="↓" title="Chuyển phòng xuống dưới" />
                                         <CopyBtn action={duplicateRoom} />
                                         <DeleteBtn action={deleteRoom} />
                                       </div>
@@ -951,6 +955,8 @@ export default async function EditServicePage({
                         <RoomConDayPrices room={room} />
                         <div className="flex gap-1 sm:col-span-12">
                           <button className="rounded-lg bg-forest-600 px-3 py-2 text-sm text-white">Lưu</button>
+                          <OrderBtn action={moveRoomUp} label="↑" title="Chuyển phòng lên trên" />
+                          <OrderBtn action={moveRoomDown} label="↓" title="Chuyển phòng xuống dưới" />
                           <CopyBtn action={duplicateRoom} />
                           <DeleteBtn action={deleteRoom} />
                         </div>
@@ -1482,6 +1488,20 @@ function MoveBtns({
         </form>
       ))}
     </div>
+  );
+}
+
+/** Nút ↑/↓ đổi thứ tự phòng — dùng formAction trên form phòng hiện có (không lồng form). */
+function OrderBtn({ action, label, title }: { action: (fd: FormData) => void; label: string; title: string }) {
+  return (
+    <button
+      formAction={action}
+      formNoValidate
+      title={title}
+      className="rounded-lg border border-gray-200 px-2.5 py-2 text-sm text-gray-600 hover:bg-gray-50"
+    >
+      {label}
+    </button>
   );
 }
 
