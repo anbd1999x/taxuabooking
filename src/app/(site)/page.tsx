@@ -3,7 +3,6 @@ import Image from "next/image";
 import { HeroSearch } from "@/components/home/HeroSearch";
 import { HomeCabin } from "@/components/home/HomeCabin";
 import { FeaturedGrid } from "@/components/home/FeaturedGrid";
-import { CATEGORY_LIST } from "@/lib/constants";
 import {
   getHomeServices,
   getArticles,
@@ -54,28 +53,9 @@ export default async function HomePage() {
       </header>
 
       {/* SEARCH (đè lên hero) */}
-      <div className="container-page relative z-10 -mt-24 sm:-mt-20">
+      <div className="container-page relative z-10 -mt-24 mb-12 sm:-mt-20 sm:mb-16">
         <HeroSearch />
       </div>
-
-      {/* CATEGORIES */}
-      <section className="container-page py-14 sm:py-16">
-        <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 lg:grid-cols-6">
-          {CATEGORY_LIST.map((c, i) => (
-            <Link key={c.slug} href={`/${c.slug}`} className="group flex flex-col gap-2.5">
-              <div className="relative aspect-[4/3] overflow-hidden rounded-2xl" style={{ background: `linear-gradient(135deg, oklch(0.3 0.055 ${150 + i * 14}), oklch(0.45 0.09 ${150 + i * 14}))` }}>
-                <div className="absolute inset-0 flex items-center justify-center text-4xl opacity-80 transition group-hover:scale-110">
-                  {["🚐", "🏠", "🏍️", "🛵", "🚕", "🎒"][i] ?? "📍"}
-                </div>
-              </div>
-              <div>
-                <div className="text-[15px] font-bold text-ink group-hover:text-forest-700">{c.shortLabel}</div>
-                <div className="text-[13px] text-gray-500">{c.tagline}</div>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
 
       {/* CABIN */}
       <HomeCabin
