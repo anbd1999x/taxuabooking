@@ -14,6 +14,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: "/admin/services", label: "Quản lý dịch vụ" },
   { href: "/admin/availability", label: "Lịch giá & tình trạng" },
   { href: "/admin/bookings", label: "Yêu cầu đặt" },
+  { href: "/admin/articles", label: "Bài viết (SEO)" },
   { href: "/admin/reviews", label: "Đánh giá" },
   { href: "/admin/accounts", label: "Tài khoản (CTV / Chủ)" },
   { href: "/admin/reports", label: "Thống kê & thanh toán" },

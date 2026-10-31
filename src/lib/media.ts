@@ -53,6 +53,8 @@ export interface SaveMediaInput {
   serviceId?: string | null;
   roomTypeId?: string | null;
   roomId?: string | null;
+  /** true = chỉ lưu file & trả url, không gắn bản ghi DB (vd ảnh bìa bài viết). */
+  standalone?: boolean;
 }
 
 export type SaveMediaResult = { url: string } | { error: string; status: number };
@@ -71,9 +73,10 @@ export async function processAndSaveMedia(input: SaveMediaInput): Promise<SaveMe
   const isVideo = effType.startsWith("video/");
   const isImage = effType.startsWith("image/");
 
-  if (!serviceId && !roomTypeId && !roomId) return { error: "Thiếu đối tượng gắn media.", status: 400 };
+  if (!input.standalone && !serviceId && !roomTypeId && !roomId)
+    return { error: "Thiếu đối tượng gắn media.", status: 400 };
   if (!isImage && !isVideo) return { error: "Chỉ nhận tệp ảnh hoặc video.", status: 400 };
-  if (isVideo && !roomTypeId && !roomId) {
+  if (isVideo && !input.standalone && !roomTypeId && !roomId) {
     return { error: "Video cần gắn vào một hạng phòng hoặc phòng.", status: 400 };
   }
   if (isImage && buf.length > MAX_IMAGE_BYTES) return { error: "Ảnh vượt quá 25MB.", status: 400 };
@@ -83,7 +86,9 @@ export async function processAndSaveMedia(input: SaveMediaInput): Promise<SaveMe
   const mediaType = isVideo ? "video" : "image";
 
   // Xác minh đối tượng tồn tại.
-  if (roomId) {
+  if (input.standalone) {
+    // không gắn DB — bỏ qua kiểm tra đối tượng
+  } else if (roomId) {
     const room = await prisma.room.findUnique({ where: { id: roomId } });
     if (!room) return { error: "Phòng không tồn tại.", status: 404 };
   } else if (roomTypeId) {
@@ -164,6 +169,9 @@ export async function processAndSaveMedia(input: SaveMediaInput): Promise<SaveMe
   await writeFile(path.join(uploadDir, name), data);
   const url = `/uploads/${name}`;
 
+  if (input.standalone) {
+    return { url };
+  }
   if (roomId) {
     const count = await prisma.roomImage.count({ where: { roomId } });
     await prisma.roomImage.create({ data: { roomId, url, sortOrder: count, isCover: count === 0 } });

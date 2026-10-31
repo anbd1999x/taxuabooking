@@ -30,6 +30,7 @@ export function Header({ phone, customerName = null }: { phone: string; customer
               {c.shortLabel}
             </Link>
           ))}
+          <Link href="/kinh-nghiem" className="whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700">Kinh nghiệm</Link>
           <span className="mx-1 hidden h-5 w-px bg-black/10 xl:block" />
           <Link href="/huong-dan" className="hidden whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700 xl:inline-flex">Hướng dẫn</Link>
           <Link href="/tra-cuu" className="hidden whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700 xl:inline-flex">Tra cứu đơn</Link>
@@ -101,6 +102,7 @@ export function Header({ phone, customerName = null }: { phone: string; customer
               </Link>
             ))}
             <div className="my-1 border-t border-black/5" />
+            <Link href="/kinh-nghiem" onClick={() => setOpen(false)} className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700">⛰️ Kinh nghiệm Tà Xùa</Link>
             <Link href="/huong-dan" onClick={() => setOpen(false)} className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700">📖 Hướng dẫn đặt dịch vụ</Link>
             <Link href="/tra-cuu" onClick={() => setOpen(false)} className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700">🧾 Tra cứu đơn hàng</Link>
             <Link href="/tai-khoan" onClick={() => setOpen(false)} className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700">{customerName ? `👤 ${customerName}` : "👤 Đăng nhập / Đăng ký"}</Link>

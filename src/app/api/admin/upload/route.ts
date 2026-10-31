@@ -31,6 +31,8 @@ export async function POST(request: Request) {
     serviceId: typeof serviceId === "string" ? serviceId : null,
     roomTypeId: typeof roomTypeId === "string" ? roomTypeId : null,
     roomId: typeof roomId === "string" ? roomId : null,
+    // standalone=1: chỉ lưu file & trả url (vd ảnh bìa bài viết), không gắn DB.
+    standalone: form.get("standalone") === "1",
   });
 
   if ("error" in result) return NextResponse.json({ error: result.error }, { status: result.status });
