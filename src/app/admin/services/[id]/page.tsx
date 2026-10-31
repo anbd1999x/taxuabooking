@@ -9,6 +9,7 @@ import { ServiceForm } from "@/components/admin/ServiceForm";
 import { MoneyInput } from "@/components/admin/MoneyInput";
 import { ImageUploader } from "@/components/admin/ImageUploader";
 import { DriveImport } from "@/components/admin/DriveImport";
+import { SortableImages } from "@/components/admin/SortableImages";
 import { ServiceTabNav } from "@/components/admin/ServiceTabNav";
 import { CabinScheduleEditor } from "@/components/admin/CabinScheduleEditor";
 import { ActionForm } from "@/components/admin/ActionForm";
@@ -30,9 +31,11 @@ import {
   duplicateRoom,
   moveRoomUp,
   moveRoomDown,
-  moveServiceImage,
-  moveRoomTypeImage,
-  moveRoomImage,
+  moveRoomTypeUp,
+  moveRoomTypeDown,
+  reorderServiceImages,
+  reorderRoomTypeImages,
+  reorderRoomImages,
   deleteRoomImage,
   setRoomImageCover,
   deleteRoomPhoto,
@@ -188,30 +191,17 @@ export default async function EditServicePage({
                     <DriveImport serviceId={service.id} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {service.images.map((img) => (
-                    <div key={img.id} className="group relative overflow-hidden rounded-xl ring-1 ring-black/5">
-                      <div className="relative aspect-[4/3]"><Image src={img.url} alt={img.alt ?? ""} fill sizes="200px" className="object-cover" /></div>
-                      {img.isCover && <span className="absolute left-1.5 top-1.5 rounded-full bg-sunset-500 px-2 py-0.5 text-[10px] font-bold text-white">Ảnh bìa</span>}
-                      <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1.5 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
-                        <MoveBtns action={moveServiceImage} fields={{ id: img.id, serviceId: service.id }} />
-                        {!img.isCover && (
-                          <form action={setCover}>
-                            <input type="hidden" name="id" value={img.id} />
-                            <input type="hidden" name="serviceId" value={service.id} />
-                            <button className="rounded bg-white/90 px-2 py-1 text-[11px] font-medium text-forest-700">Đặt bìa</button>
-                          </form>
-                        )}
-                        <form action={deleteImage} className="ml-auto">
-                          <input type="hidden" name="id" value={img.id} />
-                          <input type="hidden" name="serviceId" value={service.id} />
-                          <button className="rounded bg-red-500 px-2 py-1 text-[11px] font-medium text-white">Xoá</button>
-                        </form>
-                      </div>
-                    </div>
-                  ))}
-                  {service.images.length === 0 && <p className="col-span-full text-sm text-gray-400">Chưa có ảnh.</p>}
-                </div>
+                <SortableImages
+                  items={service.images.map((img) => ({ id: img.id, url: img.url, isCover: img.isCover, alt: img.alt }))}
+                  fields={{ serviceId: service.id }}
+                  reorderAction={reorderServiceImages}
+                  coverAction={setCover}
+                  deleteAction={deleteImage}
+                  gridClass="grid grid-cols-2 gap-3 sm:grid-cols-4"
+                  aspectClass="aspect-[4/3]"
+                  coverLabel="Ảnh bìa"
+                />
+                {service.images.length === 0 && <p className="text-sm text-gray-400">Chưa có ảnh.</p>}
               </section>
             </div>
 
@@ -430,30 +420,17 @@ export default async function EditServicePage({
                     <DriveImport serviceId={service.id} />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {service.images.map((img) => (
-                    <div key={img.id} className="group relative overflow-hidden rounded-xl ring-1 ring-black/5">
-                      <div className="relative aspect-[4/3]"><Image src={img.url} alt={img.alt ?? ""} fill sizes="200px" className="object-cover" /></div>
-                      {img.isCover && <span className="absolute left-1.5 top-1.5 rounded-full bg-sunset-500 px-2 py-0.5 text-[10px] font-bold text-white">Ảnh bìa</span>}
-                      <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1.5 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
-                        <MoveBtns action={moveServiceImage} fields={{ id: img.id, serviceId: service.id }} />
-                        {!img.isCover && (
-                          <form action={setCover}>
-                            <input type="hidden" name="id" value={img.id} />
-                            <input type="hidden" name="serviceId" value={service.id} />
-                            <button className="rounded bg-white/90 px-2 py-1 text-[11px] font-medium text-forest-700">Đặt bìa</button>
-                          </form>
-                        )}
-                        <form action={deleteImage} className="ml-auto">
-                          <input type="hidden" name="id" value={img.id} />
-                          <input type="hidden" name="serviceId" value={service.id} />
-                          <button className="rounded bg-red-500 px-2 py-1 text-[11px] font-medium text-white">Xoá</button>
-                        </form>
-                      </div>
-                    </div>
-                  ))}
-                  {service.images.length === 0 && <p className="col-span-full text-sm text-gray-400">Chưa có ảnh.</p>}
-                </div>
+                <SortableImages
+                  items={service.images.map((img) => ({ id: img.id, url: img.url, isCover: img.isCover, alt: img.alt }))}
+                  fields={{ serviceId: service.id }}
+                  reorderAction={reorderServiceImages}
+                  coverAction={setCover}
+                  deleteAction={deleteImage}
+                  gridClass="grid grid-cols-2 gap-3 sm:grid-cols-4"
+                  aspectClass="aspect-[4/3]"
+                  coverLabel="Ảnh bìa"
+                />
+                {service.images.length === 0 && <p className="text-sm text-gray-400">Chưa có ảnh.</p>}
               </section>
             </div>
 
@@ -488,6 +465,8 @@ export default async function EditServicePage({
                           <RoomFeatures room={rt} />
                           <div className="flex gap-1 sm:col-span-7">
                             <button className="rounded-lg bg-forest-600 px-3 py-2 text-sm text-white">Lưu</button>
+                            <OrderBtn action={moveRoomTypeUp} label="↑" title="Chuyển hạng phòng lên trên" />
+                            <OrderBtn action={moveRoomTypeDown} label="↓" title="Chuyển hạng phòng xuống dưới" />
                             <DeleteBtn action={deleteRoomType} />
                           </div>
                         </ActionForm>
@@ -502,37 +481,13 @@ export default async function EditServicePage({
                             <div className="flex flex-wrap items-center justify-end gap-1.5"><ImageUploader roomTypeId={rt.id} label="📤 Thêm ảnh / video" compact accept="image/*,video/*" /><DriveImport roomTypeId={rt.id} compact /></div>
                           </div>
                           {rt.images.length > 0 && (
-                            <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-                              {rt.images.map((img) => (
-                                <div key={img.id} className="group relative overflow-hidden rounded-lg bg-black/5 ring-1 ring-black/5">
-                                  <div className="relative aspect-square">
-                                    {img.type === "video" ? (
-                                      <video src={img.url} className="h-full w-full object-cover" muted playsInline preload="metadata" />
-                                    ) : (
-                                      <Image src={img.url} alt={img.alt ?? rt.name} fill sizes="120px" className="object-cover" />
-                                    )}
-                                  </div>
-                                  {img.type === "video" && <span className="absolute right-1 top-1 rounded bg-black/70 px-1 py-0.5 text-[9px] font-semibold text-white">▶ video</span>}
-                                  {img.isCover && <span className="absolute left-1 top-1 rounded bg-forest-600 px-1.5 py-0.5 text-[9px] font-semibold text-white">Bìa</span>}
-                                  <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
-                                    <MoveBtns action={moveRoomTypeImage} fields={{ id: img.id, roomTypeId: rt.id, serviceId: service.id }} />
-                                    {!img.isCover && (
-                                      <form action={setRoomImageCover}>
-                                        <input type="hidden" name="id" value={img.id} />
-                                        <input type="hidden" name="roomTypeId" value={rt.id} />
-                                        <input type="hidden" name="serviceId" value={service.id} />
-                                        <button className="rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-medium text-forest-700">Bìa</button>
-                                      </form>
-                                    )}
-                                    <form action={deleteRoomImage} className="ml-auto">
-                                      <input type="hidden" name="id" value={img.id} />
-                                      <input type="hidden" name="serviceId" value={service.id} />
-                                      <button className="rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-medium text-white">Xoá</button>
-                                    </form>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
+                            <SortableImages
+                              items={rt.images.map((img) => ({ id: img.id, url: img.url, isCover: img.isCover, isVideo: img.type === "video", alt: img.alt ?? rt.name }))}
+                              fields={{ roomTypeId: rt.id, serviceId: service.id }}
+                              reorderAction={reorderRoomTypeImages}
+                              coverAction={setRoomImageCover}
+                              deleteAction={deleteRoomImage}
+                            />
                           )}
                         </div>
                       </div>
@@ -619,30 +574,13 @@ export default async function EditServicePage({
                                         <div className="flex flex-wrap items-center justify-end gap-1.5"><ImageUploader roomId={room.id} label="📤 Thêm ảnh / video cho phòng này" compact accept="image/*,video/*" /><DriveImport roomId={room.id} compact /></div>
                                       </div>
                                       {room.images.length > 0 && (
-                                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-                                          {room.images.map((img) => (
-                                            <div key={img.id} className="group relative overflow-hidden rounded-lg bg-black/5 ring-1 ring-black/5">
-                                              <div className="relative aspect-square">{/\.(mp4|webm|mov|m4v|ogg)(\?|$)/i.test(img.url) ? <video src={img.url} className="h-full w-full object-cover" muted playsInline preload="metadata" /> : <Image src={img.url} alt={img.alt ?? room.name} fill sizes="120px" className="object-cover" />}</div>
-                                              {img.isCover && <span className="absolute left-1 top-1 rounded bg-forest-600 px-1.5 py-0.5 text-[9px] font-semibold text-white">Bìa</span>}
-                                              <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
-                                                <MoveBtns action={moveRoomImage} fields={{ id: img.id, roomId: room.id, serviceId: service.id }} />
-                                                {!img.isCover && (
-                                                  <form action={setRoomPhotoCover}>
-                                                    <input type="hidden" name="id" value={img.id} />
-                                                    <input type="hidden" name="roomId" value={room.id} />
-                                                    <input type="hidden" name="serviceId" value={service.id} />
-                                                    <button className="rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-medium text-forest-700">Bìa</button>
-                                                  </form>
-                                                )}
-                                                <form action={deleteRoomPhoto} className="ml-auto">
-                                                  <input type="hidden" name="id" value={img.id} />
-                                                  <input type="hidden" name="serviceId" value={service.id} />
-                                                  <button className="rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-medium text-white">Xoá</button>
-                                                </form>
-                                              </div>
-                                            </div>
-                                          ))}
-                                        </div>
+                                        <SortableImages
+                                          items={room.images.map((img) => ({ id: img.id, url: img.url, isCover: img.isCover, isVideo: /\.(mp4|webm|mov|m4v|ogg)(\?|$)/i.test(img.url), alt: img.alt ?? room.name }))}
+                                          fields={{ roomId: room.id, serviceId: service.id }}
+                                          reorderAction={reorderRoomImages}
+                                          coverAction={setRoomPhotoCover}
+                                          deleteAction={deleteRoomPhoto}
+                                        />
                                       )}
                                     </div>
                                   </div>
@@ -816,31 +754,17 @@ export default async function EditServicePage({
           <ImageUploader serviceId={service.id} />
           <DriveImport serviceId={service.id} />
         </div>
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {service.images.map((img) => (
-            <div key={img.id} className="group relative overflow-hidden rounded-xl ring-1 ring-black/5">
-              <div className="relative aspect-square">
-                <Image src={img.url} alt={img.alt ?? ""} fill sizes="160px" className="object-cover" />
-              </div>
-              {img.isCover && <span className="absolute left-1.5 top-1.5 rounded-full bg-forest-600 px-2 py-0.5 text-[10px] font-semibold text-white">Ảnh bìa</span>}
-              <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1.5 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
-                <MoveBtns action={moveServiceImage} fields={{ id: img.id, serviceId: service.id }} />
-                {!img.isCover && (
-                  <form action={setCover}>
-                    <input type="hidden" name="id" value={img.id} />
-                    <input type="hidden" name="serviceId" value={service.id} />
-                    <button className="rounded bg-white/90 px-2 py-1 text-[11px] font-medium text-forest-700">Đặt bìa</button>
-                  </form>
-                )}
-                <form action={deleteImage} className="ml-auto">
-                  <input type="hidden" name="id" value={img.id} />
-                  <input type="hidden" name="serviceId" value={service.id} />
-                  <button className="rounded bg-red-500 px-2 py-1 text-[11px] font-medium text-white">Xoá</button>
-                </form>
-              </div>
-            </div>
-          ))}
-          {service.images.length === 0 && <p className="col-span-full text-sm text-gray-400">Chưa có ảnh.</p>}
+        <div className="mt-4">
+          <SortableImages
+            items={service.images.map((img) => ({ id: img.id, url: img.url, isCover: img.isCover, alt: img.alt }))}
+            fields={{ serviceId: service.id }}
+            reorderAction={reorderServiceImages}
+            coverAction={setCover}
+            deleteAction={deleteImage}
+            gridClass="grid grid-cols-2 gap-3 sm:grid-cols-4"
+            coverLabel="Ảnh bìa"
+          />
+          {service.images.length === 0 && <p className="text-sm text-gray-400">Chưa có ảnh.</p>}
         </div>
       </section>
 
@@ -861,6 +785,8 @@ export default async function EditServicePage({
                   <RoomFeatures room={r} />
                   <div className="flex gap-1">
                     <button className="rounded-lg bg-forest-600 px-3 py-2 text-sm text-white">Lưu</button>
+                    <OrderBtn action={moveRoomTypeUp} label="↑" title="Chuyển hạng phòng lên trên" />
+                    <OrderBtn action={moveRoomTypeDown} label="↓" title="Chuyển hạng phòng xuống dưới" />
                     <DeleteBtn action={deleteRoomType} />
                   </div>
                 </ActionForm>
@@ -872,37 +798,13 @@ export default async function EditServicePage({
                     <div className="flex flex-wrap items-center justify-end gap-1.5"><ImageUploader roomTypeId={r.id} label="📤 Thêm ảnh / video" compact accept="image/*,video/*" /><DriveImport roomTypeId={r.id} compact /></div>
                   </div>
                   {r.images.length > 0 && (
-                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-                      {r.images.map((img) => (
-                        <div key={img.id} className="group relative overflow-hidden rounded-lg bg-black/5 ring-1 ring-black/5">
-                          <div className="relative aspect-square">
-                            {img.type === "video" ? (
-                              <video src={img.url} className="h-full w-full object-cover" muted playsInline preload="metadata" />
-                            ) : (
-                              <Image src={img.url} alt={img.alt ?? r.name} fill sizes="120px" className="object-cover" />
-                            )}
-                          </div>
-                          {img.type === "video" && <span className="absolute right-1 top-1 rounded bg-black/70 px-1 py-0.5 text-[9px] font-semibold text-white">▶ video</span>}
-                          {img.isCover && <span className="absolute left-1 top-1 rounded bg-forest-600 px-1.5 py-0.5 text-[9px] font-semibold text-white">Bìa</span>}
-                          <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
-                            <MoveBtns action={moveRoomTypeImage} fields={{ id: img.id, roomTypeId: r.id, serviceId: service.id }} />
-                            {!img.isCover && (
-                              <form action={setRoomImageCover}>
-                                <input type="hidden" name="id" value={img.id} />
-                                <input type="hidden" name="roomTypeId" value={r.id} />
-                                <input type="hidden" name="serviceId" value={service.id} />
-                                <button className="rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-medium text-forest-700">Bìa</button>
-                              </form>
-                            )}
-                            <form action={deleteRoomImage} className="ml-auto">
-                              <input type="hidden" name="id" value={img.id} />
-                              <input type="hidden" name="serviceId" value={service.id} />
-                              <button className="rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-medium text-white">Xoá</button>
-                            </form>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <SortableImages
+                      items={r.images.map((img) => ({ id: img.id, url: img.url, isCover: img.isCover, isVideo: img.type === "video", alt: img.alt ?? r.name }))}
+                      fields={{ roomTypeId: r.id, serviceId: service.id }}
+                      reorderAction={reorderRoomTypeImages}
+                      coverAction={setRoomImageCover}
+                      deleteAction={deleteRoomImage}
+                    />
                   )}
                 </div>
 
@@ -971,36 +873,13 @@ export default async function EditServicePage({
                           <div className="flex flex-wrap items-center justify-end gap-1.5"><ImageUploader roomId={room.id} label="📤 Thêm ảnh / video cho phòng này" compact accept="image/*,video/*" /><DriveImport roomId={room.id} compact /></div>
                         </div>
                         {room.images.length > 0 && (
-                          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-                            {room.images.map((img) => (
-                              <div key={img.id} className="group relative overflow-hidden rounded-lg bg-black/5 ring-1 ring-black/5">
-                                <div className="relative aspect-square">
-                                  {/\.(mp4|webm|mov|m4v|ogg)(\?|$)/i.test(img.url) ? (
-                                    <video src={img.url} className="h-full w-full object-cover" muted playsInline preload="metadata" />
-                                  ) : (
-                                    <Image src={img.url} alt={img.alt ?? room.name} fill sizes="120px" className="object-cover" />
-                                  )}
-                                </div>
-                                {img.isCover && <span className="absolute left-1 top-1 rounded bg-forest-600 px-1.5 py-0.5 text-[9px] font-semibold text-white">Bìa</span>}
-                                <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
-                                  <MoveBtns action={moveRoomImage} fields={{ id: img.id, roomId: room.id, serviceId: service.id }} />
-                                  {!img.isCover && (
-                                    <form action={setRoomPhotoCover}>
-                                      <input type="hidden" name="id" value={img.id} />
-                                      <input type="hidden" name="roomId" value={room.id} />
-                                      <input type="hidden" name="serviceId" value={service.id} />
-                                      <button className="rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-medium text-forest-700">Bìa</button>
-                                    </form>
-                                  )}
-                                  <form action={deleteRoomPhoto} className="ml-auto">
-                                    <input type="hidden" name="id" value={img.id} />
-                                    <input type="hidden" name="serviceId" value={service.id} />
-                                    <button className="rounded bg-red-500 px-1.5 py-0.5 text-[10px] font-medium text-white">Xoá</button>
-                                  </form>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+                          <SortableImages
+                            items={room.images.map((img) => ({ id: img.id, url: img.url, isCover: img.isCover, isVideo: /\.(mp4|webm|mov|m4v|ogg)(\?|$)/i.test(img.url), alt: img.alt ?? room.name }))}
+                            fields={{ roomId: room.id, serviceId: service.id }}
+                            reorderAction={reorderRoomImages}
+                            coverAction={setRoomPhotoCover}
+                            deleteAction={deleteRoomPhoto}
+                          />
                         )}
                       </div>
                       </div>
@@ -1463,35 +1342,7 @@ function CabinRouteBlock({
   );
 }
 
-/** Cặp nút ‹ › đổi vị trí ảnh (mỗi nút 1 form riêng để gửi kèm hướng). */
-function MoveBtns({
-  action,
-  fields,
-}: {
-  action: (fd: FormData) => Promise<void>;
-  fields: Record<string, string>;
-}) {
-  return (
-    <div className="flex gap-1">
-      {(["left", "right"] as const).map((dir) => (
-        <form key={dir} action={action}>
-          {Object.entries(fields).map(([k, v]) => (
-            <input key={k} type="hidden" name={k} value={v} />
-          ))}
-          <input type="hidden" name="dir" value={dir} />
-          <button
-            className="rounded bg-white/90 px-1.5 py-0.5 text-[11px] font-bold text-gray-700"
-            aria-label={dir === "left" ? "Chuyển lên trước" : "Chuyển ra sau"}
-          >
-            {dir === "left" ? "‹" : "›"}
-          </button>
-        </form>
-      ))}
-    </div>
-  );
-}
-
-/** Nút ↑/↓ đổi thứ tự phòng — dùng formAction trên form phòng hiện có (không lồng form). */
+/** Nút ↑/↓ đổi thứ tự phòng/hạng phòng — dùng formAction trên form hiện có (không lồng form). */
 function OrderBtn({ action, label, title }: { action: (fd: FormData) => void; label: string; title: string }) {
   return (
     <button
