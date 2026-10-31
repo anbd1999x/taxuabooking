@@ -50,26 +50,52 @@ export function Header({ phone }: { phone: string }) {
         </div>
       </div>
 
-      {/* Menu mobile */}
-      <div className={cn("lg:hidden", open ? "block" : "hidden")}>
-        <nav className="container-page flex flex-col gap-1 border-t border-black/5 py-3">
-          {CATEGORY_LIST.map((c) => (
-            <Link
-              key={c.slug}
-              href={`/${c.slug}`}
+      {/* Menu mobile: drawer trượt từ cạnh phải vào */}
+      <div className={cn("fixed inset-0 z-50 lg:hidden", open ? "" : "pointer-events-none")}>
+        <div
+          onClick={() => setOpen(false)}
+          className={cn("absolute inset-0 bg-black/40 transition-opacity duration-300", open ? "opacity-100" : "opacity-0")}
+        />
+        <div
+          className={cn(
+            "absolute right-0 top-0 flex h-full w-[76%] max-w-[300px] flex-col bg-white shadow-2xl transition-transform duration-300 will-change-transform",
+            open ? "translate-x-0" : "translate-x-full",
+          )}
+        >
+          <div className="flex items-center justify-between border-b border-black/5 px-4 py-3">
+            <span className="text-[15px] font-extrabold tracking-tight text-forest-800">
+              Tà Xùa <span className="text-sunset-500">Booking</span>
+            </span>
+            <button
+              type="button"
+              aria-label="Đóng menu"
               onClick={() => setOpen(false)}
-              className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-forest-50 hover:text-forest-700"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-xl text-gray-400 hover:bg-gray-100"
             >
-              {c.shortLabel}
-            </Link>
-          ))}
-          <a
-            href={`tel:${phone.replace(/\s/g, "")}`}
-            className="mt-1 rounded-xl bg-sunset-500 px-4 py-2.5 text-center text-sm font-semibold text-white"
-          >
-            📞 Gọi {phone}
-          </a>
-        </nav>
+              ×
+            </button>
+          </div>
+          <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
+            {CATEGORY_LIST.map((c) => (
+              <Link
+                key={c.slug}
+                href={`/${c.slug}`}
+                onClick={() => setOpen(false)}
+                className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700"
+              >
+                {c.shortLabel}
+              </Link>
+            ))}
+          </nav>
+          <div className="border-t border-black/5 p-3">
+            <a
+              href={`tel:${phone.replace(/\s/g, "")}`}
+              className="block rounded-xl bg-sunset-500 px-4 py-3 text-center text-sm font-bold text-white"
+            >
+              📞 Gọi {phone}
+            </a>
+          </div>
+        </div>
       </div>
     </header>
   );
