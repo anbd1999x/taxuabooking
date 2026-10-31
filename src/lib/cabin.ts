@@ -143,9 +143,32 @@ async function getCabinOperatorsImpl(
   fromKey: string | null,
   toKey: string | null,
 ): Promise<CabinOperatorCard[]> {
-  if (!fromKey && !toKey) return [];
   const from = fromKey ? parseDateOnly(fromKey) : null;
   const to = toKey ? parseDateOnly(toKey) : null;
+
+  // Mặc định (chưa chọn ngày): hiện TẤT CẢ nhà xe cabin. Giá "từ" = vé đơn rẻ nhất
+  // trong các chuyến sắp tới; chọn ngày để xem giờ chạy & chỗ trống chính xác.
+  if (!from && !to) {
+    const svcs = await prisma.service.findMany({
+      where: { category: "CABIN", published: true },
+      orderBy: [{ featured: "desc" }, { title: "asc" }],
+      include: {
+        images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 1 },
+        cabinTrips: { where: { direction: "OUTBOUND", departureDate: { gte: today() } }, orderBy: { price: "asc" }, take: 1 },
+      },
+    });
+    return svcs.map((s): CabinOperatorCard => ({
+      id: s.id,
+      slug: s.slug,
+      title: s.title,
+      area: s.area,
+      coverImage: s.images[0]?.url ?? null,
+      outbound: null,
+      ret: null,
+      fromPrice: s.cabinTrips[0] ? toNumber(s.cabinTrips[0].price) : null,
+      state: "unk",
+    }));
+  }
 
   const or: Prisma.CabinTripWhereInput[] = [];
   if (from) or.push({ direction: "OUTBOUND", departureDate: from });

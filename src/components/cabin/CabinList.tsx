@@ -412,14 +412,10 @@ export function CabinList({
           )}
         </div>
 
-        {!searched ? (
-          <div className="rounded-[22px] border border-dashed border-[oklch(0.85_0.02_200)] bg-white py-14 text-center text-[15px] text-gray-500">
-            Chọn ngày đi (và ngày về nếu khứ hồi) rồi bấm “Tìm vé”.
-          </div>
-        ) : operators.length === 0 ? (
+        {operators.length === 0 ? (
           <div className="rounded-[22px] border border-dashed border-[oklch(0.85_0.02_200)] bg-white py-14 text-center">
-            <div className="text-[19px] font-extrabold text-ink">Không có nhà xe phù hợp</div>
-            <div className="mt-1 text-[15px] text-gray-500">Thử đổi ngày, hoặc gọi 0397 943 155 để được hỗ trợ.</div>
+            <div className="text-[19px] font-extrabold text-ink">{searched ? "Không có nhà xe phù hợp" : "Chưa có nhà xe cabin"}</div>
+            <div className="mt-1 text-[15px] text-gray-500">{searched ? "Thử đổi ngày, hoặc gọi 0397 943 155 để được hỗ trợ." : "Vui lòng quay lại sau."}</div>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,330px),1fr))] sm:gap-[22px]">
@@ -433,7 +429,7 @@ export function CabinList({
               if (anyTrip) amen.push("Cabin đơn");
               if (anyTrip?.priceDouble != null) amen.push("Cabin đôi");
               if (op.ret) amen.push("Khứ hồi");
-              const cta = full ? "Chọn ngày khác →" : op.state === "unk" ? "Gửi yêu cầu →" : "Xem & đặt vé →";
+              const cta = !searched ? "Xem chuyến →" : full ? "Chọn ngày khác →" : op.state === "unk" ? "Gửi yêu cầu →" : "Xem & đặt vé →";
               return (
                 <Link
                   key={op.id}
@@ -450,7 +446,7 @@ export function CabinList({
                     )}
                     <div className="pointer-events-none absolute left-3 right-3 top-3 flex items-start justify-between gap-1.5">
                       {op.ret ? <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[oklch(0.3_0.04_160)]">Có khứ hồi</span> : <span />}
-                      <span className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: sm.bg, color: sm.fg }}>{sm.text}</span>
+                      {searched && <span className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: sm.bg, color: sm.fg }}>{sm.text}</span>}
                     </div>
                   </div>
                   <div className="flex flex-1 flex-col gap-3 p-5 pt-[18px]">

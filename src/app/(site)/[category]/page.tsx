@@ -60,7 +60,8 @@ export default async function CategoryPage({
   if (cat.key === "CABIN") {
     const from = str(sp.from);
     const to = str(sp.to);
-    const operators = from || to ? await getCabinOperators(from ?? null, to ?? null) : [];
+    // Mặc định (chưa chọn ngày) vẫn hiện tất cả nhà xe; chọn ngày để lọc theo chỗ trống.
+    const operators = await getCabinOperators(from ?? null, to ?? null);
     return <CabinList operators={operators} from={from ?? ""} to={to ?? ""} pickup={str(sp.pickup) ?? ""} />;
   }
 
