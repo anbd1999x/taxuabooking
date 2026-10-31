@@ -3,7 +3,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { DateField } from "@/components/DateField";
 
 export interface RentalBike {
@@ -58,7 +57,6 @@ function fmtD(ds: string) {
 }
 
 export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: string; to: string }) {
-  const router = useRouter();
   const [w, setW] = useState(1280);
   const [type, setType] = useState<"all" | RentalBike["kind"]>("all");
   const [mode, setMode] = useState<"shop" | "ship">("shop");
@@ -267,8 +265,8 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
     const p = new URLSearchParams();
     if (ci) p.set("from", ci);
     if (co && co !== ci) p.set("to", co);
-    router.push(`/thue-xe-may${p.toString() ? `?${p.toString()}` : ""}`, { scroll: false });
-    router.refresh(); // ép lấy dữ liệu mới, tránh client router cache trả kết quả cũ
+    // Full load để luôn lấy dữ liệu mới (tránh client router cache của Next).
+    window.location.assign(`/thue-xe-may${p.toString() ? `?${p.toString()}` : ""}`);
   }
 
   const items = useMemo(() => {

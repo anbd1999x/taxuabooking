@@ -3,7 +3,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { DateField } from "@/components/DateField";
 
 interface TripAvail {
@@ -73,7 +72,6 @@ export function CabinList({
   to: string;
   pickup?: string;
 }) {
-  const router = useRouter();
   const [w, setW] = useState(1280);
   const [trip, setTrip] = useState<"one" | "round">(to ? "round" : "one");
   const [pickup, setPickup] = useState(initialPickup && FROMS.includes(initialPickup) ? initialPickup : "Hà Nội");
@@ -255,8 +253,9 @@ export function CabinList({
     if (di) p.set("from", di);
     if (round && ve) p.set("to", ve);
     if (pickup && pickup !== "Hà Nội") p.set("pickup", pickup);
-    router.push(`/xe-cabin${p.toString() ? `?${p.toString()}` : ""}`, { scroll: false });
-    router.refresh(); // ép lấy dữ liệu mới, tránh client router cache trả kết quả cũ
+    // Điều hướng thật (full load) để luôn lấy dữ liệu mới — tránh client router
+    // cache của Next (cache theo pathname, bỏ qua tham số tìm) trả kết quả cũ.
+    window.location.assign(`/xe-cabin${p.toString() ? `?${p.toString()}` : ""}`);
   }
 
   const sorted = useMemo(() => {

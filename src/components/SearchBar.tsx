@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CATEGORY_LIST } from "@/lib/constants";
 import { DateField } from "@/components/DateField";
@@ -10,7 +9,6 @@ function todayKey() {
 }
 
 export function SearchBar() {
-  const router = useRouter();
   const [categorySlug, setCategorySlug] = useState("homestay");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -22,8 +20,8 @@ export function SearchBar() {
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     const qs = params.toString();
-    router.push(`/${categorySlug}${qs ? `?${qs}` : ""}`);
-    router.refresh(); // ép lấy dữ liệu mới, tránh client router cache trả kết quả cũ
+    // Full load để luôn lấy dữ liệu mới (tránh client router cache của Next).
+    window.location.assign(`/${categorySlug}${qs ? `?${qs}` : ""}`);
   }
 
   const cell = "flex flex-col gap-0.5 px-4 py-2.5";

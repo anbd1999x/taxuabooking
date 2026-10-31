@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CATEGORY_LIST } from "@/lib/constants";
 import { DateField } from "@/components/DateField";
@@ -13,7 +12,6 @@ function todayKey() {
 const FROMS = ["Hà Nội", "Bắc Ninh", "Bắc Giang", "Thái Nguyên", "Vĩnh Phúc", "Hưng Yên", "Hải Dương", "Hải Phòng", "Nam Định", "Ninh Bình", "Hà Nam", "Phú Thọ"];
 
 export function HeroSearch() {
-  const router = useRouter();
   const [slug, setSlug] = useState(CATEGORY_LIST[0].slug);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -37,8 +35,8 @@ export function HeroSearch() {
     if (isTrip && pickup && pickup !== "Hà Nội") params.set("pickup", pickup);
     if (isCombo && qty !== 2) params.set("people", String(qty));
     const qs = params.toString();
-    router.push(`/${slug}${qs ? `?${qs}` : ""}`);
-    router.refresh(); // ép lấy dữ liệu mới, tránh client router cache trả kết quả cũ
+    // Full load để luôn lấy dữ liệu mới (tránh client router cache của Next).
+    window.location.assign(`/${slug}${qs ? `?${qs}` : ""}`);
   }
 
   const cell = "rounded-2xl bg-[oklch(0.965_0.01_150)] px-4 py-3 transition hover:bg-[oklch(0.94_0.02_150)]";

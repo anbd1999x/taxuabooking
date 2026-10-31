@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import type { AvailabilityKind } from "@/lib/constants";
 import { DateField } from "@/components/DateField";
@@ -24,7 +24,6 @@ export function FilterBar({
   kind: AvailabilityKind;
   initial: { q?: string; from?: string; to?: string; priceMin?: string; priceMax?: string };
 }) {
-  const router = useRouter();
   const pathname = usePathname();
   const [q, setQ] = useState(initial.q ?? "");
   const [from, setFrom] = useState(initial.from ?? "");
@@ -48,13 +47,13 @@ export function FilterBar({
     if (range.min) params.set("priceMin", range.min);
     if (range.max) params.set("priceMax", range.max);
     const qs = params.toString();
-    router.push(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
-    router.refresh(); // ép lấy dữ liệu mới, tránh client router cache trả kết quả cũ
+    // Full load để luôn lấy dữ liệu mới (tránh client router cache của Next).
+    window.location.assign(`${pathname}${qs ? `?${qs}` : ""}`);
   }
 
   function reset() {
     setQ(""); setFrom(""); setTo(""); setPriceIdx(0);
-    router.push(pathname);
+    window.location.assign(pathname);
   }
 
   return (
