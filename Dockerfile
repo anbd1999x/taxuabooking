@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # ---- Base ----
 FROM node:22-alpine AS base
 RUN apk add --no-cache openssl libc6-compat
@@ -6,7 +7,8 @@ WORKDIR /app
 # ---- Dependencies ----
 FROM base AS deps
 COPY package.json package-lock.json ./
-RUN npm ci
+# Cache tải gói npm giữa các lần build (BuildKit) để npm ci nhanh hơn khi đổi dep.
+RUN --mount=type=cache,target=/root/.npm npm ci
 
 # ---- Builder ----
 FROM base AS builder
@@ -15,8 +17,8 @@ COPY . .
 # NEXT_PUBLIC_* phải có mặt lúc build (được "nướng" vào bundle client).
 ARG NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
-# prisma generate + next build (xem script "build" trong package.json)
-RUN npm run build
+# prisma generate + next build. Cache .next/cache giữa các lần build để build tăng tốc.
+RUN --mount=type=cache,target=/app/.next/cache npm run build
 
 # ---- Runner (production) ----
 FROM base AS runner

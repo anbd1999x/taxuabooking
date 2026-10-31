@@ -6,6 +6,12 @@ node_modules
 npm-debug.log
 Dockerfile
 docker-compose.yml
+docker-compose.prod.yml
+# Cấu hình chạy-lúc-runtime (bind-mount), KHÔNG cần trong image →
+# sửa các file này sẽ không phá cache build (next build khỏi chạy lại).
+nginx.conf
+Caddyfile
+.github
 README.md
 *.md
 public/uploads/*
