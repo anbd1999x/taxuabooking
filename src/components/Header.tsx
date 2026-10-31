@@ -9,6 +9,7 @@ export function Header({ phone }: { phone: string }) {
   const [open, setOpen] = useState(false);
 
   return (
+    <>
     <header className="sticky top-0 z-40 border-b border-black/5 bg-white/95 backdrop-blur">
       <div className="container-page flex h-11 items-center justify-between gap-4 sm:h-16">
         <Link href="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
@@ -49,8 +50,11 @@ export function Header({ phone }: { phone: string }) {
           </button>
         </div>
       </div>
+      </header>
 
-      {/* Menu mobile: drawer trượt từ cạnh phải vào */}
+      {/* Menu mobile: ĐẶT NGOÀI <header>. backdrop-blur của header tạo containing
+          block khiến position:fixed bám theo header (~44px) thay vì viewport,
+          làm drawer bị co lại thành dải mỏng ở trên. */}
       <div className={cn("fixed inset-0 z-50 lg:hidden", open ? "" : "pointer-events-none")}>
         <div
           onClick={() => setOpen(false)}
@@ -97,6 +101,6 @@ export function Header({ phone }: { phone: string }) {
           </div>
         </div>
       </div>
-    </header>
+    </>
   );
 }
