@@ -381,16 +381,16 @@ export function XeomList({ routes }: { routes: XeomRouteCard[] }) {
                       {r.featured && <span className="rounded-full bg-sunset-500 px-2.5 py-1 text-xs font-bold text-white">Nổi bật</span>}
                     </div>
                   </div>
-                  <div className="flex flex-1 flex-col gap-3 p-5 pt-[18px]">
+                  <div className="flex flex-1 flex-col gap-2 p-3 sm:gap-3 sm:p-5 sm:pt-[18px]">
                     <div className="grid items-center gap-x-2.5 gap-y-0.5" style={{ gridTemplateColumns: "14px minmax(0,1fr)" }}>
                       <span className="h-2.5 w-2.5 rounded-full border-2" style={{ borderColor: TH.G }} />
                       <div className="truncate text-[13px] font-semibold text-gray-500">Đón: {pick || r.from}</div>
                       <span className="mx-auto h-3 w-[2px]" style={{ background: "repeating-linear-gradient(180deg, oklch(0.75 0.02 200) 0 3px, transparent 3px 6px)" }} />
                       <span />
                       <span className="h-2.5 w-2.5 rounded-full bg-sunset-500" />
-                      <div className="text-[18px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink">{r.to}</div>
+                      <div className="line-clamp-1 text-[15px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink sm:text-[18px]">{r.to}</div>
                     </div>
-                    <div className="text-sm leading-[1.5] text-gray-500">{r.desc}</div>
+                    <div className="line-clamp-2 text-[12px] leading-[1.5] text-gray-500 sm:text-sm">{r.desc}</div>
                     <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[14px] bg-[oklch(0.92_0.01_200)]">
                       <div className="bg-[oklch(0.975_0.006_200)] px-3 py-2.5">
                         <div className="text-[11px] font-semibold text-gray-500">Phương tiện</div>

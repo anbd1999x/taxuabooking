@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { DateField } from "@/components/DateField";
 
 export interface RentalBike {
@@ -57,6 +58,7 @@ function fmtD(ds: string) {
 }
 
 export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: string; to: string }) {
+  const router = useRouter();
   const [w, setW] = useState(1280);
   const [type, setType] = useState<"all" | RentalBike["kind"]>("all");
   const [mode, setMode] = useState<"shop" | "ship">("shop");
@@ -265,8 +267,8 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
     const p = new URLSearchParams();
     if (ci) p.set("from", ci);
     if (co && co !== ci) p.set("to", co);
-    // Full load để luôn lấy dữ liệu mới (tránh client router cache của Next).
-    window.location.assign(`/thue-xe-may${p.toString() ? `?${p.toString()}` : ""}`);
+    router.push(`/thue-xe-may${p.toString() ? `?${p.toString()}` : ""}`, { scroll: false });
+    router.refresh();
   }
 
   const items = useMemo(() => {
@@ -462,7 +464,7 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
                   className="group flex flex-col overflow-hidden rounded-[22px] border border-[oklch(0.92_0.01_200)] bg-white opacity-0 transition hover:shadow-[0_24px_50px_-24px_oklch(0.25_0.06_220_/.4)]"
                   style={{ transform: "translateY(24px)", transitionProperty: "opacity, transform, box-shadow", transitionDuration: ".6s", transitionDelay: `${(j % 3) * 0.08}s` }}
                 >
-                  <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+                  <div className="relative aspect-[16/10] overflow-hidden bg-gray-100 sm:aspect-[4/3]">
                     {b.image ? (
                       <Image src={b.image} alt={b.name} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" />
                     ) : (
@@ -476,32 +478,32 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
                       <span className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: sm.bg, color: sm.fg }}>{status}</span>
                     </div>
                   </div>
-                  <div className="flex flex-1 flex-col gap-3 p-5 pt-[18px]">
+                  <div className="flex flex-1 flex-col gap-2 p-3 sm:gap-3 sm:p-5 sm:pt-[18px]">
                     <div>
-                      <div className="text-[18px] font-extrabold leading-[1.3] tracking-[-0.015em] text-ink">{b.name}</div>
-                      <div className="mt-1 text-sm leading-[1.5] text-gray-500">{b.shopTitle}</div>
+                      <div className="line-clamp-1 text-[15px] font-extrabold leading-[1.3] tracking-[-0.015em] text-ink sm:text-[18px]">{b.name}</div>
+                      <div className="mt-0.5 line-clamp-1 text-[12px] leading-[1.5] text-gray-500 sm:mt-1 sm:text-sm">{b.shopTitle}</div>
                     </div>
                     <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[14px] bg-[oklch(0.92_0.01_200)]">
-                      <div className="bg-[oklch(0.975_0.006_200)] px-3 py-2.5">
+                      <div className="bg-[oklch(0.975_0.006_200)] px-2.5 py-2 sm:px-3 sm:py-2.5">
                         <div className="text-[11px] font-semibold text-gray-500">Giá / ngày</div>
-                        <div className="mt-0.5 whitespace-nowrap text-[15px] font-extrabold text-ink">{k(b.pricePerDay)}</div>
+                        <div className="mt-0.5 whitespace-nowrap text-[14px] font-extrabold text-ink sm:text-[15px]">{k(b.pricePerDay)}</div>
                       </div>
-                      <div className="bg-[oklch(0.975_0.006_200)] px-3 py-2.5">
+                      <div className="bg-[oklch(0.975_0.006_200)] px-2.5 py-2 sm:px-3 sm:py-2.5">
                         <div className="text-[11px] font-semibold text-gray-500">Còn trống</div>
                         <div className="mt-0.5 whitespace-nowrap text-[15px] font-extrabold" style={{ color: stKey === "full" ? "oklch(0.52 0.17 28)" : stKey === "low" ? "oklch(0.52 0.15 50)" : "oklch(0.38 0.1 155)" }}>{stockLabel}</div>
                       </div>
                     </div>
                     <div className="flex-1" />
-                    <div className="flex items-end justify-between gap-2.5 border-t border-[oklch(0.94_0.01_200)] pt-3">
-                      <div>
-                        <div className="text-xs text-gray-500">{days ? `${days} ngày × ${qty} xe` : "Giá thuê"}</div>
+                    <div className="flex items-end justify-between gap-2 border-t border-[oklch(0.94_0.01_200)] pt-2 sm:gap-2.5 sm:pt-3">
+                      <div className="min-w-0">
+                        <div className="text-[11px] text-gray-500 sm:text-xs">{days ? `${days} ngày × ${qty} xe` : "Giá thuê"}</div>
                         <div>
-                          <span className="text-[22px] font-extrabold tracking-[-0.02em]" style={{ color: "oklch(0.34 0.07 160)" }}>{days ? vnd(total) : vnd(b.pricePerDay)}</span>
-                          {!days && <span className="text-[13px] text-gray-500">/ngày</span>}
+                          <span className="text-[18px] font-extrabold tracking-[-0.02em] sm:text-[22px]" style={{ color: "oklch(0.34 0.07 160)" }}>{days ? vnd(total) : vnd(b.pricePerDay)}</span>
+                          {!days && <span className="text-[12px] text-gray-500 sm:text-[13px]">/ngày</span>}
                         </div>
-                        <div className="text-xs font-semibold text-gray-500">{feeText}</div>
+                        <div className="truncate text-[11px] font-semibold text-gray-500 sm:text-xs">{feeText}</div>
                       </div>
-                      <span className="whitespace-nowrap rounded-full px-4 py-2.5 text-sm font-bold text-white transition group-hover:bg-sunset-500" style={{ background: full ? "oklch(0.6 0.01 160)" : TH.G }}>{full ? "Chọn ngày khác →" : "Đặt xe →"}</span>
+                      <span className="whitespace-nowrap rounded-full px-3 py-2 text-xs font-bold text-white transition group-hover:bg-sunset-500 sm:px-4 sm:py-2.5 sm:text-sm" style={{ background: full ? "oklch(0.6 0.01 160)" : TH.G }}>{full ? "Chọn ngày khác →" : "Đặt xe →"}</span>
                     </div>
                   </div>
                 </Link>

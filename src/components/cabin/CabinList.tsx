@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { DateField } from "@/components/DateField";
 
 interface TripAvail {
@@ -72,6 +73,7 @@ export function CabinList({
   to: string;
   pickup?: string;
 }) {
+  const router = useRouter();
   const [w, setW] = useState(1280);
   const [trip, setTrip] = useState<"one" | "round">(to ? "round" : "one");
   const [pickup, setPickup] = useState(initialPickup && FROMS.includes(initialPickup) ? initialPickup : "Hà Nội");
@@ -253,9 +255,10 @@ export function CabinList({
     if (di) p.set("from", di);
     if (round && ve) p.set("to", ve);
     if (pickup && pickup !== "Hà Nội") p.set("pickup", pickup);
-    // Điều hướng thật (full load) để luôn lấy dữ liệu mới — tránh client router
-    // cache của Next (cache theo pathname, bỏ qua tham số tìm) trả kết quả cũ.
-    window.location.assign(`/xe-cabin${p.toString() ? `?${p.toString()}` : ""}`);
+    // Điều hướng mềm (SPA, không tải lại trang) + refresh để lấy dữ liệu mới;
+    // staleTimes:0 trong next.config giúp không dùng lại cache cũ.
+    router.push(`/xe-cabin${p.toString() ? `?${p.toString()}` : ""}`, { scroll: false });
+    router.refresh();
   }
 
   const sorted = useMemo(() => {
@@ -449,18 +452,18 @@ export function CabinList({
                       {searched && <span className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: sm.bg, color: sm.fg }}>{sm.text}</span>}
                     </div>
                   </div>
-                  <div className="flex flex-1 flex-col gap-3 p-5 pt-[18px]">
+                  <div className="flex flex-1 flex-col gap-2 p-3 sm:gap-3 sm:p-5 sm:pt-[18px]">
                     <div>
-                      <div className="text-[18px] font-extrabold leading-[1.3] tracking-[-0.015em] text-ink">{op.title}</div>
-                      <div className="mt-[3px] text-[13px] font-semibold text-gray-500">{op.area ?? (anyTrip ? `${anyTrip.pickupPoint} → ${anyTrip.dropoffPoint}` : "Hà Nội → Tà Xùa")}</div>
+                      <div className="line-clamp-1 text-[15px] font-extrabold leading-[1.3] tracking-[-0.015em] text-ink sm:text-[18px]">{op.title}</div>
+                      <div className="mt-[2px] line-clamp-1 text-[12px] font-semibold text-gray-500 sm:mt-[3px] sm:text-[13px]">{op.area ?? (anyTrip ? `${anyTrip.pickupPoint} → ${anyTrip.dropoffPoint}` : "Hà Nội → Tà Xùa")}</div>
                     </div>
-                    <div className="grid items-center gap-3 rounded-[14px] bg-[oklch(0.97_0.008_200)] px-3.5 py-3" style={{ gridTemplateColumns: "auto minmax(0,1fr) auto" }}>
+                    <div className="grid items-center gap-2 rounded-[14px] bg-[oklch(0.97_0.008_200)] px-2.5 py-2 sm:gap-3 sm:px-3.5 sm:py-3" style={{ gridTemplateColumns: "auto minmax(0,1fr) auto" }}>
                       <div>
-                        <div className="text-[22px] font-extrabold leading-none tracking-[-0.02em]">{op.outbound?.departureTime ?? "—"}</div>
-                        <div className="mt-[3px] text-xs text-gray-500">{op.outbound?.pickupPoint ?? "Hà Nội"}</div>
+                        <div className="text-[16px] font-extrabold leading-none tracking-[-0.02em] sm:text-[22px]">{op.outbound?.departureTime ?? "—"}</div>
+                        <div className="mt-[2px] truncate text-[11px] text-gray-500 sm:mt-[3px] sm:text-xs">{op.outbound?.pickupPoint ?? "Hà Nội"}</div>
                       </div>
                       <div className="flex flex-col items-center gap-1">
-                        <div className="whitespace-nowrap text-[11px] font-bold text-gray-500">Xe đêm</div>
+                        <div className="whitespace-nowrap text-[10px] font-bold text-gray-500 sm:text-[11px]">Xe đêm</div>
                         <div className="flex w-full items-center gap-1">
                           <span className="h-2 w-2 flex-none rounded-full border-2" style={{ borderColor: TH.G }} />
                           <span className="h-[2px] flex-1" style={{ background: "repeating-linear-gradient(90deg, oklch(0.75 0.02 200) 0 5px, transparent 5px 9px)" }} />
@@ -468,8 +471,8 @@ export function CabinList({
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-[22px] font-extrabold leading-none tracking-[-0.02em]">Tà Xùa</div>
-                        <div className="mt-[3px] text-xs text-gray-500">{op.outbound?.dropoffPoint ?? "Trung tâm"}</div>
+                        <div className="text-[16px] font-extrabold leading-none tracking-[-0.02em] sm:text-[22px]">Tà Xùa</div>
+                        <div className="mt-[2px] text-[11px] text-gray-500 sm:mt-[3px] sm:text-xs">{op.outbound?.dropoffPoint ?? "Trung tâm"}</div>
                       </div>
                     </div>
                     {amen.length > 0 && (
@@ -485,12 +488,12 @@ export function CabinList({
                       </div>
                     )}
                     <div className="flex-1" />
-                    <div className="flex items-end justify-between gap-2.5 border-t border-[oklch(0.94_0.01_200)] pt-3">
+                    <div className="flex items-end justify-between gap-2 border-t border-[oklch(0.94_0.01_200)] pt-2 sm:gap-2.5 sm:pt-3">
                       <div>
-                        <div className="text-xs text-gray-500">{round ? "Khứ hồi từ" : "Một chiều từ"}</div>
+                        <div className="text-[11px] text-gray-500 sm:text-xs">{round ? "Khứ hồi từ" : "Một chiều từ"}</div>
                         {unit != null ? (
                           <>
-                            <div className="text-[22px] font-extrabold tracking-[-0.02em]" style={{ color: "oklch(0.6 0.18 45)" }}>{vnd(unit)}</div>
+                            <div className="text-[18px] font-extrabold tracking-[-0.02em] sm:text-[22px]" style={{ color: "oklch(0.6 0.18 45)" }}>{vnd(unit)}</div>
                             {!full && <div className="text-xs font-semibold text-gray-500">{pax} khách · tạm tính {vnd(unit * pax)}</div>}
                           </>
                         ) : (

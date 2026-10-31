@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { DateField } from "@/components/DateField";
 
 function todayKey() {
@@ -39,6 +40,7 @@ export function ComboSearch({
   initialFilters?: string[];
   initialKind?: string;
 }) {
+  const router = useRouter();
   const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState(initialTo);
   const [people, setPeople] = useState(initialPeople);
@@ -63,8 +65,8 @@ export function ComboSearch({
     if (budget) p.set("budget", budget.replace(/[^\d]/g, ""));
     if (filters.size) p.set("f", [...filters].join(","));
     if (kind && kind !== "all") p.set("kind", kind);
-    // Full load để luôn lấy dữ liệu mới (tránh client router cache của Next).
-    window.location.assign(`/combo?${p.toString()}`);
+    router.push(`/combo?${p.toString()}`, { scroll: false });
+    router.refresh();
   }
 
   const cell = "flex flex-col gap-1 rounded-2xl bg-[oklch(0.965_0.01_150)] px-4 py-3";
