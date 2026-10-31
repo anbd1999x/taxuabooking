@@ -38,8 +38,15 @@ export function ImageUploader({
         fd.append("file", file);
         const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
         if (!res.ok) {
-          const d = await res.json().catch(() => ({}));
-          throw new Error(d.error ?? "Tải ảnh thất bại.");
+          // Lỗi từ API trả JSON; nếu không phải JSON (lỗi proxy: file quá lớn…) thì
+          // hiện kèm mã trạng thái để dễ chẩn đoán.
+          let msg = "";
+          try {
+            msg = (await res.json()).error ?? "";
+          } catch {
+            if (res.status === 413) msg = "Tệp quá lớn, vượt giới hạn máy chủ.";
+          }
+          throw new Error(msg || `Tải lên thất bại (mã ${res.status}).`);
         }
       }
       if (inputRef.current) inputRef.current.value = "";
