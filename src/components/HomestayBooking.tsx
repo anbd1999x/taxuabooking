@@ -184,9 +184,16 @@ export function HomestayBooking({
   }, [lb]);
 
   const occ = useMemo(() => rooms.map((r) => new Set(r.occupied)), [rooms]);
+  // r.days lập chỉ mục theo getUTCDay(): [CN, T2, T3, T4, T5, T6, T7].
   const priceOf = (r: HomestayRoom, d: Date) => {
-    const o = r.days[wdIndex(d)];
+    const o = r.days[d.getUTCDay()];
     return o != null ? o : r.base;
+  };
+  // Giá "từ" để hiển thị khi chưa chọn ngày: nhỏ nhất trong các mức giá dương
+  // (phòng có thể chỉ nhập giá theo thứ, để giá thường = 0).
+  const fromPrice = (r: HomestayRoom) => {
+    const cands = [r.base, ...r.days].filter((p): p is number => p != null && p > 0);
+    return cands.length ? Math.min(...cands) : null;
   };
 
   const nights = useMemo(() => {
@@ -271,7 +278,7 @@ export function HomestayBooking({
   const roomView = rooms.map((r, i) => {
     const free = nN > 0 && nights.every((d) => !occ[i].has(keyOf(d)));
     const stayPrice = nights.reduce((a, d) => a + priceOf(r, d), 0);
-    const wdP = r.days[2] ?? r.base; // T4 đại diện ngày thường
+    const wdP = r.days[3] ?? r.base; // T4 đại diện ngày thường (chỉ mục getUTCDay)
     const weP = r.days[6] ?? r.base; // T7 đại diện cuối tuần
     let status: string, tone: "ok" | "low" | "full" | "idle";
     if (!nN) { status = "Chọn ngày"; tone = "idle"; }
@@ -535,7 +542,7 @@ export function HomestayBooking({
                       <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-3">
                         <div>
                           <div className="text-xs text-gray-500">{nN ? `${nN} đêm` : "Mỗi đêm từ"}</div>
-                          <div className="text-xl font-extrabold text-ink">{nN ? fmt(v.stayPrice) : fmt(v.r.base)}</div>
+                          <div className="text-xl font-extrabold text-ink">{nN ? fmt(v.stayPrice) : fmt(fromPrice(v.r))}</div>
                         </div>
                         <button
                           type="button"
