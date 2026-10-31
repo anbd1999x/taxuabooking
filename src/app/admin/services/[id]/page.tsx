@@ -583,7 +583,9 @@ export default async function EditServicePage({
                                     <ActionForm action={upsertRoom} className="grid grid-cols-1 gap-2 rounded-xl bg-white p-3 ring-1 ring-black/5 sm:grid-cols-12 sm:items-end">
                                       <input type="hidden" name="serviceId" value={service.id} />
                                       <input type="hidden" name="id" value={room.id} />
-                                      <input type="hidden" name="sortOrder" value={room.sortOrder} />
+                                      <L label="Thứ tự hiển thị (web, nhỏ → lớn, tính trên mọi hạng)" cls="sm:col-span-3">
+                                        <input name="sortOrder" type="number" defaultValue={room.sortOrder} className={inp} />
+                                      </L>
                                       <L label="Hạng phòng" cls="sm:col-span-3">
                                         <select name="roomTypeId" defaultValue={room.roomTypeId} className={inp}>
                                           {service.roomTypes.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
@@ -892,7 +894,9 @@ export default async function EditServicePage({
                       <ActionForm action={upsertRoom} className="grid grid-cols-1 gap-2 rounded-xl bg-white p-3 ring-1 ring-black/5 sm:grid-cols-12 sm:items-end">
                         <input type="hidden" name="serviceId" value={service.id} />
                         <input type="hidden" name="id" value={room.id} />
-                        <input type="hidden" name="sortOrder" value={room.sortOrder} />
+                        <L label="Thứ tự hiển thị (web, nhỏ → lớn, tính trên mọi hạng)" cls="sm:col-span-3">
+                          <input name="sortOrder" type="number" defaultValue={room.sortOrder} className={inp} />
+                        </L>
                         <L label="Hạng phòng" cls="sm:col-span-3">
                           <select name="roomTypeId" defaultValue={room.roomTypeId} className={inp}>
                             {service.roomTypes.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
