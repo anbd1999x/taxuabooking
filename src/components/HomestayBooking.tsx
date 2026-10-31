@@ -196,13 +196,17 @@ export function HomestayBooking({
     return cands.length ? Math.min(...cands) : null;
   };
 
+  // Chỉ chọn 1 ngày = mặc định ở đúng 1 đêm (trả phòng trưa hôm sau).
+  // Bấm thêm ngày sau đó mới chuyển sang logic khoảng nhận → trả như thường.
+  const coEff = co ?? (ci ? keyOf(addDays(parseKey(ci), 1)) : null);
+
   const nights = useMemo(() => {
-    if (!ci || !co) return [] as Date[];
-    const a = parseKey(ci), b = parseKey(co);
+    if (!ci || !coEff) return [] as Date[];
+    const a = parseKey(ci), b = parseKey(coEff);
     const out: Date[] = [];
     for (let t = a.getTime(); t < b.getTime(); t += MS) out.push(new Date(t));
     return out;
-  }, [ci, co]);
+  }, [ci, coEff]);
   const nN = nights.length;
 
   function pickDay(k: string) {
@@ -252,8 +256,8 @@ export function HomestayBooking({
         });
       }
       const status = free === 0 ? "full" : free <= 2 ? "low" : "ok";
-      const isEnd = k === ci || k === co;
-      const inRange = Boolean(ci && co && k > ci && k < co);
+      const isEnd = k === ci || k === coEff;
+      const inRange = Boolean(ci && coEff && k > ci && k < coEff);
       cells.push({ key: k, day: d, inWindow, free, minP, status, isEnd, inRange });
     }
     while (cells.length % 7) cells.push({ key: null, day: 0, inWindow: false, free: 0, minP: null, status: "ok", isEnd: false, inRange: false });
@@ -271,7 +275,7 @@ export function HomestayBooking({
   const calHint = !ci
     ? "Bấm chọn ngày nhận phòng"
     : !co
-      ? "Bấm tiếp ngày trả phòng"
+      ? `${dname(ci)} → ${dname(coEff!)} · 1 đêm (bấm thêm ngày nếu ở nhiều đêm)`
       : `${dname(ci)} → ${dname(co)} · ${nN} đêm`;
 
   // ----- Thẻ phòng theo kỳ đã chọn -----
@@ -287,7 +291,7 @@ export function HomestayBooking({
     return { r, i, free, stayPrice, wdP, weP, status, tone };
   });
 
-  const dateQS = ci && co ? `?from=${ci}&to=${co}` : "";
+  const dateQS = ci && coEff ? `?from=${ci}&to=${coEff}` : "";
   const sel = roomView.find((v) => v.r.id === selected && v.free) ?? null;
   // Sức chứa tối đa (nhận thêm người kèm phụ thu) & phụ thu người thêm.
   const selMax = sel ? Math.max(sel.r.capacity, sel.r.maxCapacity ?? sel.r.capacity) : 0;
@@ -317,7 +321,7 @@ export function HomestayBooking({
         body: JSON.stringify({
           serviceId,
           useDate: ci,
-          endDate: co,
+          endDate: coEff,
           quantity: 1,
           roomId: sel!.r.id,
           roomTypeId: null,
@@ -460,7 +464,7 @@ export function HomestayBooking({
           <div>
             <h2 className="text-xl font-bold text-ink">Các phòng</h2>
             <p className="mt-1 text-sm text-gray-500">
-              {nN ? `Giá & tình trạng cho ${nN} đêm · ${dname(ci!)} → ${dname(co!)}.` : "Chọn ngày để xem giá và phòng trống cho cả kỳ ở."}
+              {nN ? `Giá & tình trạng cho ${nN} đêm · ${dname(ci!)} → ${dname(coEff!)}.` : "Chọn ngày để xem giá và phòng trống cho cả kỳ ở."}
             </p>
           </div>
           <div className="flex flex-col gap-3">
@@ -709,7 +713,7 @@ export function HomestayBooking({
                 </div>
                 <div className="px-3.5 py-2.5">
                   <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Trả phòng</div>
-                  <div className="mt-0.5 text-sm font-bold text-ink">{co ? dname(co) : "Chọn ngày"}</div>
+                  <div className="mt-0.5 text-sm font-bold text-ink">{coEff ? dname(coEff) : "Chọn ngày"}</div>
                 </div>
               </button>
 

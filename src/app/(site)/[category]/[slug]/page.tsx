@@ -12,6 +12,7 @@ import { today, toDateKey, addDays } from "@/lib/dates";
 import { BookingPanel } from "@/components/BookingPanel";
 import { HomestayBooking, type HomestayRoom } from "@/components/HomestayBooking";
 import { CabinBooking } from "@/components/cabin/CabinBooking";
+import { ServiceReviews } from "@/components/ServiceReviews";
 import { buildDirectionOptions } from "@/lib/cabin";
 import { CabinRoutes } from "@/components/CabinRoutes";
 import { Gallery } from "@/components/Gallery";
@@ -186,6 +187,7 @@ export default async function ServiceDetailPage({
             </div>
           }
         />
+        <ServiceReviews serviceId={service.id} path={`/${cat.slug}/${service.slug}`} />
       </div>
     );
   }
@@ -439,6 +441,7 @@ export default async function ServiceDetailPage({
           )}
         </div>
       </div>
+      <ServiceReviews serviceId={service.id} path={`/${cat.slug}/${service.slug}`} />
     </div>
   );
 }
