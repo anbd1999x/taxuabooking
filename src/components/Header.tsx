@@ -52,7 +52,7 @@ export function Header({ phone }: { phone: string }) {
 
       {/* Menu mobile */}
       <div className={cn("lg:hidden", open ? "block" : "hidden")}>
-        <nav className="container-page grid grid-cols-2 gap-2 border-t border-black/5 py-3">
+        <nav className="container-page flex flex-col gap-1 border-t border-black/5 py-3">
           {CATEGORY_LIST.map((c) => (
             <Link
               key={c.slug}
@@ -65,7 +65,7 @@ export function Header({ phone }: { phone: string }) {
           ))}
           <a
             href={`tel:${phone.replace(/\s/g, "")}`}
-            className="col-span-2 mt-1 rounded-xl bg-sunset-500 px-4 py-2.5 text-center text-sm font-semibold text-white"
+            className="mt-1 rounded-xl bg-sunset-500 px-4 py-2.5 text-center text-sm font-semibold text-white"
           >
             📞 Gọi {phone}
           </a>
