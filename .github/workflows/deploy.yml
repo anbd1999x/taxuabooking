@@ -32,6 +32,8 @@ jobs:
             git reset --hard origin/main
             echo "==> Build & khởi động container"
             docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+            echo "==> Nạp lại cấu hình bind-mount (web/caddy giữ inode cũ sau git reset)"
+            docker compose -f docker-compose.prod.yml up -d --force-recreate --no-deps web caddy
             echo "==> Dọn image cũ"
             docker image prune -f
             echo "==> Trạng thái"
