@@ -5,7 +5,9 @@
  * - Vẫn dùng picker NGÀY NATIVE của trình duyệt/điện thoại (UX tốt trên mobile).
  * - Hiển thị giá trị theo định dạng **dd/mm/yyyy** bất kể locale máy (lớp phủ đè
  *   lên, chữ gốc của input để trong suốt).
- * - Trên thiết bị cảm ứng (iPhone/Android): chọn xong **tự đóng lịch** (blur).
+ * - KHÔNG tự blur khi đổi giá trị: trên iOS sự kiện change bắn ngay lúc mở picker
+ *   (mặc định hôm nay) → blur sẽ đóng lịch & chọn nhầm hôm nay. Để người dùng tự
+ *   đóng lịch sau khi chọn.
  *
  * Cách dùng: thay cho <input type="date" className=... value=... onChange=... />.
  * `className` = class của ô input (giữ nguyên như cũ); `displayClassName` = class
@@ -42,15 +44,7 @@ export function DateField({
         max={max}
         required={required}
         aria-label={ariaLabel}
-        onChange={(e) => {
-          const el = e.currentTarget;
-          onChange(el.value);
-          // iPhone/Android: đóng lịch ngay sau khi chọn (chỉ trên thiết bị cảm ứng
-          // để không làm gián đoạn việc gõ ngày trên máy tính).
-          if (typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches) {
-            requestAnimationFrame(() => el.blur());
-          }
-        }}
+        onChange={(e) => onChange(e.currentTarget.value)}
         className={`${className} w-full`}
         // Ẩn chữ gốc của input để lớp phủ dd/mm/yyyy hiển thị thay thế.
         style={{ color: "transparent", WebkitTextFillColor: "transparent", colorScheme: "light" }}
