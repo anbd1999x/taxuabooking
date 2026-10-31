@@ -15,36 +15,36 @@ export function Header({ phone, customerName = null }: { phone: string; customer
       <div className="container-page flex h-11 items-center justify-between gap-4 sm:h-16">
         <Link href="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
           <span className="flex h-6 w-6 items-center justify-center rounded-md bg-forest-600 text-[10px] font-bold text-white sm:h-9 sm:w-9 sm:rounded-xl sm:text-base">TX</span>
-          <span className="text-[15px] font-extrabold tracking-tight text-forest-800 sm:text-lg">
+          <span className="whitespace-nowrap text-[15px] font-extrabold tracking-tight text-forest-800 sm:text-lg">
             Tà Xùa <span className="text-sunset-500">Booking</span>
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-1 lg:flex">
+        <nav className="hidden items-center gap-0.5 lg:flex">
           {CATEGORY_LIST.map((c) => (
             <Link
               key={c.slug}
               href={`/${c.slug}`}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700"
+              className="whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700"
             >
               {c.shortLabel}
             </Link>
           ))}
-          <span className="mx-1 h-5 w-px bg-black/10" />
-          <Link href="/huong-dan" className="rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700">Hướng dẫn</Link>
-          <Link href="/tra-cuu" className="rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700">Tra cứu đơn</Link>
+          <span className="mx-1 hidden h-5 w-px bg-black/10 xl:block" />
+          <Link href="/huong-dan" className="hidden whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700 xl:inline-flex">Hướng dẫn</Link>
+          <Link href="/tra-cuu" className="hidden whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700 xl:inline-flex">Tra cứu đơn</Link>
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-none items-center gap-1.5">
           <Link
             href="/tai-khoan"
-            className="hidden rounded-xl px-3 py-2 text-sm font-semibold text-forest-700 transition hover:bg-forest-50 lg:inline-flex"
+            className="hidden whitespace-nowrap rounded-xl px-2.5 py-2 text-sm font-semibold text-forest-700 transition hover:bg-forest-50 lg:inline-flex"
           >
             {customerName ? `👤 ${firstName}` : "Đăng nhập"}
           </Link>
           <a
             href={`tel:${phone.replace(/\s/g, "")}`}
-            className="hidden rounded-xl bg-sunset-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sunset-600 sm:inline-flex"
+            className="hidden whitespace-nowrap rounded-xl bg-sunset-500 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-sunset-600 sm:inline-flex"
           >
             📞 {phone}
           </a>
