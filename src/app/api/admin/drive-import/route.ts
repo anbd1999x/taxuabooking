@@ -76,66 +76,74 @@ async function downloadDriveFile(
   return null;
 }
 
+/**
+ * 2 bước để tránh timeout proxy (504) với thư mục nhiều ảnh:
+ * - op "list": trả danh sách file trong link (file lẻ = 1 phần tử).
+ * - op "import": tải & lưu MỘT file (client gọi lặp từng file, có tiến trình).
+ */
 export async function POST(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Chưa đăng nhập." }, { status: 401 });
   if (session.role !== "ADMIN") return NextResponse.json({ error: "Không có quyền." }, { status: 403 });
 
-  let body: { url?: string; serviceId?: string; roomTypeId?: string; roomId?: string };
+  let body: {
+    op?: string;
+    url?: string;
+    fileId?: string;
+    name?: string;
+    serviceId?: string;
+    roomTypeId?: string;
+    roomId?: string;
+  };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Thiếu dữ liệu." }, { status: 400 });
   }
-  const parsed = parseDriveUrl(body.url ?? "");
-  if (!parsed) {
-    return NextResponse.json({ error: "Link Google Drive không hợp lệ." }, { status: 400 });
-  }
-  if (!body.serviceId && !body.roomTypeId && !body.roomId) {
-    return NextResponse.json({ error: "Thiếu đối tượng gắn media." }, { status: 400 });
-  }
 
-  // Danh sách file cần tải.
-  let files: { id: string; name: string }[];
-  if (parsed.kind === "folder") {
-    files = await listFolderFiles(parsed.id);
+  if (body.op === "list") {
+    const parsed = parseDriveUrl(body.url ?? "");
+    if (!parsed) {
+      return NextResponse.json({ error: "Link Google Drive không hợp lệ." }, { status: 400 });
+    }
+    if (parsed.kind === "file") {
+      return NextResponse.json({ files: [{ id: parsed.id, name: "" }] });
+    }
+    const files = await listFolderFiles(parsed.id);
     if (files.length === 0) {
       return NextResponse.json(
         { error: "Không đọc được thư mục. Hãy chắc thư mục ở chế độ công khai (Ai có link đều xem được)." },
         { status: 400 },
       );
     }
-    files = files.slice(0, MAX_FILES);
-  } else {
-    files = [{ id: parsed.id, name: "" }];
+    return NextResponse.json({ files: files.slice(0, MAX_FILES) });
   }
 
-  let ok = 0;
-  const errors: string[] = [];
-  for (const f of files) {
-    const dl = await downloadDriveFile(f.id);
-    const label = f.name || f.id.slice(0, 8);
-    if (!dl) {
-      errors.push(`${label}: không tải được (file phải công khai)`);
-      continue;
-    }
-    const filename = f.name || dl.filename;
-    const mime = resolveMediaType(dl.mime, filename);
-    if (!mime.startsWith("image/") && !mime.startsWith("video/")) {
-      errors.push(`${label}: không phải ảnh/video`);
-      continue;
-    }
-    const result = await processAndSaveMedia({
-      buf: dl.buf,
-      mime,
-      filename,
-      serviceId: body.serviceId ?? null,
-      roomTypeId: body.roomTypeId ?? null,
-      roomId: body.roomId ?? null,
-    });
-    if ("error" in result) errors.push(`${label}: ${result.error}`);
-    else ok++;
+  // op "import": một file / một request.
+  const fileId = (body.fileId ?? "").trim();
+  if (!/^[a-zA-Z0-9_-]{10,}$/.test(fileId)) {
+    return NextResponse.json({ error: "Thiếu fileId." }, { status: 400 });
   }
-
-  return NextResponse.json({ ok, total: files.length, errors }, { status: ok > 0 ? 201 : 400 });
+  if (!body.serviceId && !body.roomTypeId && !body.roomId) {
+    return NextResponse.json({ error: "Thiếu đối tượng gắn media." }, { status: 400 });
+  }
+  const dl = await downloadDriveFile(fileId);
+  if (!dl) {
+    return NextResponse.json({ error: "Không tải được (file phải công khai)." }, { status: 400 });
+  }
+  const filename = body.name || dl.filename;
+  const mime = resolveMediaType(dl.mime, filename);
+  if (!mime.startsWith("image/") && !mime.startsWith("video/")) {
+    return NextResponse.json({ error: "Không phải ảnh/video." }, { status: 400 });
+  }
+  const result = await processAndSaveMedia({
+    buf: dl.buf,
+    mime,
+    filename,
+    serviceId: body.serviceId ?? null,
+    roomTypeId: body.roomTypeId ?? null,
+    roomId: body.roomId ?? null,
+  });
+  if ("error" in result) return NextResponse.json({ error: result.error }, { status: result.status });
+  return NextResponse.json({ url: result.url }, { status: 201 });
 }
