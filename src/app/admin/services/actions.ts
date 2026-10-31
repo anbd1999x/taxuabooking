@@ -391,6 +391,76 @@ export async function setCover(formData: FormData): Promise<void> {
   revalidatePath(`/admin/services/${serviceId}`);
 }
 
+// ---------------- Di chuyển vị trí ảnh (mũi tên ‹ ›) ----------------
+/** Chuẩn hoá sortOrder theo vị trí hiển thị rồi hoán đổi ảnh với ô bên cạnh. */
+async function swapOrder(
+  rows: { id: string; sortOrder: number }[],
+  id: string,
+  dir: string | null | undefined,
+  update: (id: string, sortOrder: number) => Promise<unknown>,
+): Promise<void> {
+  const idx = rows.findIndex((r) => r.id === id);
+  if (idx < 0) return;
+  const j = dir === "left" ? idx - 1 : idx + 1;
+  if (j < 0 || j >= rows.length) return;
+  await Promise.all(
+    rows.map((r, i) => {
+      const target = i === idx ? j : i === j ? idx : i;
+      return r.sortOrder === target
+        ? Promise.resolve()
+        : update(r.id, target);
+    }),
+  );
+}
+
+export async function moveServiceImage(formData: FormData): Promise<void> {
+  const id = s(formData.get("id"));
+  const serviceId = s(formData.get("serviceId"));
+  if (!id || !serviceId) return;
+  const rows = await prisma.serviceImage.findMany({
+    where: { serviceId },
+    orderBy: { sortOrder: "asc" },
+    select: { id: true, sortOrder: true },
+  });
+  await swapOrder(rows, id, s(formData.get("dir")), (iid, so) =>
+    prisma.serviceImage.update({ where: { id: iid }, data: { sortOrder: so } }),
+  );
+  revalidatePath(`/admin/services/${serviceId}`);
+}
+
+export async function moveRoomTypeImage(formData: FormData): Promise<void> {
+  const id = s(formData.get("id"));
+  const roomTypeId = s(formData.get("roomTypeId"));
+  const serviceId = s(formData.get("serviceId"));
+  if (!id || !roomTypeId) return;
+  const rows = await prisma.roomTypeImage.findMany({
+    where: { roomTypeId },
+    orderBy: { sortOrder: "asc" },
+    select: { id: true, sortOrder: true },
+  });
+  await swapOrder(rows, id, s(formData.get("dir")), (iid, so) =>
+    prisma.roomTypeImage.update({ where: { id: iid }, data: { sortOrder: so } }),
+  );
+  await syncRoomThumbnail(roomTypeId);
+  if (serviceId) revalidatePath(`/admin/services/${serviceId}`);
+}
+
+export async function moveRoomImage(formData: FormData): Promise<void> {
+  const id = s(formData.get("id"));
+  const roomId = s(formData.get("roomId"));
+  const serviceId = s(formData.get("serviceId"));
+  if (!id || !roomId) return;
+  const rows = await prisma.roomImage.findMany({
+    where: { roomId },
+    orderBy: { sortOrder: "asc" },
+    select: { id: true, sortOrder: true },
+  });
+  await swapOrder(rows, id, s(formData.get("dir")), (iid, so) =>
+    prisma.roomImage.update({ where: { id: iid }, data: { sortOrder: so } }),
+  );
+  if (serviceId) revalidatePath(`/admin/services/${serviceId}`);
+}
+
 // ---------------- Loại phòng ----------------
 export async function upsertRoomType(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const serviceId = s(formData.get("serviceId"));

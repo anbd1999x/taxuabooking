@@ -28,6 +28,9 @@ import {
   upsertRoom,
   deleteRoom,
   duplicateRoom,
+  moveServiceImage,
+  moveRoomTypeImage,
+  moveRoomImage,
   deleteRoomImage,
   setRoomImageCover,
   deleteRoomPhoto,
@@ -188,7 +191,8 @@ export default async function EditServicePage({
                     <div key={img.id} className="group relative overflow-hidden rounded-xl ring-1 ring-black/5">
                       <div className="relative aspect-[4/3]"><Image src={img.url} alt={img.alt ?? ""} fill sizes="200px" className="object-cover" /></div>
                       {img.isCover && <span className="absolute left-1.5 top-1.5 rounded-full bg-sunset-500 px-2 py-0.5 text-[10px] font-bold text-white">Ảnh bìa</span>}
-                      <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1.5 opacity-0 transition group-hover:opacity-100">
+                      <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1.5 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
+                        <MoveBtns action={moveServiceImage} fields={{ id: img.id, serviceId: service.id }} />
                         {!img.isCover && (
                           <form action={setCover}>
                             <input type="hidden" name="id" value={img.id} />
@@ -429,7 +433,8 @@ export default async function EditServicePage({
                     <div key={img.id} className="group relative overflow-hidden rounded-xl ring-1 ring-black/5">
                       <div className="relative aspect-[4/3]"><Image src={img.url} alt={img.alt ?? ""} fill sizes="200px" className="object-cover" /></div>
                       {img.isCover && <span className="absolute left-1.5 top-1.5 rounded-full bg-sunset-500 px-2 py-0.5 text-[10px] font-bold text-white">Ảnh bìa</span>}
-                      <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1.5 opacity-0 transition group-hover:opacity-100">
+                      <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1.5 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
+                        <MoveBtns action={moveServiceImage} fields={{ id: img.id, serviceId: service.id }} />
                         {!img.isCover && (
                           <form action={setCover}>
                             <input type="hidden" name="id" value={img.id} />
@@ -507,7 +512,8 @@ export default async function EditServicePage({
                                   </div>
                                   {img.type === "video" && <span className="absolute right-1 top-1 rounded bg-black/70 px-1 py-0.5 text-[9px] font-semibold text-white">▶ video</span>}
                                   {img.isCover && <span className="absolute left-1 top-1 rounded bg-forest-600 px-1.5 py-0.5 text-[9px] font-semibold text-white">Bìa</span>}
-                                  <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1 opacity-0 transition group-hover:opacity-100">
+                                  <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
+                                    <MoveBtns action={moveRoomTypeImage} fields={{ id: img.id, roomTypeId: rt.id, serviceId: service.id }} />
                                     {!img.isCover && (
                                       <form action={setRoomImageCover}>
                                         <input type="hidden" name="id" value={img.id} />
@@ -614,7 +620,8 @@ export default async function EditServicePage({
                                             <div key={img.id} className="group relative overflow-hidden rounded-lg bg-black/5 ring-1 ring-black/5">
                                               <div className="relative aspect-square">{/\.(mp4|webm|mov|m4v|ogg)(\?|$)/i.test(img.url) ? <video src={img.url} className="h-full w-full object-cover" muted playsInline preload="metadata" /> : <Image src={img.url} alt={img.alt ?? room.name} fill sizes="120px" className="object-cover" />}</div>
                                               {img.isCover && <span className="absolute left-1 top-1 rounded bg-forest-600 px-1.5 py-0.5 text-[9px] font-semibold text-white">Bìa</span>}
-                                              <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1 opacity-0 transition group-hover:opacity-100">
+                                              <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
+                                                <MoveBtns action={moveRoomImage} fields={{ id: img.id, roomId: room.id, serviceId: service.id }} />
                                                 {!img.isCover && (
                                                   <form action={setRoomPhotoCover}>
                                                     <input type="hidden" name="id" value={img.id} />
@@ -812,7 +819,8 @@ export default async function EditServicePage({
                 <Image src={img.url} alt={img.alt ?? ""} fill sizes="160px" className="object-cover" />
               </div>
               {img.isCover && <span className="absolute left-1.5 top-1.5 rounded-full bg-forest-600 px-2 py-0.5 text-[10px] font-semibold text-white">Ảnh bìa</span>}
-              <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1.5 opacity-0 transition group-hover:opacity-100">
+              <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1.5 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
+                <MoveBtns action={moveServiceImage} fields={{ id: img.id, serviceId: service.id }} />
                 {!img.isCover && (
                   <form action={setCover}>
                     <input type="hidden" name="id" value={img.id} />
@@ -872,7 +880,8 @@ export default async function EditServicePage({
                           </div>
                           {img.type === "video" && <span className="absolute right-1 top-1 rounded bg-black/70 px-1 py-0.5 text-[9px] font-semibold text-white">▶ video</span>}
                           {img.isCover && <span className="absolute left-1 top-1 rounded bg-forest-600 px-1.5 py-0.5 text-[9px] font-semibold text-white">Bìa</span>}
-                          <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1 opacity-0 transition group-hover:opacity-100">
+                          <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
+                            <MoveBtns action={moveRoomTypeImage} fields={{ id: img.id, roomTypeId: r.id, serviceId: service.id }} />
                             {!img.isCover && (
                               <form action={setRoomImageCover}>
                                 <input type="hidden" name="id" value={img.id} />
@@ -967,7 +976,8 @@ export default async function EditServicePage({
                                   )}
                                 </div>
                                 {img.isCover && <span className="absolute left-1 top-1 rounded bg-forest-600 px-1.5 py-0.5 text-[9px] font-semibold text-white">Bìa</span>}
-                                <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1 opacity-0 transition group-hover:opacity-100">
+                                <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
+                                  <MoveBtns action={moveRoomImage} fields={{ id: img.id, roomId: room.id, serviceId: service.id }} />
                                   {!img.isCover && (
                                     <form action={setRoomPhotoCover}>
                                       <input type="hidden" name="id" value={img.id} />
@@ -1443,6 +1453,34 @@ function CabinRouteBlock({
           <div className="sm:col-span-1"><button className="rounded bg-forest-100 px-2 py-2 text-xs font-medium text-forest-700">+ Thêm</button></div>
         </ActionForm>
       </div>
+    </div>
+  );
+}
+
+/** Cặp nút ‹ › đổi vị trí ảnh (mỗi nút 1 form riêng để gửi kèm hướng). */
+function MoveBtns({
+  action,
+  fields,
+}: {
+  action: (fd: FormData) => Promise<void>;
+  fields: Record<string, string>;
+}) {
+  return (
+    <div className="flex gap-1">
+      {(["left", "right"] as const).map((dir) => (
+        <form key={dir} action={action}>
+          {Object.entries(fields).map(([k, v]) => (
+            <input key={k} type="hidden" name={k} value={v} />
+          ))}
+          <input type="hidden" name="dir" value={dir} />
+          <button
+            className="rounded bg-white/90 px-1.5 py-0.5 text-[11px] font-bold text-gray-700"
+            aria-label={dir === "left" ? "Chuyển lên trước" : "Chuyển ra sau"}
+          >
+            {dir === "left" ? "‹" : "›"}
+          </button>
+        </form>
+      ))}
     </div>
   );
 }
