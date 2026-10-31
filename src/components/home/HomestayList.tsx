@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { DateField } from "@/components/DateField";
 
 export interface HomestayCard {
   id: string;
@@ -396,11 +397,11 @@ export function HomestayList({
             </label>
             <label className={cell}>
               <span className="text-xs font-semibold text-gray-500">Nhận phòng</span>
-              <input type="date" value={ci} onChange={(e) => { setCi(e.target.value); syncDates(e.target.value, co); }} className={inp} />
+              <DateField value={ci} onChange={(v) => { setCi(v); syncDates(v, co); }} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Nhận phòng" />
             </label>
             <label className={cell}>
               <span className="text-xs font-semibold text-gray-500">Trả phòng</span>
-              <input type="date" value={co} min={ci || undefined} onChange={(e) => { setCo(e.target.value); syncDates(ci, e.target.value); }} className={inp} />
+              <DateField value={co} min={ci || undefined} onChange={(v) => { setCo(v); syncDates(ci, v); }} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Trả phòng" />
             </label>
             <label className={cell}>
               <span className="text-xs font-semibold text-gray-500">Khoảng giá</span>

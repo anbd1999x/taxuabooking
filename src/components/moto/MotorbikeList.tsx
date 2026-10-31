@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { DateField } from "@/components/DateField";
 
 export interface RentalBike {
   id: string;
@@ -390,11 +391,11 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
           <div className="grid gap-1.5" style={{ gridTemplateColumns: wide ? "1fr 1fr 150px auto" : "repeat(auto-fit,minmax(min(100%,150px),1fr))" }}>
             <label className={cell}>
               <span className="text-xs font-semibold text-gray-500">Ngày nhận xe</span>
-              <input type="date" value={ci} onChange={(e) => setCi(e.target.value)} className={inp} />
+              <DateField value={ci} onChange={setCi} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Ngày nhận xe" />
             </label>
             <label className={cell}>
               <span className="text-xs font-semibold text-gray-500">Ngày trả xe</span>
-              <input type="date" value={co} min={ci || undefined} onChange={(e) => setCo(e.target.value)} className={inp} />
+              <DateField value={co} min={ci || undefined} onChange={setCo} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Ngày trả xe" />
             </label>
             <div className={cell}>
               <span className="text-xs font-semibold text-gray-500">Số xe</span>
