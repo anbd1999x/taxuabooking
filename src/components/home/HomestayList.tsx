@@ -452,12 +452,12 @@ export function HomestayList({
                 <div className="text-[19px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink">{s.name}</div>
                 <div className="line-clamp-3 text-sm leading-[1.55] text-gray-500">{s.desc}</div>
                 <div className="flex-1" />
-                <div className="mt-1.5 flex items-end justify-between gap-2.5 border-t border-[oklch(0.94_0.01_230)] pt-3">
-                  <div>
-                    <div className="text-xs text-gray-500">{hasDates ? `${nights} đêm từ` : "Giá từ"}</div>
-                    <div><span className="text-[21px] font-extrabold tracking-[-0.02em]" style={{ color: TH.G }}>{vnd(hasDates ? s.price * nights : s.price)}</span>{!hasDates && <span className="text-[13px] text-gray-500">/đêm</span>}</div>
+                <div className="mt-1.5 flex flex-wrap items-end justify-between gap-x-2 gap-y-2 border-t border-[oklch(0.94_0.01_230)] pt-3">
+                  <div className="min-w-0">
+                    <div className="text-[11px] text-gray-500 sm:text-xs">{hasDates ? `${nights} đêm từ` : "Giá từ"}</div>
+                    <div><span className="text-[17px] font-extrabold tracking-[-0.02em] sm:text-[21px]" style={{ color: TH.G }}>{vnd(hasDates ? s.price * nights : s.price)}</span>{!hasDates && <span className="text-[12px] text-gray-500 sm:text-[13px]">/đêm</span>}</div>
                   </div>
-                  <span className="whitespace-nowrap rounded-full px-4 py-2.5 text-sm font-bold text-white transition group-hover:bg-sunset-500" style={{ background: TH.G }}>Xem phòng</span>
+                  <span className="whitespace-nowrap rounded-full px-3 py-2 text-xs font-bold text-white transition group-hover:bg-sunset-500 sm:px-4 sm:py-2.5 sm:text-sm" style={{ background: TH.G }}>Xem phòng</span>
                 </div>
               </div>
             </Link>
