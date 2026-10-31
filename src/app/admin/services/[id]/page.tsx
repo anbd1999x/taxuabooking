@@ -552,6 +552,10 @@ export default async function EditServicePage({
                             <span className="h-2.5 w-2.5 flex-none rounded-full" style={{ background: color }} />
                             <span className="text-sm font-extrabold text-ink">{rt.name}</span>
                             <span className="text-xs font-medium text-gray-500">{rt.rooms.length} phòng</span>
+                            <span className="ml-auto flex gap-1">
+                              <MiniMove action={moveRoomTypeUp} id={rt.id} serviceId={service.id} label="↑" title="Chuyển hạng phòng lên trên" />
+                              <MiniMove action={moveRoomTypeDown} id={rt.id} serviceId={service.id} label="↓" title="Chuyển hạng phòng xuống dưới" />
+                            </span>
                           </div>
                           <div className="divide-y divide-gray-100">
                             {rt.rooms.map((room) => {
@@ -564,6 +568,10 @@ export default async function EditServicePage({
                                     <span className="min-w-0 flex-1">
                                       <span className="block truncate text-[15px] font-bold text-ink">{room.name}</span>
                                       <span className="text-xs text-gray-500">{room.capacity} khách · {room.images.length} ảnh</span>
+                                    </span>
+                                    <span className="flex flex-none gap-1">
+                                      <MiniMove action={moveRoomUp} id={room.id} serviceId={service.id} label="↑" title="Chuyển phòng lên trên" />
+                                      <MiniMove action={moveRoomDown} id={room.id} serviceId={service.id} label="↓" title="Chuyển phòng xuống dưới" />
                                     </span>
                                     <span className="flex-none text-right">
                                       <span className="block text-sm font-extrabold text-ink">{priceK(eff(room))}</span>
@@ -1389,6 +1397,34 @@ function CabinRouteBlock({
         </ActionForm>
       </div>
     </div>
+  );
+}
+
+/** Nút ↑/↓ mini dạng form độc lập — đặt được ở hàng tiêu đề (ngoài form khác). */
+function MiniMove({
+  action,
+  id,
+  serviceId,
+  label,
+  title,
+}: {
+  action: (fd: FormData) => Promise<void>;
+  id: string;
+  serviceId: string;
+  label: string;
+  title: string;
+}) {
+  return (
+    <form action={action}>
+      <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="serviceId" value={serviceId} />
+      <button
+        title={title}
+        className="flex h-7 w-7 items-center justify-center rounded-lg border border-gray-200 bg-white text-[13px] text-gray-600 hover:bg-gray-100"
+      >
+        {label}
+      </button>
+    </form>
   );
 }
 

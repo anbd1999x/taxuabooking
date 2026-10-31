@@ -360,7 +360,6 @@ export async function syncServiceSheet(serviceId: string): Promise<SheetSyncResu
   for (const rm of allRooms) roomByName.set(norm(rm.name), rm);
 
   const ref = today();
-  const todayKey = toDateKey(ref);
 
   try {
     // 1) Liệt kê mọi tab của spreadsheet. Không đọc được → chỉ dùng tab trong link.
@@ -373,7 +372,7 @@ export async function syncServiceSheet(serviceId: string): Promise<SheetSyncResu
     const unmatched = new Set<string>();
     const syncedTabs: string[] = [];
     const skippedTabs: string[] = [];
-    let anyFutureTab = false; // có ít nhất 1 tab lịch chứa ngày từ hôm nay trở đi
+    let anyCalendarTab = false; // có ít nhất 1 tab nhận diện được là lịch
 
     // 2) Tải song song rồi duyệt từng tab (kết quả giữ đúng thứ tự tab).
     const tabRows = await Promise.all(tabs.map((t) => fetchTabCsv(id, t.gid)));
@@ -386,12 +385,10 @@ export async function syncServiceSheet(serviceId: string): Promise<SheetSyncResu
       }
       const { rows, headerRow, dateCols } = detected;
       const firstDateCol = Math.min(...dateCols.map((d) => d.col));
-      const futureCols = dateCols.filter((d) => toDateKey(d.date) >= todayKey);
-      if (futureCols.length === 0) {
-        skippedTabs.push(tab.name); // tháng đã qua
-        continue;
-      }
-      anyFutureTab = true;
+      // Đồng bộ TOÀN BỘ ngày trong sheet (cả quá khứ) để lịch tháng trong admin
+      // khớp sheet trọn tháng, không chỉ từ hôm nay trở đi.
+      const futureCols = dateCols;
+      anyCalendarTab = true;
 
       let matchedInTab = 0;
       const seenInTab = new Set<string>();
@@ -429,8 +426,8 @@ export async function syncServiceSheet(serviceId: string): Promise<SheetSyncResu
     }
 
     if (entries.length === 0) {
-      if (!anyFutureTab)
-        throw new Error("Không có tab lịch nào chứa ngày từ hôm nay trở đi (các tab đều đã qua hoặc không phải lịch).");
+      if (!anyCalendarTab)
+        throw new Error("Không nhận diện được tab lịch nào trong sheet (thiếu hàng/cột ngày).");
       throw new Error("Không khớp được phòng nào. Hãy đảm bảo tên phòng trong sheet trùng tên phòng trong app.");
     }
 
@@ -445,8 +442,12 @@ export async function syncServiceSheet(serviceId: string): Promise<SheetSyncResu
 
     // 3) Ghi dữ liệu dạng BATCH (1 lần đọc + deleteMany + createMany) để không
     //    vượt timeout transaction khi sheet lớn. Vẫn bảo vệ đơn thật + nguồn khác.
+    // Đọc bản ghi hiện có trong đúng khoảng ngày sheet phủ (gồm cả quá khứ).
+    const times = deduped.map((e) => e.date.getTime());
+    const rangeFrom = new Date(Math.min(...times));
+    const rangeTo = new Date(Math.max(...times));
     const existingList = await prisma.roomDayStatus.findMany({
-      where: { roomId: { in: [...matchedRoomIds] }, date: { gte: ref } },
+      where: { roomId: { in: [...matchedRoomIds] }, date: { gte: rangeFrom, lte: rangeTo } },
       select: { id: true, roomId: true, date: true, status: true, note: true, bookingId: true },
     });
     const existingByKey = new Map(existingList.map((x) => [`${x.roomId}|${toDateKey(x.date)}`, x]));
