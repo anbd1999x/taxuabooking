@@ -268,6 +268,7 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
     if (ci) p.set("from", ci);
     if (co && co !== ci) p.set("to", co);
     router.push(`/thue-xe-may${p.toString() ? `?${p.toString()}` : ""}`, { scroll: false });
+    router.refresh(); // ép lấy dữ liệu mới, tránh client router cache trả kết quả cũ
   }
 
   const items = useMemo(() => {

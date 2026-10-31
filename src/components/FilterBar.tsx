@@ -49,6 +49,7 @@ export function FilterBar({
     if (range.max) params.set("priceMax", range.max);
     const qs = params.toString();
     router.push(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+    router.refresh(); // ép lấy dữ liệu mới, tránh client router cache trả kết quả cũ
   }
 
   function reset() {

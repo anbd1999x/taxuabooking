@@ -256,6 +256,7 @@ export function CabinList({
     if (round && ve) p.set("to", ve);
     if (pickup && pickup !== "Hà Nội") p.set("pickup", pickup);
     router.push(`/xe-cabin${p.toString() ? `?${p.toString()}` : ""}`, { scroll: false });
+    router.refresh(); // ép lấy dữ liệu mới, tránh client router cache trả kết quả cũ
   }
 
   const sorted = useMemo(() => {

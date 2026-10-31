@@ -272,6 +272,7 @@ export function HomestayList({
     if (nco && nco > nci) p.set("to", nco);
     if (q) p.set("q", q);
     router.replace(`/homestay${p.toString() ? `?${p}` : ""}`, { scroll: false });
+    router.refresh(); // ép lấy dữ liệu mới, tránh client router cache trả kết quả cũ
   }
 
   const cell = "flex min-w-0 flex-col gap-0.5 rounded-[14px] bg-[oklch(0.965_0.01_230)] px-3.5 py-2.5";

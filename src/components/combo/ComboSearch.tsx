@@ -66,6 +66,7 @@ export function ComboSearch({
     if (filters.size) p.set("f", [...filters].join(","));
     if (kind && kind !== "all") p.set("kind", kind);
     router.push(`/combo?${p.toString()}`, { scroll: false });
+    router.refresh(); // ép lấy dữ liệu mới, tránh client router cache trả kết quả cũ
   }
 
   const cell = "flex flex-col gap-1 rounded-2xl bg-[oklch(0.965_0.01_150)] px-4 py-3";

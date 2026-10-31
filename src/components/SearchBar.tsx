@@ -23,6 +23,7 @@ export function SearchBar() {
     if (to) params.set("to", to);
     const qs = params.toString();
     router.push(`/${categorySlug}${qs ? `?${qs}` : ""}`);
+    router.refresh(); // ép lấy dữ liệu mới, tránh client router cache trả kết quả cũ
   }
 
   const cell = "flex flex-col gap-0.5 px-4 py-2.5";
