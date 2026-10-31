@@ -53,6 +53,8 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
         <div>
           <h4 className="font-semibold text-white">Khám phá</h4>
           <ul className="mt-3 space-y-2 text-sm">
+            <li><Link href="/huong-dan" className="hover:text-white">Hướng dẫn đặt dịch vụ</Link></li>
+            <li><Link href="/tra-cuu" className="hover:text-white">Tra cứu đơn đặt</Link></li>
             <li><Link href="/kinh-nghiem" className="hover:text-white">Kinh nghiệm du lịch</Link></li>
             <li><Link href="/lien-he" className="hover:text-white">Thông tin liên hệ</Link></li>
           </ul>
