@@ -437,7 +437,7 @@ export function HomestayList({
               className="group flex flex-col overflow-hidden rounded-[22px] border border-[oklch(0.93_0.01_230)] bg-white opacity-0 transition hover:shadow-[0_24px_50px_-24px_oklch(0.3_0.08_260_/.4)]"
               style={{ transform: "translateY(24px)", transitionProperty: "opacity, transform, box-shadow", transitionDuration: ".6s", transitionDelay: `${(i % 3) * 0.08}s` }}
             >
-              <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+              <div className="relative aspect-[16/10] overflow-hidden bg-gray-100 sm:aspect-[4/3]">
                 {s.cover ? <Image src={s.cover} alt={s.name} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" /> : <div className="flex h-full items-center justify-center text-4xl">🏠</div>}
                 <div className="pointer-events-none absolute left-3 right-3 top-3 flex justify-between gap-1.5">
                   <div className="flex gap-1.5">
@@ -447,12 +447,12 @@ export function HomestayList({
                   <span className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: STATUS[s.status].bg, color: STATUS[s.status].fg }}>{STATUS[s.status].text(s.freeRooms)}</span>
                 </div>
               </div>
-              <div className="flex flex-1 flex-col gap-2 p-5 pt-[18px]">
-                <div className="text-[13px] font-semibold text-gray-500">{s.area}</div>
-                <div className="text-[19px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink">{s.name}</div>
-                <div className="line-clamp-3 text-sm leading-[1.55] text-gray-500">{s.desc}</div>
+              <div className="flex flex-1 flex-col gap-1 p-3 sm:gap-2 sm:p-5 sm:pt-[18px]">
+                <div className="text-[11px] font-semibold text-gray-500 sm:text-[13px]">{s.area}</div>
+                <div className="line-clamp-1 text-[15px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink sm:line-clamp-none sm:text-[19px]">{s.name}</div>
+                <div className="line-clamp-2 text-[13px] leading-[1.5] text-gray-500 sm:line-clamp-3 sm:text-sm sm:leading-[1.55]">{s.desc}</div>
                 <div className="flex-1" />
-                <div className="mt-1.5 flex flex-wrap items-end justify-between gap-x-2 gap-y-2 border-t border-[oklch(0.94_0.01_230)] pt-3">
+                <div className="mt-1 flex flex-wrap items-end justify-between gap-x-2 gap-y-2 border-t border-[oklch(0.94_0.01_230)] pt-2 sm:mt-1.5 sm:pt-3">
                   <div className="min-w-0">
                     <div className="text-[11px] text-gray-500 sm:text-xs">{hasDates ? `${nights} đêm từ` : "Giá từ"}</div>
                     <div><span className="text-[17px] font-extrabold tracking-[-0.02em] sm:text-[21px]" style={{ color: TH.G }}>{vnd(hasDates ? s.price * nights : s.price)}</span>{!hasDates && <span className="text-[12px] text-gray-500 sm:text-[13px]">/đêm</span>}</div>
