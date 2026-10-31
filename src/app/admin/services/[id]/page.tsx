@@ -13,6 +13,7 @@ import { SortableImages } from "@/components/admin/SortableImages";
 import { ServiceTabNav } from "@/components/admin/ServiceTabNav";
 import { CabinScheduleEditor } from "@/components/admin/CabinScheduleEditor";
 import { ActionForm } from "@/components/admin/ActionForm";
+import { DeleteButton } from "@/components/admin/DeleteButton";
 import { upsertCabinPrice, deleteCabinPrice } from "../../cabin-prices/actions";
 import {
   upsertCabinRoute,
@@ -565,7 +566,7 @@ export default async function EditServicePage({
                                         <OrderBtn action={moveRoomUp} label="↑" title="Chuyển phòng lên trên" />
                                         <OrderBtn action={moveRoomDown} label="↓" title="Chuyển phòng xuống dưới" />
                                         <CopyBtn action={duplicateRoom} />
-                                        <DeleteBtn action={deleteRoom} />
+                                        <DeleteButton action={deleteRoom} label="Xoá" confirmText="Xoá phòng này? Thao tác không thể hoàn tác." />
                                       </div>
                                     </ActionForm>
                                     <div className="mt-2 rounded-xl border border-gray-200 bg-white p-2">
@@ -860,7 +861,7 @@ export default async function EditServicePage({
                           <OrderBtn action={moveRoomUp} label="↑" title="Chuyển phòng lên trên" />
                           <OrderBtn action={moveRoomDown} label="↓" title="Chuyển phòng xuống dưới" />
                           <CopyBtn action={duplicateRoom} />
-                          <DeleteBtn action={deleteRoom} />
+                          <DeleteButton action={deleteRoom} label="Xoá" confirmText="Xoá phòng này? Thao tác không thể hoàn tác." />
                         </div>
                       </ActionForm>
 
