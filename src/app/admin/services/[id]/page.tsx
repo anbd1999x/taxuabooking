@@ -150,8 +150,11 @@ export default async function EditServicePage({
 
           <div className="min-w-0 space-y-4">
             {/* 1 · Thông tin */}
-            <div id="sec-info" className="scroll-mt-20">
-              <div className={labelCls}>1 · Thông tin</div>
+            <details open id="sec-info" className="group/acc scroll-mt-20">
+              <summary className={`${labelCls} flex cursor-pointer select-none list-none items-center gap-2 [&::-webkit-details-marker]:hidden`}>
+                1 · Thông tin
+                <span className="text-[10px] text-gray-400 transition group-open/acc:rotate-180">▼</span>
+              </summary>
               <section className={`${cardCls} mt-2`}>
                 <ServiceForm
                   action={updateService}
@@ -176,11 +179,14 @@ export default async function EditServicePage({
                   <button className="rounded-xl border-[1.5px] border-red-300 px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50">Xoá bài đăng</button>
                 </form>
               </section>
-            </div>
+            </details>
 
             {/* 2 · Hình ảnh */}
-            <div id="sec-img" className="scroll-mt-20">
-              <div className={labelCls}>2 · Hình ảnh</div>
+            <details open id="sec-img" className="group/acc scroll-mt-20">
+              <summary className={`${labelCls} flex cursor-pointer select-none list-none items-center gap-2 [&::-webkit-details-marker]:hidden`}>
+                2 · Hình ảnh
+                <span className="text-[10px] text-gray-400 transition group-open/acc:rotate-180">▼</span>
+              </summary>
               <section className={`${cardCls} mt-2`}>
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <div>
@@ -204,11 +210,14 @@ export default async function EditServicePage({
                 />
                 {service.images.length === 0 && <p className="text-sm text-gray-400">Chưa có ảnh.</p>}
               </section>
-            </div>
+            </details>
 
             {/* 3 · Lộ trình */}
-            <div id="sec-route" className="scroll-mt-20">
-              <div className={labelCls}>3 · Lộ trình</div>
+            <details open id="sec-route" className="group/acc scroll-mt-20">
+              <summary className={`${labelCls} flex cursor-pointer select-none list-none items-center gap-2 [&::-webkit-details-marker]:hidden`}>
+                3 · Lộ trình
+                <span className="text-[10px] text-gray-400 transition group-open/acc:rotate-180">▼</span>
+              </summary>
               <section className={`${cardCls} mt-2`}>
                 <div className="mb-4">
                   <div className="text-[17px] font-extrabold text-ink">Lộ trình giờ chạy</div>
@@ -219,11 +228,14 @@ export default async function EditServicePage({
                   <CabinRouteBlock serviceId={service.id} direction="RETURN" label="Chiều về" route={service.cabinRoutes.find((r) => r.direction === "RETURN")} />
                 </div>
               </section>
-            </div>
+            </details>
 
             {/* 4 · Giá vé */}
-            <div id="sec-fare" className="scroll-mt-20">
-              <div className={labelCls}>4 · Giá vé</div>
+            <details open id="sec-fare" className="group/acc scroll-mt-20">
+              <summary className={`${labelCls} flex cursor-pointer select-none list-none items-center gap-2 [&::-webkit-details-marker]:hidden`}>
+                4 · Giá vé
+                <span className="text-[10px] text-gray-400 transition group-open/acc:rotate-180">▼</span>
+              </summary>
               <section className={`${cardCls} mt-2`}>
                 <div className="mb-3">
                   <div className="text-[17px] font-extrabold text-ink">Giá vé theo chặng</div>
@@ -258,11 +270,14 @@ export default async function EditServicePage({
                   </ActionForm>
                 </div>
               </section>
-            </div>
+            </details>
 
             {/* 5 · Chuyến xe */}
-            <div id="sec-trip" className="scroll-mt-20">
-              <div className={labelCls}>5 · Chuyến xe</div>
+            <details open id="sec-trip" className="group/acc scroll-mt-20">
+              <summary className={`${labelCls} flex cursor-pointer select-none list-none items-center gap-2 [&::-webkit-details-marker]:hidden`}>
+                5 · Chuyến xe
+                <span className="text-[10px] text-gray-400 transition group-open/acc:rotate-180">▼</span>
+              </summary>
               <section className={`${cardCls} mt-2`}>
                 <div className="mb-3">
                   <div className="text-[17px] font-extrabold text-ink">Tạo nhanh nhiều ngày</div>
@@ -327,7 +342,7 @@ export default async function EditServicePage({
                   </ActionForm>
                 </div>
               </section>
-            </div>
+            </details>
           </div>
         </div>
       </div>
@@ -379,8 +394,11 @@ export default async function EditServicePage({
 
           <div className="min-w-0 space-y-4">
             {/* 1 · Thông tin */}
-            <div id="sec-info" className="scroll-mt-20">
-              <div className={labelCls}>1 · Thông tin</div>
+            <details open id="sec-info" className="group/acc scroll-mt-20">
+              <summary className={`${labelCls} flex cursor-pointer select-none list-none items-center gap-2 [&::-webkit-details-marker]:hidden`}>
+                1 · Thông tin
+                <span className="text-[10px] text-gray-400 transition group-open/acc:rotate-180">▼</span>
+              </summary>
               <section className={`${cardCls} mt-2`}>
                 <ServiceForm
                   action={updateService}
@@ -405,11 +423,14 @@ export default async function EditServicePage({
                   <button className="rounded-xl border-[1.5px] border-red-300 px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50">Xoá bài đăng</button>
                 </form>
               </section>
-            </div>
+            </details>
 
             {/* 2 · Ảnh chung */}
-            <div id="sec-img" className="scroll-mt-20">
-              <div className={labelCls}>2 · Ảnh chung</div>
+            <details open id="sec-img" className="group/acc scroll-mt-20">
+              <summary className={`${labelCls} flex cursor-pointer select-none list-none items-center gap-2 [&::-webkit-details-marker]:hidden`}>
+                2 · Ảnh chung
+                <span className="text-[10px] text-gray-400 transition group-open/acc:rotate-180">▼</span>
+              </summary>
               <section className={`${cardCls} mt-2`}>
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <div>
@@ -433,11 +454,14 @@ export default async function EditServicePage({
                 />
                 {service.images.length === 0 && <p className="text-sm text-gray-400">Chưa có ảnh.</p>}
               </section>
-            </div>
+            </details>
 
             {/* 3 · Hạng phòng */}
-            <div id="sec-type" className="scroll-mt-20">
-              <div className={labelCls}>3 · Hạng phòng</div>
+            <details open id="sec-type" className="group/acc scroll-mt-20">
+              <summary className={`${labelCls} flex cursor-pointer select-none list-none items-center gap-2 [&::-webkit-details-marker]:hidden`}>
+                3 · Hạng phòng
+                <span className="text-[10px] text-gray-400 transition group-open/acc:rotate-180">▼</span>
+              </summary>
               <section className={`${cardCls} mt-2`}>
                 <div className="mb-3">
                   <div className="text-[17px] font-extrabold text-ink">Hạng phòng</div>
@@ -503,11 +527,14 @@ export default async function EditServicePage({
                   </ActionForm>
                 </div>
               </section>
-            </div>
+            </details>
 
             {/* 4 · Phòng */}
-            <div id="sec-room" className="scroll-mt-20">
-              <div className={labelCls}>4 · Phòng</div>
+            <details open id="sec-room" className="group/acc scroll-mt-20">
+              <summary className={`${labelCls} flex cursor-pointer select-none list-none items-center gap-2 [&::-webkit-details-marker]:hidden`}>
+                4 · Phòng
+                <span className="text-[10px] text-gray-400 transition group-open/acc:rotate-180">▼</span>
+              </summary>
               <section className={`${cardCls} mt-2`}>
                 <div className="mb-3">
                   <div className="text-[17px] font-extrabold text-ink">Phòng</div>
@@ -604,11 +631,14 @@ export default async function EditServicePage({
                   </div>
                 )}
               </section>
-            </div>
+            </details>
 
             {/* 5 · Đồng bộ OTA (iCal) */}
-            <div id="sec-ota" className="scroll-mt-20">
-              <div className={labelCls}>5 · Đồng bộ OTA (iCal)</div>
+            <details open id="sec-ota" className="group/acc scroll-mt-20">
+              <summary className={`${labelCls} flex cursor-pointer select-none list-none items-center gap-2 [&::-webkit-details-marker]:hidden`}>
+                5 · Đồng bộ OTA (iCal)
+                <span className="text-[10px] text-gray-400 transition group-open/acc:rotate-180">▼</span>
+              </summary>
               <section className={`${cardCls} mt-2`}>
                 <div className="mb-3">
                   <div className="text-[17px] font-extrabold text-ink">Đồng bộ lịch với Booking / Agoda / Airbnb…</div>
@@ -634,11 +664,14 @@ export default async function EditServicePage({
                   </div>
                 )}
               </section>
-            </div>
+            </details>
 
             {/* 6 · Đồng bộ Google Sheet */}
-            <div id="sec-sheet" className="scroll-mt-20">
-              <div className={labelCls}>6 · Đồng bộ Google Sheet</div>
+            <details open id="sec-sheet" className="group/acc scroll-mt-20">
+              <summary className={`${labelCls} flex cursor-pointer select-none list-none items-center gap-2 [&::-webkit-details-marker]:hidden`}>
+                6 · Đồng bộ Google Sheet
+                <span className="text-[10px] text-gray-400 transition group-open/acc:rotate-180">▼</span>
+              </summary>
               <section className={`${cardCls} mt-2`}>
                 <div className="mb-3">
                   <div className="text-[17px] font-extrabold text-ink">Lịch phòng từ Google Sheet</div>
@@ -693,7 +726,7 @@ export default async function EditServicePage({
                   </div>
                 )}
               </section>
-            </div>
+            </details>
           </div>
         </div>
       </div>
