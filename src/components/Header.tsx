@@ -29,6 +29,9 @@ export function Header({ phone }: { phone: string }) {
               {c.shortLabel}
             </Link>
           ))}
+          <span className="mx-1 h-5 w-px bg-black/10" />
+          <Link href="/huong-dan" className="rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700">Hướng dẫn</Link>
+          <Link href="/tra-cuu" className="rounded-lg px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700">Tra cứu đơn</Link>
         </nav>
 
         <div className="flex items-center gap-2">
@@ -90,6 +93,9 @@ export function Header({ phone }: { phone: string }) {
                 {c.shortLabel}
               </Link>
             ))}
+            <div className="my-1 border-t border-black/5" />
+            <Link href="/huong-dan" onClick={() => setOpen(false)} className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700">📖 Hướng dẫn đặt dịch vụ</Link>
+            <Link href="/tra-cuu" onClick={() => setOpen(false)} className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700">🧾 Tra cứu đơn hàng</Link>
           </nav>
           <div className="border-t border-black/5 p-3">
             <a
