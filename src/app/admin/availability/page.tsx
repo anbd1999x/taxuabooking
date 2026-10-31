@@ -69,9 +69,20 @@ export default async function AvailabilityPage({
       include: { rooms: { orderBy: { sortOrder: "asc" } } },
       orderBy: { sortOrder: "asc" },
     });
-    groups = roomTypes
-      .filter((rt) => rt.rooms.length > 0)
-      .map((rt) => ({ typeId: rt.id, typeName: rt.name, rooms: rt.rooms.map((r) => ({ id: r.id, name: r.name })) }));
+    // Cột phòng chạy trái→phải theo "Thứ tự hiển thị" TOÀN CỤC (giống trang khách);
+    // các phòng liền kề cùng hạng được gom chung một nhãn hạng (hạng có thể lặp lại).
+    const flatSorted = roomTypes
+      .flatMap((rt) => rt.rooms.map((r) => ({ rt, r })))
+      .sort((a, b) => a.r.sortOrder - b.r.sortOrder);
+    groups = [];
+    for (const { rt, r } of flatSorted) {
+      const last = groups[groups.length - 1];
+      if (last && last.typeId.startsWith(`${rt.id}#`)) {
+        last.rooms.push({ id: r.id, name: r.name });
+      } else {
+        groups.push({ typeId: `${rt.id}#${groups.length}`, typeName: rt.name, rooms: [{ id: r.id, name: r.name }] });
+      }
+    }
     const roomIds = groups.flatMap((g) => g.rooms.map((r) => r.id));
     if (roomIds.length) {
       const rows = await prisma.roomDayStatus.findMany({
