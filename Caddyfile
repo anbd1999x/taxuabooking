@@ -1,0 +1,24 @@
+# Caddy — reverse proxy công khai, tự động cấp & gia hạn SSL (Let's Encrypt).
+# Biến {$SITE_DOMAIN}, {$SERVER_IP}, {$ACME_EMAIL} lấy từ môi trường (xem docker-compose.prod.yml / .env).
+
+{
+	# Email đăng ký ACME (tuỳ chọn — để nhận thông báo hết hạn chứng chỉ).
+	email {$ACME_EMAIL}
+}
+
+# Domain chính + www — HTTPS tự động. HTTP (80) tự chuyển hướng sang HTTPS.
+{$SITE_DOMAIN}, www.{$SITE_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:80 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+	}
+}
+
+# Truy cập trực tiếp qua IP (HTTP) — tiện test trước khi DNS lan truyền.
+http://{$SERVER_IP} {
+	reverse_proxy web:80 {
+		header_up Host {host}
+		header_up X-Real-IP {remote_host}
+	}
+}

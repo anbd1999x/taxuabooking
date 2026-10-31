@@ -1,0 +1,82 @@
+# Triển khai PRODUCTION cho Tà Xùa Booking (VPS + domain + HTTPS).
+# Dùng ĐỘC LẬP (không chồng lên docker-compose.yml):
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# Kiến trúc công khai:
+#   caddy (80/443, tự cấp SSL Let's Encrypt) → web (nginx: LB + cache ảnh) → app ×2 (Next.js) → db (Postgres)
+# Chỉ caddy phơi cổng ra Internet; db/app/web chạy nội bộ trong mạng Docker.
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-taxua}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-taxua_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-taxua_trip}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-taxua} -d ${POSTGRES_DB:-taxua_trip}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      args:
+        # NEXT_PUBLIC_SITE_URL phải có lúc build (nướng vào bundle).
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+    restart: unless-stopped
+    # 2 bản chạy song song — nginx tự chia tải (Docker DNS round-robin).
+    deploy:
+      replicas: 2
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-taxua}:${POSTGRES_PASSWORD:-taxua_secret}@db:5432/${POSTGRES_DB:-taxua_trip}?schema=public&connection_limit=10&pool_timeout=20
+      AUTH_SECRET: ${AUTH_SECRET:-doi-chuoi-bi-mat-nay-that-dai-va-ngau-nhien}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-taxua@2026}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+    volumes:
+      - uploads:/app/public/uploads
+
+  web:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    # KHÔNG phơi cổng ra host — Caddy đứng trước xử lý TLS.
+    expose:
+      - "80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - nginx_cache:/var/cache/nginx
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:-localhost}
+      SERVER_IP: ${SERVER_IP:-127.0.0.1}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  uploads:
+  nginx_cache:
+  caddy_data:
+  caddy_config:

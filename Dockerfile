@@ -12,6 +12,9 @@ RUN npm ci
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# NEXT_PUBLIC_* phải có mặt lúc build (được "nướng" vào bundle client).
+ARG NEXT_PUBLIC_SITE_URL=http://localhost:3000
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 # prisma generate + next build (xem script "build" trong package.json)
 RUN npm run build
 
