@@ -51,6 +51,7 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       FACEBOOK_APP_ID: ${FACEBOOK_APP_ID:-}
       FACEBOOK_APP_SECRET: ${FACEBOOK_APP_SECRET:-}
+      FACEBOOK_LOGIN_OFF: ${FACEBOOK_LOGIN_OFF:-}
     volumes:
       - uploads:/app/public/uploads
 

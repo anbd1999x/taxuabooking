@@ -25,7 +25,8 @@ export default async function AccountPage({
   const err = str(sp.err);
   const customer = await getCustomer();
   const googleEnabled = Boolean(process.env.GOOGLE_CLIENT_ID);
-  const facebookEnabled = Boolean(process.env.FACEBOOK_APP_ID);
+  // Ẩn tạm nút Facebook bằng cờ FACEBOOK_LOGIN_OFF=1 (không mất creds).
+  const facebookEnabled = Boolean(process.env.FACEBOOK_APP_ID) && process.env.FACEBOOK_LOGIN_OFF !== "1";
 
   return (
     <div className="container-page py-10">

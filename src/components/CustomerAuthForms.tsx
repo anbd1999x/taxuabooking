@@ -57,32 +57,25 @@ export function CustomerAuthForms({
         </form>
       )}
 
-      {/* Đăng nhập mạng xã hội — bật khi có thông tin OAuth. */}
-      <div className="mt-4 flex items-center gap-3 text-xs text-gray-400">
-        <span className="h-px flex-1 bg-gray-200" /> hoặc <span className="h-px flex-1 bg-gray-200" />
-      </div>
-      <div className="mt-3 grid grid-cols-2 gap-2">
-        {googleEnabled ? (
-          <a href={`/api/auth/google?next=${encodeURIComponent(next)}`} className="flex items-center justify-center gap-2 rounded-xl border border-gray-300 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">
-            <span className="font-bold text-[#ea4335]">G</span> Google
-          </a>
-        ) : (
-          <button type="button" disabled title="Đang cập nhật" className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-400">
-            <span>G</span> Google
-          </button>
-        )}
-        {facebookEnabled ? (
-          <a href={`/api/auth/facebook?next=${encodeURIComponent(next)}`} className="flex items-center justify-center gap-2 rounded-xl border border-[#1877f2] py-2.5 text-sm font-semibold text-[#1877f2] hover:bg-[#1877f2]/5">
-            <span className="font-bold">f</span> Facebook
-          </a>
-        ) : (
-          <button type="button" disabled title="Đang cập nhật" className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-400">
-            <span>f</span> Facebook
-          </button>
-        )}
-      </div>
-      {!googleEnabled && !facebookEnabled && (
-        <p className="mt-2 text-center text-xs text-gray-400">Đăng nhập Google/Facebook sẽ bật sau khi cấu hình.</p>
+      {/* Đăng nhập mạng xã hội — chỉ hiện nhà cung cấp đang bật. */}
+      {(googleEnabled || facebookEnabled) && (
+        <>
+          <div className="mt-4 flex items-center gap-3 text-xs text-gray-400">
+            <span className="h-px flex-1 bg-gray-200" /> hoặc <span className="h-px flex-1 bg-gray-200" />
+          </div>
+          <div className={`mt-3 grid gap-2 ${googleEnabled && facebookEnabled ? "grid-cols-2" : "grid-cols-1"}`}>
+            {googleEnabled && (
+              <a href={`/api/auth/google?next=${encodeURIComponent(next)}`} className="flex items-center justify-center gap-2 rounded-xl border border-gray-300 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+                <span className="font-bold text-[#ea4335]">G</span> Google
+              </a>
+            )}
+            {facebookEnabled && (
+              <a href={`/api/auth/facebook?next=${encodeURIComponent(next)}`} className="flex items-center justify-center gap-2 rounded-xl border border-[#1877f2] py-2.5 text-sm font-semibold text-[#1877f2] hover:bg-[#1877f2]/5">
+                <span className="font-bold">f</span> Facebook
+              </a>
+            )}
+          </div>
+        </>
       )}
     </div>
   );
