@@ -210,6 +210,18 @@ export function CabinList({
     return () => { window.removeEventListener("resize", onR); cancelAnimationFrame(raf); io?.disconnect(); };
   }, []);
 
+  // Sau khi tìm vé (hoặc mở trang đã có sẵn ngày), cuộn xuống danh sách nhà xe —
+  // trên mobile hero + ô tìm kiếm che hết kết quả. Chạy sau khi kết quả mới render.
+  useEffect(() => {
+    if (!(from || to)) return;
+    const el = listRef.current;
+    if (!el) return;
+    const id = window.setTimeout(() => {
+      window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 12, behavior: "smooth" });
+    }, 90);
+    return () => window.clearTimeout(id);
+  }, [from, to, operators]);
+
   const layers = useMemo(() => {
     const LAY = [
       { bottom: "30%", h: "22%", op: 0.55, n: 8, wMin: 18, wMax: 30, hh: [40, 70], blur: TH.blur[0], bg: TH.cloud[0] },
@@ -242,8 +254,7 @@ export function CabinList({
     if (di) p.set("from", di);
     if (round && ve) p.set("to", ve);
     if (pickup && pickup !== "Hà Nội") p.set("pickup", pickup);
-    router.push(`/xe-cabin${p.toString() ? `?${p.toString()}` : ""}`);
-    setTimeout(() => { const el = listRef.current; if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 12, behavior: "smooth" }); }, 60);
+    router.push(`/xe-cabin${p.toString() ? `?${p.toString()}` : ""}`, { scroll: false });
   }
 
   const sorted = useMemo(() => {

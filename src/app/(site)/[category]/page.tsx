@@ -14,6 +14,7 @@ import { ComboSearch } from "@/components/combo/ComboSearch";
 import { ComboResults } from "@/components/combo/ComboResults";
 import { ComboHero } from "@/components/combo/ComboHero";
 import { FilterBar } from "@/components/FilterBar";
+import { ScrollToResults } from "@/components/ScrollToResults";
 import { SITE } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -97,6 +98,7 @@ export default async function CategoryPage({
           initialKind={roomKind}
         />
 
+        <ScrollToResults token={`${from ?? ""}|${to ?? ""}`} enabled={Boolean(from && to)} offset={12}>
         <div className="mt-6">
           {!from || !to ? (
             <p className="rounded-2xl border border-dashed border-gray-300 bg-white py-14 text-center text-gray-500">
@@ -123,6 +125,7 @@ export default async function CategoryPage({
             <ComboResults result={result} />
           )}
         </div>
+        </ScrollToResults>
 
         <section className="mt-12 border-t border-gray-200 pt-6">
           <h2 className="text-sm font-semibold text-gray-500">Dịch vụ khác tại Tà Xùa</h2>
@@ -216,6 +219,11 @@ export default async function CategoryPage({
         </p>
       )}
 
+      <ScrollToResults
+        token={`${filters.q ?? ""}|${filters.from ?? ""}|${filters.to ?? ""}|${filters.priceMin ?? ""}|${filters.priceMax ?? ""}`}
+        enabled={Boolean(filters.q || filters.from || filters.priceMin || filters.priceMax)}
+        offset={12}
+      >
       <div className="mt-6">
         {services.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-16 text-center">
@@ -234,6 +242,7 @@ export default async function CategoryPage({
           </div>
         )}
       </div>
+      </ScrollToResults>
 
       {/* liên kết SEO sang các danh mục khác */}
       <section className="mt-12 border-t border-gray-200 pt-6">

@@ -64,7 +64,7 @@ export function ComboSearch({
     if (budget) p.set("budget", budget.replace(/[^\d]/g, ""));
     if (filters.size) p.set("f", [...filters].join(","));
     if (kind && kind !== "all") p.set("kind", kind);
-    router.push(`/combo?${p.toString()}`);
+    router.push(`/combo?${p.toString()}`, { scroll: false });
   }
 
   const cell = "flex flex-col gap-1 rounded-2xl bg-[oklch(0.965_0.01_150)] px-4 py-3";

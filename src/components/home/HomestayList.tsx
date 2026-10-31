@@ -82,6 +82,7 @@ export function HomestayList({
   const dadRef = useRef<HTMLDivElement>(null);
   const momRef = useRef<HTMLDivElement>(null);
   const kidRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const onR = () => setW(window.innerWidth);
@@ -212,6 +213,19 @@ export function HomestayList({
     };
     raf = requestAnimationFrame(loop);
     return () => { window.removeEventListener("resize", onR); cancelAnimationFrame(raf); io?.disconnect(); };
+  }, []);
+
+  // Mở trang với sẵn ngày (từ trang chủ) → cuộn xuống danh sách để thấy kết quả
+  // ngay trên mobile. Không chạy khi đang gõ lọc trực tiếp.
+  useEffect(() => {
+    if (!(initialFrom && initialTo)) return;
+    const el = listRef.current;
+    if (!el) return;
+    const id = window.setTimeout(() => {
+      window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 12, behavior: "smooth" });
+    }, 120);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ---- clouds / stars ----
@@ -411,7 +425,7 @@ export function HomestayList({
       </div>
 
       {/* LIST */}
-      <main className="container-page pb-24 pt-9">
+      <main ref={listRef} className="container-page pb-24 pt-9">
         <div className="grid gap-[22px]" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(min(100%,300px),1fr))" }}>
           {items.map((s, i) => (
             <Link

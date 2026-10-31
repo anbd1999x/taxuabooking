@@ -47,7 +47,7 @@ export function FilterBar({
     if (range.min) params.set("priceMin", range.min);
     if (range.max) params.set("priceMax", range.max);
     const qs = params.toString();
-    router.push(`${pathname}${qs ? `?${qs}` : ""}`);
+    router.push(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
   }
 
   function reset() {
