@@ -6,6 +6,7 @@ import { CATEGORIES } from "@/lib/constants";
 import { toNumber, formatDate } from "@/lib/format";
 import { toDateKey, today, addDays } from "@/lib/dates";
 import { ServiceForm } from "@/components/admin/ServiceForm";
+import { MoneyInput } from "@/components/admin/MoneyInput";
 import { ImageUploader } from "@/components/admin/ImageUploader";
 import { ServiceTabNav } from "@/components/admin/ServiceTabNav";
 import { CabinScheduleEditor } from "@/components/admin/CabinScheduleEditor";
@@ -235,7 +236,7 @@ export default async function EditServicePage({
                       <L label="Loại vé" cls="sm:col-span-2"><select name="ticketType" defaultValue={row.ticketType} className={inp}>{TICKET_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></L>
                       <L label="Điểm đón" cls="sm:col-span-3"><input name="pickupPoint" defaultValue={row.pickupPoint} className={inp} /></L>
                       <L label="Điểm đến" cls="sm:col-span-2"><input name="destination" defaultValue={row.destination} className={inp} /></L>
-                      <L label="Giá (đ)" cls="sm:col-span-2"><input name="price" type="number" defaultValue={toNumber(row.price) ?? 0} className={inp} /></L>
+                      <L label="Giá (đ)" cls="sm:col-span-2"><MoneyInput name="price" defaultValue={toNumber(row.price) ?? 0} className={inp} /></L>
                       <L label="Ghi chú" cls="sm:col-span-2"><input name="note" defaultValue={row.note ?? ""} className={inp} /></L>
                       <div className="flex gap-1 sm:col-span-12">
                         <button className="rounded-lg bg-forest-600 px-3 py-2 text-sm text-white">Lưu</button>
@@ -249,7 +250,7 @@ export default async function EditServicePage({
                     <L label="Loại vé" cls="sm:col-span-2"><select name="ticketType" defaultValue="ROUND_TRIP" className={inp}>{TICKET_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></L>
                     <L label="Điểm đón" cls="sm:col-span-3"><input name="pickupPoint" placeholder="VD: Hà Nội" className={inp} required /></L>
                     <L label="Điểm đến" cls="sm:col-span-2"><input name="destination" defaultValue="Tà Xùa" className={inp} /></L>
-                    <L label="Giá (đ)" cls="sm:col-span-2"><input name="price" type="number" defaultValue={0} className={inp} /></L>
+                    <L label="Giá (đ)" cls="sm:col-span-2"><MoneyInput name="price" defaultValue={0} className={inp} /></L>
                     <L label="Ghi chú" cls="sm:col-span-2"><input name="note" className={inp} /></L>
                     <div className="sm:col-span-12"><button className="rounded-lg bg-forest-100 px-3 py-2 text-sm font-medium text-forest-700">+ Thêm chặng</button></div>
                   </ActionForm>
@@ -288,9 +289,9 @@ export default async function EditServicePage({
                       <L label="Chiều"><select name="direction" defaultValue={t.direction} className={inp}><option value="OUTBOUND">Đi</option><option value="RETURN">Về</option></select></L>
                       <L label="Giờ"><input name="departureTime" defaultValue={t.departureTime} className={inp} /></L>
                       <L label="Nhà xe"><input name="operatorName" defaultValue={t.operatorName} className={inp} /></L>
-                      <L label="Giá đơn"><input name="price" type="number" defaultValue={toNumber(t.price) ?? 0} className={inp} /></L>
+                      <L label="Giá đơn"><MoneyInput name="price" defaultValue={toNumber(t.price) ?? 0} className={inp} /></L>
                       <L label="Đơn còn"><input name="seatsAvailable" type="number" defaultValue={t.seatsAvailable} className={inp} /></L>
-                      <L label="Giá đôi"><input name="priceDouble" type="number" defaultValue={toNumber(t.priceDouble) ?? ""} placeholder="—" className={inp} /></L>
+                      <L label="Giá đôi"><MoneyInput name="priceDouble" defaultValue={toNumber(t.priceDouble) ?? ""} placeholder="—" className={inp} /></L>
                       <L label="Đôi còn"><input name="seatsDoubleAvailable" type="number" defaultValue={t.seatsDoubleAvailable} className={inp} /></L>
                       <L label="Tình trạng"><select name="status" defaultValue={t.status} className={inp}>{(["AVAILABLE", "LIMITED", "SOLD_OUT", "NOT_UPDATED", "PENDING_CONFIRM"] as const).map((st) => <option key={st} value={st}>{st}</option>)}</select></L>
                       <input type="hidden" name="route" value={t.route} />
@@ -310,9 +311,9 @@ export default async function EditServicePage({
                     <L label="Chiều"><select name="direction" defaultValue="OUTBOUND" className={inp}><option value="OUTBOUND">Đi</option><option value="RETURN">Về</option></select></L>
                     <L label="Giờ"><input name="departureTime" placeholder="21:00" className={inp} /></L>
                     <L label="Nhà xe"><input name="operatorName" defaultValue={service.title} className={inp} /></L>
-                    <L label="Giá đơn"><input name="price" type="number" defaultValue={toNumber(service.basePrice) ?? 0} className={inp} /></L>
+                    <L label="Giá đơn"><MoneyInput name="price" defaultValue={toNumber(service.basePrice) ?? 0} className={inp} /></L>
                     <L label="Đơn còn"><input name="seatsAvailable" type="number" defaultValue={22} className={inp} /></L>
-                    <L label="Giá đôi"><input name="priceDouble" type="number" placeholder="—" className={inp} /></L>
+                    <L label="Giá đôi"><MoneyInput name="priceDouble" placeholder="—" className={inp} /></L>
                     <L label="Đôi còn"><input name="seatsDoubleAvailable" type="number" defaultValue={0} className={inp} /></L>
                     <input type="hidden" name="route" defaultValue={service.area ?? ""} />
                     <input type="hidden" name="seatsTotal" value={22} />
@@ -583,8 +584,8 @@ export default async function EditServicePage({
                                       </L>
                                       <L label="Tên phòng" cls="sm:col-span-3"><input name="name" defaultValue={room.name} className={inp} /></L>
                                       <L label="Sức chứa" cls="sm:col-span-2"><input name="capacity" type="number" min={1} defaultValue={room.capacity} className={inp} /></L>
-                                      <L label="Giá thường" cls="sm:col-span-2"><input name="listPrice" type="number" min={0} defaultValue={toNumber(room.listPrice) ?? 0} className={inp} /></L>
-                                      <L label="Giá chiết khấu" cls="sm:col-span-2"><input name="salePrice" type="number" min={0} defaultValue={toNumber(room.salePrice) ?? ""} placeholder="(nếu có)" className={inp} /></L>
+                                      <L label="Giá thường" cls="sm:col-span-2"><MoneyInput name="listPrice" defaultValue={toNumber(room.listPrice) ?? 0} className={inp} /></L>
+                                      <L label="Giá chiết khấu" cls="sm:col-span-2"><MoneyInput name="salePrice" defaultValue={toNumber(room.salePrice) ?? ""} placeholder="(nếu có)" className={inp} /></L>
                                       <L label="Tiện ích (cách nhau dấu phẩy)" cls="sm:col-span-7"><input name="amenities" defaultValue={room.amenities ?? ""} placeholder="Wifi, Nóng lạnh, Ban công" className={inp} /></L>
                                       <L label="Mô tả ngắn" cls="sm:col-span-5"><input name="description" defaultValue={room.description ?? ""} className={inp} /></L>
                                       <RoomConDayPrices room={room} />
@@ -634,8 +635,8 @@ export default async function EditServicePage({
                             <input type="hidden" name="roomTypeId" value={rt.id} />
                             <L label="Tên phòng mới" cls="sm:col-span-4"><input name="name" placeholder={`VD: ${rt.name} ${rt.rooms.length + 1}`} className={inp} /></L>
                             <L label="Sức chứa" cls="sm:col-span-2"><input name="capacity" type="number" min={1} defaultValue={2} className={inp} /></L>
-                            <L label="Giá thường" cls="sm:col-span-3"><input name="listPrice" type="number" min={0} defaultValue={0} className={inp} /></L>
-                            <L label="Giá chiết khấu" cls="sm:col-span-3"><input name="salePrice" type="number" min={0} placeholder="(nếu có)" className={inp} /></L>
+                            <L label="Giá thường" cls="sm:col-span-3"><MoneyInput name="listPrice" defaultValue={0} className={inp} /></L>
+                            <L label="Giá chiết khấu" cls="sm:col-span-3"><MoneyInput name="salePrice" placeholder="(nếu có)" className={inp} /></L>
                             <div className="sm:col-span-12"><button className="rounded-lg bg-forest-100 px-3 py-2 text-sm font-medium text-forest-700">+ Thêm phòng vào {rt.name}</button></div>
                           </ActionForm>
                         </div>
@@ -922,8 +923,8 @@ export default async function EditServicePage({
                         </L>
                         <L label="Tên phòng" cls="sm:col-span-3"><input name="name" defaultValue={room.name} className={inp} /></L>
                         <L label="Sức chứa" cls="sm:col-span-2"><input name="capacity" type="number" min={1} defaultValue={room.capacity} className={inp} /></L>
-                        <L label="Giá thường" cls="sm:col-span-2"><input name="listPrice" type="number" min={0} defaultValue={toNumber(room.listPrice) ?? 0} className={inp} /></L>
-                        <L label="Giá chiết khấu" cls="sm:col-span-2"><input name="salePrice" type="number" min={0} defaultValue={toNumber(room.salePrice) ?? ""} placeholder="(nếu có)" className={inp} /></L>
+                        <L label="Giá thường" cls="sm:col-span-2"><MoneyInput name="listPrice" defaultValue={toNumber(room.listPrice) ?? 0} className={inp} /></L>
+                        <L label="Giá chiết khấu" cls="sm:col-span-2"><MoneyInput name="salePrice" defaultValue={toNumber(room.salePrice) ?? ""} placeholder="(nếu có)" className={inp} /></L>
                         <L label="Tiện ích (cách nhau dấu phẩy)" cls="sm:col-span-7"><input name="amenities" defaultValue={room.amenities ?? ""} placeholder="Wifi, Nóng lạnh, Ban công" className={inp} /></L>
                         <L label="Mô tả ngắn" cls="sm:col-span-5"><input name="description" defaultValue={room.description ?? ""} className={inp} /></L>
                         <RoomConDayPrices room={room} />
@@ -988,8 +989,8 @@ export default async function EditServicePage({
                 </L>
                 <L label="Tên phòng" cls="sm:col-span-3"><input name="name" placeholder="VD: Rustic 4" className={inp} /></L>
                 <L label="Sức chứa" cls="sm:col-span-2"><input name="capacity" type="number" min={1} defaultValue={2} className={inp} /></L>
-                <L label="Giá thường" cls="sm:col-span-2"><input name="listPrice" type="number" min={0} defaultValue={0} className={inp} /></L>
-                <L label="Giá chiết khấu" cls="sm:col-span-2"><input name="salePrice" type="number" min={0} placeholder="(nếu có)" className={inp} /></L>
+                <L label="Giá thường" cls="sm:col-span-2"><MoneyInput name="listPrice" defaultValue={0} className={inp} /></L>
+                <L label="Giá chiết khấu" cls="sm:col-span-2"><MoneyInput name="salePrice" placeholder="(nếu có)" className={inp} /></L>
                 <L label="Tiện ích (cách nhau dấu phẩy)" cls="sm:col-span-7"><input name="amenities" placeholder="Wifi, Nóng lạnh, Ban công" className={inp} /></L>
                 <L label="Mô tả ngắn" cls="sm:col-span-5"><input name="description" className={inp} /></L>
                 <RoomConDayPrices />
@@ -1012,9 +1013,9 @@ export default async function EditServicePage({
                 <input type="hidden" name="serviceId" value={service.id} />
                 <input type="hidden" name="id" value={v.id} />
                 <L label="Loại xe" cls="col-span-2"><input name="vehicleType" defaultValue={v.vehicleType} className={inp} /></L>
-                <L label="Giá/ngày"><input name="pricePerDay" type="number" defaultValue={toNumber(v.pricePerDay) ?? 0} className={inp} /></L>
+                <L label="Giá/ngày"><MoneyInput name="pricePerDay" defaultValue={toNumber(v.pricePerDay) ?? 0} className={inp} /></L>
                 <L label="Số xe"><input name="totalUnits" type="number" defaultValue={v.totalUnits} className={inp} /></L>
-                <L label="Phí giao"><input name="deliveryFee" type="number" defaultValue={toNumber(v.deliveryFee) ?? ""} className={inp} /></L>
+                <L label="Phí giao"><MoneyInput name="deliveryFee" defaultValue={toNumber(v.deliveryFee) ?? ""} className={inp} /></L>
                 <input type="hidden" name="imageUrl" defaultValue={v.imageUrl ?? ""} />
                 <div className="flex gap-1">
                   <button className="rounded-lg bg-forest-600 px-3 py-2 text-sm text-white">Lưu</button>
@@ -1025,9 +1026,9 @@ export default async function EditServicePage({
             <ActionForm action={upsertVehicle} className="grid grid-cols-2 gap-2 rounded-xl border border-dashed border-forest-200 p-3 sm:grid-cols-6 sm:items-end">
               <input type="hidden" name="serviceId" value={service.id} />
               <L label="Loại xe" cls="col-span-2"><input name="vehicleType" placeholder="Honda Wave" className={inp} /></L>
-              <L label="Giá/ngày"><input name="pricePerDay" type="number" defaultValue={0} className={inp} /></L>
+              <L label="Giá/ngày"><MoneyInput name="pricePerDay" defaultValue={0} className={inp} /></L>
               <L label="Số xe"><input name="totalUnits" type="number" defaultValue={1} className={inp} /></L>
-              <L label="Phí giao"><input name="deliveryFee" type="number" placeholder="0" className={inp} /></L>
+              <L label="Phí giao"><MoneyInput name="deliveryFee" placeholder="0" className={inp} /></L>
               <button className="rounded-lg bg-forest-100 px-3 py-2 text-sm font-medium text-forest-700">+ Thêm</button>
             </ActionForm>
           </div>
@@ -1060,7 +1061,7 @@ export default async function EditServicePage({
                 <L label="Loại vé" cls="sm:col-span-2"><select name="ticketType" defaultValue={row.ticketType} className={inp}>{TICKET_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></L>
                 <L label="Điểm đón" cls="sm:col-span-3"><input name="pickupPoint" defaultValue={row.pickupPoint} className={inp} /></L>
                 <L label="Điểm đến" cls="sm:col-span-2"><input name="destination" defaultValue={row.destination} className={inp} /></L>
-                <L label="Giá (đ)" cls="sm:col-span-2"><input name="price" type="number" defaultValue={toNumber(row.price) ?? 0} className={inp} /></L>
+                <L label="Giá (đ)" cls="sm:col-span-2"><MoneyInput name="price" defaultValue={toNumber(row.price) ?? 0} className={inp} /></L>
                 <L label="Ghi chú" cls="sm:col-span-2"><input name="note" defaultValue={row.note ?? ""} className={inp} /></L>
                 <div className="flex gap-1 sm:col-span-12">
                   <button className="rounded-lg bg-forest-600 px-3 py-2 text-sm text-white">Lưu</button>
@@ -1074,7 +1075,7 @@ export default async function EditServicePage({
               <L label="Loại vé" cls="sm:col-span-2"><select name="ticketType" defaultValue="ROUND_TRIP" className={inp}>{TICKET_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select></L>
               <L label="Điểm đón" cls="sm:col-span-3"><input name="pickupPoint" placeholder="VD: Hà Nội" className={inp} required /></L>
               <L label="Điểm đến" cls="sm:col-span-2"><input name="destination" defaultValue="Tà Xùa" className={inp} /></L>
-              <L label="Giá (đ)" cls="sm:col-span-2"><input name="price" type="number" defaultValue={0} className={inp} /></L>
+              <L label="Giá (đ)" cls="sm:col-span-2"><MoneyInput name="price" defaultValue={0} className={inp} /></L>
               <L label="Ghi chú" cls="sm:col-span-2"><input name="note" className={inp} /></L>
               <div className="sm:col-span-12"><button className="rounded-lg bg-forest-100 px-3 py-2 text-sm font-medium text-forest-700">+ Thêm chặng</button></div>
             </ActionForm>
@@ -1101,9 +1102,9 @@ export default async function EditServicePage({
                 </L>
                 <L label="Giờ"><input name="departureTime" defaultValue={t.departureTime} className={inp} /></L>
                 <L label="Nhà xe"><input name="operatorName" defaultValue={t.operatorName} className={inp} /></L>
-                <L label="Giá đơn"><input name="price" type="number" defaultValue={toNumber(t.price) ?? 0} className={inp} /></L>
+                <L label="Giá đơn"><MoneyInput name="price" defaultValue={toNumber(t.price) ?? 0} className={inp} /></L>
                 <L label="Đơn còn"><input name="seatsAvailable" type="number" defaultValue={t.seatsAvailable} className={inp} /></L>
-                <L label="Giá đôi"><input name="priceDouble" type="number" defaultValue={toNumber(t.priceDouble) ?? ""} placeholder="—" className={inp} /></L>
+                <L label="Giá đôi"><MoneyInput name="priceDouble" defaultValue={toNumber(t.priceDouble) ?? ""} placeholder="—" className={inp} /></L>
                 <L label="Đôi còn"><input name="seatsDoubleAvailable" type="number" defaultValue={t.seatsDoubleAvailable} className={inp} /></L>
                 <L label="Tình trạng">
                   <select name="status" defaultValue={t.status} className={inp}>
@@ -1134,9 +1135,9 @@ export default async function EditServicePage({
               </L>
               <L label="Giờ"><input name="departureTime" placeholder="21:00" className={inp} /></L>
               <L label="Nhà xe"><input name="operatorName" defaultValue={service.title} className={inp} /></L>
-              <L label="Giá đơn"><input name="price" type="number" defaultValue={toNumber(service.basePrice) ?? 0} className={inp} /></L>
+              <L label="Giá đơn"><MoneyInput name="price" defaultValue={toNumber(service.basePrice) ?? 0} className={inp} /></L>
               <L label="Đơn còn"><input name="seatsAvailable" type="number" defaultValue={22} className={inp} /></L>
-              <L label="Giá đôi"><input name="priceDouble" type="number" placeholder="—" className={inp} /></L>
+              <L label="Giá đôi"><MoneyInput name="priceDouble" placeholder="—" className={inp} /></L>
               <L label="Đôi còn"><input name="seatsDoubleAvailable" type="number" defaultValue={0} className={inp} /></L>
               <input type="hidden" name="route" defaultValue={service.area ?? ""} />
               <input type="hidden" name="seatsTotal" value={22} />
@@ -1160,7 +1161,7 @@ export default async function EditServicePage({
             <L label="Điểm đón"><input name="fromPoint" defaultValue={service.transport?.fromPoint ?? ""} className={inp} /></L>
             <L label="Điểm đến / khu vực"><input name="toArea" defaultValue={service.transport?.toArea ?? ""} className={inp} /></L>
             <L label="Loại xe"><input name="vehicleType" defaultValue={service.transport?.vehicleType ?? ""} className={inp} /></L>
-            <L label="Giá cố định (đ)"><input name="fixedPrice" type="number" defaultValue={toNumber(service.transport?.fixedPrice) ?? ""} placeholder="Để trống = Liên hệ" className={inp} /></L>
+            <L label="Giá cố định (đ)"><MoneyInput name="fixedPrice" defaultValue={toNumber(service.transport?.fixedPrice) ?? ""} placeholder="Để trống = Liên hệ" className={inp} /></L>
             <L label="Ghi chú giá" cls="sm:col-span-2"><input name="priceNote" defaultValue={service.transport?.priceNote ?? ""} className={inp} /></L>
             <div className="sm:col-span-2">
               <button className="rounded-xl bg-forest-600 px-5 py-2.5 text-sm font-semibold text-white">Lưu thông tin tuyến</button>
@@ -1247,7 +1248,7 @@ function RoomConDayPrices({ room }: { room?: RoomDayPrices }) {
       <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-7">
         {DAY_FIELDS.map((d, i) => (
           <L key={d.name} label={d.label}>
-            <input name={d.name} type="number" defaultValue={vals[i] ?? ""} placeholder="—" className={inp} />
+            <MoneyInput name={d.name} defaultValue={vals[i] ?? ""} placeholder="—" className={inp} />
           </L>
         ))}
       </div>

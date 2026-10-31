@@ -25,6 +25,17 @@ export interface HomestayRoom {
   occupied: string[];
 }
 
+/** Thẻ gợi ý homestay khác (dựng từ getHomestayCards, bỏ homestay hiện tại). */
+export interface HomestaySuggestion {
+  slug: string;
+  name: string;
+  area: string;
+  price: number;
+  cover: string | null;
+  cat: string;
+  status: "ok" | "low" | "full" | "none";
+}
+
 const WD = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 const MS = 86_400_000;
 
@@ -85,6 +96,8 @@ export function HomestayBooking({
   mapUrl,
   policy,
   header,
+  description,
+  suggestions,
   initialCheckIn,
   initialCheckOut,
 }: {
@@ -105,6 +118,10 @@ export function HomestayBooking({
   policy?: string | null;
   /** Gallery + tiêu đề dịch vụ, đặt trên cùng cột trái (giống thiết kế). */
   header?: ReactNode;
+  /** Mô tả chi tiết — hiển thị thu gọn kèm nút "Xem đầy đủ mô tả". */
+  description?: string | null;
+  /** Homestay khác gần đây (gợi ý cuối trang). */
+  suggestions?: HomestaySuggestion[];
 }) {
   const map = resolveMap(mapUrl, mapQuery);
   const policyLines = (policy ?? "")
@@ -124,6 +141,10 @@ export function HomestayBooking({
   const ci0 = inWin(initialCheckIn) ? initialCheckIn : null;
   const co0 = ci0 && inWin(initialCheckOut) && initialCheckOut! > ci0 ? initialCheckOut! : null;
   const cursorStart = ci0 ? parseKey(ci0) : start;
+
+  const descText = (description ?? "").trim();
+  const descLong = descText.length > 280;
+  const [descOpen, setDescOpen] = useState(false);
 
   const [cursor, setCursor] = useState(() => ({ y: cursorStart.getUTCFullYear(), m: cursorStart.getUTCMonth() }));
   const [ci, setCi] = useState<string | null>(ci0);
@@ -253,6 +274,7 @@ export function HomestayBooking({
     return { r, i, free, stayPrice, wdP, weP, status, tone };
   });
 
+  const dateQS = ci && co ? `?from=${ci}&to=${co}` : "";
   const sel = roomView.find((v) => v.r.id === selected && v.free) ?? null;
   const total = sel ? sel.stayPrice : 0;
   const over = sel ? guests > sel.r.capacity : false;
@@ -316,47 +338,29 @@ export function HomestayBooking({
       <div className="flex min-w-0 flex-col gap-8">
         {header}
 
-        {/* Chính sách homestay */}
-        {policyLines.length > 0 && (
-          <section className="flex flex-col gap-3">
-            <h2 className="text-xl font-bold text-ink">Chính sách homestay</h2>
-            <ul className="flex flex-col gap-2.5 rounded-2xl bg-white p-5 ring-1 ring-black/5">
-              {policyLines.map((line, i) => (
-                <li key={i} className="flex gap-2.5 text-[15px] leading-relaxed text-gray-700">
-                  <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-forest-500" />
-                  <span>{line}</span>
-                </li>
-              ))}
-            </ul>
+        {/* Mô tả — thu gọn, bấm để xem đầy đủ (giống thiết kế) */}
+        {descText && (
+          <section className="relative max-w-[680px]">
+            <div
+              className="overflow-hidden transition-[max-height] duration-500 ease-out"
+              style={{ maxHeight: descLong && !descOpen ? 120 : 2000 }}
+            >
+              <p className="whitespace-pre-line text-[15px] leading-relaxed text-gray-700">{descText}</p>
+            </div>
+            {descLong && !descOpen && (
+              <div className="pointer-events-none absolute inset-x-0 bottom-10 h-16 bg-gradient-to-b from-transparent to-cloud" />
+            )}
+            {descLong && (
+              <button
+                type="button"
+                onClick={() => setDescOpen((o) => !o)}
+                className="mt-2.5 inline-flex items-center gap-1.5 rounded-full border border-forest-200 bg-white px-3.5 py-2 text-sm font-bold text-forest-700 transition hover:bg-forest-50"
+              >
+                {descOpen ? "Thu gọn ↑" : "Xem đầy đủ mô tả ↓"}
+              </button>
+            )}
           </section>
         )}
-
-        {/* Vị trí */}
-        <section className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-bold text-ink">Vị trí</h2>
-              {area && <p className="mt-1 text-sm text-gray-500">{area}</p>}
-            </div>
-            <a
-              href={map.openUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="whitespace-nowrap rounded-full bg-forest-700 px-4 py-2 text-sm font-semibold text-white hover:bg-forest-800"
-            >
-              Mở Google Maps ↗
-            </a>
-          </div>
-          <div className="h-[280px] overflow-hidden rounded-2xl ring-1 ring-black/5">
-            <iframe
-              src={map.embedSrc}
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              title="Bản đồ"
-              className="h-full w-full border-0"
-            />
-          </div>
-        </section>
 
         {/* Lịch chọn ngày */}
         <section ref={calRef} className="flex flex-col gap-3">
@@ -534,6 +538,106 @@ export function HomestayBooking({
             })}
           </div>
         </section>
+
+        {/* Chính sách homestay */}
+        {policyLines.length > 0 && (
+          <section className="flex flex-col gap-3">
+            <h2 className="text-xl font-bold text-ink">Chính sách homestay</h2>
+            <ul className="flex flex-col gap-2.5 rounded-2xl bg-white p-5 ring-1 ring-black/5">
+              {policyLines.map((line, i) => (
+                <li key={i} className="flex gap-2.5 text-[15px] leading-relaxed text-gray-700">
+                  <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-forest-500" />
+                  <span>{line}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* Vị trí */}
+        <section id="vi-tri" className="flex scroll-mt-20 flex-col gap-3">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-bold text-ink">Vị trí</h2>
+              {area && <p className="mt-1 text-sm text-gray-500">{area}</p>}
+            </div>
+            <a
+              href={map.openUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="whitespace-nowrap rounded-full bg-forest-700 px-4 py-2 text-sm font-semibold text-white hover:bg-forest-800"
+            >
+              Mở Google Maps ↗
+            </a>
+          </div>
+          <div className="h-[280px] overflow-hidden rounded-2xl ring-1 ring-black/5">
+            <iframe
+              src={map.embedSrc}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              title="Bản đồ"
+              className="h-full w-full border-0"
+            />
+          </div>
+        </section>
+
+        {/* Homestay khác gần đây */}
+        {suggestions && suggestions.length > 0 && (
+          <section className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-bold text-ink">Homestay khác gần đây</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  {nN ? `Cùng khu Tà Xùa · xem cho ${nN} đêm bạn chọn` : "Cùng khu Tà Xùa, bấm xem để chọn ngày"}
+                </p>
+              </div>
+              <a href={`/homestay${dateQS}`} className="whitespace-nowrap text-sm font-bold text-forest-700 hover:text-sunset-600">
+                Xem tất cả →
+              </a>
+            </div>
+            <div className="-m-0.5 grid snap-x snap-mandatory auto-cols-[72%] grid-flow-col gap-3.5 overflow-x-auto p-0.5 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:auto-cols-[minmax(0,1fr)] [&::-webkit-scrollbar]:hidden">
+              {suggestions.map((g) => (
+                <a
+                  key={g.slug}
+                  href={`/homestay/${g.slug}${dateQS}`}
+                  className="flex snap-start flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-lg"
+                >
+                  <div className="relative aspect-[4/3] bg-forest-50">
+                    {g.cover ? (
+                      <Image src={g.cover} alt={g.name} fill sizes="(max-width:640px) 72vw, 240px" className="object-cover" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-3xl">🏠</div>
+                    )}
+                    {g.status !== "none" && (
+                      <span
+                        className={`absolute left-2.5 top-2.5 rounded-full px-2.5 py-1 text-xs font-bold ${
+                          g.status === "ok"
+                            ? "bg-forest-100 text-forest-800"
+                            : g.status === "low"
+                              ? "bg-amber-100 text-amber-800"
+                              : "bg-gray-200 text-gray-600"
+                        }`}
+                      >
+                        {g.status === "ok" ? "Còn phòng" : g.status === "low" ? "Còn ít" : "Hết phòng"}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1.5 p-3.5">
+                    <div className="text-[15px] font-extrabold leading-snug text-ink">{g.name}</div>
+                    <div className="text-xs text-gray-500">{g.area}</div>
+                    <div className="mt-1 flex items-baseline justify-between gap-2">
+                      <span className="text-base font-extrabold text-sunset-600">
+                        {g.price > 0 ? fmt(g.price) : "Liên hệ"}
+                        {g.price > 0 && <span className="text-xs font-medium text-gray-400">/đêm</span>}
+                      </span>
+                      <span className="text-xs font-semibold text-gray-500">{g.cat}</span>
+                    </div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
       </div>
 
       {/* ===== Cột phải: panel đặt phòng dính ===== */}

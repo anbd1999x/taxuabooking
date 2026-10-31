@@ -93,6 +93,19 @@ export const CATEGORY_LIST: CategoryMeta[] = [
   CATEGORIES.TAXI,
 ];
 
+/** Khu vực chuẩn cho homestay/bungalow (dropdown trong admin). */
+export const AREA_OPTIONS = [
+  "Trung tâm Tà Xùa",
+  "Đỉnh Gió",
+  "Khe Cải",
+  "Sống lưng khủng long",
+  "Mống Vài",
+  "Cách trung tâm 1km",
+  "Cách trung tâm 1.5km",
+  "Cách trung tâm 2-5km",
+  "Cách trung tâm 10km",
+];
+
 export function categoryBySlug(slug: string): CategoryMeta | undefined {
   return CATEGORY_LIST.find((c) => c.slug === slug);
 }

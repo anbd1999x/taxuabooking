@@ -3,6 +3,7 @@
 import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AVAILABILITY_META } from "@/lib/constants";
+import { MoneyInput } from "@/components/admin/MoneyInput";
 import type { AvailabilityStatus } from "@prisma/client";
 import { applyCabinSchedule, type ActionState } from "@/app/admin/services/actions";
 
@@ -69,7 +70,7 @@ export function CabinScheduleEditor({
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="block">
             <span className="text-sm font-medium text-gray-600">Giá vé đơn (đ)</span>
-            <input name="price" type="number" min={0} defaultValue={defaultPrice || ""} placeholder="VD: 350000" className={inp} />
+            <MoneyInput name="price" defaultValue={defaultPrice || ""} placeholder="VD: 350.000" className={inp} />
           </label>
           <label className="block">
             <span className="text-sm font-medium text-gray-600">Tổng chỗ đơn</span>
@@ -87,7 +88,7 @@ export function CabinScheduleEditor({
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="block">
             <span className="text-sm font-medium text-gray-600">Giá vé đôi (đ)</span>
-            <input name="priceDouble" type="number" min={0} placeholder="VD: 600000" className={inp} />
+            <MoneyInput name="priceDouble" placeholder="VD: 600.000" className={inp} />
           </label>
           <label className="block">
             <span className="text-sm font-medium text-gray-600">Tổng chỗ đôi</span>

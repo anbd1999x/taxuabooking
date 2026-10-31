@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import type { ServiceCategory } from "@prisma/client";
-import { CATEGORY_LIST } from "@/lib/constants";
+import { CATEGORY_LIST, AREA_OPTIONS } from "@/lib/constants";
+import { MoneyInput } from "@/components/admin/MoneyInput";
 import type { ActionState } from "@/app/admin/services/actions";
 
 type Action = (prev: ActionState, fd: FormData) => Promise<ActionState>;
@@ -44,6 +45,11 @@ export function ServiceForm({
   providers?: { id: string; name: string }[];
 }) {
   const [state, formAction, pending] = useActionState(action, {});
+  const [cat, setCat] = useState<ServiceCategory>(initial.category ?? "HOMESTAY");
+  // Homestay/bungalow chọn khu vực từ danh sách chuẩn; danh mục khác nhập tự do (tuyến đường...).
+  const areaSelect = cat === "HOMESTAY" || cat === "BUNGALOW";
+  const areaOptions =
+    initial.area && !AREA_OPTIONS.includes(initial.area) ? [initial.area, ...AREA_OPTIONS] : AREA_OPTIONS;
 
   return (
     <form action={formAction} className="space-y-5">
@@ -52,7 +58,13 @@ export function ServiceForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block">
           <span className="text-sm font-medium text-gray-600">Danh mục *</span>
-          <select name="category" defaultValue={initial.category ?? "HOMESTAY"} className={inputCls} required>
+          <select
+            name="category"
+            value={cat}
+            onChange={(e) => setCat(e.target.value as ServiceCategory)}
+            className={inputCls}
+            required
+          >
             {CATEGORY_LIST.map((c) => (
               <option key={c.key} value={c.key}>{c.label}</option>
             ))}
@@ -81,12 +93,21 @@ export function ServiceForm({
 
       <div className="grid gap-4 sm:grid-cols-3">
         <label className="block sm:col-span-1">
-          <span className="text-sm font-medium text-gray-600">Khu vực / tuyến</span>
-          <input name="area" defaultValue={initial.area ?? ""} className={inputCls} />
+          <span className="text-sm font-medium text-gray-600">{areaSelect ? "Khu vực" : "Khu vực / tuyến"}</span>
+          {areaSelect ? (
+            <select name="area" defaultValue={initial.area ?? ""} className={inputCls}>
+              <option value="">— Chọn khu vực —</option>
+              {areaOptions.map((a) => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
+          ) : (
+            <input name="area" defaultValue={initial.area ?? ""} className={inputCls} />
+          )}
         </label>
         <label className="block">
           <span className="text-sm font-medium text-gray-600">Giá cơ bản (đ)</span>
-          <input name="basePrice" type="number" min={0} defaultValue={initial.basePrice ?? ""} placeholder="Để trống = Liên hệ" className={inputCls} />
+          <MoneyInput name="basePrice" defaultValue={initial.basePrice ?? ""} placeholder="Để trống = Liên hệ" className={inputCls} />
         </label>
         <label className="block">
           <span className="text-sm font-medium text-gray-600">Đơn vị giá</span>

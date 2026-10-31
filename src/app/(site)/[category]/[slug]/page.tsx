@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import Image from "next/image";
-import { getServiceDetail, getSettings } from "@/lib/queries";
+import { getServiceDetail, getSettings, getHomestayCards } from "@/lib/queries";
 import { CATEGORIES } from "@/lib/constants";
 import { formatPrice, toNumber } from "@/lib/format";
 import { SITE } from "@/lib/site";
@@ -123,7 +123,16 @@ export default async function ServiceDetailPage({
     const mapQuery = `${service.title} ${service.area ?? "Tà Xùa, Bắc Yên, Sơn La"}`;
     // Link chia sẻ rút gọn (maps.app.goo.gl / goo.gl) không chứa toạ độ → mở
     // redirect phía server để lấy URL đầy đủ (có @lat,lng) cho bản đồ đúng vị trí.
-    const resolvedMapUrl = await expandMapsUrl(service.mapUrl);
+    const fromQ = typeof sp.from === "string" ? sp.from : null;
+    const toQ = typeof sp.to === "string" ? sp.to : null;
+    const [resolvedMapUrl, homestayCards] = await Promise.all([
+      expandMapsUrl(service.mapUrl),
+      getHomestayCards(fromQ, toQ),
+    ]);
+    const suggestions = homestayCards
+      .filter((c) => c.id !== service.id)
+      .slice(0, 4)
+      .map((c) => ({ slug: c.slug, name: c.name, area: c.area, price: c.price, cover: c.cover, cat: c.cat, status: c.status }));
 
     return (
       <div className="container-page py-8 pb-28 lg:pb-8">
@@ -148,6 +157,8 @@ export default async function ServiceDetailPage({
           mapQuery={mapQuery}
           mapUrl={resolvedMapUrl}
           policy={service.policy}
+          description={service.description}
+          suggestions={suggestions}
           header={
             <div className="flex flex-col gap-4">
               <Gallery images={service.images.map((i) => ({ url: i.url, alt: i.alt }))} title={service.title} />
@@ -155,13 +166,14 @@ export default async function ServiceDetailPage({
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge tone="ok">{cat.shortLabel}</Badge>
                   {service.featured && <Badge tone="warn">Nổi bật</Badge>}
-                  {service.area && <span className="text-sm text-gray-500">📍 {service.area}</span>}
+                  {service.area && (
+                    <a href="#vi-tri" className="text-sm font-semibold text-forest-700 underline underline-offset-4 hover:text-sunset-600">
+                      📍 {service.area} · Xem bản đồ ↓
+                    </a>
+                  )}
                 </div>
-                <h1 className="mt-2 text-2xl font-bold text-ink sm:text-3xl">{service.title}</h1>
-                <p className="mt-2 text-gray-600">{service.summary}</p>
-                {service.description && (
-                  <p className="mt-3 whitespace-pre-line leading-relaxed text-gray-700">{service.description}</p>
-                )}
+                <h1 className="mt-2 text-[clamp(26px,4vw,40px)] font-extrabold leading-[1.1] tracking-tight text-ink">{service.title}</h1>
+                <p className="mt-2 text-[17px] text-gray-600">{service.summary}</p>
               </div>
             </div>
           }

@@ -2,7 +2,8 @@
 
 import { useActionState, useState } from "react";
 import type { ServiceCategory } from "@prisma/client";
-import { CATEGORIES } from "@/lib/constants";
+import { CATEGORIES, AREA_OPTIONS } from "@/lib/constants";
+import { MoneyInput } from "@/components/admin/MoneyInput";
 import { createServiceFull, type ActionState } from "@/app/admin/services/actions";
 
 const inp =
@@ -58,11 +59,20 @@ export function ServiceCreateWizard({ category }: { category: ServiceCategory })
             <span className="text-sm font-medium text-gray-600">
               {kind === "trip" ? "Tuyến đường" : "Khu vực"}
             </span>
-            <input name="area" className={inp} placeholder={kind === "trip" ? "Hà Nội → Tà Xùa" : "Trung tâm Tà Xùa"} />
+            {isStay ? (
+              <select name="area" defaultValue="" className={inp}>
+                <option value="">— Chọn khu vực —</option>
+                {AREA_OPTIONS.map((a) => (
+                  <option key={a} value={a}>{a}</option>
+                ))}
+              </select>
+            ) : (
+              <input name="area" className={inp} placeholder={kind === "trip" ? "Hà Nội → Tà Xùa" : "Trung tâm Tà Xùa"} />
+            )}
           </label>
           <label className="block">
             <span className="text-sm font-medium text-gray-600">Giá cơ bản (đ)</span>
-            <input name="basePrice" type="number" min={0} className={inp} placeholder="Tự tính nếu để trống" />
+            <MoneyInput name="basePrice" className={inp} placeholder="Tự tính nếu để trống" />
           </label>
           <label className="block">
             <span className="text-sm font-medium text-gray-600">Đơn vị giá</span>
@@ -104,8 +114,8 @@ export function ServiceCreateWizard({ category }: { category: ServiceCategory })
               <div key={k} className="grid grid-cols-2 items-center gap-2 sm:grid-cols-12">
                 <input name="roomName" placeholder="Phòng đôi view mây" className={`${cell} col-span-4`} />
                 <input name="roomCapacity" type="number" defaultValue={2} className={`${cell} sm:col-span-2`} />
-                <input name="roomWeekday" type="number" placeholder="450000" className={`${cell} sm:col-span-2`} />
-                <input name="roomWeekend" type="number" placeholder="650000" className={`${cell} sm:col-span-2`} />
+                <MoneyInput name="roomWeekday" placeholder="450.000" className={`${cell} sm:col-span-2`} />
+                <MoneyInput name="roomWeekend" placeholder="650.000" className={`${cell} sm:col-span-2`} />
                 <input name="roomTotal" type="number" defaultValue={1} className={`${cell} sm:col-span-1`} />
                 <button type="button" onClick={() => setRooms((r) => r.filter((x) => x !== k))} className="text-sm text-red-500 sm:col-span-1">Xoá</button>
               </div>
@@ -134,7 +144,7 @@ export function ServiceCreateWizard({ category }: { category: ServiceCategory })
               <div key={k} className="grid grid-cols-2 items-center gap-2 sm:grid-cols-12">
                 <input name="tripDate" type="date" className={`${cell} sm:col-span-3`} />
                 <input name="tripTime" placeholder="21:30" className={`${cell} sm:col-span-3`} />
-                <input name="tripPrice" type="number" placeholder="350000" className={`${cell} sm:col-span-3`} />
+                <MoneyInput name="tripPrice" placeholder="350.000" className={`${cell} sm:col-span-3`} />
                 <input name="tripSeats" type="number" defaultValue={22} className={`${cell} sm:col-span-2`} />
                 <button type="button" onClick={() => setTrips((t) => t.filter((x) => x !== k))} className="text-sm text-red-500 sm:col-span-1">Xoá</button>
               </div>
@@ -158,7 +168,7 @@ export function ServiceCreateWizard({ category }: { category: ServiceCategory })
             {vehicles.map((k) => (
               <div key={k} className="grid grid-cols-2 items-center gap-2 sm:grid-cols-12">
                 <input name="vehType" placeholder="Honda Wave" className={`${cell} sm:col-span-5`} />
-                <input name="vehPrice" type="number" placeholder="150000" className={`${cell} sm:col-span-3`} />
+                <MoneyInput name="vehPrice" placeholder="150.000" className={`${cell} sm:col-span-3`} />
                 <input name="vehTotal" type="number" defaultValue={1} className={`${cell} sm:col-span-3`} />
                 <button type="button" onClick={() => setVehicles((v) => v.filter((x) => x !== k))} className="text-sm text-red-500 sm:col-span-1">Xoá</button>
               </div>
@@ -176,7 +186,7 @@ export function ServiceCreateWizard({ category }: { category: ServiceCategory })
             <label className="block"><span className="text-sm font-medium text-gray-600">Điểm đón</span><input name="fromPoint" className={inp} /></label>
             <label className="block"><span className="text-sm font-medium text-gray-600">Điểm đến / khu vực</span><input name="toArea" className={inp} /></label>
             <label className="block"><span className="text-sm font-medium text-gray-600">Loại xe</span><input name="transportVehicle" className={inp} /></label>
-            <label className="block"><span className="text-sm font-medium text-gray-600">Giá cố định (đ)</span><input name="fixedPrice" type="number" className={inp} placeholder="Để trống = Liên hệ xác nhận giá" /></label>
+            <label className="block"><span className="text-sm font-medium text-gray-600">Giá cố định (đ)</span><MoneyInput name="fixedPrice" className={inp} placeholder="Để trống = Liên hệ xác nhận giá" /></label>
             <label className="block sm:col-span-2"><span className="text-sm font-medium text-gray-600">Ghi chú giá</span><input name="priceNote" className={inp} /></label>
           </div>
         </section>
