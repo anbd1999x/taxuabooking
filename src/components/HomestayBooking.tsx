@@ -595,7 +595,7 @@ export function HomestayBooking({
                 Xem tất cả →
               </a>
             </div>
-            <div className="-m-0.5 grid snap-x snap-mandatory auto-cols-[72%] grid-flow-col gap-3.5 overflow-x-auto p-0.5 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:auto-cols-[minmax(0,1fr)] [&::-webkit-scrollbar]:hidden">
+            <div className="-m-0.5 grid snap-x snap-mandatory auto-cols-[48%] grid-flow-col gap-3 overflow-x-auto p-0.5 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:auto-cols-[minmax(0,1fr)] sm:gap-3.5 [&::-webkit-scrollbar]:hidden">
               {suggestions.map((g) => (
                 <a
                   key={g.slug}

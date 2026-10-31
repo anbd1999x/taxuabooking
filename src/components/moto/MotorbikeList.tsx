@@ -432,7 +432,7 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
             <div className="mt-1 text-[15px] text-gray-500">Thử đổi loại xe hoặc ngày, hoặc gọi 0397 943 155 để được hỗ trợ.</div>
           </div>
         ) : (
-          <div className="grid gap-[22px]" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(min(100%,300px),1fr))" }}>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] sm:gap-[22px]">
             {items.map((b, j) => {
               const stKey: RentalBike["state"] = searched ? (b.available == null ? "unk" : b.available <= 0 || b.available < qty ? "full" : b.available <= 2 ? "low" : "ok") : "unk";
               const sm = ST[stKey];
@@ -464,7 +464,7 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
                 >
                   <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
                     {b.image ? (
-                      <Image src={b.image} alt={b.name} fill sizes="(max-width:640px) 100vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" />
+                      <Image src={b.image} alt={b.name} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" />
                     ) : (
                       <div className="flex h-full items-center justify-center text-4xl">🛵</div>
                     )}

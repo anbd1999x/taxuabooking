@@ -352,7 +352,7 @@ export function XeomList({ routes }: { routes: XeomRouteCard[] }) {
             Chưa có tuyến này. Gọi 0397 943 155, tụi mình sắp xếp tài xế cho bạn.
           </div>
         ) : (
-          <div className="grid gap-[22px]" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(min(100%,300px),1fr))" }}>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] sm:gap-[22px]">
             {items.map((r, j) => {
               const noPrice = r.price == null;
               const note = noPrice
@@ -372,7 +372,7 @@ export function XeomList({ routes }: { routes: XeomRouteCard[] }) {
                 >
                   <div className="relative aspect-[16/10] overflow-hidden bg-gray-100">
                     {r.image ? (
-                      <Image src={r.image} alt={r.to} fill sizes="(max-width:640px) 100vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" />
+                      <Image src={r.image} alt={r.to} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" />
                     ) : (
                       <div className="flex h-full items-center justify-center text-4xl">🏍️</div>
                     )}

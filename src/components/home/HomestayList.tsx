@@ -428,7 +428,7 @@ export function HomestayList({
 
       {/* LIST */}
       <main ref={listRef} className="container-page pb-24 pt-9">
-        <div className="grid gap-[22px]" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(min(100%,300px),1fr))" }}>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] sm:gap-[22px]">
           {items.map((s, i) => (
             <Link
               key={s.id}
@@ -438,7 +438,7 @@ export function HomestayList({
               style={{ transform: "translateY(24px)", transitionProperty: "opacity, transform, box-shadow", transitionDuration: ".6s", transitionDelay: `${(i % 3) * 0.08}s` }}
             >
               <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
-                {s.cover ? <Image src={s.cover} alt={s.name} fill sizes="(max-width:640px) 100vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" /> : <div className="flex h-full items-center justify-center text-4xl">🏠</div>}
+                {s.cover ? <Image src={s.cover} alt={s.name} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" /> : <div className="flex h-full items-center justify-center text-4xl">🏠</div>}
                 <div className="pointer-events-none absolute left-3 right-3 top-3 flex justify-between gap-1.5">
                   <div className="flex gap-1.5">
                     <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[oklch(0.3_0.04_160)]">{s.cat}</span>
