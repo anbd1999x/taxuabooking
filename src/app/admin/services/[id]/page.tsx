@@ -596,13 +596,13 @@ export default async function EditServicePage({
                                     <div className="mt-2 rounded-xl border border-gray-200 bg-white p-2">
                                       <div className="mb-2 flex items-center justify-between gap-2">
                                         <span className="text-xs font-medium text-gray-500">Ảnh của phòng <b className="text-forest-800">{room.name}</b> ({room.images.length})</span>
-                                        <ImageUploader roomId={room.id} label="📤 Thêm ảnh cho phòng này" compact />
+                                        <ImageUploader roomId={room.id} label="📤 Thêm ảnh / video cho phòng này" compact accept="image/*,video/*" />
                                       </div>
                                       {room.images.length > 0 && (
                                         <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
                                           {room.images.map((img) => (
                                             <div key={img.id} className="group relative overflow-hidden rounded-lg bg-black/5 ring-1 ring-black/5">
-                                              <div className="relative aspect-square"><Image src={img.url} alt={img.alt ?? room.name} fill sizes="120px" className="object-cover" /></div>
+                                              <div className="relative aspect-square">{/\.(mp4|webm|mov|m4v|ogg)(\?|$)/i.test(img.url) ? <video src={img.url} className="h-full w-full object-cover" muted playsInline preload="metadata" /> : <Image src={img.url} alt={img.alt ?? room.name} fill sizes="120px" className="object-cover" />}</div>
                                               {img.isCover && <span className="absolute left-1 top-1 rounded bg-forest-600 px-1.5 py-0.5 text-[9px] font-semibold text-white">Bìa</span>}
                                               <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1 opacity-0 transition group-hover:opacity-100">
                                                 {!img.isCover && (
@@ -939,14 +939,18 @@ export default async function EditServicePage({
                           <span className="text-xs font-medium text-gray-500">
                             Ảnh của phòng <b className="text-forest-800">{room.name}</b> ({room.images.length})
                           </span>
-                          <ImageUploader roomId={room.id} label="📤 Thêm ảnh cho phòng này" compact />
+                          <ImageUploader roomId={room.id} label="📤 Thêm ảnh / video cho phòng này" compact accept="image/*,video/*" />
                         </div>
                         {room.images.length > 0 && (
                           <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
                             {room.images.map((img) => (
                               <div key={img.id} className="group relative overflow-hidden rounded-lg bg-black/5 ring-1 ring-black/5">
                                 <div className="relative aspect-square">
-                                  <Image src={img.url} alt={img.alt ?? room.name} fill sizes="120px" className="object-cover" />
+                                  {/\.(mp4|webm|mov|m4v|ogg)(\?|$)/i.test(img.url) ? (
+                                    <video src={img.url} className="h-full w-full object-cover" muted playsInline preload="metadata" />
+                                  ) : (
+                                    <Image src={img.url} alt={img.alt ?? room.name} fill sizes="120px" className="object-cover" />
+                                  )}
                                 </div>
                                 {img.isCover && <span className="absolute left-1 top-1 rounded bg-forest-600 px-1.5 py-0.5 text-[9px] font-semibold text-white">Bìa</span>}
                                 <div className="absolute inset-x-0 bottom-0 flex justify-between gap-1 bg-black/50 p-1 opacity-0 transition group-hover:opacity-100">

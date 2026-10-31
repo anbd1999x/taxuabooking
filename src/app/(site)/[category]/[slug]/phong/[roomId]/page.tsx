@@ -48,11 +48,19 @@ export default async function RoomDetailPage({
     .map((a) => a.trim())
     .filter(Boolean);
 
-  // Ưu tiên ảnh riêng của phòng; nếu phòng chưa có ảnh thì dùng ảnh hạng phòng.
+  // Ưu tiên media riêng của phòng; nếu phòng chưa có thì dùng của hạng phòng.
+  // Video nhận diện theo đuôi file (ảnh phòng và video phòng cùng ở room.images).
+  const isVid = (u: string) => /\.(mp4|webm|mov|m4v|ogg)(\?|$)/i.test(u);
+  const roomImgs = room.images.filter((i) => !isVid(i.url));
+  const roomVids = room.images.filter((i) => isVid(i.url));
   const galleryImages =
-    room.images.length > 0
-      ? room.images.map((i) => ({ url: i.url, alt: i.alt }))
+    roomImgs.length > 0
+      ? roomImgs.map((i) => ({ url: i.url, alt: i.alt }))
       : rt.images.filter((i) => i.type === "image").map((i) => ({ url: i.url, alt: i.alt }));
+  const videos =
+    roomVids.length > 0
+      ? roomVids.map((i) => i.url)
+      : rt.images.filter((i) => i.type === "video").map((i) => i.url);
 
   return (
     <div className="container-page py-8">
@@ -69,6 +77,14 @@ export default async function RoomDetailPage({
       <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
         <div>
           <Gallery images={galleryImages} title={room.name} />
+
+          {videos.length > 0 && (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              {videos.map((u, i) => (
+                <video key={i} src={u} controls playsInline preload="metadata" className="w-full rounded-2xl bg-black" />
+              ))}
+            </div>
+          )}
 
           <div className="mt-5 flex flex-wrap items-center gap-2">
             <Badge tone="ok">{rt.name}</Badge>

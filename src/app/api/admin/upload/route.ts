@@ -72,9 +72,9 @@ export async function POST(request: Request) {
   const effType = resolveType(file);
   const isVideo = effType.startsWith("video/");
   const isImage = effType.startsWith("image/");
-  // Video chỉ cho phép ở hạng phòng (schema RoomTypeImage mới lưu được video).
-  if (isVideo && typeof roomTypeId !== "string") {
-    return NextResponse.json({ error: "Video chỉ hỗ trợ cho hạng phòng — hãy chọn một hạng phòng để tải video." }, { status: 400 });
+  // Video gắn được vào hạng phòng hoặc phòng (loại media suy theo đuôi file khi hiển thị).
+  if (isVideo && typeof roomTypeId !== "string" && typeof roomId !== "string") {
+    return NextResponse.json({ error: "Video cần gắn vào một hạng phòng hoặc phòng." }, { status: 400 });
   }
   if (!isImage && !isVideo) {
     return NextResponse.json({ error: "Chỉ nhận tệp ảnh hoặc video." }, { status: 400 });
