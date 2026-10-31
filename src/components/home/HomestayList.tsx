@@ -450,7 +450,7 @@ export function HomestayList({
               <div className="flex flex-1 flex-col gap-2 p-5 pt-[18px]">
                 <div className="text-[13px] font-semibold text-gray-500">{s.area}</div>
                 <div className="text-[19px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink">{s.name}</div>
-                <div className="text-sm leading-[1.55] text-gray-500">{s.desc}</div>
+                <div className="line-clamp-3 text-sm leading-[1.55] text-gray-500">{s.desc}</div>
                 <div className="flex-1" />
                 <div className="mt-1.5 flex items-end justify-between gap-2.5 border-t border-[oklch(0.94_0.01_230)] pt-3">
                   <div>
