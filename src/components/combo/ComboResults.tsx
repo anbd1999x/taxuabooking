@@ -211,8 +211,16 @@ function ComboHomeCard({
 
           {/* 2 · Chọn phòng */}
           <div className="flex flex-col gap-2">
-            <div className="text-xs font-extrabold tracking-wide text-sunset-600">2 · CHỌN LOẠI PHÒNG</div>
-            <div className="flex flex-col overflow-hidden rounded-[14px] border border-[oklch(0.92_0.01_200)]">
+            <div className="flex items-baseline gap-2">
+              <span className="text-xs font-extrabold tracking-wide text-sunset-600">2 · CHỌN LOẠI PHÒNG</span>
+              {home.rooms.length > 2 && (
+                <span className="text-[11px] font-semibold text-gray-400">{home.rooms.length} phòng · cuộn để xem thêm</span>
+              )}
+            </div>
+            <div
+              className={`flex flex-col rounded-[14px] border border-[oklch(0.92_0.01_200)] ${home.rooms.length > 2 ? "overflow-y-auto overscroll-contain" : "overflow-hidden"}`}
+              style={home.rooms.length > 2 ? { maxHeight: 128 } : undefined}
+            >
               {home.rooms.map((r, i) => {
                 const on = r.roomId === room?.roomId;
                 return (

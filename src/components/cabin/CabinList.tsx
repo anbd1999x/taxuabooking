@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { DateField } from "@/components/DateField";
 
 interface TripAvail {
   id: string;
@@ -373,12 +374,12 @@ export function CabinList({
             </label>
             <label className={cell}>
               <span className="text-xs font-semibold text-gray-500">Ngày đi</span>
-              <input type="date" value={di} onChange={(e) => setDi(e.target.value)} className={inp} />
+              <DateField value={di} onChange={setDi} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Ngày đi" />
             </label>
             {round && (
               <label className={cell}>
                 <span className="text-xs font-semibold text-gray-500">Ngày về</span>
-                <input type="date" value={ve} min={di || undefined} onChange={(e) => setVe(e.target.value)} className={inp} />
+                <DateField value={ve} min={di || undefined} onChange={setVe} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Ngày về" />
               </label>
             )}
             <div className={cell}>

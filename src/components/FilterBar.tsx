@@ -3,6 +3,7 @@
 import { useRouter, usePathname } from "next/navigation";
 import { useState } from "react";
 import type { AvailabilityKind } from "@/lib/constants";
+import { DateField } from "@/components/DateField";
 
 const PRICE_RANGES = [
   { label: "Mọi mức giá", min: "", max: "" },
@@ -74,24 +75,26 @@ export function FilterBar({
         <span className="text-xs font-medium text-gray-500">
           {kind === "trip" ? "Ngày đi" : needsRange ? "Nhận" : "Ngày"}
         </span>
-        <input
-          type="date"
+        <DateField
           value={from}
           min={todayKey()}
-          onChange={(e) => setFrom(e.target.value)}
+          onChange={setFrom}
           className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-200"
+          displayClassName="px-3 text-sm text-gray-900"
+          ariaLabel={kind === "trip" ? "Ngày đi" : needsRange ? "Ngày nhận" : "Ngày"}
         />
       </label>
 
       {needsRange && (
         <label className="flex flex-col gap-1">
           <span className="text-xs font-medium text-gray-500">Trả</span>
-          <input
-            type="date"
+          <DateField
             value={to}
             min={from || todayKey()}
-            onChange={(e) => setTo(e.target.value)}
+            onChange={setTo}
             className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-200"
+            displayClassName="px-3 text-sm text-gray-900"
+            ariaLabel="Ngày trả"
           />
         </label>
       )}

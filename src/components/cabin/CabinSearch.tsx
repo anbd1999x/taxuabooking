@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { DateField } from "@/components/DateField";
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -34,22 +35,24 @@ export function CabinSearch({
       <div className="grid gap-1.5 sm:grid-cols-[1fr_1fr_auto]">
         <label className={cell}>
           <span className="text-xs font-medium text-gray-500">Ngày đi</span>
-          <input
-            type="date"
+          <DateField
             value={from}
             min={todayKey()}
-            onChange={(e) => setFrom(e.target.value)}
+            onChange={setFrom}
             className="bg-transparent text-[15px] font-bold text-ink outline-none"
+            displayClassName="text-[15px] font-bold text-ink"
+            ariaLabel="Ngày đi"
           />
         </label>
         <label className={cell}>
           <span className="text-xs font-medium text-gray-500">Ngày về (tuỳ chọn)</span>
-          <input
-            type="date"
+          <DateField
             value={to}
             min={from || todayKey()}
-            onChange={(e) => setTo(e.target.value)}
+            onChange={setTo}
             className="bg-transparent text-[15px] font-bold text-ink outline-none"
+            displayClassName="text-[15px] font-bold text-ink"
+            ariaLabel="Ngày về"
           />
         </label>
         <button

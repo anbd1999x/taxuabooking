@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { CATEGORY_LIST } from "@/lib/constants";
+import { DateField } from "@/components/DateField";
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -69,12 +70,12 @@ export function HeroSearch() {
         )}
         <label className={cell}>
           <span className="block text-xs font-medium text-gray-500">{fromLabel}</span>
-          <input type="date" value={from} min={todayKey()} onChange={(e) => setFrom(e.target.value)} className="mt-0.5 w-full bg-transparent text-[15px] font-bold text-ink outline-none" />
+          <DateField value={from} min={todayKey()} onChange={setFrom} className="mt-0.5 w-full bg-transparent text-[15px] font-bold text-ink outline-none" displayClassName="text-[15px] font-bold text-ink" ariaLabel={fromLabel} />
         </label>
         {showReturn && (
           <label className={cell}>
             <span className="block text-xs font-medium text-gray-500">{toLabel}{isTrip ? " (tuỳ chọn)" : ""}</span>
-            <input type="date" value={to} min={from || todayKey()} onChange={(e) => setTo(e.target.value)} className="mt-0.5 w-full bg-transparent text-[15px] font-bold text-ink outline-none" />
+            <DateField value={to} min={from || todayKey()} onChange={setTo} className="mt-0.5 w-full bg-transparent text-[15px] font-bold text-ink outline-none" displayClassName="text-[15px] font-bold text-ink" ariaLabel={toLabel} />
           </label>
         )}
         {!isTrip && (

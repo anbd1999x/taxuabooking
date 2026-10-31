@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { DateField } from "@/components/DateField";
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -75,11 +76,11 @@ export function ComboSearch({
       <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-4">
         <label className={cell}>
           <span className="text-xs font-medium text-gray-500">Ngày đi (lên xe)</span>
-          <input type="date" value={from} min={todayKey()} onChange={(e) => setFrom(e.target.value)} className={inp} />
+          <DateField value={from} min={todayKey()} onChange={setFrom} className={inp} displayClassName="text-[15px] font-bold text-ink" ariaLabel="Ngày đi" />
         </label>
         <label className={cell}>
           <span className="text-xs font-medium text-gray-500">Ngày về (xe chạy về)</span>
-          <input type="date" value={to} min={from || todayKey()} onChange={(e) => setTo(e.target.value)} className={inp} />
+          <DateField value={to} min={from || todayKey()} onChange={setTo} className={inp} displayClassName="text-[15px] font-bold text-ink" ariaLabel="Ngày về" />
         </label>
         <label className={cell}>
           <span className="text-xs font-medium text-gray-500">Số người</span>
