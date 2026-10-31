@@ -1,0 +1,38 @@
+name: Deploy to VPS
+
+# Mỗi khi push lên main → tự động deploy sang VPS qua SSH.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+# Không chạy 2 lần deploy chồng nhau.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy qua SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT }}
+          command_timeout: 30m
+          script_stop: true
+          script: |
+            set -e
+            cd /opt/taxuabooking
+            echo "==> Kéo code mới nhất"
+            git fetch --all --prune
+            git reset --hard origin/main
+            echo "==> Build & khởi động container"
+            docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+            echo "==> Dọn image cũ"
+            docker image prune -f
+            echo "==> Trạng thái"
+            docker compose -f docker-compose.prod.yml ps
