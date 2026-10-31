@@ -27,14 +27,22 @@ export function MoneyInput({
     defaultValue == null || defaultValue === "" ? "" : String(defaultValue).replace(/\D/g, ""),
   );
 
-  // Ô hiển thị KHÔNG được React điều khiển (chỉ defaultValue): format trực tiếp
-  // trong onInput. Nếu để value={...} thì bàn phím điện thoại (IME) chèn lại cả
-  // chuỗi đang gõ mỗi lần React ghi đè → số bị nhân đôi (vd 300000 → 33.300.000).
+  // TUYỆT ĐỐI không ghi đè ô trong lúc đang gõ: bàn phím điện thoại (IME/gợi ý)
+  // sẽ chèn lại cụm số đang gõ mỗi lần giá trị bị thay → số nhân đôi
+  // (vd 400000 → 4.400.000). Vì vậy: lúc focus hiện số thô để gõ tự do,
+  // rời ô (blur) mới format dấu chấm phân cách.
   function onInput(e: React.FormEvent<HTMLInputElement>) {
+    setRaw(e.currentTarget.value.replace(/\D/g, "").slice(0, 12));
+  }
+  function onFocus(e: React.FocusEvent<HTMLInputElement>) {
+    const el = e.currentTarget;
+    const digits = el.value.replace(/\D/g, "");
+    if (el.value !== digits) el.value = digits;
+  }
+  function onBlur(e: React.FocusEvent<HTMLInputElement>) {
     const el = e.currentTarget;
     const digits = el.value.replace(/\D/g, "").slice(0, 12);
-    const shown = group(digits);
-    if (el.value !== shown) el.value = shown; // ghi đồng bộ, con trỏ về cuối
+    el.value = group(digits);
     setRaw(digits);
   }
 
@@ -47,6 +55,8 @@ export function MoneyInput({
         autoComplete="off"
         defaultValue={group(raw)}
         onInput={onInput}
+        onFocus={onFocus}
+        onBlur={onBlur}
         placeholder={placeholder}
         className={className}
       />
