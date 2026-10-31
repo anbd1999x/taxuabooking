@@ -6,6 +6,7 @@ import { getCustomer, normalizePhone } from "@/lib/customer";
 import { formatPrice, toNumber } from "@/lib/format";
 import { toDateKey } from "@/lib/dates";
 import { CustomerAuthForms } from "@/components/CustomerAuthForms";
+import { PhoneUpdateForm } from "@/components/PhoneUpdateForm";
 import { logoutAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -100,10 +101,7 @@ export default async function AccountPage({
         <section className="mt-6">
           <h2 className="text-lg font-bold text-ink">Đơn của tôi</h2>
           {!phone ? (
-            <div className="mt-3 rounded-2xl border border-dashed border-gray-300 bg-white p-4 text-sm text-gray-600">
-              Tài khoản này chưa gắn số điện thoại nên chưa hiển thị được đơn. Bạn có thể tra cứu bằng SĐT tại{" "}
-              <Link href="/tra-cuu" className="font-semibold text-forest-700">trang tra cứu</Link>.
-            </div>
+            <PhoneUpdateForm />
           ) : bookings.length === 0 ? (
             <div className="mt-3 rounded-2xl border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
               Chưa có đơn nào với số <b className="text-ink">{customer.phone}</b>.{" "}

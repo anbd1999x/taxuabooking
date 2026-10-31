@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 import { comboBookingSchema } from "@/lib/validation";
 import { createComboBooking } from "@/lib/combo";
 import { getSession } from "@/lib/auth";
+import { attachPhoneIfMissing } from "@/lib/customer";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,7 @@ export async function POST(request: Request) {
     const session = await getSession();
     const ctvId = session?.role === "CTV" ? session.sub : null;
     const result = await createComboBooking(input, ctvId);
+    await attachPhoneIfMissing(input.phone).catch(() => {});
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
     if (err instanceof ZodError) {

@@ -82,6 +82,34 @@ export async function loginCustomer(phoneRaw: string, password: string): Promise
   return {};
 }
 
+/** Khi khách đã đăng nhập (vd bằng Google) đặt đơn: tự gắn SĐT vừa nhập vào tài
+ *  khoản nếu tài khoản chưa có SĐT — để đơn hiện trong trang cá nhân. Lặng lẽ. */
+export async function attachPhoneIfMissing(phoneRaw: string): Promise<void> {
+  const customer = await getCustomer();
+  if (!customer) return;
+  const phone = normalizePhone(phoneRaw);
+  if (!/^0\d{9}$/.test(phone)) return;
+  const me = await prisma.customerUser.findUnique({ where: { id: customer.id } });
+  if (!me || me.phone) return; // đã có SĐT → không ghi đè
+  const taken = await prisma.customerUser.findUnique({ where: { phone } });
+  if (taken && taken.id !== customer.id) return; // SĐT đã thuộc tài khoản khác
+  const user = await prisma.customerUser.update({ where: { id: customer.id }, data: { phone } });
+  await setCookie({ id: user.id, name: user.name, phone: user.phone ?? "" });
+}
+
+/** Cập nhật SĐT tài khoản (từ trang cá nhân) — có kiểm tra & phản hồi lỗi. */
+export async function updateCustomerPhone(phoneRaw: string): Promise<{ error?: string }> {
+  const customer = await getCustomer();
+  if (!customer) return { error: "Bạn chưa đăng nhập." };
+  const phone = normalizePhone(phoneRaw);
+  if (!/^0\d{9}$/.test(phone)) return { error: "Số điện thoại chưa đúng (10 số, bắt đầu bằng 0)." };
+  const taken = await prisma.customerUser.findUnique({ where: { phone } });
+  if (taken && taken.id !== customer.id) return { error: "Số điện thoại đã thuộc tài khoản khác." };
+  const user = await prisma.customerUser.update({ where: { id: customer.id }, data: { phone } });
+  await setCookie({ id: user.id, name: user.name, phone: user.phone ?? "" });
+  return {};
+}
+
 /** Đăng nhập/đăng ký qua Google/Facebook: khớp theo providerId (hoặc email), tạo mới nếu chưa có. */
 export async function loginWithOAuth(input: {
   provider: "google" | "facebook";

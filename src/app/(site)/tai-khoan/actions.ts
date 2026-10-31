@@ -1,10 +1,23 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { registerCustomer, loginCustomer, logoutCustomer } from "@/lib/customer";
+import { revalidatePath } from "next/cache";
+import { registerCustomer, loginCustomer, logoutCustomer, updateCustomerPhone } from "@/lib/customer";
 
 export interface AuthState {
   error?: string;
+}
+
+export interface PhoneState {
+  ok?: boolean;
+  error?: string;
+}
+
+export async function updatePhoneAction(_prev: PhoneState, fd: FormData): Promise<PhoneState> {
+  const r = await updateCustomerPhone(String(fd.get("phone") ?? ""));
+  if (r.error) return { error: r.error };
+  revalidatePath("/tai-khoan");
+  return { ok: true };
 }
 
 function sanitizeNext(n: string): string {
