@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ActionForm } from "@/components/admin/ActionForm";
+import { ARTICLE_TOPICS } from "@/lib/constants";
 import { CoverImagePicker } from "@/components/admin/CoverImagePicker";
 import { upsertArticle } from "../actions";
 
@@ -52,6 +53,16 @@ export default async function ArticleEditPage({ params }: { params: Promise<{ id
             <span className="whitespace-nowrap text-sm text-gray-400">/kinh-nghiem/</span>
             <input name="slug" defaultValue={article?.slug ?? ""} className={`${inp} mt-0`} placeholder="kinh-nghiem-san-may-ta-xua" />
           </div>
+        </label>
+
+        <label className="block sm:max-w-xs">
+          <span className="text-sm font-medium text-gray-600">Chủ đề <span className="text-xs text-gray-400">— dùng cho bộ lọc & gợi ý bài liên quan</span></span>
+          <select name="topic" defaultValue={article?.topic ?? ""} className={inp}>
+            <option value="">— Chưa phân loại —</option>
+            {ARTICLE_TOPICS.map((t) => (
+              <option key={t.key} value={t.key}>{t.label}</option>
+            ))}
+          </select>
         </label>
 
         <label className="block">

@@ -93,6 +93,19 @@ export const CATEGORY_LIST: CategoryMeta[] = [
   CATEGORIES.TAXI,
 ];
 
+/** Chủ đề bài viết kinh nghiệm (lọc ở /kinh-nghiem + gợi ý bài cùng chủ đề). */
+export const ARTICLE_TOPICS = [
+  { key: "diem-den", label: "Điểm đến & trải nghiệm" },
+  { key: "lich-trinh", label: "Lịch trình & chi phí" },
+  { key: "di-chuyen", label: "Di chuyển" },
+  { key: "an-uong", label: "Ăn uống & đặc sản" },
+  { key: "cam-nang", label: "Cẩm nang & mẹo" },
+] as const;
+
+export function articleTopicLabel(key: string | null | undefined): string | null {
+  return ARTICLE_TOPICS.find((t) => t.key === key)?.label ?? null;
+}
+
 /** Khu vực chuẩn cho homestay/bungalow (dropdown trong admin). */
 export const AREA_OPTIONS = [
   "Trung tâm Tà Xùa",

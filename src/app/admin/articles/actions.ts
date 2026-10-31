@@ -50,6 +50,7 @@ export async function upsertArticle(_prev: ActionState, formData: FormData): Pro
   const data = {
     title,
     slug,
+    topic: s(formData.get("topic")) ?? null,
     excerpt: s(formData.get("excerpt")) ?? null,
     content,
     coverImage: s(formData.get("coverImage")) ?? null,
