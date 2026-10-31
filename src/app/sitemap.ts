@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = SITE.url.replace(/\/$/, "");
 
-  const [services, articles] = await Promise.all([
+  const [services, articles, rooms] = await Promise.all([
     prisma.service.findMany({
       where: { published: true },
       select: { slug: true, category: true, updatedAt: true },
@@ -17,11 +17,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       where: { published: true },
       select: { slug: true, updatedAt: true },
     }),
+    prisma.room.findMany({
+      where: { roomType: { service: { published: true } } },
+      select: { id: true, updatedAt: true, roomType: { select: { service: { select: { slug: true, category: true } } } } },
+    }),
   ]);
 
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: `${base}/`, changeFrequency: "daily", priority: 1 },
     { url: `${base}/kinh-nghiem`, changeFrequency: "weekly", priority: 0.6 },
+    { url: `${base}/huong-dan`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/lien-he`, changeFrequency: "monthly", priority: 0.4 },
   ];
 
@@ -45,5 +50,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  return [...staticRoutes, ...categoryRoutes, ...serviceRoutes, ...articleRoutes];
+  // Trang chi tiết từng phòng homestay.
+  const roomRoutes: MetadataRoute.Sitemap = rooms.map((r) => ({
+    url: `${base}/${CATEGORIES[r.roomType.service.category].slug}/${r.roomType.service.slug}/phong/${r.id}`,
+    lastModified: r.updatedAt,
+    changeFrequency: "weekly",
+    priority: 0.6,
+  }));
+
+  return [...staticRoutes, ...categoryRoutes, ...serviceRoutes, ...roomRoutes, ...articleRoutes];
 }

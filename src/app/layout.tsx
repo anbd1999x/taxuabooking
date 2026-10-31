@@ -35,12 +35,47 @@ export const metadata: Metadata = {
     description: SITE.description,
   },
   robots: { index: true, follow: true },
+  // Mã xác minh Google Search Console (đặt GOOGLE_SITE_VERIFICATION trong .env server).
+  verification: process.env.GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.GOOGLE_SITE_VERIFICATION }
+    : undefined,
+};
+
+// Dữ liệu có cấu trúc (JSON-LD) cho Google: doanh nghiệp du lịch + website.
+const JSON_LD = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TravelAgency",
+      "@id": `${SITE.url}/#organization`,
+      name: SITE.name,
+      url: SITE.url,
+      description: SITE.description,
+      telephone: SITE.defaultPhone.replace(/\s/g, ""),
+      areaServed: "Tà Xùa, Bắc Yên, Sơn La, Việt Nam",
+      address: {
+        "@type": "PostalAddress",
+        addressLocality: "Tà Xùa, Bắc Yên",
+        addressRegion: "Sơn La",
+        addressCountry: "VN",
+      },
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${SITE.url}/#website`,
+      name: SITE.name,
+      url: SITE.url,
+      inLanguage: "vi",
+      publisher: { "@id": `${SITE.url}/#organization` },
+    },
+  ],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="vi" className={`${beVietnam.variable} h-full`}>
       <body className="min-h-full flex flex-col bg-cloud text-ink">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
         {children}
       </body>
     </html>

@@ -6,15 +6,19 @@
 	email {$ACME_EMAIL}
 }
 
-# Các domain phục vụ (cách nhau bằng dấu cách) — HTTPS tự động, HTTP(80) tự
-# chuyển hướng sang HTTPS. Mỗi domain Caddy cấp chứng chỉ độc lập; domain nào
-# chưa trỏ về server thì bỏ qua, không ảnh hưởng domain đã trỏ đúng.
-{$SITE_DOMAINS} {
+# Domain CHÍNH (canonical cho SEO) — HTTPS tự động, HTTP(80) tự chuyển sang HTTPS.
+taxuabooking.com {
 	encode zstd gzip
 	reverse_proxy web:80 {
 		header_up Host {host}
 		header_up X-Real-IP {remote_host}
 	}
+}
+
+# Các domain phụ 301 về domain chính (tránh trùng lặp nội dung với Google).
+# Domain nào chưa trỏ DNS về server thì Caddy bỏ qua, không ảnh hưởng domain đã trỏ.
+www.taxuabooking.com, taxuabooking.vn, www.taxuabooking.vn {
+	redir https://taxuabooking.com{uri} 301
 }
 
 # Truy cập trực tiếp qua IP (HTTP) — tiện test trước khi DNS lan truyền.

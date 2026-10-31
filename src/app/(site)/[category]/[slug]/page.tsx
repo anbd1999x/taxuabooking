@@ -143,8 +143,44 @@ export default async function ServiceDetailPage({
       .slice(0, 4)
       .map((c) => ({ slug: c.slug, name: c.name, area: c.area, price: c.price, cover: c.cover, cat: c.cat, status: c.status }));
 
+    // JSON-LD cho Google: cơ sở lưu trú + breadcrumb.
+    const roomPrices = rooms.map((r) => r.base).filter((n) => n > 0);
+    const pageUrl = `${SITE.url}/${cat.slug}/${service.slug}`;
+    const stayJsonLd = {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "LodgingBusiness",
+          "@id": `${pageUrl}#lodging`,
+          name: service.title,
+          description: service.summary,
+          url: pageUrl,
+          image: service.images.slice(0, 5).map((i) => `${SITE.url}${i.url}`),
+          telephone: phone.replace(/\s/g, ""),
+          address: {
+            "@type": "PostalAddress",
+            addressLocality: service.area ?? "Tà Xùa, Bắc Yên",
+            addressRegion: "Sơn La",
+            addressCountry: "VN",
+          },
+          ...(roomPrices.length
+            ? { priceRange: `${Math.min(...roomPrices).toLocaleString("vi-VN")}–${Math.max(...roomPrices).toLocaleString("vi-VN")}đ/đêm` }
+            : {}),
+        },
+        {
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Trang chủ", item: SITE.url },
+            { "@type": "ListItem", position: 2, name: cat.shortLabel, item: `${SITE.url}/${cat.slug}` },
+            { "@type": "ListItem", position: 3, name: service.title, item: pageUrl },
+          ],
+        },
+      ],
+    };
+
     return (
       <div className="container-page py-8 pb-28 lg:pb-8">
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(stayJsonLd) }} />
         <nav className="mb-4 text-sm text-gray-500">
           <a href="/" className="hover:text-forest-700">Trang chủ</a>
           <span className="mx-2">/</span>
