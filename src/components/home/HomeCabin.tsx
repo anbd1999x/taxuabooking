@@ -140,7 +140,29 @@ export function HomeCabin({
               </div>
             </div>
 
-            <div className="grid gap-0 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Mobile: timeline DỌC — giống trang lộ trình đặt xe (CabinRoutes) */}
+            <div className="flex flex-col sm:hidden">
+              {stops.map((s, i) => {
+                const last = i === stops.length - 1;
+                return (
+                  <div key={i} className="grid" style={{ gridTemplateColumns: "62px 22px minmax(0,1fr)", columnGap: 14 }}>
+                    <div className="text-[21px] font-extrabold leading-[22px] tracking-tight" style={{ color: last ? "oklch(0.85 0.13 65)" : "white" }}>{s.time}</div>
+                    <div className="flex flex-col items-center">
+                      <span className="mt-0.5 h-[18px] w-[18px] flex-none rounded-full" style={{ background: last ? "oklch(0.72 0.17 50)" : "oklch(0.97 0.01 160)", boxShadow: `0 0 0 5px ${last ? "oklch(0.72 0.17 50 / .3)" : "oklch(1 0 0 / .12)"}` }} />
+                      {!last && <span className="my-2 min-h-[24px] w-0.5 flex-1" style={{ background: "oklch(1 0 0 / .4)" }} />}
+                    </div>
+                    <div className="pb-5">
+                      <div className="text-[16px] font-bold leading-[22px]">{s.place}</div>
+                      {s.note && <div className="mt-0.5 text-[13px] leading-normal" style={{ color: "oklch(0.85 0.02 160)" }}>{s.note}</div>}
+                      {!last && s.gap && <div className="mt-1 text-xs font-semibold" style={{ color: "oklch(0.78 0.03 160)" }}>⏱ {s.gap}</div>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Tablet/desktop: lưới ngang như cũ */}
+            <div className="hidden gap-0 sm:grid sm:grid-cols-2 lg:grid-cols-4">
               {stops.map((s, i) => {
                 const last = i === stops.length - 1;
                 return (
