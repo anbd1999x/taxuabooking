@@ -1,11 +1,25 @@
 import Link from "next/link";
-import Image from "next/image";
 import type { Place, PlaceReview } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getSettings } from "@/lib/queries";
 import { renderMarkdown } from "@/lib/markdown";
 import { formatDate } from "@/lib/format";
 import { SITE } from "@/lib/site";
-import { PlaceReviewForm } from "./PlaceReviewForm";
+import { PlaceGallery } from "./place/PlaceGallery";
+import { ExpandableDescription } from "./place/ExpandableDescription";
+import { PlaceReviews, type ReviewItem } from "./place/PlaceReviews";
+import { SaveButton } from "./place/SaveButton";
+
+const PAGE = "oklch(0.975 0.01 150)";
+const G = "oklch(0.29 0.055 160)";
+const ACCENT = "oklch(0.68 0.18 45)";
+const PRICE = "oklch(0.6 0.18 45)";
+const GOLD = "oklch(0.75 0.16 70)";
+const BORDER = "oklch(0.92 0.01 160)";
+const BTNBORDER = "oklch(0.88 0.02 160)";
+const MUTED = "oklch(0.48 0.02 160)";
+const TAGBG = "oklch(0.95 0.025 155)";
+const TAGFG = "oklch(0.36 0.08 155)";
 
 /** Đang mở hay đã đóng (giờ Việt Nam) từ chuỗi "6:00–19:00". Hỗ trợ quán mở qua đêm. */
 function openStatus(hours: string | null): { open: boolean; label: string } | null {
@@ -16,7 +30,9 @@ function openStatus(hours: string | null): { open: boolean; label: string } | nu
   const from = +m[1] * 60 + +m[2];
   const to = +m[3] * 60 + +m[4];
   const open = from <= to ? cur >= from && cur < to : cur >= from || cur < to; // qua đêm
-  return { open, label: open ? "Đang mở cửa" : "Đã đóng cửa" };
+  const closeT = `${m[3]}:${m[4]}`;
+  const openT = `${m[1]}:${m[2]}`;
+  return { open, label: open ? `Đang mở · đóng ${closeT}` : `Đã đóng · mở ${openT}` };
 }
 
 function mapEmbed(place: Place): string {
@@ -54,10 +70,29 @@ function autoContent(p: Place): string {
   return parts.join("\n\n");
 }
 
+const pillBtn = "whitespace-nowrap rounded-full bg-white px-4 py-2.5 text-sm font-bold";
+
+/** Khung giờ đẹp cho cafe săn mây (nội dung biên tập chung, chỉ hiện ở trang cafe). */
+const BEST_TIME = [
+  { h: "5:30–7:00", t: "Mây dày nhất", d: "Tới trước 6h để có bàn mép ban công.", hot: true },
+  { h: "7:00–9:00", t: "Mây tan dần", d: "Nắng lên, ảnh có chiều sâu.", hot: false },
+  { h: "9:00–16:00", t: "Vắng khách", d: "Ngồi làm việc, trời trong thấy núi.", hot: false },
+  { h: "16:30–18:00", t: "Hoàng hôn", d: "Nắng xiên qua thung lũng, chiều muộn đẹp.", hot: true },
+];
+
 export async function PlaceDetail({ place, basePath }: { place: Place & { reviews: PlaceReview[] }; basePath: string }) {
   const gallery = [place.coverImage, ...(place.images ?? "").split("|")].map((s) => (s ?? "").trim()).filter(Boolean);
   const reviews = place.reviews;
-  const avg = reviews.length ? reviews.reduce((a, r) => a + r.rating, 0) / reviews.length : null;
+  const count = reviews.length;
+  const avg = count ? reviews.reduce((a, r) => a + r.rating, 0) / count : null;
+  const distribution: [number, number, number, number, number] = [0, 0, 0, 0, 0];
+  for (const r of reviews) distribution[5 - Math.min(5, Math.max(1, r.rating))] += 1;
+
+  const settings = await getSettings();
+  const hotline = settings.contactPhone || SITE.defaultPhone;
+  const phone = place.phone || hotline;
+  const telHref = `tel:${phone.replace(/\s/g, "")}`;
+  const zalo = (settings.contactZalo || SITE.defaultZalo).replace(/\s/g, "");
 
   // Gợi ý quán khác: cùng khu trước, rồi cùng loại.
   const sameArea = await prisma.place.findMany({
@@ -93,159 +128,233 @@ export async function PlaceDetail({ place, basePath }: { place: Place & { review
     priceRange: place.price ?? undefined,
     openingHours: place.hours ?? undefined,
     ...(avg != null
-      ? { aggregateRating: { "@type": "AggregateRating", ratingValue: Number(avg.toFixed(1)), reviewCount: reviews.length } }
+      ? { aggregateRating: { "@type": "AggregateRating", ratingValue: Number(avg.toFixed(1)), reviewCount: count } }
       : {}),
   };
 
-  const kindLabel = place.kind === "CAFE" ? "Cafe" : "Nhà hàng";
-  const listLabel = place.kind === "CAFE" ? "Cafe Tà Xùa" : "Nhà hàng Tà Xùa";
-  const tags = (place.tags ?? "").split(",").map((t) => t.trim()).filter(Boolean);
+  const isCafe = place.kind === "CAFE";
+  const kindLabel = isCafe ? "Cafe" : "Nhà hàng";
+  const listLabel = isCafe ? "Cafe Tà Xùa" : "Nhà hàng Tà Xùa";
+  // Tag "Gợi ý" (không phân biệt hoa thường) = quán được highlight → badge riêng, bỏ khỏi danh sách tag.
+  const rawTags = (place.tags ?? "").split(",").map((t) => t.trim()).filter(Boolean);
+  const feat = rawTags.some((t) => /^gợi ý$/i.test(t));
+  const tags = rawTags.filter((t) => !/^gợi ý$/i.test(t));
+  const st = openStatus(place.hours);
+  const reviewItems: ReviewItem[] = reviews.map((r) => ({ id: r.id, name: r.name, rating: r.rating, content: r.content, date: formatDate(r.createdAt) }));
+
+  // Thẻ thông tin nhanh — chỉ hiện mục có dữ liệu.
+  const facts: { k: string; v: string; d?: string }[] = [{ k: "Khu vực", v: place.area, d: "Tà Xùa, Bắc Yên" }];
+  if (place.hours) facts.push({ k: "Giờ mở cửa", v: place.hours, d: st ? (st.open ? "Đang mở cửa" : "Hiện đã đóng") : "Giờ Việt Nam" });
+  if (place.price) facts.push({ k: "Giá tham khảo", v: place.price, d: "Nên hỏi lại khi tới" });
+  facts.push(count ? { k: "Đánh giá", v: `${(avg ?? 0).toFixed(1).replace(".", ",")} / 5`, d: `${count} lượt` } : { k: "Đánh giá", v: "Chưa có", d: "Hãy là người đầu tiên" });
+
+  const sectionH = "text-[22px] font-extrabold tracking-[-0.02em]";
 
   return (
-    <div className="container-page py-8">
+    <div style={{ background: PAGE }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <nav className="mb-4 text-sm text-gray-500">
-        <Link href="/" className="hover:text-forest-700">Trang chủ</Link>
-        <span className="mx-2">/</span>
-        <Link href={basePath} className="hover:text-forest-700">{listLabel}</Link>
-        <span className="mx-2">/</span>
-        <span className="text-gray-700">{place.name}</span>
-      </nav>
+      <div className="container-page flex min-w-0 flex-col gap-[22px] pb-16 pt-5 [overflow-x:clip]">
+        {/* Breadcrumb */}
+        <nav className="flex flex-wrap gap-2 text-sm" style={{ color: MUTED }}>
+          <Link href="/">Trang chủ</Link><span>/</span>
+          <Link href={basePath}>{listLabel}</Link><span>/</span>
+          <span className="font-bold" style={{ color: "oklch(0.22 0.03 160)" }}>{place.name}</span>
+        </nav>
 
-      {/* Ảnh */}
-      {gallery.length > 0 && (
-        <div className={`grid gap-2 ${gallery.length > 1 ? "sm:grid-cols-[2fr_1fr]" : ""}`}>
-          <div className="relative aspect-[16/9] overflow-hidden rounded-2xl bg-forest-50">
-            <Image src={gallery[0]} alt={place.name} fill priority sizes="(max-width:640px) 100vw, 800px" className="object-cover" />
+        {/* Tiêu đề + hành động */}
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="flex min-w-0 flex-col gap-2">
+            <div className="flex flex-wrap gap-1.5">
+              {feat && <span className="rounded-full px-2.5 py-1 text-xs font-bold text-white" style={{ background: ACCENT }}>Gợi ý</span>}
+              <span className="rounded-full border bg-white px-2.5 py-1 text-xs font-bold" style={{ borderColor: "oklch(0.9 0.01 160)", color: "oklch(0.3 0.04 160)" }}>{kindLabel}</span>
+              {st && (
+                <span className="rounded-full px-2.5 py-1 text-xs font-bold" style={st.open ? { background: "oklch(0.95 0.05 155)", color: "oklch(0.38 0.1 155)" } : { background: "oklch(0.93 0 0)", color: "oklch(0.42 0 0)" }}>{st.label}</span>
+              )}
+            </div>
+            <h1 className="text-[clamp(28px,4vw,44px)] font-extrabold leading-[1.05] tracking-[-0.03em]">{place.name}</h1>
+            <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-sm font-semibold" style={{ color: MUTED }}>
+              {count > 0 && (
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="tracking-[1px]" style={{ color: GOLD }}>{"★".repeat(Math.round(avg ?? 0))}</span>
+                  <b style={{ color: "oklch(0.22 0.03 160)" }}>{(avg ?? 0).toFixed(1).replace(".", ",")}</b>
+                  <span>· {count} đánh giá</span>
+                </span>
+              )}
+              <span>{place.address ? place.address : `Khu ${place.area}, Tà Xùa`}</span>
+              <a href="#place-map" className="underline [text-underline-offset:3px]" style={{ color: "oklch(0.4 0.08 160)" }}>Xem bản đồ ↓</a>
+            </div>
           </div>
-          {gallery.length > 1 && (
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-1">
-              {gallery.slice(1, 4).map((g, i) => (
-                <div key={i} className="relative aspect-[16/10] overflow-hidden rounded-xl bg-forest-50">
-                  <Image src={g} alt={`${place.name} ${i + 2}`} fill sizes="260px" className="object-cover" />
+          <div className="flex flex-wrap gap-2">
+            <SaveButton placeId={place.id} />
+            <a href={mapOpenUrl(place)} target="_blank" rel="noopener noreferrer" className={pillBtn} style={{ border: `1.5px solid ${BTNBORDER}`, color: "oklch(0.3 0.05 160)" }}>Chỉ đường</a>
+            <a href={telHref} className="whitespace-nowrap rounded-full px-[18px] py-2.5 text-sm font-bold text-white transition hover:bg-sunset-500" style={{ background: G }}>Gọi quán</a>
+          </div>
+        </div>
+
+        {/* Thư viện ảnh */}
+        {gallery.length > 0 ? (
+          <PlaceGallery images={gallery} name={place.name} />
+        ) : (
+          <div className="flex aspect-[16/7] items-center justify-center rounded-[22px] text-5xl" style={{ background: "linear-gradient(160deg, oklch(0.95 0.025 155), oklch(0.93 0.03 95))" }}>{place.kind === "CAFE" ? "☕" : "🍲"}</div>
+        )}
+
+        {/* Thân trang */}
+        <div className="grid items-start gap-7 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="flex min-w-0 flex-col gap-7">
+            {/* Thông tin nhanh */}
+            <div className="grid gap-2.5" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,150px),1fr))" }}>
+              {facts.map((f) => (
+                <div key={f.k} className="rounded-2xl border bg-white px-4 py-3.5" style={{ borderColor: BORDER }}>
+                  <div className="text-xs font-semibold" style={{ color: MUTED }}>{f.k}</div>
+                  <div className="mt-1 text-base font-extrabold tracking-[-0.01em]">{f.v}</div>
+                  {f.d && <div className="mt-0.5 text-xs" style={{ color: MUTED }}>{f.d}</div>}
                 </div>
               ))}
             </div>
-          )}
-        </div>
-      )}
 
-      <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-full bg-forest-100 px-3 py-1 text-xs font-bold text-forest-800">{kindLabel}</span>
-            <span className="rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600">📍 {place.area}</span>
-            {avg != null && (
-              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-800">
-                ⭐ {avg.toFixed(1)} · {reviews.length} đánh giá
-              </span>
-            )}
-            {(() => {
-              const st = openStatus(place.hours);
-              return st ? (
-                <span className={`rounded-full px-3 py-1 text-xs font-bold ${st.open ? "bg-forest-100 text-forest-800" : "bg-red-50 text-red-600"}`}>
-                  {st.open ? "🟢" : "🔴"} {st.label} · {place.hours}
-                </span>
-              ) : null;
-            })()}
-          </div>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-ink">{place.name}</h1>
-          {place.desc && <p className="mt-2 text-[17px] text-gray-600">{place.desc}</p>}
-          {tags.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {tags.map((t) => (
-                <span key={t} className="rounded-full bg-forest-50 px-3 py-1.5 text-xs font-semibold text-forest-700">{t}</span>
-              ))}
-            </div>
-          )}
+            {/* Về quán */}
+            <section className="flex flex-col gap-3">
+              <h2 className={sectionH}>Về quán</h2>
+              <ExpandableDescription>
+                <div
+                  className="leading-[1.7] [&_a]:font-semibold [&_a]:text-forest-700 [&_a]:underline [&_h2]:mt-6 [&_h2]:text-[18px] [&_h2]:font-extrabold [&_h2]:text-ink [&_h3]:mt-4 [&_h3]:text-base [&_h3]:font-bold [&_h3]:text-ink [&_img]:my-4 [&_img]:w-full [&_img]:rounded-2xl [&_li]:my-1 [&_p]:my-3 [&_ul]:my-3 [&_ul]:list-inside [&_ul]:list-disc"
+                  style={{ color: "oklch(0.35 0.02 160)", fontSize: 15 }}
+                  dangerouslySetInnerHTML={{ __html: renderMarkdown(place.content?.trim() || autoContent(place)) }}
+                />
+              </ExpandableDescription>
+            </section>
 
-          {/* Mô tả chi tiết */}
-          <div
-            className="mt-5 leading-relaxed text-gray-700 [&_a]:font-semibold [&_a]:text-forest-700 [&_a]:underline [&_h2]:mt-7 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:text-ink [&_h3]:mt-5 [&_h3]:text-lg [&_h3]:font-bold [&_h3]:text-ink [&_img]:my-4 [&_img]:w-full [&_img]:rounded-2xl [&_li]:my-1 [&_p]:my-3.5 [&_ul]:my-3.5 [&_ul]:list-inside [&_ul]:list-disc"
-            dangerouslySetInnerHTML={{ __html: renderMarkdown(place.content?.trim() || autoContent(place)) }}
-          />
-
-          {/* Vị trí */}
-          <section className="mt-8">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <h2 className="text-xl font-bold text-ink">Vị trí</h2>
-              <a href={mapOpenUrl(place)} target="_blank" rel="noopener noreferrer" className="whitespace-nowrap rounded-full bg-forest-700 px-4 py-2 text-sm font-semibold text-white hover:bg-forest-800">
-                Mở Google Maps ↗
-              </a>
-            </div>
-            <p className="mt-1 text-sm text-gray-500">{place.address || `${place.area}, Tà Xùa, Bắc Yên, Sơn La`}</p>
-            <div className="mt-3 h-[260px] overflow-hidden rounded-2xl ring-1 ring-black/5">
-              <iframe src={mapEmbed(place)} loading="lazy" referrerPolicy="no-referrer-when-downgrade" title={`Bản đồ ${place.name}`} className="h-full w-full border-0" />
-            </div>
-          </section>
-
-          {/* Đánh giá */}
-          <section className="mt-8">
-            <h2 className="text-xl font-bold text-ink">Đánh giá{reviews.length > 0 ? ` (${reviews.length})` : ""}</h2>
-            {reviews.length === 0 ? (
-              <p className="mt-2 text-sm text-gray-500">Chưa có đánh giá nào — hãy là người đầu tiên!</p>
-            ) : (
-              <div className="mt-3 space-y-3">
-                {reviews.map((r) => (
-                  <div key={r.id} className="rounded-2xl bg-white p-4 ring-1 ring-black/5">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-bold text-ink">{r.name}</span>
-                      <span className="text-sm text-amber-500">{"⭐".repeat(r.rating)}</span>
-                      <span className="text-xs text-gray-400">{formatDate(r.createdAt)}</span>
+            {/* Đặc điểm / Tiện ích */}
+            {tags.length > 0 && (
+              <section className="flex flex-col gap-3">
+                <h2 className={sectionH}>{isCafe ? "Tiện ích" : "Đặc điểm"}</h2>
+                <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(min(100%,200px),1fr))" }}>
+                  {tags.map((t) => (
+                    <div key={t} className="flex items-center gap-2.5 rounded-xl border bg-white px-3.5 py-3 text-sm font-semibold" style={{ borderColor: BORDER }}>
+                      <span className="h-2 w-2 flex-none rounded-full" style={{ background: "oklch(0.55 0.12 155)" }} />
+                      {t}
                     </div>
-                    <p className="mt-1.5 text-[15px] leading-relaxed text-gray-700">{r.content}</p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              </section>
             )}
-            <div className="mt-4 rounded-2xl bg-white p-4 ring-1 ring-black/5">
-              <PlaceReviewForm placeId={place.id} />
+
+            {/* Giờ đẹp để tới (chỉ cafe) */}
+            {isCafe && (
+              <section className="flex flex-col gap-3">
+                <h2 className={sectionH}>Giờ đẹp để tới</h2>
+                <div className="grid gap-2.5" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,160px),1fr))" }}>
+                  {BEST_TIME.map((t) => (
+                    <div key={t.h} className="rounded-2xl border px-4 py-3.5" style={{ background: t.hot ? "oklch(0.95 0.06 70)" : "white", borderColor: BORDER }}>
+                      <div className="text-xl font-extrabold tracking-[-0.02em]" style={{ color: t.hot ? "oklch(0.48 0.15 50)" : G }}>{t.h}</div>
+                      <div className="mt-1 text-sm font-bold">{t.t}</div>
+                      <div className="mt-0.5 text-[13px] leading-[1.5]" style={{ color: MUTED }}>{t.d}</div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Đánh giá */}
+            <PlaceReviews placeId={place.id} reviews={reviewItems} avg={avg} count={count} distribution={distribution} />
+
+            {/* Vị trí */}
+            <section id="place-map" className="flex scroll-mt-20 flex-col gap-3">
+              <h2 className={sectionH}>Vị trí</h2>
+              <div className="overflow-hidden rounded-[18px] border bg-white" style={{ borderColor: BORDER }}>
+                <div className="h-[260px]">
+                  <iframe src={mapEmbed(place)} loading="lazy" referrerPolicy="no-referrer-when-downgrade" title={`Bản đồ ${place.name}`} className="h-full w-full border-0" />
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-3 px-[18px] py-3.5">
+                  <div className="text-sm leading-[1.5]" style={{ color: "oklch(0.35 0.02 160)" }}>{place.address || `${place.area}, xã Tà Xùa, Bắc Yên, Sơn La`}</div>
+                  <a href={mapOpenUrl(place)} target="_blank" rel="noopener noreferrer" className="whitespace-nowrap rounded-full px-4 py-2.5 text-sm font-bold text-white" style={{ background: G }}>Mở Google Maps</a>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          {/* Cột phải dính */}
+          <aside className="flex flex-col gap-3.5 rounded-[22px] border bg-white p-5 lg:sticky lg:top-[84px]" style={{ borderColor: BORDER, boxShadow: "0 24px 50px -30px oklch(0.25 0.06 220 / .35)" }}>
+            <div>
+              <div className="text-xs font-semibold" style={{ color: MUTED }}>{place.price ? (isCafe ? "Đồ uống từ" : "Giá tham khảo") : "Liên hệ"}</div>
+              {place.price ? (
+                <div className="text-[30px] font-extrabold leading-[1.1] tracking-[-0.03em]" style={{ color: PRICE }}>{place.price}</div>
+              ) : (
+                <div className="text-[22px] font-extrabold leading-[1.2]" style={{ color: "oklch(0.42 0.1 250)" }}>Gọi để hỏi giá</div>
+              )}
+              <div className="text-[13px]" style={{ color: MUTED }}>Giá & giờ do quán tự cập nhật</div>
             </div>
-          </section>
+            <div className="flex flex-col gap-2 rounded-[14px] px-3.5 py-3.5" style={{ background: "oklch(0.965 0.01 160)" }}>
+              <div className="flex justify-between gap-3 text-sm"><span style={{ color: MUTED }}>Giờ mở cửa</span><b>{place.hours || "Liên hệ"}</b></div>
+              {st && <div className="flex justify-between gap-3 text-sm"><span style={{ color: MUTED }}>Hôm nay</span><b style={{ color: st.open ? "oklch(0.38 0.1 155)" : "oklch(0.55 0.12 25)" }}>{st.open ? "Đang mở" : "Đã đóng"}</b></div>}
+              <div className="flex justify-between gap-3 text-sm"><span style={{ color: MUTED }}>Khu vực</span><b className="text-right">{place.area}</b></div>
+              <div className="flex justify-between gap-3 text-sm"><span style={{ color: MUTED }}>Điện thoại</span><a href={telHref} className="font-bold text-forest-700">{phone}</a></div>
+            </div>
+            <a href={telHref} className="rounded-full px-3.5 py-3.5 text-center text-[15px] font-extrabold text-white" style={{ background: ACCENT }}>Gọi quán · {phone}</a>
+            <a href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="rounded-full px-3 py-3 text-center text-sm font-bold" style={{ border: `1.5px solid ${BTNBORDER}`, color: "oklch(0.3 0.05 160)" }}>Hỏi Tà Xùa Booking qua Zalo</a>
+            <div className="text-center text-xs leading-[1.5]" style={{ color: MUTED }}>
+              Muốn ở gần đây? Xem <Link href="/homestay" className="font-bold">homestay khu {place.area}</Link> hoặc đặt <Link href="/xe-cabin" className="font-bold">vé xe cabin</Link>.
+            </div>
+          </aside>
         </div>
 
-        {/* Cột phải: thông tin nhanh */}
-        <aside className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 lg:sticky lg:top-20">
-          <div className="text-lg font-extrabold text-ink">Thông tin nhanh</div>
-          <dl className="mt-3 space-y-2.5 text-sm">
-            <div className="flex justify-between gap-3"><dt className="text-gray-500">Khu vực</dt><dd className="font-semibold text-ink">{place.area}</dd></div>
-            {place.hours && <div className="flex justify-between gap-3"><dt className="text-gray-500">Giờ mở cửa</dt><dd className="font-semibold text-ink">{place.hours}</dd></div>}
-            {place.price && <div className="flex justify-between gap-3"><dt className="text-gray-500">Giá</dt><dd className="font-semibold text-sunset-600">{place.price}</dd></div>}
-            {place.phone && (
-              <div className="flex justify-between gap-3"><dt className="text-gray-500">Điện thoại</dt><dd><a href={`tel:${place.phone.replace(/\s/g, "")}`} className="font-bold text-forest-700 hover:underline">{place.phone}</a></dd></div>
-            )}
-          </dl>
-          {place.phone && (
-            <a href={`tel:${place.phone.replace(/\s/g, "")}`} className="mt-4 block rounded-xl bg-sunset-500 py-3 text-center text-sm font-bold text-white hover:bg-sunset-600">
-              📞 Gọi {place.phone}
-            </a>
-          )}
-          <div className="mt-4 border-t border-gray-100 pt-4 text-[13px] leading-relaxed text-gray-500">
-            Ở gần đây? Xem <Link href="/homestay" className="font-semibold text-forest-700 hover:underline">homestay {place.area}</Link> hoặc đặt{" "}
-            <Link href="/xe-cabin" className="font-semibold text-forest-700 hover:underline">xe cabin</Link> cho chuyến đi.
-          </div>
-        </aside>
+        {/* Gợi ý quán khác */}
+        {related.length > 0 && (
+          <section className="mt-2.5 flex flex-col gap-3.5">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className={sectionH}>{kindLabel} khác gần đây</h2>
+                <div className="mt-1 text-sm" style={{ color: MUTED }}>Cùng khu {place.area} hoặc quanh Tà Xùa</div>
+              </div>
+              <Link href={basePath} className="text-sm font-bold" style={{ color: "oklch(0.4 0.08 160)" }}>Xem tất cả {kindLabel.toLowerCase()} →</Link>
+            </div>
+            <div className="grid auto-cols-[72%] grid-flow-col gap-3.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:auto-cols-[42%] lg:grid-flow-row lg:auto-cols-auto lg:grid-cols-4 [&::-webkit-scrollbar]:hidden">
+              {related.map((p) => {
+                const rtags = (p.tags ?? "").split(",").map((t) => t.trim()).filter((t) => t && !/^gợi ý$/i.test(t)).slice(0, 2);
+                return (
+                  <Link key={p.id} href={`${basePath}/${p.slug}`} className="group flex min-w-0 flex-col overflow-hidden rounded-[18px] border bg-white transition hover:shadow-[0_20px_40px_-24px_oklch(0.25_0.06_220_/.4)]" style={{ borderColor: BORDER }}>
+                    <div className="relative aspect-[4/3] bg-forest-50">
+                      {p.coverImage ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.coverImage} alt={p.name} className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]" />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-3xl">{p.kind === "CAFE" ? "☕" : "🍲"}</div>
+                      )}
+                      <span className="absolute left-2.5 top-2.5 rounded-full bg-white px-2.5 py-1 text-xs font-bold" style={{ color: "oklch(0.3 0.04 160)" }}>{p.area}</span>
+                    </div>
+                    <div className="flex flex-1 flex-col gap-1.5 px-4 pb-4 pt-3.5">
+                      <div className="text-base font-extrabold leading-[1.3] tracking-[-0.01em] group-hover:text-forest-700">{p.name}</div>
+                      {p.hours && <div className="text-[13px]" style={{ color: MUTED }}>🕐 {p.hours}</div>}
+                      {rtags.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {rtags.map((t) => <span key={t} className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: TAGBG, color: TAGFG }}>{t}</span>)}
+                        </div>
+                      )}
+                      <div className="flex-1" />
+                      <div className="mt-1 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+                        <span className="whitespace-nowrap text-[15px] font-extrabold" style={{ color: PRICE }}>{p.price || "Liên hệ"}</span>
+                        <span className="whitespace-nowrap text-[13px] font-bold" style={{ color: "oklch(0.4 0.08 160)" }}>Xem quán →</span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </div>
 
-      {/* Gợi ý quán khác */}
-      {related.length > 0 && (
-        <section className="mt-12 border-t border-gray-200 pt-8">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <h2 className="text-xl font-bold text-ink">{kindLabel} khác ở Tà Xùa</h2>
-            <Link href={basePath} className="text-sm font-bold text-forest-700 hover:text-sunset-600">Xem tất cả →</Link>
-          </div>
-          <div className="mt-4 grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
-            {related.map((p) => (
-              <Link key={p.id} href={`${basePath}/${p.slug}`} className="group flex flex-col gap-1.5 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5 transition hover:shadow-md">
-                <div className="font-extrabold leading-snug text-ink group-hover:text-forest-700">{p.name}</div>
-                <div className="text-xs text-gray-500">📍 {p.area}{p.hours ? ` · 🕐 ${p.hours}` : ""}</div>
-                {p.desc && <p className="line-clamp-2 text-[13px] text-gray-600">{p.desc}</p>}
-                {p.price && <span className="mt-auto self-start rounded-full bg-sunset-50 px-2.5 py-1 text-xs font-bold text-sunset-600">{p.price}</span>}
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* Thanh hành động dưới cùng (mobile) */}
+      <div className="sticky bottom-0 z-30 flex items-center justify-between gap-3 border-t bg-white px-4 py-2.5 lg:hidden" style={{ borderColor: BORDER }}>
+        <div className="min-w-0">
+          <div className="text-xs" style={{ color: MUTED }}>{place.price ? (isCafe ? "Đồ uống từ" : "Giá tham khảo") : "Liên hệ"}</div>
+          <div className="truncate text-[18px] font-extrabold tracking-[-0.02em]" style={{ color: PRICE }}>{place.price || phone}</div>
+        </div>
+        <div className="flex flex-none gap-2">
+          <a href={mapOpenUrl(place)} target="_blank" rel="noopener noreferrer" className="whitespace-nowrap rounded-full px-3.5 py-3 text-sm font-bold" style={{ border: `1.5px solid ${BTNBORDER}`, color: "oklch(0.3 0.05 160)" }}>Chỉ đường</a>
+          <a href={telHref} className="whitespace-nowrap rounded-full px-[18px] py-3 text-sm font-extrabold text-white" style={{ background: ACCENT }}>Gọi quán</a>
+        </div>
+      </div>
     </div>
   );
 }
