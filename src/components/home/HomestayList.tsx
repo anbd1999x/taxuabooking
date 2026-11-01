@@ -6,15 +6,20 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DateField } from "@/components/DateField";
 
-/** Mỗi thẻ = MỘT phòng cụ thể (id = roomId); slug vẫn là slug homestay để link chi tiết. */
+/**
+ * Mỗi thẻ = một LOẠI phòng cụ thể: các phòng giống hệt nhau (cùng hạng + giá +
+ * ảnh) được gom thành 1 thẻ (count = số phòng). id = roomId phòng đại diện;
+ * slug vẫn là slug homestay để link chi tiết.
+ */
 export interface HomestayCard {
   id: string;
   slug: string;
-  name: string; // tên phòng (hạng · phòng)
+  name: string; // tên phòng (hạng · phòng; nhóm nhiều phòng = tên hạng)
   homeName: string; // tên homestay
   area: string;
   desc: string;
   capacity: number;
+  count: number; // số phòng giống nhau trong nhóm
   price: number;
   priceOld: number | null; // giá niêm yết gạch ngang khi đang giảm giá
   cover: string | null;
@@ -25,9 +30,9 @@ export interface HomestayCard {
 }
 
 const STATUS: Record<HomestayCard["status"], { bg: string; fg: string; text: (n: number) => string }> = {
-  ok: { bg: "oklch(0.95 0.05 155)", fg: "oklch(0.38 0.1 155)", text: () => "Còn trống" },
-  low: { bg: "oklch(0.95 0.06 70)", fg: "oklch(0.48 0.15 50)", text: () => "Còn trống" },
-  full: { bg: "oklch(0.93 0 0)", fg: "oklch(0.42 0 0)", text: () => "Đã kín" },
+  ok: { bg: "oklch(0.95 0.05 155)", fg: "oklch(0.38 0.1 155)", text: (n) => `Còn ${n} phòng` },
+  low: { bg: "oklch(0.95 0.06 70)", fg: "oklch(0.48 0.15 50)", text: (n) => `Còn ${n} phòng` },
+  full: { bg: "oklch(0.93 0 0)", fg: "oklch(0.42 0 0)", text: () => "Hết phòng" },
   none: { bg: "oklch(1 0 0 / .92)", fg: "oklch(0.4 0.02 160)", text: () => "Chọn ngày để xem" },
 };
 
@@ -265,7 +270,7 @@ export function HomestayList({
   const nights = hasDates ? Math.max(1, Math.round((+new Date(co) - +new Date(ci)) / 864e5)) : 0;
   const qn = norm(q.trim());
   const inPrice = (p: number) =>
-    price === "all" || (price === "lt300" && p < 300000) || (price === "mid" && p >= 300000 && p <= 700000) || (price === "gt700" && p > 700000);
+    price === "all" || (p > 0 && ((price === "lt300" && p < 300000) || (price === "mid" && p >= 300000 && p <= 700000) || (price === "gt700" && p > 700000)));
   const items = all
     .filter((x) => (type === "all" || x.cat === type) && inPrice(x.price) && (!qn || norm(`${x.name} ${x.homeName} ${x.area}`).includes(qn)))
     // Có ngày → đẩy phòng đã kín xuống cuối (sort ổn định, giữ thứ tự nổi bật).
@@ -429,7 +434,7 @@ export function HomestayList({
             </div>
             <div className="flex items-center gap-2">
               {hasFilter && <button type="button" onClick={() => { setQ(""); setCi(""); setCo(""); setPrice("all"); setType("all"); }} className="px-3 py-2 text-sm font-bold text-gray-500">Xoá lọc</button>}
-              <span className="text-sm font-semibold text-gray-500">{items.length} phòng{hasDates ? ` · ${nights} đêm` : ""}</span>
+              <span className="text-sm font-semibold text-gray-500">{items.length} loại phòng{hasDates ? ` · ${nights} đêm` : ""}</span>
             </div>
           </div>
           {dateErr && <div className="px-1.5 pb-1 text-[13px] font-semibold text-red-600">{dateErr}</div>}
@@ -460,17 +465,23 @@ export function HomestayList({
               <div className="flex flex-1 flex-col gap-1 p-3 sm:gap-2 sm:p-5 sm:pt-[18px]">
                 <div className="line-clamp-1 text-[11px] font-semibold text-gray-500 sm:text-[13px]">{s.homeName} · {s.area}</div>
                 <div className="line-clamp-1 text-[15px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink sm:line-clamp-none sm:text-[19px]">{s.name}</div>
-                <div className="text-[11px] font-semibold text-gray-500 sm:text-[12px]">Tối đa {s.capacity} khách</div>
+                <div className="text-[11px] font-semibold text-gray-500 sm:text-[12px]">Tối đa {s.capacity} khách{s.count > 1 ? ` · ${s.count} phòng loại này` : ""}</div>
                 <div className="line-clamp-2 text-[13px] leading-[1.5] text-gray-500 sm:line-clamp-3 sm:text-sm sm:leading-[1.55]">{s.desc}</div>
                 <div className="flex-1" />
                 <div className="mt-1 flex flex-wrap items-end justify-between gap-x-2 gap-y-2 border-t border-[oklch(0.94_0.01_230)] pt-2 sm:mt-1.5 sm:pt-3">
                   <div className="min-w-0">
-                    <div className="text-[11px] text-gray-500 sm:text-xs">{hasDates ? `${nights} đêm từ` : "Giá từ"}</div>
+                    <div className="text-[11px] text-gray-500 sm:text-xs">{s.price > 0 ? (hasDates ? `${nights} đêm từ` : "Giá từ") : "Giá phòng"}</div>
                     <div>
-                      {s.priceOld != null && s.priceOld > s.price && (
-                        <span className="mr-1.5 text-[12px] text-gray-400 line-through sm:text-[14px]">{vnd(hasDates ? s.priceOld * nights : s.priceOld)}</span>
+                      {s.price > 0 ? (
+                        <>
+                          {s.priceOld != null && s.priceOld > s.price && (
+                            <span className="mr-1.5 text-[12px] text-gray-400 line-through sm:text-[14px]">{vnd(hasDates ? s.priceOld * nights : s.priceOld)}</span>
+                          )}
+                          <span className="text-[17px] font-extrabold tracking-[-0.02em] sm:text-[21px]" style={{ color: TH.G }}>{vnd(hasDates ? s.price * nights : s.price)}</span>{!hasDates && <span className="text-[12px] text-gray-500 sm:text-[13px]">/đêm</span>}
+                        </>
+                      ) : (
+                        <span className="text-[17px] font-extrabold tracking-[-0.02em] sm:text-[21px]" style={{ color: TH.G }}>Liên hệ</span>
                       )}
-                      <span className="text-[17px] font-extrabold tracking-[-0.02em] sm:text-[21px]" style={{ color: TH.G }}>{vnd(hasDates ? s.price * nights : s.price)}</span>{!hasDates && <span className="text-[12px] text-gray-500 sm:text-[13px]">/đêm</span>}
                     </div>
                   </div>
                   <span className="whitespace-nowrap rounded-full px-3 py-2 text-xs font-bold text-white transition group-hover:bg-sunset-500 sm:px-4 sm:py-2.5 sm:text-sm" style={{ background: TH.G }}>Xem chi tiết</span>

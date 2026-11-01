@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { unstable_cache } from "next/cache";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import Image from "next/image";
@@ -20,21 +21,29 @@ import { Badge } from "@/components/ui/Badge";
 
 export const dynamic = "force-dynamic";
 
-/** Mở link Google Maps rút gọn (maps.app.goo.gl / goo.gl) → URL đầy đủ có toạ độ. */
-async function expandMapsUrl(mapUrl: string | null | undefined): Promise<string | null> {
-  const u = (mapUrl ?? "").trim();
-  if (!u) return null;
-  if (!/^https?:\/\/(maps\.app\.goo\.gl|goo\.gl|g\.co)\//i.test(u)) return u;
-  try {
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 4000);
-    const res = await fetch(u, { redirect: "follow", signal: ctrl.signal });
-    clearTimeout(timer);
-    return res.url || u;
-  } catch {
-    return u; // không mở được thì giữ link gốc (vẫn dùng cho nút "Mở bản đồ")
-  }
-}
+/**
+ * Mở link Google Maps rút gọn (maps.app.goo.gl / goo.gl) → URL đầy đủ có toạ độ.
+ * Cache 1 ngày theo URL: không fetch ra Google mỗi lần xem trang (từng làm
+ * trang chi tiết chậm vài giây mỗi click).
+ */
+const expandMapsUrl = unstable_cache(
+  async (mapUrl: string | null | undefined): Promise<string | null> => {
+    const u = (mapUrl ?? "").trim();
+    if (!u) return null;
+    if (!/^https?:\/\/(maps\.app\.goo\.gl|goo\.gl|g\.co)\//i.test(u)) return u;
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 4000);
+      const res = await fetch(u, { redirect: "follow", signal: ctrl.signal });
+      clearTimeout(timer);
+      return res.url || u;
+    } catch {
+      return u; // không mở được thì giữ link gốc (vẫn dùng cho nút "Mở bản đồ")
+    }
+  },
+  ["expand-maps-url"],
+  { revalidate: 86400 },
+);
 
 export async function generateMetadata({
   params,

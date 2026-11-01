@@ -1,5 +1,6 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
+import { cache as reactCache } from "react";
 import type {
   Prisma,
   ServiceCategory,
@@ -18,6 +19,7 @@ import { CATEGORIES } from "./constants";
 import {
   aggregateStay,
   roomTypePricing,
+  roomPricing,
   type AvailabilityRecord,
   type StayAvailabilityResult,
 } from "./availability";
@@ -330,7 +332,9 @@ async function getHomeCabinRouteImpl(): Promise<HomeCabinRoute> {
 }
 export const getHomeCabinRoute = unstable_cache(getHomeCabinRouteImpl, ["home-cabin-route"], { revalidate: TTL });
 
-export async function getServiceDetail(slug: string) {
+// React cache(): generateMetadata + page cùng 1 request chỉ query DB MỘT lần
+// (không dùng unstable_cache vì kết quả có Date/Decimal sẽ bị JSON-hoá mất kiểu).
+export const getServiceDetail = reactCache(async (slug: string) => {
   return prisma.service.findFirst({
     where: { slug, published: true },
     include: {
@@ -351,7 +355,7 @@ export async function getServiceDetail(slug: string) {
       cabinRoutes: { include: { stops: { orderBy: { sortOrder: "asc" } } }, orderBy: { direction: "asc" } },
     },
   });
-}
+});
 
 /** Chi tiết một phòng con (cho trang chi tiết phòng kiểu booking). */
 export async function getRoomDetail(slug: string, roomId: string) {
@@ -444,11 +448,16 @@ async function getHomestayCardsImpl(fromKey?: string | null, toKey?: string | nu
 
 export const getHomestayCards = unstable_cache(getHomestayCardsImpl, ["homestay-cards"], { revalidate: TTL_AVAIL });
 
+/** File video (mp4/webm/mov...) không dùng được làm ảnh thẻ (next/image sẽ lỗi). */
+const VIDEO_URL_RE = /\.(mp4|webm|mov|m4v|ogg)(\?|$)/i;
+const firstImageUrl = (items: { url: string }[]): string | null =>
+  items.find((i) => !VIDEO_URL_RE.test(i.url))?.url ?? null;
+
 /**
  * Thẻ PHÒNG cho trang danh sách homestay: mỗi phòng con là MỘT thẻ riêng
  * (hiện đúng căn phù hợp thay vì gom theo homestay). Ảnh ưu tiên ảnh riêng
- * của phòng → ảnh hạng phòng → ảnh homestay. Có ngày nhận/trả → tình trạng
- * tính theo từng phòng (trống cả kỳ / đã kín).
+ * của phòng → ảnh hạng phòng → ảnh homestay (bỏ qua file video). Có ngày
+ * nhận/trả → tình trạng tính theo từng phòng (trống cả kỳ / đã kín).
  */
 async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string | null) {
   const list = await prisma.service.findMany({
@@ -459,10 +468,10 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
       roomTypes: {
         orderBy: { sortOrder: "asc" },
         include: {
-          images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 1 },
+          images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 12 },
           rooms: {
             orderBy: { sortOrder: "asc" },
-            include: { images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 1 } },
+            include: { images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 12 } },
           },
         },
       },
@@ -485,32 +494,61 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
 
   return list.flatMap((s) => {
     const cat = /bungalow/i.test(`${s.title} ${s.area ?? ""}`) ? "Bungalow" : "Homestay";
-    return s.roomTypes.flatMap((rt) =>
-      rt.rooms
-        .map((r) => {
-          const listP = toNumber(r.listPrice) ?? 0;
-          const sale = toNumber(r.salePrice);
-          const price = sale ?? listP;
-          const status: HomestayCardStatus = hasDates ? (occupied.has(r.id) ? "full" : "ok") : "none";
-          return {
-            id: r.id, // roomId — duy nhất cho mỗi thẻ
-            slug: s.slug,
-            name: `${rt.name} · ${r.name}`,
-            homeName: s.title,
-            area: s.area ?? "Tà Xùa",
-            desc: r.description || s.summary,
-            capacity: r.capacity,
-            price,
-            priceOld: sale != null && listP > sale ? listP : null,
-            cover: r.images[0]?.url ?? rt.images[0]?.url ?? rt.imageUrl ?? s.images[0]?.url ?? null,
-            featured: s.featured,
-            cat,
-            status,
-            freeRooms: status === "full" ? 0 : 1,
-          };
-        })
-        .filter((c) => c.price > 0),
-    );
+    return s.roomTypes.flatMap((rt) => {
+      // Tính thông tin thô từng phòng.
+      const raw = rt.rooms.map((r) => {
+        // Giá "từ" = giá đêm rẻ nhất trong tuần: giá-theo-thứ ?? salePrice ?? listPrice
+        // (nhiều phòng chỉ nhập giá theo thứ, listPrice = 0 — không được loại bỏ).
+        const pricing = roomPricing(r);
+        const effs = Array.from({ length: 7 }, (_, d) => pricing.daysOfWeek?.[d] ?? pricing.weekdayPrice).filter((v) => v != null && v > 0) as number[];
+        const price = effs.length ? Math.min(...effs) : 0; // 0 = chưa nhập giá → hiện "Liên hệ"
+        const listP = toNumber(r.listPrice) ?? 0;
+        const sale = toNumber(r.salePrice);
+        const onSale = sale != null && sale > 0 && sale < listP;
+        return {
+          roomId: r.id,
+          roomName: r.name,
+          desc: r.description || s.summary,
+          capacity: r.capacity,
+          price,
+          priceOld: onSale && price === sale ? listP : null,
+          cover: firstImageUrl(r.images) ?? firstImageUrl(rt.images) ?? (rt.imageUrl && !VIDEO_URL_RE.test(rt.imageUrl) ? rt.imageUrl : null) ?? s.images[0]?.url ?? null,
+          free: !occupied.has(r.id),
+        };
+      });
+
+      // Gom các phòng GIỐNG NHAU (cùng hạng + giá + sức chứa + ảnh) thành 1 thẻ.
+      const groups = new Map<string, typeof raw>();
+      for (const c of raw) {
+        const key = `${c.price}|${c.priceOld ?? ""}|${c.capacity}|${c.cover ?? ""}`;
+        const g = groups.get(key);
+        if (g) g.push(c);
+        else groups.set(key, [c]);
+      }
+
+      return [...groups.values()].map((g) => {
+        const first = g[0];
+        const freeCount = g.filter((x) => x.free).length;
+        const status: HomestayCardStatus = hasDates ? (freeCount === 0 ? "full" : freeCount <= 2 ? "low" : "ok") : "none";
+        return {
+          id: first.roomId, // phòng đại diện của nhóm
+          slug: s.slug,
+          name: g.length > 1 ? rt.name : `${rt.name} · ${first.roomName}`,
+          homeName: s.title,
+          area: s.area ?? "Tà Xùa",
+          desc: first.desc,
+          capacity: first.capacity,
+          count: g.length, // tổng số phòng giống nhau
+          price: first.price,
+          priceOld: first.priceOld,
+          cover: first.cover,
+          featured: s.featured,
+          cat,
+          status,
+          freeRooms: hasDates ? freeCount : g.length,
+        };
+      });
+    });
   });
 }
 

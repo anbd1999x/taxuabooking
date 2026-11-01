@@ -11,6 +11,11 @@ import type { ComboBookingInput } from "./validation";
 /** Giảm giá cố định cho mỗi combo (mỗi khách). */
 export const COMBO_DISCOUNT = 50000;
 
+/** File video không dùng được làm ảnh thẻ (next/image sẽ lỗi). */
+const VIDEO_URL_RE = /\.(mp4|webm|mov|m4v|ogg)(\?|$)/i;
+const firstImageUrl = (items: { url: string }[]): string | null =>
+  items.find((i) => !VIDEO_URL_RE.test(i.url))?.url ?? null;
+
 export interface ComboFilters {
   bathtub: boolean;
   cloudView: boolean;
@@ -75,6 +80,7 @@ export interface ComboRoomOption {
   roomTypeId: string;
   roomId: string;
   roomName: string;
+  typeName: string; // tên hạng phòng (để hiện thẻ gộp các phòng giống nhau)
   capacity: number;
   /** Tổng tiền phòng cho cả kỳ lưu trú (1 phòng). */
   roomCost: number;
@@ -314,7 +320,7 @@ async function findRooms(
         include: {
           rooms: {
             where: { capacity: { gte: people } },
-            include: { images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 1 } },
+            include: { images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 12 } },
           },
         },
       },
@@ -357,10 +363,11 @@ async function findRooms(
       slug: s.slug,
       title: s.title,
       area: s.area,
-      cover: room.images[0]?.url ?? rt.imageUrl ?? s.images[0]?.url ?? null,
+      cover: firstImageUrl(room.images) ?? (rt.imageUrl && !VIDEO_URL_RE.test(rt.imageUrl) ? rt.imageUrl : null) ?? s.images[0]?.url ?? null,
       roomTypeId: rt.id,
       roomId: room.id,
       roomName: `${rt.name} · ${room.name}`,
+      typeName: rt.name,
       capacity: room.capacity,
       roomCost,
       features: {
