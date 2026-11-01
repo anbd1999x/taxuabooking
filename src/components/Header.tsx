@@ -7,7 +7,14 @@ import { cn } from "@/lib/utils";
 
 export function Header({ phone, customerName = null }: { phone: string; customerName?: string | null }) {
   const [open, setOpen] = useState(false);
+  const [dd, setDd] = useState(false); // dropdown "Cẩm nang" (desktop)
   const firstName = customerName ? customerName.trim().split(/\s+/).slice(-1)[0] : "";
+
+  const GUIDE_LINKS = [
+    { href: "/kinh-nghiem", label: "⛰️ Kinh nghiệm Tà Xùa" },
+    { href: "/huong-dan", label: "📖 Hướng dẫn đặt dịch vụ" },
+    { href: "/tra-cuu", label: "🧾 Tra cứu đơn hàng" },
+  ];
 
   return (
     <>
@@ -30,10 +37,32 @@ export function Header({ phone, customerName = null }: { phone: string; customer
               {c.shortLabel}
             </Link>
           ))}
-          <Link href="/kinh-nghiem" className="whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700">Kinh nghiệm</Link>
-          <span className="mx-1 hidden h-5 w-px bg-black/10 xl:block" />
-          <Link href="/huong-dan" className="hidden whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700 xl:inline-flex">Hướng dẫn</Link>
-          <Link href="/tra-cuu" className="hidden whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700 xl:inline-flex">Tra cứu đơn</Link>
+          {/* Menu cấp 2: hover hoặc click mới xổ ra */}
+          <div className="group relative" onMouseLeave={() => setDd(false)}>
+            <button
+              type="button"
+              onClick={() => setDd((o) => !o)}
+              className="flex items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700"
+            >
+              Cẩm nang
+              <span className="text-[10px] transition group-hover:rotate-180">▼</span>
+            </button>
+            {/* pt-1 làm cầu nối hover giữa nút và panel (không bị tắt khi rê chuột qua khe) */}
+            <div className={cn("absolute left-0 top-full z-50 pt-1", dd ? "block" : "hidden group-hover:block")}>
+              <div className="w-56 rounded-xl bg-white p-1.5 shadow-lg ring-1 ring-black/5">
+                {GUIDE_LINKS.map((l) => (
+                  <Link
+                    key={l.href}
+                    href={l.href}
+                    onClick={() => setDd(false)}
+                    className="block rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700"
+                  >
+                    {l.label}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
         </nav>
 
         <div className="flex flex-none items-center gap-1.5">
