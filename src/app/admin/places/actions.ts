@@ -47,7 +47,13 @@ export async function upsertPlace(_prev: ActionState, formData: FormData): Promi
     address: s(formData.get("address")) ?? null,
     phone: s(formData.get("phone")) ?? null,
     price: s(formData.get("price")) ?? null,
-    hours: s(formData.get("hours")) ?? null,
+    // Giờ mở–đóng từ 2 ô chọn giờ; thiếu một trong hai thì bỏ trống.
+    hours: (() => {
+      const open = s(formData.get("openTime"));
+      const close = s(formData.get("closeTime"));
+      if (open && close) return `${open}–${close}`;
+      return s(formData.get("hours")) ?? null;
+    })(),
     tags: s(formData.get("tags")) ?? null,
     desc: s(formData.get("desc")) ?? null,
     content: s(formData.get("content")) ?? null,

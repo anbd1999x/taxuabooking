@@ -27,7 +27,16 @@ type PlaceRow = {
   sortOrder: number; published: boolean;
 };
 
+/** Tách "6:00–19:00" (hoặc 6:00-19:00) thành [mở, đóng] dạng HH:MM cho input time. */
+function parseHours(hours: string | null | undefined): [string, string] {
+  const m = (hours ?? "").match(/(\d{1,2}):(\d{2})\s*[–\-~đếnto ]+\s*(\d{1,2}):(\d{2})/i);
+  if (!m) return ["", ""];
+  const pad = (h: string) => h.padStart(2, "0");
+  return [`${pad(m[1])}:${m[2]}`, `${pad(m[3])}:${m[4]}`];
+}
+
 function PlaceFields({ kind, place, sortDefault }: { kind: "RESTAURANT" | "CAFE"; place?: PlaceRow; sortDefault?: number }) {
+  const [openTime, closeTime] = parseHours(place?.hours);
   return (
     <ActionForm action={upsertPlace} className="grid grid-cols-2 gap-2.5 sm:grid-cols-12 sm:items-end">
       <input type="hidden" name="kind" value={kind} />
@@ -38,7 +47,8 @@ function PlaceFields({ kind, place, sortDefault }: { kind: "RESTAURANT" | "CAFE"
       <L label="SĐT" cls="sm:col-span-3"><input name="phone" defaultValue={place?.phone ?? ""} placeholder="(nếu có)" className={inp} /></L>
       <L label="Đường dẫn (slug)" cls="col-span-2 sm:col-span-4"><input name="slug" defaultValue={place?.slug ?? ""} placeholder="tự tạo từ tên nếu trống" className={inp} /></L>
       <L label="Giá" cls="sm:col-span-2"><input name="price" defaultValue={place?.price ?? ""} placeholder="Từ 40.000đ" className={inp} /></L>
-      <L label="Giờ mở" cls="sm:col-span-2"><input name="hours" defaultValue={place?.hours ?? ""} placeholder="6:00–19:00" className={inp} /></L>
+      <L label="Mở cửa" cls="sm:col-span-1"><input name="openTime" type="time" defaultValue={openTime} className={inp} /></L>
+      <L label="Đóng cửa" cls="sm:col-span-1"><input name="closeTime" type="time" defaultValue={closeTime} className={inp} /></L>
       <L label="Địa chỉ chi tiết" cls="col-span-2 sm:col-span-4"><input name="address" defaultValue={place?.address ?? ""} className={inp} /></L>
       <L label="Link Google Maps" cls="col-span-2 sm:col-span-6"><input name="mapUrl" defaultValue={place?.mapUrl ?? ""} placeholder="Dán link chia sẻ (để trống = tự tìm theo tên)" className={inp} /></L>
       <L label="Đặc điểm (phẩy)" cls="col-span-2 sm:col-span-6"><input name="tags" defaultValue={place?.tags ?? ""} placeholder="View săn mây, Có đồ ăn" className={inp} /></L>

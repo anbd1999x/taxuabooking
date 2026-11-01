@@ -7,6 +7,18 @@ import { formatDate } from "@/lib/format";
 import { SITE } from "@/lib/site";
 import { PlaceReviewForm } from "./PlaceReviewForm";
 
+/** Đang mở hay đã đóng (giờ Việt Nam) từ chuỗi "6:00–19:00". Hỗ trợ quán mở qua đêm. */
+function openStatus(hours: string | null): { open: boolean; label: string } | null {
+  const m = (hours ?? "").match(/(\d{1,2}):(\d{2})\s*[–\-]\s*(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  const nowVN = new Date(Date.now() + 7 * 3600_000); // UTC+7
+  const cur = nowVN.getUTCHours() * 60 + nowVN.getUTCMinutes();
+  const from = +m[1] * 60 + +m[2];
+  const to = +m[3] * 60 + +m[4];
+  const open = from <= to ? cur >= from && cur < to : cur >= from || cur < to; // qua đêm
+  return { open, label: open ? "Đang mở cửa" : "Đã đóng cửa" };
+}
+
 function mapEmbed(place: Place): string {
   const url = (place.mapUrl ?? "").trim();
   if (url.includes("/maps/embed")) return url;
@@ -128,6 +140,14 @@ export async function PlaceDetail({ place, basePath }: { place: Place & { review
                 ⭐ {avg.toFixed(1)} · {reviews.length} đánh giá
               </span>
             )}
+            {(() => {
+              const st = openStatus(place.hours);
+              return st ? (
+                <span className={`rounded-full px-3 py-1 text-xs font-bold ${st.open ? "bg-forest-100 text-forest-800" : "bg-red-50 text-red-600"}`}>
+                  {st.open ? "🟢" : "🔴"} {st.label} · {place.hours}
+                </span>
+              ) : null;
+            })()}
           </div>
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-ink">{place.name}</h1>
           {place.desc && <p className="mt-2 text-[17px] text-gray-600">{place.desc}</p>}
