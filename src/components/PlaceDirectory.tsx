@@ -56,9 +56,13 @@ export async function PlaceDirectory({
           {list.map((p) => {
             const tags = (p.tags ?? "").split(",").map((t) => t.trim()).filter(Boolean);
             return (
-              <div key={p.id} className="flex flex-col gap-2.5 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
+              <Link
+                key={p.id}
+                href={`${basePath}/${p.slug}`}
+                className="group flex flex-col gap-2.5 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 transition hover:shadow-md"
+              >
                 <div className="flex items-start justify-between gap-2">
-                  <h2 className="text-[16px] font-extrabold leading-snug text-ink">{p.name}</h2>
+                  <h2 className="text-[16px] font-extrabold leading-snug text-ink group-hover:text-forest-700">{p.name}</h2>
                   {p.price && <span className="flex-none whitespace-nowrap rounded-full bg-sunset-50 px-2.5 py-1 text-xs font-bold text-sunset-600">{p.price}</span>}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-gray-500">
@@ -70,13 +74,9 @@ export async function PlaceDirectory({
                   {tags.map((t) => (
                     <span key={t} className="rounded-full bg-forest-50 px-2.5 py-1 text-[11px] font-semibold text-forest-700">{t}</span>
                   ))}
-                  {p.phone && (
-                    <a href={`tel:${p.phone.replace(/\s/g, "")}`} className="ml-auto rounded-full bg-sunset-500 px-3 py-1 text-[11px] font-bold text-white hover:bg-sunset-600">
-                      📞 {p.phone}
-                    </a>
-                  )}
+                  <span className="ml-auto text-[12px] font-bold text-forest-700 opacity-0 transition group-hover:opacity-100">Xem chi tiết →</span>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>

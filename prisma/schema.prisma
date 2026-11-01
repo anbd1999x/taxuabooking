@@ -455,22 +455,43 @@ model Article {
 
 /// Địa điểm ăn uống (nhà hàng / cafe) hiển thị ở trang /nha-hang và /cafe.
 model Place {
-  id        String   @id @default(cuid())
-  kind      String // "RESTAURANT" | "CAFE"
-  name      String
-  area      String // khu vực (Trung tâm, Đỉnh Gió, Khe Cải...)
-  address   String? // địa chỉ chi tiết (nếu có)
-  phone     String? // SĐT quán (nếu có)
-  price     String? // "Từ 40.000đ"...
-  hours     String? // "6:00–19:00"
-  tags      String? // đặc điểm, phân tách bằng dấu phẩy
-  desc      String? // mô tả ngắn (tự biên soạn)
-  sortOrder Int      @default(0)
-  published Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  kind       String // "RESTAURANT" | "CAFE"
+  slug       String?  @unique // đường dẫn trang chi tiết (/nha-hang/<slug>)
+  name       String
+  area       String // khu vực (Trung tâm, Đỉnh Gió, Khe Cải...)
+  address    String? // địa chỉ chi tiết (nếu có)
+  phone      String? // SĐT quán (nếu có)
+  price      String? // "Từ 40.000đ"...
+  hours      String? // "6:00–19:00"
+  tags       String? // đặc điểm, phân tách bằng dấu phẩy
+  desc       String? // mô tả ngắn (tự biên soạn)
+  content    String? // mô tả chi tiết (markdown) cho trang chi tiết
+  coverImage String? // ảnh bìa
+  images     String? // các ảnh khác, phân tách bằng "|"
+  mapUrl     String? // link Google Maps
+  sortOrder  Int      @default(0)
+  published  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  reviews PlaceReview[]
 
   @@index([kind, published])
+}
+
+/// Đánh giá của khách cho một quán (duyệt rồi mới hiện).
+model PlaceReview {
+  id        String   @id @default(cuid())
+  placeId   String
+  place     Place    @relation(fields: [placeId], references: [id], onDelete: Cascade)
+  name      String // tên người đánh giá
+  rating    Int      @default(5) // 1..5
+  content   String
+  approved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([placeId, approved])
 }
 
 /// Cấu hình site dạng key-value (SĐT, Zalo, địa chỉ, text hero...).

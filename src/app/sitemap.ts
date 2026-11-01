@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = SITE.url.replace(/\/$/, "");
 
-  const [services, articles, rooms] = await Promise.all([
+  const [services, articles, rooms, places] = await Promise.all([
     prisma.service.findMany({
       where: { published: true },
       select: { slug: true, category: true, updatedAt: true },
@@ -20,6 +20,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     prisma.room.findMany({
       where: { roomType: { service: { published: true } } },
       select: { id: true, updatedAt: true, roomType: { select: { service: { select: { slug: true, category: true } } } } },
+    }),
+    prisma.place.findMany({
+      where: { published: true, slug: { not: null } },
+      select: { slug: true, kind: true, updatedAt: true },
     }),
   ]);
 
@@ -60,5 +64,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  return [...staticRoutes, ...categoryRoutes, ...serviceRoutes, ...roomRoutes, ...articleRoutes];
+  // Trang chi tiết nhà hàng / cafe.
+  const placeRoutes: MetadataRoute.Sitemap = places.map((p) => ({
+    url: `${base}/${p.kind === "CAFE" ? "cafe" : "nha-hang"}/${p.slug}`,
+    lastModified: p.updatedAt,
+    changeFrequency: "weekly",
+    priority: 0.5,
+  }));
+
+  return [...staticRoutes, ...categoryRoutes, ...serviceRoutes, ...roomRoutes, ...articleRoutes, ...placeRoutes];
 }
