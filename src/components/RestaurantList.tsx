@@ -431,7 +431,7 @@ export function RestaurantList({ items: all, initialArea = "" }: { items: Restau
           </div>
         </div>
 
-        <div className="grid gap-[22px]" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(min(100%,300px),1fr))" }}>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] sm:gap-[22px]">
           {items.map((s, i) => (
             <article
               key={s.id}
@@ -440,44 +440,44 @@ export function RestaurantList({ items: all, initialArea = "" }: { items: Restau
               style={{ transform: "translateY(24px)", transitionProperty: "opacity, transform, box-shadow", transitionDuration: ".6s", transitionDelay: `${(i % 3) * 0.08}s` }}
             >
               {s.slug && <Link href={`/nha-hang/${s.slug}`} aria-label={s.name} className="absolute inset-0 z-[1]" />}
-              <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+              <div className="relative aspect-[16/11] overflow-hidden bg-gray-100 sm:aspect-[4/3]">
                 {s.cover ? (
-                  <Image src={s.cover} alt={s.name} fill sizes="(max-width:640px) 100vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" />
+                  <Image src={s.cover} alt={s.name} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" />
                 ) : (
                   <div className="flex h-full items-center justify-center text-4xl" style={{ background: "linear-gradient(160deg, oklch(0.95 0.025 155), oklch(0.93 0.03 95))" }}>🍲</div>
                 )}
-                <div className="pointer-events-none absolute left-3 right-3 top-3 flex justify-between gap-1.5">
-                  <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold" style={{ color: "oklch(0.3 0.04 160)" }}>{s.kind}</span>
-                  {s.hours && <span className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold text-white" style={{ background: "oklch(0.15 0.03 200 / .55)", backdropFilter: "blur(6px)" }}>{s.hours}</span>}
+                <div className="pointer-events-none absolute left-2.5 right-2.5 top-2.5 flex justify-between gap-1.5 sm:left-3 sm:right-3 sm:top-3">
+                  <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold sm:px-2.5 sm:py-1 sm:text-xs" style={{ color: "oklch(0.3 0.04 160)" }}>{s.kind}</span>
+                  {s.hours && <span className="hidden whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold text-white sm:inline-block" style={{ background: "oklch(0.15 0.03 200 / .55)", backdropFilter: "blur(6px)" }}>{s.hours}</span>}
                 </div>
               </div>
-              <div className="flex flex-1 flex-col gap-2 p-5 pt-[18px]">
-                <div className="flex justify-between gap-2 text-[13px] font-semibold text-gray-500">
+              <div className="flex flex-1 flex-col gap-1.5 p-3 pt-2.5 sm:gap-2 sm:p-5 sm:pt-[18px]">
+                <div className="flex justify-between gap-2 text-[11px] font-semibold text-gray-500 sm:text-[13px]">
                   <span>{s.area}</span>
-                  {s.address && <span className="truncate text-right">{s.address}</span>}
+                  {s.address && <span className="hidden truncate text-right sm:inline">{s.address}</span>}
                 </div>
-                <h3 className="text-[19px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink transition group-hover:text-forest-700">{s.name}</h3>
-                {s.desc && <p className="text-sm leading-[1.55] text-gray-600">{s.desc}</p>}
+                <h3 className="line-clamp-2 text-[15px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink transition group-hover:text-forest-700 sm:line-clamp-none sm:text-[19px]">{s.name}</h3>
+                {s.desc && <p className="line-clamp-2 text-[13px] leading-[1.5] text-gray-600 sm:line-clamp-3 sm:text-sm sm:leading-[1.55]">{s.desc}</p>}
                 {s.tags.length > 0 && (
-                  <div className="mt-0.5 flex flex-wrap gap-1.5">
+                  <div className="mt-0.5 hidden flex-wrap gap-1.5 sm:flex">
                     {s.tags.map((t) => (
                       <span key={t} className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: "oklch(0.95 0.025 155)", color: "oklch(0.36 0.08 155)" }}>{t}</span>
                     ))}
                   </div>
                 )}
                 <div className="flex-1" />
-                <div className="mt-1.5 flex items-end justify-between gap-2.5 border-t border-[oklch(0.94_0.01_200)] pt-3">
+                <div className="mt-1 flex items-end justify-between gap-2 border-t border-[oklch(0.94_0.01_200)] pt-2.5 sm:mt-1.5 sm:gap-2.5 sm:pt-3">
                   <div className="min-w-0">
-                    <div className="text-xs text-gray-500">{s.price ? "Giá / người" : "Giá"}</div>
+                    <div className="text-[11px] text-gray-500 sm:text-xs">{s.price ? "Giá / người" : "Giá"}</div>
                     {s.price ? (
-                      <div className="text-[21px] font-extrabold leading-[1.2] tracking-[-0.02em]" style={{ color: "oklch(0.34 0.07 160)" }}>{s.price}</div>
+                      <div className="text-[17px] font-extrabold leading-[1.2] tracking-[-0.02em] sm:text-[21px]" style={{ color: "oklch(0.34 0.07 160)" }}>{s.price}</div>
                     ) : (
-                      <div className="text-[15px] font-extrabold leading-[1.2]" style={{ color: "oklch(0.42 0.1 250)" }}>Liên hệ xác nhận giá</div>
+                      <div className="text-[13px] font-extrabold leading-[1.2] sm:text-[15px]" style={{ color: "oklch(0.42 0.1 250)" }}>Liên hệ giá</div>
                     )}
                   </div>
                   <div className="flex flex-none gap-1.5">
-                    <a href={`tel:${s.phone.replace(/\s/g, "")}`} className="relative z-[2] whitespace-nowrap rounded-full px-3.5 py-2.5 text-sm font-bold" style={{ border: "1.5px solid oklch(0.88 0.02 160)", color: "oklch(0.3 0.05 160)" }}>Gọi</a>
-                    <span className="whitespace-nowrap rounded-full px-4 py-2.5 text-sm font-bold text-white transition group-hover:bg-sunset-500" style={{ background: TH.G }}>Xem quán</span>
+                    <a href={`tel:${s.phone.replace(/\s/g, "")}`} className="relative z-[2] hidden whitespace-nowrap rounded-full px-3.5 py-2.5 text-sm font-bold sm:inline-flex" style={{ border: "1.5px solid oklch(0.88 0.02 160)", color: "oklch(0.3 0.05 160)" }}>Gọi</a>
+                    <span className="whitespace-nowrap rounded-full px-3 py-2 text-xs font-bold text-white transition group-hover:bg-sunset-500 sm:px-4 sm:py-2.5 sm:text-sm" style={{ background: TH.G }}>Xem quán</span>
                   </div>
                 </div>
               </div>

@@ -58,6 +58,9 @@ function rnd(i: number, k: number) {
   const x = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453;
   return x - Math.floor(x);
 }
+// Làm tròn 2 chữ số cho giá trị CSS — số thập phân dài bị CSSOM rút gọn khi đọc lại,
+// gây cảnh báo hydration mismatch (React dev) và re-render xoá hiệu ứng reveal.
+const r2 = (v: number) => Math.round(v * 100) / 100;
 function fmtH(v: number) {
   const hh = Math.floor(v);
   const mm = Math.round((v - hh) * 60);
@@ -263,12 +266,12 @@ export function CafeList({ cafes }: { cafes: CafeCard[] }) {
         h: L.hh[0] + rnd(i, li + 13) * (L.hh[1] - L.hh[0]),
       }));
       const clouds = half.concat(half.map((c) => ({ ...c, x: c.x + 50 }))).map((c) => ({
-        x: `${c.x - 6}%`, y: `${c.y}%`, w: `${c.w / 2}%`, h: `${c.h}px`, bg: L.bg, blur: L.blur,
+        x: `${r2(c.x - 6)}%`, y: `${r2(c.y)}%`, w: `${r2(c.w / 2)}%`, h: `${Math.round(c.h)}px`, bg: L.bg, blur: L.blur,
       }));
       return { bottom: L.bottom, h: L.h, op: L.op, clouds };
     });
   }, []);
-  const stars = useMemo(() => Array.from({ length: 14 }, (_, i) => ({ x: `${rnd(i, 21) * 100}%`, y: `${rnd(i, 22) * 34}%`, s: `${1.5 + rnd(i, 23) * 2}px` })), []);
+  const stars = useMemo(() => Array.from({ length: 14 }, (_, i) => ({ x: `${r2(rnd(i, 21) * 100)}%`, y: `${r2(rnd(i, 22) * 34)}%`, s: `${r2(1.5 + rnd(i, 23) * 2)}px` })), []);
 
   const wide = w >= 980;
   const heroH = w < 640 ? 520 : 600;
@@ -504,7 +507,7 @@ export function CafeList({ cafes }: { cafes: CafeCard[] }) {
           </div>
         </div>
 
-        <div className="grid gap-[22px]" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(min(100%,300px),1fr))" }}>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] sm:gap-[22px]">
           {items.map((s, j) => {
             const dawn = s.open <= 5.5;
             const sun = s.slots.includes("sunset") && s.close >= 18;
@@ -525,44 +528,46 @@ export function CafeList({ cafes }: { cafes: CafeCard[] }) {
                 className="group flex flex-col overflow-hidden rounded-[22px] border border-[oklch(0.92_0.01_200)] bg-white opacity-0 transition hover:shadow-[0_24px_50px_-24px_oklch(0.25_0.06_220_/.4)]"
                 style={{ transform: "translateY(24px)", transitionProperty: "opacity, transform, box-shadow", transitionDuration: ".6s", transitionDelay: `${(j % 3) * 0.08}s` }}
               >
-                <div className="relative aspect-[4/3] overflow-hidden">
+                <div className="relative aspect-[16/11] overflow-hidden sm:aspect-[4/3]">
                   {s.image ? (
-                    <Image src={s.image} alt={s.name} fill sizes="(max-width:640px) 100vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" />
+                    <Image src={s.image} alt={s.name} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" />
                   ) : (
                     <div className="flex h-full items-center justify-center text-5xl" style={{ background: "linear-gradient(160deg, oklch(0.9 0.04 150), oklch(0.82 0.05 120))" }}>☕</div>
                   )}
-                  <div className="pointer-events-none absolute inset-x-3 top-3 flex justify-between gap-1.5">
-                    <div className="flex gap-1.5">
-                      <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold" style={{ color: "oklch(0.3 0.04 160)" }}>{kind}</span>
-                      {s.feat && <span className="rounded-full px-2.5 py-1 text-xs font-bold text-white" style={{ background: "oklch(0.68 0.18 45)" }}>Gợi ý</span>}
+                  <div className="pointer-events-none absolute inset-x-2.5 top-2.5 flex justify-between gap-1.5 sm:inset-x-3 sm:top-3">
+                    <div className="flex min-w-0 gap-1.5">
+                      <span className="truncate rounded-full bg-white px-2 py-0.5 text-[11px] font-bold sm:px-2.5 sm:py-1 sm:text-xs" style={{ color: "oklch(0.3 0.04 160)" }}>{kind}</span>
+                      {s.feat && <span className="rounded-full px-2 py-0.5 text-[11px] font-bold text-white sm:px-2.5 sm:py-1 sm:text-xs" style={{ background: "oklch(0.68 0.18 45)" }}>Gợi ý</span>}
                     </div>
-                    <span className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: st[1], color: st[2] }}>{st[0]}</span>
+                    <span className="hidden whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold sm:inline-block" style={{ background: st[1], color: st[2] }}>{st[0]}</span>
                   </div>
-                  <div className="pointer-events-none absolute bottom-3 left-3">
-                    <span className="rounded-full px-2.5 py-1 text-xs font-bold text-white" style={{ background: "oklch(0.15 0.03 200 / .55)", backdropFilter: "blur(6px)" }}>{fmtH(s.open)}–{fmtH(s.close)}</span>
+                  <div className="pointer-events-none absolute bottom-2.5 left-2.5 sm:bottom-3 sm:left-3">
+                    <span className="rounded-full px-2 py-0.5 text-[11px] font-bold text-white sm:px-2.5 sm:py-1 sm:text-xs" style={{ background: "oklch(0.15 0.03 200 / .55)", backdropFilter: "blur(6px)" }}>{fmtH(s.open)}–{fmtH(s.close)}</span>
                   </div>
                 </div>
-                <div className="flex flex-1 flex-col gap-2 p-5 pt-[18px]">
-                  <div className="flex justify-between gap-2 text-[13px] font-semibold" style={{ color: "oklch(0.5 0.02 160)" }}>
+                <div className="flex flex-1 flex-col gap-1.5 p-3 pt-2.5 sm:gap-2 sm:p-5 sm:pt-[18px]">
+                  <div className="flex justify-between gap-2 text-[11px] font-semibold sm:text-[13px]" style={{ color: "oklch(0.5 0.02 160)" }}>
                     <span>{s.area}</span>
-                    <span className="whitespace-nowrap">{s.dist}</span>
+                    {s.dist && <span className="hidden whitespace-nowrap sm:inline">{s.dist}</span>}
                   </div>
-                  <div className="text-[19px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink">{s.name}</div>
-                  <div className="text-sm leading-[1.55]" style={{ color: "oklch(0.42 0.02 160)" }}>{s.desc}</div>
-                  <div className="mt-0.5 flex flex-wrap gap-1.5">
+                  <div className="line-clamp-2 text-[15px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink sm:line-clamp-none sm:text-[19px]">{s.name}</div>
+                  {s.desc && <div className="line-clamp-2 text-[13px] leading-[1.5] sm:line-clamp-3 sm:text-sm sm:leading-[1.55]" style={{ color: "oklch(0.42 0.02 160)" }}>{s.desc}</div>}
+                  <div className="mt-0.5 hidden flex-wrap gap-1.5 sm:flex">
                     {s.tags.map((a) => (
                       <span key={a} className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: "oklch(0.95 0.025 155)", color: "oklch(0.36 0.08 155)" }}>{a}</span>
                     ))}
                   </div>
                   <div className="flex-1" />
-                  <div className="flex items-end justify-between gap-2.5 border-t border-[oklch(0.94_0.01_200)] pt-3">
-                    <div>
-                      <div className="text-xs" style={{ color: "oklch(0.5 0.02 160)" }}>{s.priceText ? "Đồ uống từ" : "Giá"}</div>
-                      <div className="font-extrabold leading-[1.2] tracking-[-0.02em]" style={{ fontSize: s.priceText ? 21 : 15, color: s.priceText ? TH.price : "oklch(0.42 0.02 160)" }}>{s.priceText || "Theo menu quán"}</div>
+                  <div className="mt-1 flex items-end justify-between gap-2 border-t border-[oklch(0.94_0.01_200)] pt-2.5 sm:mt-0 sm:gap-2.5 sm:pt-3">
+                    <div className="min-w-0">
+                      <div className="text-[11px] sm:text-xs" style={{ color: "oklch(0.5 0.02 160)" }}>{s.priceText ? "Đồ uống từ" : "Giá"}</div>
+                      <div className="font-extrabold leading-[1.2] tracking-[-0.02em]" style={{ color: s.priceText ? TH.price : "oklch(0.42 0.02 160)" }}>
+                        <span className={s.priceText ? "text-[17px] sm:text-[21px]" : "text-[13px] sm:text-[15px]"}>{s.priceText || "Theo menu quán"}</span>
+                      </div>
                     </div>
-                    <div className="flex gap-1.5">
-                      <a href={s.mapUrl} target="_blank" rel="noopener noreferrer" className="whitespace-nowrap rounded-full border-[1.5px] px-3.5 py-2.5 text-sm font-bold" style={{ borderColor: "oklch(0.88 0.02 160)", color: "oklch(0.3 0.05 160)" }}>Bản đồ</a>
-                      <Link href={`/cafe/${s.slug}`} className="whitespace-nowrap rounded-full px-4 py-2.5 text-sm font-bold text-white transition group-hover:bg-sunset-500" style={{ background: TH.btn }}>{cta}</Link>
+                    <div className="flex flex-none gap-1.5">
+                      <a href={s.mapUrl} target="_blank" rel="noopener noreferrer" className="hidden whitespace-nowrap rounded-full border-[1.5px] px-3.5 py-2.5 text-sm font-bold sm:inline-flex" style={{ borderColor: "oklch(0.88 0.02 160)", color: "oklch(0.3 0.05 160)" }}>Bản đồ</a>
+                      <Link href={`/cafe/${s.slug}`} className="whitespace-nowrap rounded-full px-3 py-2 text-xs font-bold text-white transition group-hover:bg-sunset-500 sm:px-4 sm:py-2.5 sm:text-sm" style={{ background: TH.btn }}>{cta}</Link>
                     </div>
                   </div>
                 </div>
