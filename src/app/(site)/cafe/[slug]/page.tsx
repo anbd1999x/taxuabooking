@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { PlaceDetail } from "@/components/PlaceDetail";
+import { CafeDetail } from "@/components/cafe/CafeDetail";
 
 export const dynamic = "force-dynamic";
 
@@ -28,5 +28,5 @@ export default async function CafeDetailPage({ params }: { params: Promise<{ slu
   const place = await getPlace(slug);
   if (!place) notFound();
   if (place.kind !== "CAFE") redirect(`/nha-hang/${place.slug}`);
-  return <PlaceDetail place={place} basePath="/cafe" />;
+  return <CafeDetail place={place} basePath="/cafe" />;
 }
