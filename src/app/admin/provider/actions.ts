@@ -15,6 +15,13 @@ function s(v: FormDataEntryValue | null): string | undefined {
   return t ? t : undefined;
 }
 
+function money(v: FormDataEntryValue | null): number | null {
+  const t = v == null ? "" : String(v).replace(/[^\d]/g, "");
+  if (!t) return null;
+  const n = Number(t);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 async function currentProviderId(): Promise<string | null> {
   const session = await getSession();
   if (!session || session.role !== "PROVIDER") return null;
@@ -37,13 +44,21 @@ export async function createMyCtv(_prev: ProviderActionState, formData: FormData
 
   try {
     await prisma.adminUser.create({
-      data: { username, name, phone, role: "CTV", providerId, passwordHash: await hashPassword(password) },
+      data: { username, name, phone, role: "CTV", providerId, commissionPerOrder: money(formData.get("commissionPerOrder")), passwordHash: await hashPassword(password) },
     });
   } catch {
     return { error: "Tạo CTV thất bại." };
   }
   revalidatePath("/admin/provider/ctv");
   return { ok: true, message: "Đã tạo CTV" };
+}
+
+/** Chủ cơ sở đặt mức hoa hồng/đơn cho CTV của mình. */
+export async function setMyCtvCommission(formData: FormData): Promise<void> {
+  const id = s(formData.get("id"));
+  if (!id || !(await ownCtv(id))) return;
+  await prisma.adminUser.update({ where: { id }, data: { commissionPerOrder: money(formData.get("commissionPerOrder")) } });
+  revalidatePath("/admin/provider/ctv");
 }
 
 /** Chỉ thao tác trên CTV thuộc chính chủ cơ sở này. */

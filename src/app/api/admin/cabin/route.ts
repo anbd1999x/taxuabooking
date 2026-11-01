@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import { parseDateOnly } from "@/lib/dates";
 import { adjustInventory, assignRoomsForBooking } from "@/lib/inventory";
 import { generateBookingCode } from "@/lib/utils";
+import { resolveCommission } from "@/lib/commission";
 
 export const dynamic = "force-dynamic";
 
@@ -148,6 +149,7 @@ export async function POST(request: Request) {
             needsConfirmation: false,
             status: "CONFIRMED",
             ctvId,
+            commissionAmount: await resolveCommission(serviceId, ctvId),
           },
         });
         await adjustInventory(tx, { ...booking }, -1);

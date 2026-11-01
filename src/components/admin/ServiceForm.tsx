@@ -28,6 +28,7 @@ interface Initial {
   easyRoad?: boolean;
   pool?: boolean;
   ownerId?: string | null;
+  ctvCommission?: number | null;
 }
 
 const inputCls =
@@ -166,6 +167,20 @@ export function ServiceForm({
           ))}
         </select>
         <span className="mt-1 block text-xs text-gray-400">Dùng để chủ dịch vụ đăng nhập xem đơn & đối soát thanh toán.</span>
+      </label>
+
+      <label className="block sm:max-w-sm">
+        <span className="text-sm font-medium text-gray-600">Hoa hồng CTV / đơn (đ)</span>
+        <input
+          name="ctvCommission"
+          type="number"
+          min={0}
+          step={1000}
+          defaultValue={initial.ctvCommission ?? ""}
+          placeholder="Để trống = dùng mức mặc định của CTV"
+          className={inputCls}
+        />
+        <span className="mt-1 block text-xs text-gray-400">Ghi đè mức hoa hồng cố định mỗi đơn CTV đặt cho dịch vụ này. Để trống = dùng mức mặc định của từng CTV.</span>
       </label>
 
       <div className="flex flex-wrap gap-6">

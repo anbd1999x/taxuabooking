@@ -19,6 +19,8 @@ interface Agg {
   total: number;
   paid: number;
   unpaid: number;
+  comm: number; // tổng hoa hồng CTV (đã chốt)
+  commPaid: number; // hoa hồng đã trả cho CTV
 }
 
 export default async function ReportsPage({
@@ -40,6 +42,8 @@ export default async function ReportsPage({
       paymentStatus: true,
       ctvId: true,
       ctv: { select: { name: true } },
+      commissionAmount: true,
+      commissionPaid: true,
       service: { select: { ownerId: true, owner: { select: { name: true } } } },
     },
   });
@@ -48,21 +52,29 @@ export default async function ReportsPage({
   const byProvider = new Map<string, Agg>();
   let gTotal = 0, gPaid = 0, gUnpaid = 0;
 
+  let gComm = 0, gCommPaid = 0;
+
   for (const b of bookings) {
     const amt = toNumber(b.referencePrice) ?? 0;
     const paid = b.paymentStatus === "PAID";
+    // Hoa hồng chỉ có khi đơn do CTV đặt.
+    const comm = b.ctvId ? toNumber(b.commissionAmount) ?? 0 : 0;
+    const commPaid = b.commissionPaid ? comm : 0;
     gTotal += amt; if (paid) gPaid += amt; else gUnpaid += amt;
+    gComm += comm; gCommPaid += commPaid;
 
     const ck = b.ctvId ?? "_none";
     const cn = b.ctv?.name ?? "Khách tự đặt (không qua CTV)";
-    const c = byCtv.get(ck) ?? { id: ck, name: cn, orders: 0, total: 0, paid: 0, unpaid: 0 };
+    const c = byCtv.get(ck) ?? { id: ck, name: cn, orders: 0, total: 0, paid: 0, unpaid: 0, comm: 0, commPaid: 0 };
     c.orders++; c.total += amt; if (paid) c.paid += amt; else c.unpaid += amt;
+    c.comm += comm; c.commPaid += commPaid;
     byCtv.set(ck, c);
 
     const pk = b.service?.ownerId ?? "_none";
     const pn = b.service?.owner?.name ?? "Chưa gán chủ dịch vụ";
-    const p = byProvider.get(pk) ?? { id: pk, name: pn, orders: 0, total: 0, paid: 0, unpaid: 0 };
+    const p = byProvider.get(pk) ?? { id: pk, name: pn, orders: 0, total: 0, paid: 0, unpaid: 0, comm: 0, commPaid: 0 };
     p.orders++; p.total += amt; if (paid) p.paid += amt; else p.unpaid += amt;
+    p.comm += comm; p.commPaid += commPaid;
     byProvider.set(pk, p);
   }
 
@@ -88,8 +100,15 @@ export default async function ReportsPage({
         <Stat label="Chưa thanh toán" value={formatPrice(gUnpaid)} tone="warn" />
       </div>
 
-      <ReportTable title="Theo cộng tác viên (CTV)" col="CTV" rows={ctvRows} />
-      <ReportTable title="Theo chủ dịch vụ (đối soát thanh toán)" col="Chủ dịch vụ" rows={providerRows} />
+      {/* Hoa hồng CTV */}
+      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <Stat label="Hoa hồng CTV (đã chốt)" value={formatPrice(gComm)} />
+        <Stat label="HH đã trả CTV" value={formatPrice(gCommPaid)} tone="ok" />
+        <Stat label="HH chưa trả CTV" value={formatPrice(gComm - gCommPaid)} tone="warn" />
+      </div>
+
+      <ReportTable title="Theo cộng tác viên (CTV)" col="CTV" rows={ctvRows} showCommission />
+      <ReportTable title="Theo chủ dịch vụ (đối soát thanh toán)" col="Chủ dịch vụ" rows={providerRows} showCommission />
     </div>
   );
 }
@@ -103,7 +122,8 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: "ok
   );
 }
 
-function ReportTable({ title, col, rows }: { title: string; col: string; rows: Agg[] }) {
+function ReportTable({ title, col, rows, showCommission = false }: { title: string; col: string; rows: Agg[]; showCommission?: boolean }) {
+  const cols = showCommission ? 7 : 5;
   return (
     <section className="mt-8">
       <h2 className="text-lg font-semibold text-ink">{title}</h2>
@@ -116,11 +136,13 @@ function ReportTable({ title, col, rows }: { title: string; col: string; rows: A
               <th className="px-4 py-3 text-right">Tổng tiền</th>
               <th className="px-4 py-3 text-right">Đã TT</th>
               <th className="px-4 py-3 text-right">Chưa TT</th>
+              {showCommission && <th className="px-4 py-3 text-right">HH chốt</th>}
+              {showCommission && <th className="px-4 py-3 text-right">HH chưa trả</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {rows.length === 0 ? (
-              <tr><td colSpan={5} className="py-8 text-center text-gray-500">Không có dữ liệu.</td></tr>
+              <tr><td colSpan={cols} className="py-8 text-center text-gray-500">Không có dữ liệu.</td></tr>
             ) : (
               rows.map((r) => (
                 <tr key={r.id} className="hover:bg-gray-50">
@@ -129,6 +151,8 @@ function ReportTable({ title, col, rows }: { title: string; col: string; rows: A
                   <td className="px-4 py-3 text-right font-semibold">{formatPrice(r.total)}</td>
                   <td className="px-4 py-3 text-right text-forest-700">{formatPrice(r.paid)}</td>
                   <td className="px-4 py-3 text-right text-amber-700">{formatPrice(r.unpaid)}</td>
+                  {showCommission && <td className="px-4 py-3 text-right font-semibold">{r.comm > 0 ? formatPrice(r.comm) : "—"}</td>}
+                  {showCommission && <td className="px-4 py-3 text-right text-amber-700">{r.comm - r.commPaid > 0 ? formatPrice(r.comm - r.commPaid) : "—"}</td>}
                 </tr>
               ))
             )}

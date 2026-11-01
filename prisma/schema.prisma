@@ -87,6 +87,7 @@ model AdminUser {
   role         UserRole @default(ADMIN)
   active       Boolean  @default(true)
   providerId   String? // với CTV: thuộc chủ cơ sở nào
+  commissionPerOrder Decimal? @db.Decimal(12, 0) // với CTV: hoa hồng cố định/đơn (mặc định)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -124,6 +125,7 @@ model Service {
   sheetSyncResult String? // kết quả lần đồng bộ ("12 phòng · 30 ngày" | "Lỗi: ...")
   ownerId     String? // chủ dịch vụ (nhà xe / homestay)
   owner       AdminUser?      @relation("ServiceOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  ctvCommission Decimal?      @db.Decimal(12, 0) // hoa hồng CTV/đơn — ghi đè mức mặc định của CTV cho dịch vụ này
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
@@ -424,6 +426,10 @@ model BookingRequest {
   ctv           AdminUser?    @relation("BookingCtv", fields: [ctvId], references: [id], onDelete: SetNull)
   paymentStatus PaymentStatus @default(UNPAID)
   paidAt        DateTime?
+  // Hoa hồng CTV (snapshot lúc đặt = Service.ctvCommission ?? CTV.commissionPerOrder ?? 0).
+  commissionAmount Decimal?   @db.Decimal(12, 0)
+  commissionPaid   Boolean    @default(false) // đã trả hoa hồng cho CTV chưa
+  commissionPaidAt DateTime?
 
   status          BookingStatus @default(NEW)
   adminNote       String?

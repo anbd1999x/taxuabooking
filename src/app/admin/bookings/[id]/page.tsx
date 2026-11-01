@@ -4,7 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { CATEGORIES } from "@/lib/constants";
 import { formatPrice, formatDate, formatDateTime } from "@/lib/format";
 import { BookingStatusForm } from "@/components/admin/BookingStatusForm";
-import { setBookingPayment } from "../actions";
+import { toNumber } from "@/lib/format";
+import { setBookingPayment, setBookingCommissionPaid } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -80,6 +81,26 @@ export default async function BookingDetailPage({
             <h2 className="mb-3 text-lg font-semibold text-ink">CTV & thanh toán</h2>
             <div className="space-y-2 text-sm">
               <p><span className="text-gray-500">CTV đặt: </span>{b.ctv ? `${b.ctv.name}${b.ctv.phone ? ` · ${b.ctv.phone}` : ""}` : "Khách tự đặt (không qua CTV)"}</p>
+              {b.ctvId && (
+                <div className="rounded-xl bg-gray-50 p-3">
+                  <p>
+                    <span className="text-gray-500">Hoa hồng CTV: </span>
+                    <span className="font-semibold text-forest-700">{formatPrice(toNumber(b.commissionAmount) ?? 0)}</span>
+                    <span className={`ml-2 rounded-full px-2.5 py-0.5 text-xs font-medium ${b.commissionPaid ? "bg-forest-100 text-forest-700" : "bg-amber-100 text-amber-700"}`}>
+                      {b.commissionPaid ? `Đã trả${b.commissionPaidAt ? ` · ${formatDate(b.commissionPaidAt)}` : ""}` : "Chưa trả"}
+                    </span>
+                  </p>
+                  <form action={setBookingCommissionPaid} className="pt-2">
+                    <input type="hidden" name="id" value={b.id} />
+                    <input type="hidden" name="paid" value={b.commissionPaid ? "false" : "true"} />
+                    {b.commissionPaid ? (
+                      <button className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50">↩ Đánh dấu CHƯA trả HH</button>
+                    ) : (
+                      <button className="rounded-lg bg-forest-600 px-3 py-2 text-xs font-semibold text-white hover:bg-forest-700">✓ Đã trả hoa hồng cho CTV</button>
+                    )}
+                  </form>
+                </div>
+              )}
               <p>
                 <span className="text-gray-500">Chủ dịch vụ: </span>
                 {b.service?.owner ? b.service.owner.name : "Chưa gán"}

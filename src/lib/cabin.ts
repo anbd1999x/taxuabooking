@@ -5,6 +5,7 @@ import { prisma } from "./prisma";
 import { parseDateOnly, toDateKey, addDays, today } from "./dates";
 import { toNumber } from "./format";
 import { generateBookingCode } from "./utils";
+import { resolveCommission } from "./commission";
 import type { CabinBookingInput } from "./validation";
 
 const WD = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
@@ -319,6 +320,7 @@ export async function createCabinBooking(
       referencePrice: total,
       needsConfirmation,
       ctvId: ctvId ?? null,
+      commissionAmount: await resolveCommission(service.id, ctvId),
     },
   });
 

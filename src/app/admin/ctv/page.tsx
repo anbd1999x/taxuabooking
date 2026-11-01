@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { toNumber, formatPrice, formatDate } from "@/lib/format";
 import { BOOKING_STATUS_META } from "@/lib/constants";
+import { setBookingCommissionPaid } from "@/app/admin/bookings/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -17,23 +18,25 @@ export default async function CtvHome() {
     include: { service: { select: { title: true } } },
   });
   const all = await prisma.bookingRequest.findMany({
-    // Doanh số chỉ tính đơn đã chốt (xác nhận / hoàn thành).
+    // Hoa hồng chỉ tính đơn đã chốt (xác nhận / hoàn thành).
     where: { ctvId, status: { in: ["CONFIRMED", "COMPLETED"] } },
-    select: { referencePrice: true, paymentStatus: true },
+    select: { commissionAmount: true, commissionPaid: true },
   });
-  const total = all.reduce((n, b) => n + (toNumber(b.referencePrice) ?? 0), 0);
-  const paid = all.filter((b) => b.paymentStatus === "PAID").reduce((n, b) => n + (toNumber(b.referencePrice) ?? 0), 0);
+  const commission = all.reduce((n, b) => n + (toNumber(b.commissionAmount) ?? 0), 0);
+  const commissionPaid = all
+    .filter((b) => b.commissionPaid)
+    .reduce((n, b) => n + (toNumber(b.commissionAmount) ?? 0), 0);
 
   return (
     <div>
       <h1 className="text-2xl font-bold text-ink">Xin chào, {session!.name}</h1>
-      <p className="mt-1 text-sm text-gray-500">Trang cộng tác viên — đặt đơn trên website, đơn sẽ tự ghi nhận cho bạn.</p>
+      <p className="mt-1 text-sm text-gray-500">Trang cộng tác viên — đặt đơn trên website, đơn sẽ tự ghi nhận cho bạn kèm hoa hồng.</p>
 
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Tổng đơn" value={String(all.length)} />
-        <Stat label="Tổng tiền" value={formatPrice(total)} />
-        <Stat label="Đã thanh toán" value={formatPrice(paid)} tone="ok" />
-        <Stat label="Chưa thanh toán" value={formatPrice(total - paid)} tone="warn" />
+        <Stat label="Đơn đã chốt" value={String(all.length)} />
+        <Stat label="Hoa hồng (đã chốt)" value={formatPrice(commission)} />
+        <Stat label="HH đã nhận" value={formatPrice(commissionPaid)} tone="ok" />
+        <Stat label="HH chưa nhận" value={formatPrice(commission - commissionPaid)} tone="warn" />
       </div>
 
       <div className="mt-6 flex flex-wrap gap-3">
@@ -58,8 +61,24 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: "ok
 
 export function OrdersTable({
   bookings,
+  settleCommission = false,
 }: {
-  bookings: { id: string; code: string; serviceTitle: string; useDate: Date; quantity: number; referencePrice: unknown; status: keyof typeof BOOKING_STATUS_META; paymentStatus: string; customerName?: string; service?: { title: string } | null }[];
+  bookings: {
+    id: string;
+    code: string;
+    serviceTitle: string;
+    useDate: Date;
+    quantity: number;
+    referencePrice: unknown;
+    status: keyof typeof BOOKING_STATUS_META;
+    paymentStatus: string;
+    customerName?: string;
+    service?: { title: string } | null;
+    commissionAmount?: import("@prisma/client").Prisma.Decimal | number | string | null;
+    commissionPaid?: boolean;
+  }[];
+  /** true ⇒ hiện nút đánh dấu "đã trả hoa hồng" (admin / chủ dịch vụ). */
+  settleCommission?: boolean;
 }) {
   return (
     <div className="mt-3 overflow-x-auto rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
@@ -71,15 +90,18 @@ export function OrdersTable({
             <th className="px-4 py-3 hidden sm:table-cell">Ngày dùng</th>
             <th className="px-4 py-3 text-right">Giá</th>
             <th className="px-4 py-3">Trạng thái</th>
-            <th className="px-4 py-3">Thanh toán</th>
+            <th className="px-4 py-3 text-right">Hoa hồng</th>
+            <th className="px-4 py-3">Trả HH</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
           {bookings.length === 0 ? (
-            <tr><td colSpan={6} className="py-8 text-center text-gray-500">Chưa có đơn nào.</td></tr>
+            <tr><td colSpan={7} className="py-8 text-center text-gray-500">Chưa có đơn nào.</td></tr>
           ) : (
             bookings.map((b) => {
               const meta = BOOKING_STATUS_META[b.status];
+              const comm = toNumber(b.commissionAmount) ?? 0;
+              const settled = Boolean(b.commissionPaid);
               return (
                 <tr key={b.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-semibold text-forest-700">{b.code}</td>
@@ -87,10 +109,21 @@ export function OrdersTable({
                   <td className="px-4 py-3 hidden sm:table-cell text-gray-600">{formatDate(b.useDate)}</td>
                   <td className="px-4 py-3 text-right font-semibold">{formatPrice(b.referencePrice as number)}</td>
                   <td className="px-4 py-3"><span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs">{meta.label}</span></td>
+                  <td className="px-4 py-3 text-right font-semibold text-forest-700">{comm > 0 ? formatPrice(comm) : "—"}</td>
                   <td className="px-4 py-3">
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${b.paymentStatus === "PAID" ? "bg-forest-100 text-forest-700" : "bg-amber-100 text-amber-700"}`}>
-                      {b.paymentStatus === "PAID" ? "Đã TT" : "Chưa TT"}
-                    </span>
+                    {settleCommission && comm > 0 ? (
+                      <form action={setBookingCommissionPaid}>
+                        <input type="hidden" name="id" value={b.id} />
+                        <input type="hidden" name="paid" value={settled ? "false" : "true"} />
+                        <button className={`rounded-full px-2.5 py-1 text-xs font-medium ${settled ? "bg-forest-100 text-forest-700" : "bg-amber-100 text-amber-700"}`}>
+                          {settled ? "Đã trả ✓" : "Chưa trả"}
+                        </button>
+                      </form>
+                    ) : (
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${settled ? "bg-forest-100 text-forest-700" : "bg-gray-100 text-gray-500"}`}>
+                        {settled ? "Đã trả" : comm > 0 ? "Chưa trả" : "—"}
+                      </span>
+                    )}
                   </td>
                 </tr>
               );

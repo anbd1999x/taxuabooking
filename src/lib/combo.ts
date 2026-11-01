@@ -5,6 +5,7 @@ import { parseDateOnly, toDateKey, addDays, enumerateNights } from "./dates";
 import { toNumber } from "./format";
 import { roomPricing, priceForDay } from "./availability";
 import { generateBookingCode } from "./utils";
+import { resolveCommission } from "./commission";
 import type { ComboBookingInput } from "./validation";
 
 /** Giảm giá cố định cho mỗi combo (mỗi khách). */
@@ -448,6 +449,7 @@ export async function createComboBooking(
       referencePrice: total,
       needsConfirmation: true,
       ctvId: ctvId ?? null,
+      commissionAmount: await resolveCommission(room.roomType.service.id, ctvId),
     },
   });
 

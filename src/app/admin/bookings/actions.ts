@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/auth";
 import { bookingStatusSchema } from "@/lib/validation";
 import { adjustInventory, assignRoomsForBooking, statusHoldsInventory } from "@/lib/inventory";
 
@@ -20,6 +21,35 @@ export async function setBookingPayment(formData: FormData): Promise<void> {
     data: { paymentStatus: paid ? "PAID" : "UNPAID", paidAt: paid ? new Date() : null },
   });
   for (const p of ["/admin/bookings", `/admin/bookings/${id}`, "/admin/reports", "/admin/ctv", "/admin/provider"]) {
+    revalidatePath(p);
+  }
+}
+
+/**
+ * Đánh dấu đã / chưa TRẢ HOA HỒNG cho CTV của đơn.
+ * ADMIN: toàn quyền. PROVIDER: chỉ đơn thuộc dịch vụ mình sở hữu. CTV: không được.
+ */
+export async function setBookingCommissionPaid(formData: FormData): Promise<void> {
+  const id = formData.get("id") ? String(formData.get("id")) : "";
+  if (!id) return;
+  const paid = formData.get("paid") === "true";
+  const session = await getSession();
+  if (!session) return;
+  const b = await prisma.bookingRequest.findUnique({
+    where: { id },
+    select: { service: { select: { ownerId: true } } },
+  });
+  if (!b) return;
+  if (session.role === "PROVIDER") {
+    if (b.service?.ownerId !== session.sub) return;
+  } else if (session.role !== "ADMIN") {
+    return;
+  }
+  await prisma.bookingRequest.update({
+    where: { id },
+    data: { commissionPaid: paid, commissionPaidAt: paid ? new Date() : null },
+  });
+  for (const p of ["/admin/bookings", `/admin/bookings/${id}`, "/admin/reports", "/admin/ctv", "/admin/ctv/don", "/admin/provider", "/admin/provider/don"]) {
     revalidatePath(p);
   }
 }

@@ -18,6 +18,7 @@ import {
 } from "./availability";
 import { toNumber } from "./format";
 import { generateBookingCode } from "./utils";
+import { resolveCommission } from "./commission";
 import type { BookingInput } from "./validation";
 
 export interface StayOption {
@@ -327,6 +328,7 @@ export async function createBooking(
       referencePrice,
       needsConfirmation,
       ctvId: ctvId ?? null,
+      commissionAmount: await resolveCommission(service.id, ctvId),
     },
   });
 

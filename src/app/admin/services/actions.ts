@@ -68,6 +68,7 @@ export async function createService(
     easyRoad: formData.get("easyRoad") === "on",
     pool: formData.get("pool") === "on",
     ownerId: s(formData.get("ownerId")),
+    ctvCommission: num(formData.get("ctvCommission")),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ." };
@@ -94,6 +95,7 @@ export async function createService(
       easyRoad: d.easyRoad ?? false,
       pool: d.pool ?? false,
       ownerId: d.ownerId ?? null,
+      ctvCommission: d.ctvCommission ?? null,
     },
   });
   if (d.category === "CABIN" && d.featured) await enforceSingleFeaturedCabin(created.id);
@@ -125,6 +127,7 @@ export async function createServiceFull(
     easyRoad: formData.get("easyRoad") === "on",
     pool: formData.get("pool") === "on",
     ownerId: s(formData.get("ownerId")),
+    ctvCommission: num(formData.get("ctvCommission")),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ." };
@@ -288,6 +291,7 @@ export async function updateService(
     easyRoad: formData.get("easyRoad") === "on",
     pool: formData.get("pool") === "on",
     ownerId: s(formData.get("ownerId")),
+    ctvCommission: num(formData.get("ctvCommission")),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ." };
@@ -315,6 +319,7 @@ export async function updateService(
       easyRoad: d.easyRoad ?? false,
       pool: d.pool ?? false,
       ownerId: d.ownerId ?? null,
+      ctvCommission: d.ctvCommission ?? null,
     },
   });
   if (d.category === "CABIN" && d.featured) await enforceSingleFeaturedCabin(id);

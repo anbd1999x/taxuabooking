@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { ActionForm } from "@/components/admin/ActionForm";
-import { createAccount, toggleAccountActive, deleteAccount, resetAccountPassword } from "./actions";
+import { toNumber } from "@/lib/format";
+import { createAccount, toggleAccountActive, deleteAccount, resetAccountPassword, setCtvCommission } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,8 @@ export default async function AccountsPage() {
           <label className="block sm:col-span-1"><span className="text-xs font-medium text-gray-500">Mật khẩu</span><input name="password" className={inp} required /></label>
           <label className="block sm:col-span-2"><span className="text-xs font-medium text-gray-500">Họ tên</span><input name="name" className={inp} required /></label>
           <label className="block sm:col-span-1"><span className="text-xs font-medium text-gray-500">SĐT</span><input name="phone" className={inp} /></label>
-          <label className="block sm:col-span-3"><span className="text-xs font-medium text-gray-500">Thuộc chủ cơ sở (chỉ cho CTV)</span>
+          <label className="block sm:col-span-2"><span className="text-xs font-medium text-gray-500">Hoa hồng/đơn (CTV, đ)</span><input name="commissionPerOrder" type="number" min={0} step={1000} placeholder="VD 100000" className={inp} /></label>
+          <label className="block sm:col-span-4"><span className="text-xs font-medium text-gray-500">Thuộc chủ cơ sở (chỉ cho CTV)</span>
             <select name="providerId" defaultValue="" className={inp}>
               <option value="">— Không gắn —</option>
               {providers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -58,6 +60,7 @@ export default async function AccountsPage() {
               <th className="px-4 py-3">Tài khoản</th>
               <th className="px-4 py-3">Vai trò</th>
               <th className="px-4 py-3 hidden sm:table-cell">SĐT</th>
+              <th className="px-4 py-3">Hoa hồng (CTV)</th>
               <th className="px-4 py-3">Hoạt động</th>
               <th className="px-4 py-3">Đổi MK</th>
               <th className="px-4 py-3"></th>
@@ -65,7 +68,7 @@ export default async function AccountsPage() {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {users.length === 0 ? (
-              <tr><td colSpan={6} className="py-10 text-center text-gray-500">Chưa có tài khoản nào.</td></tr>
+              <tr><td colSpan={7} className="py-10 text-center text-gray-500">Chưa có tài khoản nào.</td></tr>
             ) : (
               users.map((u) => (
                 <tr key={u.id} className="hover:bg-gray-50">
@@ -92,6 +95,17 @@ export default async function AccountsPage() {
                   </td>
                   <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${u.role === "CTV" ? "bg-sky-100 text-sky-700" : "bg-amber-100 text-amber-700"}`}>{u.role === "CTV" ? "CTV" : "Chủ dịch vụ"}</span></td>
                   <td className="px-4 py-3 hidden sm:table-cell text-gray-600">{u.phone ?? "—"}</td>
+                  <td className="px-4 py-3">
+                    {u.role === "CTV" ? (
+                      <form action={setCtvCommission} className="flex items-center gap-1">
+                        <input type="hidden" name="id" value={u.id} />
+                        <input name="commissionPerOrder" type="number" min={0} step={1000} defaultValue={toNumber(u.commissionPerOrder) ?? ""} placeholder="0" className="w-24 rounded border border-gray-200 px-2 py-1 text-xs" />
+                        <button className="rounded bg-forest-100 px-2 py-1 text-xs font-medium text-forest-700">Lưu</button>
+                      </form>
+                    ) : (
+                      <span className="text-xs text-gray-400">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <form action={toggleAccountActive}>
                       <input type="hidden" name="id" value={u.id} />

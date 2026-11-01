@@ -15,6 +15,14 @@ function s(v: FormDataEntryValue | null): string | undefined {
   return t ? t : undefined;
 }
 
+/** Số tiền (đồng) từ ô nhập; rỗng/không hợp lệ ⇒ null. */
+function money(v: FormDataEntryValue | null): number | null {
+  const t = v == null ? "" : String(v).replace(/[^\d]/g, "");
+  if (!t) return null;
+  const n = Number(t);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 export async function createAccount(_prev: AccountState, formData: FormData): Promise<AccountState> {
   const username = s(formData.get("username"))?.toLowerCase();
   const password = s(formData.get("password"));
@@ -38,9 +46,12 @@ export async function createAccount(_prev: AccountState, formData: FormData): Pr
     }
   }
 
+  // Hoa hồng cố định/đơn (chỉ áp dụng cho CTV).
+  const commissionPerOrder = role === "CTV" ? money(formData.get("commissionPerOrder")) : null;
+
   try {
     await prisma.adminUser.create({
-      data: { username, name, phone, role, providerId, passwordHash: await hashPassword(password) },
+      data: { username, name, phone, role, providerId, commissionPerOrder, passwordHash: await hashPassword(password) },
     });
   } catch {
     return { error: "Tạo tài khoản thất bại." };
@@ -55,6 +66,16 @@ export async function toggleAccountActive(formData: FormData): Promise<void> {
   const u = await prisma.adminUser.findUnique({ where: { id } });
   if (!u || u.role === "ADMIN") return; // không khoá admin
   await prisma.adminUser.update({ where: { id }, data: { active: !u.active } });
+  revalidatePath("/admin/accounts");
+}
+
+/** Đặt mức hoa hồng cố định/đơn cho một CTV (admin). Rỗng = không có (0). */
+export async function setCtvCommission(formData: FormData): Promise<void> {
+  const id = s(formData.get("id"));
+  if (!id) return;
+  const u = await prisma.adminUser.findUnique({ where: { id } });
+  if (!u || u.role !== "CTV") return;
+  await prisma.adminUser.update({ where: { id }, data: { commissionPerOrder: money(formData.get("commissionPerOrder")) } });
   revalidatePath("/admin/accounts");
 }
 

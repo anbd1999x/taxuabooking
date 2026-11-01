@@ -166,6 +166,7 @@ export default async function EditServicePage({
                     basePrice: toNumber(service.basePrice), priceUnit: service.priceUnit,
                     contactName: service.contactName, contactPhone: service.contactPhone, contactZalo: service.contactZalo,
                     featured: service.featured, published: service.published, easyRoad: service.easyRoad, pool: service.pool, ownerId: service.ownerId,
+                    ctvCommission: toNumber(service.ctvCommission),
                   }}
                 />
               </section>
@@ -410,6 +411,7 @@ export default async function EditServicePage({
                     basePrice: toNumber(service.basePrice), priceUnit: service.priceUnit,
                     contactName: service.contactName, contactPhone: service.contactPhone, contactZalo: service.contactZalo,
                     featured: service.featured, published: service.published, easyRoad: service.easyRoad, pool: service.pool, ownerId: service.ownerId,
+                    ctvCommission: toNumber(service.ctvCommission),
                   }}
                 />
               </section>
@@ -630,18 +632,11 @@ export default async function EditServicePage({
                               );
                             })}
                           </div>
-                          <ActionForm action={upsertRoom} className="grid grid-cols-1 gap-2 border-t border-gray-200 bg-gray-50 p-3 sm:grid-cols-12 sm:items-end">
+                          <ActionForm action={upsertRoom} className="border-t border-gray-200 bg-gray-50 p-3">
                             <input type="hidden" name="serviceId" value={service.id} />
                             <input type="hidden" name="roomTypeId" value={rt.id} />
-                            <L label="Tên phòng mới" cls="sm:col-span-4"><input name="name" placeholder={`VD: ${rt.name} ${rt.rooms.length + 1}`} className={inp} /></L>
-                            <L label="Sức chứa" cls="sm:col-span-2"><input name="capacity" type="number" min={1} defaultValue={2} className={inp} /></L>
-                            <L label="Giá thường" cls="sm:col-span-3"><MoneyInput name="listPrice" defaultValue={0} className={inp} /></L>
-                            <L label="Giá chiết khấu" cls="sm:col-span-3"><MoneyInput name="salePrice" placeholder="(nếu có)" className={inp} /></L>
-                            <L label="Tối đa (người)" cls="sm:col-span-3"><input name="maxCapacity" type="number" min={0} placeholder="= sức chứa" className={inp} /></L>
-                            <L label="Phụ thu người thêm (đ/đêm)" cls="sm:col-span-3"><MoneyInput name="extraPersonFee" placeholder="—" className={inp} /></L>
-                            <L label="Phụ thu check-in sớm (đ)" cls="sm:col-span-3"><MoneyInput name="earlyCheckinFee" placeholder="—" className={inp} /></L>
-                            <L label="Phụ thu check-out muộn (đ)" cls="sm:col-span-3"><MoneyInput name="lateCheckoutFee" placeholder="—" className={inp} /></L>
-                            <div className="sm:col-span-12"><button className="rounded-lg bg-forest-100 px-3 py-2 text-sm font-medium text-forest-700">+ Thêm phòng vào {rt.name}</button></div>
+                            <input type="hidden" name="name" value={`${rt.name} ${rt.rooms.length + 1}`} />
+                            <button className="rounded-lg bg-forest-100 px-3 py-2 text-sm font-medium text-forest-700">+ Thêm phòng vào {rt.name}</button>
                           </ActionForm>
                         </div>
                       );
@@ -795,6 +790,7 @@ export default async function EditServicePage({
             published: service.published,
             easyRoad: service.easyRoad, pool: service.pool,
             ownerId: service.ownerId,
+            ctvCommission: toNumber(service.ctvCommission),
           }}
         />
       </section>
