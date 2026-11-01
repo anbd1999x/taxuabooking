@@ -38,6 +38,10 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+    // Lỗi nghiệp vụ có thông điệp rõ (vd chính sách bán cuối tuần) → trả cho khách.
+    if (err instanceof Error && err.message) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
     console.error("createBooking error", err);
     return NextResponse.json(
       { error: "Có lỗi xảy ra, vui lòng thử lại." },

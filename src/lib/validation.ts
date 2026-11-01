@@ -98,6 +98,7 @@ export const serviceInputSchema = z.object({
   pool: z.coerce.boolean().optional(),
   ownerId: z.string().optional().nullable(),
   ctvCommission: z.coerce.number().int().min(0).optional().nullable(),
+  weekendPolicy: z.enum(["NONE", "FRI_SAT", "SAT_SUN", "FRI_SUN"]).optional(),
 });
 
 export type ServiceInput = z.infer<typeof serviceInputSchema>;

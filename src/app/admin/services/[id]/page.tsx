@@ -167,6 +167,7 @@ export default async function EditServicePage({
                     contactName: service.contactName, contactPhone: service.contactPhone, contactZalo: service.contactZalo,
                     featured: service.featured, published: service.published, easyRoad: service.easyRoad, pool: service.pool, ownerId: service.ownerId,
                     ctvCommission: toNumber(service.ctvCommission),
+                    weekendPolicy: service.weekendPolicy,
                   }}
                 />
               </section>
@@ -412,6 +413,7 @@ export default async function EditServicePage({
                     contactName: service.contactName, contactPhone: service.contactPhone, contactZalo: service.contactZalo,
                     featured: service.featured, published: service.published, easyRoad: service.easyRoad, pool: service.pool, ownerId: service.ownerId,
                     ctvCommission: toNumber(service.ctvCommission),
+                    weekendPolicy: service.weekendPolicy,
                   }}
                 />
               </section>
@@ -792,6 +794,7 @@ export default async function EditServicePage({
             easyRoad: service.easyRoad, pool: service.pool,
             ownerId: service.ownerId,
             ctvCommission: toNumber(service.ctvCommission),
+            weekendPolicy: service.weekendPolicy,
           }}
         />
       </section>

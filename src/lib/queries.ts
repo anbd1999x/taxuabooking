@@ -444,6 +444,78 @@ async function getHomestayCardsImpl(fromKey?: string | null, toKey?: string | nu
 
 export const getHomestayCards = unstable_cache(getHomestayCardsImpl, ["homestay-cards"], { revalidate: TTL_AVAIL });
 
+/**
+ * Thẻ PHÒNG cho trang danh sách homestay: mỗi phòng con là MỘT thẻ riêng
+ * (hiện đúng căn phù hợp thay vì gom theo homestay). Ảnh ưu tiên ảnh riêng
+ * của phòng → ảnh hạng phòng → ảnh homestay. Có ngày nhận/trả → tình trạng
+ * tính theo từng phòng (trống cả kỳ / đã kín).
+ */
+async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string | null) {
+  const list = await prisma.service.findMany({
+    where: { category: "HOMESTAY", published: true },
+    orderBy: [{ featured: "desc" }, { title: "asc" }],
+    include: {
+      images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 1 },
+      roomTypes: {
+        orderBy: { sortOrder: "asc" },
+        include: {
+          images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 1 },
+          rooms: {
+            orderBy: { sortOrder: "asc" },
+            include: { images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 1 } },
+          },
+        },
+      },
+    },
+  });
+
+  const hasDates = Boolean(fromKey && toKey && toKey > fromKey);
+  const nights = hasDates ? enumerateNights(parseDateOnly(fromKey!), parseDateOnly(toKey!)) : [];
+  const occupied = new Set<string>();
+  if (hasDates && nights.length) {
+    const roomIds = list.flatMap((s) => s.roomTypes.flatMap((rt) => rt.rooms.map((r) => r.id)));
+    if (roomIds.length) {
+      const rows = await prisma.roomDayStatus.findMany({
+        where: { roomId: { in: roomIds }, date: { in: nights }, status: { not: "AVAILABLE" } },
+        select: { roomId: true },
+      });
+      for (const r of rows) occupied.add(r.roomId); // bị chiếm ≥1 đêm = không bán cả kỳ
+    }
+  }
+
+  return list.flatMap((s) => {
+    const cat = /bungalow/i.test(`${s.title} ${s.area ?? ""}`) ? "Bungalow" : "Homestay";
+    return s.roomTypes.flatMap((rt) =>
+      rt.rooms
+        .map((r) => {
+          const listP = toNumber(r.listPrice) ?? 0;
+          const sale = toNumber(r.salePrice);
+          const price = sale ?? listP;
+          const status: HomestayCardStatus = hasDates ? (occupied.has(r.id) ? "full" : "ok") : "none";
+          return {
+            id: r.id, // roomId — duy nhất cho mỗi thẻ
+            slug: s.slug,
+            name: `${rt.name} · ${r.name}`,
+            homeName: s.title,
+            area: s.area ?? "Tà Xùa",
+            desc: r.description || s.summary,
+            capacity: r.capacity,
+            price,
+            priceOld: sale != null && listP > sale ? listP : null,
+            cover: r.images[0]?.url ?? rt.images[0]?.url ?? rt.imageUrl ?? s.images[0]?.url ?? null,
+            featured: s.featured,
+            cat,
+            status,
+            freeRooms: status === "full" ? 0 : 1,
+          };
+        })
+        .filter((c) => c.price > 0),
+    );
+  });
+}
+
+export const getHomestayRoomCards = unstable_cache(getHomestayRoomCardsImpl, ["homestay-room-cards"], { revalidate: TTL_AVAIL });
+
 async function getCabinPriceRowsImpl() {
   // Hiển thị bảng giá của nhà xe đang được tick "nổi bật"; nếu nhà xe đó chưa có
   // bảng giá riêng (hoặc chưa tick nhà xe nào) thì dùng bảng giá chung (serviceId=null).

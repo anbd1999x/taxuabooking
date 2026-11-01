@@ -17,6 +17,7 @@ import {
   type AvailabilityRecord,
   type StayAvailabilityResult,
 } from "./availability";
+import { checkWeekendPolicy } from "./weekend-policy";
 import { toNumber } from "./format";
 import { generateBookingCode } from "./utils";
 import { resolveCommission } from "./commission";
@@ -59,6 +60,8 @@ export interface ComputedAvailability {
   /** combo và các dịch vụ không có lịch ngày -> true */
   manualConfirmOnly?: boolean;
   basePrice?: number | null;
+  /** Vi phạm chính sách bán cuối tuần theo cụm (homestay) — có giá trị = không cho đặt. */
+  policyNote?: string;
 }
 
 /** Tính tình trạng + giá cho một dịch vụ theo ngày khách chọn (server-authoritative). */
@@ -132,7 +135,8 @@ export async function computeAvailability(
       };
     });
 
-    return { kind: "stay", nights: nights.length, stayOptions };
+    const policyNote = checkWeekendPolicy(service.weekendPolicy, nights) ?? undefined;
+    return { kind: "stay", nights: nights.length, stayOptions, policyNote };
   }
 
   if (kind === "rental") {
@@ -260,6 +264,9 @@ export async function createBooking(
     input.endDate ?? null,
     qty,
   );
+
+  // Chặn đặt cuối tuần lẻ nếu homestay có chính sách bán theo cụm.
+  if (computed?.policyNote) throw new Error(computed.policyNote);
 
   if (computed?.kind === "stay" && computed.stayOptions) {
     // Lựa chọn là một PHÒNG cụ thể (id = roomId). Hỗ trợ cả roomTypeId cũ để tương thích.

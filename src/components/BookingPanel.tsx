@@ -42,6 +42,7 @@ interface AvailabilityResponse {
   transport?: { fixedPrice: number | null; note: string | null };
   manualConfirmOnly?: boolean;
   basePrice?: number | null;
+  policyNote?: string;
 }
 
 function StatusBadge({ status }: { status: AvailabilityStatus }) {
@@ -275,8 +276,15 @@ export function BookingPanel({
       {/* Kết quả tình trạng */}
       {avail && (
         <div className="mt-4 space-y-2">
+          {/* Vi phạm chính sách bán cuối tuần theo cụm → không cho chọn/đặt */}
+          {avail.policyNote && (
+            <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+              ⚠️ {avail.policyNote}
+            </p>
+          )}
+
           {/* stay / rental */}
-          {(kind === "stay" || kind === "rental") && !avail.manualConfirmOnly && (
+          {(kind === "stay" || kind === "rental") && !avail.manualConfirmOnly && !avail.policyNote && (
             options.length === 0 ? (
               <p className="rounded-xl bg-gray-50 px-4 py-3 text-sm text-gray-600">
                 Chưa có loại {kind === "stay" ? "phòng" : "xe"} nào.

@@ -182,7 +182,7 @@ export default async function ServiceDetailPage({
       <div className="container-page py-8 pb-28 lg:pb-8">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(stayJsonLd) }} />
         <nav className="mb-4 text-sm text-gray-500">
-          <a href="/" className="hover:text-forest-700">Trang chủ</a>
+          <Link href="/" className="hover:text-forest-700">Trang chủ</Link>
           <span className="mx-2">/</span>
           <a href={`/${cat.slug}`} className="hover:text-forest-700">{cat.shortLabel}</a>
           <span className="mx-2">/</span>
@@ -202,6 +202,7 @@ export default async function ServiceDetailPage({
           mapQuery={mapQuery}
           mapUrl={resolvedMapUrl}
           policy={service.policy}
+          weekendPolicy={service.weekendPolicy}
           description={service.description}
           suggestions={suggestions}
           header={
@@ -241,7 +242,7 @@ export default async function ServiceDetailPage({
   return (
     <div className="container-page py-8">
       <nav className="mb-4 text-sm text-gray-500">
-        <a href="/" className="hover:text-forest-700">Trang chủ</a>
+        <Link href="/" className="hover:text-forest-700">Trang chủ</Link>
         <span className="mx-2">/</span>
         <a href={`/${cat.slug}`} className="hover:text-forest-700">{cat.shortLabel}</a>
         <span className="mx-2">/</span>

@@ -30,6 +30,7 @@ interface Initial {
   pool?: boolean;
   ownerId?: string | null;
   ctvCommission?: number | null;
+  weekendPolicy?: string | null;
 }
 
 const inputCls =
@@ -179,6 +180,17 @@ export function ServiceForm({
         <span className="text-sm font-medium text-gray-600">Hoa hồng CTV / đơn (đ)</span>
         <MoneyInput name="ctvCommission" defaultValue={initial.ctvCommission ?? ""} placeholder="Để trống = dùng mức mặc định của CTV" className={inputCls} />
         <span className="mt-1 block text-xs text-gray-400">Ghi đè mức hoa hồng cố định mỗi đơn CTV đặt cho dịch vụ này. Để trống = dùng mức mặc định của từng CTV.</span>
+      </label>
+
+      <label className="block sm:max-w-sm">
+        <span className="text-sm font-medium text-gray-600">Chính sách bán cuối tuần (homestay)</span>
+        <select name="weekendPolicy" defaultValue={initial.weekendPolicy ?? "NONE"} className={inputCls}>
+          <option value="NONE">Bán lẻ từng đêm (bình thường)</option>
+          <option value="FRI_SAT">Chỉ bán nguyên cụm T6 + T7</option>
+          <option value="SAT_SUN">Chỉ bán nguyên cụm T7 + CN</option>
+          <option value="FRI_SUN">Chỉ bán nguyên cụm T6 + T7 + CN</option>
+        </select>
+        <span className="mt-1 block text-xs text-gray-400">Cuối tuần chỉ nhận đặt nguyên cụm, không bán lẻ (vd không bán riêng đêm T7). Khách chọn ngày thiếu đêm trong cụm sẽ bị chặn.</span>
       </label>
 
       <div className="flex flex-wrap gap-6">

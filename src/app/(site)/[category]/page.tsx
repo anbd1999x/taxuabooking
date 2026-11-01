@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { categoryBySlug, CATEGORY_LIST } from "@/lib/constants";
-import { listServicesByCategory, getHomestayCards, getRentalBikes, getXeomRoutes, getTaxiRoutes, type ListFilters } from "@/lib/queries";
+import { listServicesByCategory, getHomestayRoomCards, getRentalBikes, getXeomRoutes, getTaxiRoutes, type ListFilters } from "@/lib/queries";
 import { getCabinOperators } from "@/lib/cabin";
 import { HomestayList } from "@/components/home/HomestayList";
 import { MotorbikeList } from "@/components/moto/MotorbikeList";
@@ -145,7 +145,7 @@ export default async function CategoryPage({
 
   // ----- Homestay: trang danh sách "biển mây" (hero động + tìm kiếm + lưới) -----
   if (cat.key === "HOMESTAY") {
-    const homestays = await getHomestayCards(str(sp.from) ?? null, str(sp.to) ?? null);
+    const homestays = await getHomestayRoomCards(str(sp.from) ?? null, str(sp.to) ?? null);
     return (
       <HomestayList
         items={homestays}

@@ -70,6 +70,7 @@ export async function createService(
     pool: formData.get("pool") === "on",
     ownerId: s(formData.get("ownerId")),
     ctvCommission: num(formData.get("ctvCommission")),
+    weekendPolicy: s(formData.get("weekendPolicy")),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ." };
@@ -98,6 +99,7 @@ export async function createService(
       pool: d.pool ?? false,
       ownerId: d.ownerId ?? null,
       ctvCommission: d.ctvCommission ?? null,
+      weekendPolicy: d.weekendPolicy ?? "NONE",
     },
   });
   if (d.category === "CABIN" && d.featured) await enforceSingleFeaturedCabin(created.id);
@@ -131,6 +133,7 @@ export async function createServiceFull(
     pool: formData.get("pool") === "on",
     ownerId: s(formData.get("ownerId")),
     ctvCommission: num(formData.get("ctvCommission")),
+    weekendPolicy: s(formData.get("weekendPolicy")),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ." };
@@ -209,6 +212,8 @@ export async function createServiceFull(
       easyRoad: d.easyRoad ?? false,
       pool: d.pool ?? false,
       ownerId: d.ownerId ?? null,
+      ctvCommission: d.ctvCommission ?? null,
+      weekendPolicy: d.weekendPolicy ?? "NONE",
       roomTypes:
         rooms.length && d.category === "HOMESTAY"
           ? {
@@ -297,6 +302,7 @@ export async function updateService(
     pool: formData.get("pool") === "on",
     ownerId: s(formData.get("ownerId")),
     ctvCommission: num(formData.get("ctvCommission")),
+    weekendPolicy: s(formData.get("weekendPolicy")),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ." };
@@ -326,6 +332,7 @@ export async function updateService(
       pool: d.pool ?? false,
       ownerId: d.ownerId ?? null,
       ctvCommission: d.ctvCommission ?? null,
+      weekendPolicy: d.weekendPolicy ?? "NONE",
     },
   });
   if (d.category === "CABIN" && d.featured) await enforceSingleFeaturedCabin(id);

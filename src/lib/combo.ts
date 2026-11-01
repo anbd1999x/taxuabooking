@@ -5,6 +5,7 @@ import { parseDateOnly, toDateKey, addDays, enumerateNights } from "./dates";
 import { toNumber } from "./format";
 import { roomPricing, priceForDay, roomCommissionForNights } from "./availability";
 import { generateBookingCode } from "./utils";
+import { checkWeekendPolicy } from "./weekend-policy";
 import type { ComboBookingInput } from "./validation";
 
 /** Giảm giá cố định cho mỗi combo (mỗi khách). */
@@ -309,8 +310,13 @@ async function findRooms(
           ...(filters.airCon ? { airCon: true } : {}),
           ...(filters.heating ? { heating: true } : {}),
         },
-        // Giá & sức chứa ở cấp phòng con.
-        include: { rooms: { where: { capacity: { gte: people } } } },
+        // Giá & sức chứa ở cấp phòng con (kèm ảnh riêng của phòng để hiện thẻ theo phòng).
+        include: {
+          rooms: {
+            where: { capacity: { gte: people } },
+            include: { images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 1 } },
+          },
+        },
       },
     },
   });
@@ -351,7 +357,7 @@ async function findRooms(
       slug: s.slug,
       title: s.title,
       area: s.area,
-      cover: s.images[0]?.url ?? rt.imageUrl ?? null,
+      cover: room.images[0]?.url ?? rt.imageUrl ?? s.images[0]?.url ?? null,
       roomTypeId: rt.id,
       roomId: room.id,
       roomName: `${rt.name} · ${room.name}`,
@@ -399,6 +405,8 @@ export async function createComboBooking(
   if (!room || room.roomType.service.category !== "HOMESTAY" || !room.roomType.service.published) {
     throw new Error("Phòng homestay không hợp lệ.");
   }
+  const policyNote = checkWeekendPolicy(room.roomType.service.weekendPolicy, nights);
+  if (policyNote) throw new Error(policyNote);
   const outbound = await prisma.cabinTrip.findUnique({ where: { id: input.outboundTripId } });
   const ret = await prisma.cabinTrip.findUnique({ where: { id: input.returnTripId } });
   if (!outbound || outbound.direction !== "OUTBOUND") throw new Error("Chuyến đi không hợp lệ.");

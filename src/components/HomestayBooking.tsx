@@ -106,11 +106,14 @@ export function HomestayBooking({
   suggestions,
   initialCheckIn,
   initialCheckOut,
+  weekendPolicy,
 }: {
   serviceId: string;
   rooms: HomestayRoom[];
   startKey: string;
   numDays: number;
+  /** Chính sách bán cuối tuần theo cụm (NONE | FRI_SAT | SAT_SUN | FRI_SUN). */
+  weekendPolicy?: string | null;
   /** Ngày nhận/trả từ URL (?from=&to=) để chọn sẵn khi mở trang. */
   initialCheckIn?: string | null;
   initialCheckOut?: string | null;
@@ -209,6 +212,29 @@ export function HomestayBooking({
   }, [ci, coEff]);
   const nN = nights.length;
 
+  // Chính sách bán cuối tuần theo cụm: nếu kỳ chạm 1 đêm trong cụm thì phải có đủ cả cụm.
+  const policyWarn = useMemo(() => {
+    const BLOCKS: Record<string, { wd: number[]; label: string }> = {
+      FRI_SAT: { wd: [5, 6], label: "T6 + T7" },
+      SAT_SUN: { wd: [6, 0], label: "T7 + CN" },
+      FRI_SUN: { wd: [5, 6, 0], label: "T6 + T7 + CN" },
+    };
+    const b = weekendPolicy ? BLOCKS[weekendPolicy] : undefined;
+    if (!b || nights.length === 0) return null;
+    const have = new Set(nights.map(keyOf));
+    for (const d of nights) {
+      const pos = b.wd.indexOf(d.getUTCDay());
+      if (pos === -1) continue;
+      const anchor = addDays(d, -pos);
+      for (let i = 0; i < b.wd.length; i++) {
+        if (!have.has(keyOf(addDays(anchor, i)))) {
+          return `Homestay này cuối tuần chỉ nhận đặt nguyên cụm ${b.label} — vui lòng chọn đủ các đêm ${b.label} (không bán lẻ).`;
+        }
+      }
+    }
+    return null;
+  }, [weekendPolicy, nights]);
+
   function pickDay(k: string) {
     setResult(null);
     if (!ci || (ci && co)) {
@@ -300,10 +326,11 @@ export function HomestayBooking({
   const total = sel ? sel.stayPrice + extraCost : 0;
   const over = sel ? guests > selMax : false;
   const phoneOk = /^0\d{9}$/.test(cphone.replace(/\s/g, ""));
-  const ready = nN > 0 && Boolean(sel) && !over;
+  const ready = nN > 0 && Boolean(sel) && !over && !policyWarn;
 
   async function submit() {
     setErr("");
+    if (policyWarn) { setErr(policyWarn); return; }
     if (!ready) {
       setErr(!nN ? "Vui lòng chọn ngày nhận và trả phòng." : !sel ? "Vui lòng chọn một phòng còn trống." : "Số khách vượt sức chứa của phòng.");
       return;
@@ -755,6 +782,12 @@ export function HomestayBooking({
               ) : (
                 <div className="rounded-xl border border-dashed border-gray-300 p-3.5 text-[13px] leading-relaxed text-gray-500">
                   Chọn ngày ở và một phòng còn trống bên trái.
+                </div>
+              )}
+
+              {policyWarn && (
+                <div className="rounded-xl bg-amber-50 px-3.5 py-3 text-[13px] font-medium leading-relaxed text-amber-800">
+                  ⚠️ {policyWarn}
                 </div>
               )}
 
