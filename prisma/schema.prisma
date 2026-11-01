@@ -379,6 +379,10 @@ model TransportInfo {
   vehicleType String?
   fixedPrice Decimal? @db.Decimal(12, 0) // null = chưa có giá -> liên hệ xác nhận
   priceNote  String?
+  // Thông tin bác tài (xe ôm / taxi). Avatar dùng ảnh dịch vụ (ảnh đầu tiên).
+  driverName      String? // tên bác tài
+  driverPhone     String? // SĐT bác tài
+  driverBirthYear Int? // năm sinh
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
@@ -447,6 +451,26 @@ model Article {
   updatedAt  DateTime @updatedAt
 
   @@index([published])
+}
+
+/// Địa điểm ăn uống (nhà hàng / cafe) hiển thị ở trang /nha-hang và /cafe.
+model Place {
+  id        String   @id @default(cuid())
+  kind      String // "RESTAURANT" | "CAFE"
+  name      String
+  area      String // khu vực (Trung tâm, Đỉnh Gió, Khe Cải...)
+  address   String? // địa chỉ chi tiết (nếu có)
+  phone     String? // SĐT quán (nếu có)
+  price     String? // "Từ 40.000đ"...
+  hours     String? // "6:00–19:00"
+  tags      String? // đặc điểm, phân tách bằng dấu phẩy
+  desc      String? // mô tả ngắn (tự biên soạn)
+  sortOrder Int      @default(0)
+  published Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([kind, published])
 }
 
 /// Cấu hình site dạng key-value (SĐT, Zalo, địa chỉ, text hero...).

@@ -18,6 +18,9 @@ export interface XeomRouteCard {
   kind: "Điểm săn mây" | "Tour nửa ngày" | "Đưa đón bến xe";
   image: string | null;
   featured: boolean;
+  driverName: string | null;
+  driverPhone: string | null;
+  driverBirthYear: number | null;
 }
 
 // Theme "Rừng núi Tây Bắc"
@@ -391,6 +394,24 @@ export function XeomList({ routes }: { routes: XeomRouteCard[] }) {
                       <div className="line-clamp-1 text-[15px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink sm:text-[18px]">{r.to}</div>
                     </div>
                     <div className="line-clamp-2 text-[12px] leading-[1.5] text-gray-500 sm:text-sm">{r.desc}</div>
+                    {r.driverName && (
+                      <div className="flex items-center gap-2.5 rounded-[14px] bg-[oklch(0.965_0.01_200)] px-2.5 py-2">
+                        <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-gray-200 sm:h-9 sm:w-9">
+                          {r.image ? (
+                            <Image src={r.image} alt={r.driverName} fill sizes="36px" className="object-cover" />
+                          ) : (
+                            <span className="flex h-full w-full items-center justify-center text-sm">🧑</span>
+                          )}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-[13px] font-bold text-ink">
+                            Bác tài {r.driverName}
+                            {r.driverBirthYear ? <span className="font-semibold text-gray-500"> · {r.driverBirthYear}</span> : null}
+                          </div>
+                          {r.driverPhone && <div className="truncate text-[12px] font-semibold text-[oklch(0.42_0.1_250)]">{r.driverPhone}</div>}
+                        </div>
+                      </div>
+                    )}
                     <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[14px] bg-[oklch(0.92_0.01_200)]">
                       <div className="bg-[oklch(0.975_0.006_200)] px-3 py-2.5">
                         <div className="text-[11px] font-semibold text-gray-500">Phương tiện</div>

@@ -1133,6 +1133,15 @@ export default async function EditServicePage({
             <L label="Loại xe"><input name="vehicleType" defaultValue={service.transport?.vehicleType ?? ""} className={inp} /></L>
             <L label="Giá cố định (đ)"><MoneyInput name="fixedPrice" defaultValue={toNumber(service.transport?.fixedPrice) ?? ""} placeholder="Để trống = Liên hệ" className={inp} /></L>
             <L label="Ghi chú giá" cls="sm:col-span-2"><input name="priceNote" defaultValue={service.transport?.priceNote ?? ""} className={inp} /></L>
+
+            <div className="sm:col-span-2 mt-1 border-t border-gray-100 pt-3">
+              <h3 className="text-sm font-semibold text-ink">Bác tài</h3>
+              <p className="mt-0.5 text-xs text-gray-500">Ảnh đại diện bác tài lấy từ ảnh đầu tiên ở mục “Hình ảnh” phía trên.</p>
+            </div>
+            <L label="Tên bác tài"><input name="driverName" defaultValue={service.transport?.driverName ?? ""} className={inp} placeholder="VD: Anh Hùng" /></L>
+            <L label="SĐT bác tài"><input name="driverPhone" defaultValue={service.transport?.driverPhone ?? ""} className={inp} placeholder="VD: 0912345678" /></L>
+            <L label="Năm sinh"><input name="driverBirthYear" type="number" inputMode="numeric" defaultValue={service.transport?.driverBirthYear ?? ""} className={inp} placeholder="VD: 1990" /></L>
+
             <div className="sm:col-span-2">
               <button className="rounded-xl bg-forest-600 px-5 py-2.5 text-sm font-semibold text-white">Lưu thông tin tuyến</button>
             </div>

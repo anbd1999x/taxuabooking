@@ -706,6 +706,9 @@ export interface XeomRoute {
   kind: "Điểm săn mây" | "Tour nửa ngày" | "Đưa đón bến xe";
   image: string | null;
   featured: boolean;
+  driverName: string | null;
+  driverPhone: string | null;
+  driverBirthYear: number | null;
 }
 
 function xeomKind(text: string): XeomRoute["kind"] {
@@ -739,6 +742,9 @@ export async function getXeomRoutes(): Promise<XeomRoute[]> {
       kind: xeomKind(`${s.title} ${to}`),
       image: s.images[0]?.url ?? null,
       featured: s.featured,
+      driverName: t?.driverName ?? null,
+      driverPhone: t?.driverPhone ?? null,
+      driverBirthYear: t?.driverBirthYear ?? null,
     };
   });
 }
@@ -756,6 +762,9 @@ export interface TaxiRoute {
   kind: "Đưa đón Bắc Yên" | "Đường dài" | "Tham quan";
   image: string | null;
   featured: boolean;
+  driverName: string | null;
+  driverPhone: string | null;
+  driverBirthYear: number | null;
 }
 
 function taxiKind(text: string): TaxiRoute["kind"] {
@@ -789,6 +798,9 @@ export async function getTaxiRoutes(): Promise<TaxiRoute[]> {
       kind: taxiKind(`${s.title} ${to} ${from}`),
       image: s.images[0]?.url ?? null,
       featured: s.featured,
+      driverName: t?.driverName ?? null,
+      driverPhone: t?.driverPhone ?? null,
+      driverBirthYear: t?.driverBirthYear ?? null,
     };
   });
 }

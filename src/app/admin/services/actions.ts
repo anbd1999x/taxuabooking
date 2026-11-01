@@ -927,6 +927,9 @@ export async function upsertTransport(_prev: ActionState, formData: FormData): P
     vehicleType: s(formData.get("vehicleType")) ?? null,
     fixedPrice: num(formData.get("fixedPrice")) ?? null,
     priceNote: s(formData.get("priceNote")) ?? null,
+    driverName: s(formData.get("driverName")) ?? null,
+    driverPhone: s(formData.get("driverPhone")) ?? null,
+    driverBirthYear: num(formData.get("driverBirthYear")) ?? null,
   };
   try {
     await prisma.transportInfo.upsert({
