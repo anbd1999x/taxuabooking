@@ -46,6 +46,9 @@ function rnd(i: number, k: number) {
   const x = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453;
   return x - Math.floor(x);
 }
+// Làm tròn 2 chữ số cho giá trị CSS — số thập phân dài bị CSSOM rút gọn khi đọc lại,
+// gây cảnh báo hydration mismatch (React dev) và re-render xoá hiệu ứng reveal.
+const r2 = (v: number) => Math.round(v * 100) / 100;
 
 export function HomestayList({
   items: all,
@@ -244,12 +247,12 @@ export function HomestayList({
         h: L.hh[0] + rnd(i, li + 13) * (L.hh[1] - L.hh[0]),
       }));
       const clouds = half.concat(half.map((c) => ({ ...c, x: c.x + 50 }))).map((c) => ({
-        x: `${c.x - 6}%`, y: `${c.y}%`, w: `${c.w / 2}%`, h: `${c.h}px`, bg: L.bg, blur: L.blur,
+        x: `${r2(c.x - 6)}%`, y: `${r2(c.y)}%`, w: `${r2(c.w / 2)}%`, h: `${Math.round(c.h)}px`, bg: L.bg, blur: L.blur,
       }));
       return { bottom: L.bottom, h: L.h, op: L.op, clouds };
     });
   }, []);
-  const stars = useMemo(() => Array.from({ length: 14 }, (_, i) => ({ x: `${rnd(i, 21) * 100}%`, y: `${rnd(i, 22) * 34}%`, s: `${1.5 + rnd(i, 23) * 2}px` })), []);
+  const stars = useMemo(() => Array.from({ length: 14 }, (_, i) => ({ x: `${r2(rnd(i, 21) * 100)}%`, y: `${r2(rnd(i, 22) * 34)}%`, s: `${r2(1.5 + rnd(i, 23) * 2)}px` })), []);
 
   // ---- filtering ----
   const norm = (t: string) => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
