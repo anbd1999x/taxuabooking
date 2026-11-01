@@ -228,6 +228,19 @@ export function HomestayList({
     return () => { window.removeEventListener("resize", onR); cancelAnimationFrame(raf); io?.disconnect(); };
   }, []);
 
+  // Đổi bộ lọc → thẻ bị loại rồi quay lại sẽ bị React mount lại với class
+  // opacity-0 mà IntersectionObserver (chỉ gắn lúc mount đầu) không còn theo dõi
+  // → thẻ trong suốt vĩnh viễn, nhìn như "lọc xong không hiện gì". Sau mỗi lần
+  // đổi lọc: hiện ngay mọi thẻ (hiệu ứng reveal chỉ dành cho lần tải đầu).
+  const firstRender = useRef(true);
+  useEffect(() => {
+    if (firstRender.current) { firstRender.current = false; return; }
+    document.querySelectorAll<HTMLElement>("[data-reveal]").forEach((el) => {
+      el.style.opacity = "1";
+      el.style.transform = "none";
+    });
+  }, [q, ci, co, price, type]);
+
   // Mở trang với sẵn ngày (từ trang chủ) → cuộn xuống danh sách để thấy kết quả
   // ngay trên mobile. Không chạy khi đang gõ lọc trực tiếp.
   useEffect(() => {
@@ -270,7 +283,7 @@ export function HomestayList({
   const nights = hasDates ? Math.max(1, Math.round((+new Date(co) - +new Date(ci)) / 864e5)) : 0;
   const qn = norm(q.trim());
   const inPrice = (p: number) =>
-    price === "all" || (p > 0 && ((price === "lt300" && p < 300000) || (price === "mid" && p >= 300000 && p <= 700000) || (price === "gt700" && p > 700000)));
+    price === "all" || (p > 0 && ((price === "lt500" && p < 500000) || (price === "mid" && p >= 500000 && p <= 900000) || (price === "gt900" && p > 900000)));
   const items = all
     .filter((x) => (type === "all" || x.cat === type) && inPrice(x.price) && (!qn || norm(`${x.name} ${x.homeName} ${x.area}`).includes(qn)))
     // Có ngày → đẩy phòng đã kín xuống cuối (sort ổn định, giữ thứ tự nổi bật).
@@ -422,7 +435,7 @@ export function HomestayList({
             <label className={cell}>
               <span className="text-xs font-semibold text-gray-500">Khoảng giá</span>
               <select value={price} onChange={(e) => setPrice(e.target.value)} className={inp}>
-                {[["all", "Mọi mức giá"], ["lt300", "Dưới 300k"], ["mid", "300k – 700k"], ["gt700", "Trên 700k"]].map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+                {[["all", "Mọi mức giá"], ["lt500", "Dưới 500k"], ["mid", "500k – 900k"], ["gt900", "Trên 900k"]].map(([v, n]) => <option key={v} value={v}>{n}</option>)}
               </select>
             </label>
           </div>
