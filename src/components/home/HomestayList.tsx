@@ -283,7 +283,13 @@ export function HomestayList({
   const nights = hasDates ? Math.max(1, Math.round((+new Date(co) - +new Date(ci)) / 864e5)) : 0;
   const qn = norm(q.trim());
   const inPrice = (p: number) =>
-    price === "all" || (p > 0 && ((price === "lt500" && p < 500000) || (price === "mid" && p >= 500000 && p <= 900000) || (price === "gt900" && p > 900000)));
+    price === "all" ||
+    (p > 0 &&
+      ((price === "lt500" && p < 500000) ||
+        (price === "mid" && p >= 500000 && p <= 900000) ||
+        (price === "gt900" && p > 900000) ||
+        (price === "lt1500" && p < 1500000) ||
+        (price === "gt1500" && p > 1500000)));
   const items = all
     .filter((x) => (type === "all" || x.cat === type) && inPrice(x.price) && (!qn || norm(`${x.name} ${x.homeName} ${x.area}`).includes(qn)))
     // Có ngày → đẩy phòng đã kín xuống cuối (sort ổn định, giữ thứ tự nổi bật).
@@ -435,7 +441,7 @@ export function HomestayList({
             <label className={cell}>
               <span className="text-xs font-semibold text-gray-500">Khoảng giá</span>
               <select value={price} onChange={(e) => setPrice(e.target.value)} className={inp}>
-                {[["all", "Mọi mức giá"], ["lt500", "Dưới 500k"], ["mid", "500k – 900k"], ["gt900", "Trên 900k"]].map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+                {[["all", "Mọi mức giá"], ["lt500", "Dưới 500k"], ["mid", "500k – 900k"], ["gt900", "Trên 900k"], ["lt1500", "Dưới 1.500k"], ["gt1500", "Trên 1.500k"]].map(([v, n]) => <option key={v} value={v}>{n}</option>)}
               </select>
             </label>
           </div>
