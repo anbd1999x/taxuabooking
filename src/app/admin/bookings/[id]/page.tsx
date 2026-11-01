@@ -5,7 +5,8 @@ import { CATEGORIES } from "@/lib/constants";
 import { formatPrice, formatDate, formatDateTime } from "@/lib/format";
 import { BookingStatusForm } from "@/components/admin/BookingStatusForm";
 import { toNumber } from "@/lib/format";
-import { setBookingPayment, setBookingCommissionPaid } from "../actions";
+import { MoneyInput } from "@/components/admin/MoneyInput";
+import { setBookingPaymentStep, setBookingCommissionPaid } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -105,27 +106,13 @@ export default async function BookingDetailPage({
                 <span className="text-gray-500">Chủ dịch vụ: </span>
                 {b.service?.owner ? b.service.owner.name : "Chưa gán"}
               </p>
-              <p>
-                <span className="text-gray-500">Thanh toán: </span>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${b.paymentStatus === "PAID" ? "bg-forest-100 text-forest-700" : "bg-amber-100 text-amber-700"}`}>
-                  {b.paymentStatus === "PAID" ? `Đã thanh toán${b.paidAt ? ` · ${formatDate(b.paidAt)}` : ""}` : "Chưa thanh toán"}
-                </span>
-              </p>
-              <div className="flex gap-2 pt-1">
-                {b.paymentStatus === "PAID" ? (
-                  <form action={setBookingPayment}>
-                    <input type="hidden" name="id" value={b.id} />
-                    <input type="hidden" name="paid" value="false" />
-                    <button className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50">↩ Đánh dấu CHƯA thanh toán</button>
-                  </form>
-                ) : (
-                  <form action={setBookingPayment}>
-                    <input type="hidden" name="id" value={b.id} />
-                    <input type="hidden" name="paid" value="true" />
-                    <button className="rounded-lg bg-forest-600 px-3 py-2 text-xs font-semibold text-white hover:bg-forest-700">✓ Đánh dấu ĐÃ thanh toán</button>
-                  </form>
-                )}
-              </div>
+              <PaymentBox
+                id={b.id}
+                price={toNumber(b.referencePrice) ?? 0}
+                collected={toNumber(b.amountCollected) ?? 0}
+                status={b.paymentStatus}
+                paidAt={b.paidAt}
+              />
             </div>
           </div>
 
@@ -159,6 +146,49 @@ export default async function BookingDetailPage({
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function PaymentBox({
+  id,
+  price,
+  collected,
+  status,
+  paidAt,
+}: {
+  id: string;
+  price: number;
+  collected: number;
+  status: "UNPAID" | "DEPOSITED" | "PAID";
+  paidAt: Date | null;
+}) {
+  const owed = Math.max(0, price - collected);
+  const label = status === "PAID" ? "Đã thanh toán đủ" : status === "DEPOSITED" ? "Đã cọc" : "Chưa thu";
+  const tone = status === "PAID" ? "bg-forest-100 text-forest-700" : status === "DEPOSITED" ? "bg-sky-100 text-sky-700" : "bg-amber-100 text-amber-700";
+  return (
+    <div className="rounded-xl bg-gray-50 p-3">
+      <p className="flex flex-wrap items-center gap-2">
+        <span className="text-gray-500">Thanh toán khách:</span>
+        <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${tone}`}>{label}</span>
+        {status === "PAID" && paidAt && <span className="text-xs text-gray-400">· {formatDate(paidAt)}</span>}
+      </p>
+      <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
+        <div><div className="text-gray-400">Giá đơn</div><div className="font-semibold text-ink">{formatPrice(price)}</div></div>
+        <div><div className="text-gray-400">Đã thu</div><div className="font-semibold text-forest-700">{formatPrice(collected)}</div></div>
+        <div><div className="text-gray-400">Còn thiếu</div><div className="font-semibold text-amber-700">{formatPrice(owed)}</div></div>
+      </div>
+      <form action={setBookingPaymentStep} className="mt-3 space-y-2">
+        <input type="hidden" name="id" value={id} />
+        <label className="block text-xs text-gray-500">Số tiền đã thu (cho bước Đã cọc)
+          <MoneyInput name="amountCollected" defaultValue={collected || ""} placeholder="VD 500.000" className="mt-1 w-full rounded-lg border border-gray-200 px-2.5 py-2 text-sm" />
+        </label>
+        <div className="flex flex-wrap gap-1.5">
+          <button name="status" value="DEPOSITED" className="rounded-lg bg-sky-600 px-3 py-2 text-xs font-semibold text-white hover:bg-sky-700">Đánh dấu Đã cọc</button>
+          <button name="status" value="PAID" className="rounded-lg bg-forest-600 px-3 py-2 text-xs font-semibold text-white hover:bg-forest-700">Thanh toán đủ</button>
+          <button name="status" value="UNPAID" className="rounded-lg border border-gray-200 px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50">Về Chưa thu</button>
+        </div>
+      </form>
     </div>
   );
 }

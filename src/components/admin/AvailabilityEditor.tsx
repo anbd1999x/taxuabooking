@@ -4,6 +4,7 @@ import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AVAILABILITY_META } from "@/lib/constants";
 import type { AvailabilityStatus } from "@prisma/client";
+import { MoneyInput } from "@/components/admin/MoneyInput";
 import { applyAvailability, type ActionState } from "@/app/admin/services/actions";
 
 const STATUSES: AvailabilityStatus[] = ["AVAILABLE", "LIMITED", "SOLD_OUT", "NOT_UPDATED", "PENDING_CONFIRM"];
@@ -70,7 +71,7 @@ export function AvailabilityEditor({
 
       <label className="block sm:col-span-2">
         <span className="text-sm font-medium text-gray-600">Giá riêng cho ngày (đ) — để trống nếu dùng giá mặc định</span>
-        <input name="priceOverride" type="number" min={0} placeholder="VD: 600000" className={inp} />
+        <MoneyInput name="priceOverride" placeholder="VD: 600.000" className={inp} />
       </label>
 
       <div className="flex flex-wrap gap-5 sm:col-span-2">

@@ -10,6 +10,9 @@ export function ServiceCard({ service }: { service: ServiceCardData }) {
   const cat = CATEGORIES[service.category];
   const href = `/${cat.slug}/${service.slug}`;
   const price = service.availability?.fromPrice ?? service.basePrice;
+  // Giá gốc gạch ngang: chỉ hiện khi cao hơn giá bán → khách thấy đang khuyến mãi.
+  const original = service.originalPrice != null && price != null && service.originalPrice > price ? service.originalPrice : null;
+  const discount = original != null && price != null ? Math.round((1 - price / original) * 100) : null;
 
   return (
     <Link
@@ -27,6 +30,11 @@ export function ServiceCard({ service }: { service: ServiceCardData }) {
               Nổi bật
             </Badge>
           )}
+          {discount != null && discount > 0 && (
+            <Badge tone="warn" className="bg-red-500/95 text-white ring-red-400">
+              -{discount}%
+            </Badge>
+          )}
         </div>
       </div>
 
@@ -41,6 +49,11 @@ export function ServiceCard({ service }: { service: ServiceCardData }) {
 
         <div className="mt-auto flex items-end justify-between pt-2">
           <div>
+            {original != null && (
+              <span className="mr-1.5 text-sm text-gray-400 line-through">
+                {formatPrice(original)}
+              </span>
+            )}
             <span className="text-lg font-bold text-forest-700">
               {formatPrice(price)}
             </span>

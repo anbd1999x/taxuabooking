@@ -19,6 +19,7 @@ interface Initial {
   mapUrl?: string | null;
   policy?: string | null;
   basePrice?: number | null;
+  originalPrice?: number | null;
   priceUnit?: string | null;
   contactName?: string | null;
   contactPhone?: string | null;
@@ -92,8 +93,8 @@ export function ServiceForm({
         <textarea name="description" defaultValue={initial.description ?? ""} rows={5} className={inputCls} required />
       </label>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        <label className="block sm:col-span-1">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <label className="block">
           <span className="text-sm font-medium text-gray-600">{areaSelect ? "Khu vực" : "Khu vực / tuyến"}</span>
           {areaSelect ? (
             <select name="area" defaultValue={initial.area ?? ""} className={inputCls}>
@@ -107,14 +108,19 @@ export function ServiceForm({
           )}
         </label>
         <label className="block">
-          <span className="text-sm font-medium text-gray-600">Giá cơ bản (đ)</span>
+          <span className="text-sm font-medium text-gray-600">Giá bán (đ)</span>
           <MoneyInput name="basePrice" defaultValue={initial.basePrice ?? ""} placeholder="Để trống = Liên hệ" className={inputCls} />
+        </label>
+        <label className="block">
+          <span className="text-sm font-medium text-gray-600">Giá gốc — gạch ngang (đ)</span>
+          <MoneyInput name="originalPrice" defaultValue={initial.originalPrice ?? ""} placeholder="Để trống = không giảm giá" className={inputCls} />
         </label>
         <label className="block">
           <span className="text-sm font-medium text-gray-600">Đơn vị giá</span>
           <input name="priceUnit" defaultValue={initial.priceUnit ?? ""} placeholder="/đêm, /vé..." className={inputCls} />
         </label>
       </div>
+      <p className="-mt-3 text-xs text-gray-400">Nhập &quot;Giá gốc&quot; cao hơn &quot;Giá bán&quot; để web hiển thị giá gạch ngang kèm % giảm (khuyến mãi).</p>
 
       <label className="block">
         <span className="text-sm font-medium text-gray-600">Link Google Maps</span>
@@ -171,15 +177,7 @@ export function ServiceForm({
 
       <label className="block sm:max-w-sm">
         <span className="text-sm font-medium text-gray-600">Hoa hồng CTV / đơn (đ)</span>
-        <input
-          name="ctvCommission"
-          type="number"
-          min={0}
-          step={1000}
-          defaultValue={initial.ctvCommission ?? ""}
-          placeholder="Để trống = dùng mức mặc định của CTV"
-          className={inputCls}
-        />
+        <MoneyInput name="ctvCommission" defaultValue={initial.ctvCommission ?? ""} placeholder="Để trống = dùng mức mặc định của CTV" className={inputCls} />
         <span className="mt-1 block text-xs text-gray-400">Ghi đè mức hoa hồng cố định mỗi đơn CTV đặt cho dịch vụ này. Để trống = dùng mức mặc định của từng CTV.</span>
       </label>
 

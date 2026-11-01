@@ -1,4 +1,4 @@
-"use server";
+﻿"use server";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -59,6 +59,7 @@ export async function createService(
     mapUrl: s(formData.get("mapUrl")),
     policy: s(formData.get("policy")),
     basePrice: num(formData.get("basePrice")),
+    originalPrice: num(formData.get("originalPrice")),
     priceUnit: s(formData.get("priceUnit")),
     contactName: s(formData.get("contactName")),
     contactPhone: s(formData.get("contactPhone")),
@@ -86,6 +87,7 @@ export async function createService(
       mapUrl: d.mapUrl ?? null,
       policy: d.policy ?? null,
       basePrice: d.basePrice ?? null,
+      originalPrice: d.originalPrice ?? null,
       priceUnit: d.priceUnit ?? (CATEGORIES[d.category].priceUnit || null),
       contactName: d.contactName ?? null,
       contactPhone: d.contactPhone ?? null,
@@ -118,6 +120,7 @@ export async function createServiceFull(
     mapUrl: s(formData.get("mapUrl")),
     policy: s(formData.get("policy")),
     basePrice: num(formData.get("basePrice")),
+    originalPrice: num(formData.get("originalPrice")),
     priceUnit: s(formData.get("priceUnit")),
     contactName: s(formData.get("contactName")),
     contactPhone: s(formData.get("contactPhone")),
@@ -196,6 +199,7 @@ export async function createServiceFull(
       mapUrl: d.mapUrl ?? null,
       policy: d.policy ?? null,
       basePrice,
+      originalPrice: d.originalPrice ?? null,
       priceUnit: d.priceUnit ?? (CATEGORIES[d.category].priceUnit || null),
       contactName: d.contactName ?? null,
       contactPhone: d.contactPhone ?? null,
@@ -282,6 +286,7 @@ export async function updateService(
     mapUrl: s(formData.get("mapUrl")),
     policy: s(formData.get("policy")),
     basePrice: num(formData.get("basePrice")),
+    originalPrice: num(formData.get("originalPrice")),
     priceUnit: s(formData.get("priceUnit")),
     contactName: s(formData.get("contactName")),
     contactPhone: s(formData.get("contactPhone")),
@@ -310,6 +315,7 @@ export async function updateService(
       mapUrl: d.mapUrl ?? null,
       policy: d.policy ?? null,
       basePrice: d.basePrice ?? null,
+      originalPrice: d.originalPrice ?? null,
       priceUnit: d.priceUnit ?? null,
       contactName: d.contactName ?? null,
       contactPhone: d.contactPhone ?? null,
@@ -621,6 +627,15 @@ export async function upsertRoom(_prev: ActionState, formData: FormData): Promis
     priceFri: num(formData.get("priceFri")) ?? null,
     priceSat: num(formData.get("priceSat")) ?? null,
     priceSun: num(formData.get("priceSun")) ?? null,
+    // Chiết khấu CTV (đ/đêm): mức cơ bản + ghi đè theo thứ.
+    commission: num(formData.get("commission")) ?? null,
+    commissionMon: num(formData.get("commissionMon")) ?? null,
+    commissionTue: num(formData.get("commissionTue")) ?? null,
+    commissionWed: num(formData.get("commissionWed")) ?? null,
+    commissionThu: num(formData.get("commissionThu")) ?? null,
+    commissionFri: num(formData.get("commissionFri")) ?? null,
+    commissionSat: num(formData.get("commissionSat")) ?? null,
+    commissionSun: num(formData.get("commissionSun")) ?? null,
   };
   try {
     if (id) {
@@ -690,6 +705,14 @@ export async function duplicateRoom(formData: FormData): Promise<void> {
       priceFri: src.priceFri,
       priceSat: src.priceSat,
       priceSun: src.priceSun,
+      commission: src.commission,
+      commissionMon: src.commissionMon,
+      commissionTue: src.commissionTue,
+      commissionWed: src.commissionWed,
+      commissionThu: src.commissionThu,
+      commissionFri: src.commissionFri,
+      commissionSat: src.commissionSat,
+      commissionSun: src.commissionSun,
       sortOrder: maxOrder + 1,
       images: {
         create: src.images.map((img) => ({

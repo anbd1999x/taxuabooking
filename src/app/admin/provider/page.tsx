@@ -21,28 +21,29 @@ export default async function ProviderHome() {
     prisma.bookingRequest.findMany({
       // Doanh thu chỉ tính đơn đã chốt (xác nhận / hoàn thành).
       where: { service: { ownerId }, status: { in: ["CONFIRMED", "COMPLETED"] } },
-      select: { referencePrice: true, paymentStatus: true },
+      select: { referencePrice: true, amountCollected: true },
     }),
   ]);
   const total = all.reduce((n, b) => n + (toNumber(b.referencePrice) ?? 0), 0);
-  const paid = all.filter((b) => b.paymentStatus === "PAID").reduce((n, b) => n + (toNumber(b.referencePrice) ?? 0), 0);
+  const collected = all.reduce((n, b) => n + (toNumber(b.amountCollected) ?? 0), 0);
 
   return (
     <div>
       <h1 className="text-2xl font-bold text-ink">Xin chào, {session!.name}</h1>
       <p className="mt-1 text-sm text-gray-500">
-        {services.length} dịch vụ của bạn. Theo dõi đơn & đối soát thanh toán bên dưới.
+        {services.length} dịch vụ của bạn. Doanh thu tính trên đơn đã giữ phòng/hoàn thành.
       </p>
 
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Stat label="Tổng đơn" value={String(all.length)} />
-        <Stat label="Tổng tiền" value={formatPrice(total)} />
-        <Stat label="Đã nhận (TT)" value={formatPrice(paid)} tone="ok" />
-        <Stat label="Chưa thanh toán" value={formatPrice(total - paid)} tone="warn" />
+        <Stat label="Đơn đã chốt" value={String(all.length)} />
+        <Stat label="Doanh thu" value={formatPrice(total)} />
+        <Stat label="Đã thu" value={formatPrice(collected)} tone="ok" />
+        <Stat label="Còn thiếu" value={formatPrice(Math.max(0, total - collected))} tone="warn" />
       </div>
 
-      <div className="mt-6">
-        <Link href="/admin/provider/don" className="rounded-xl border border-forest-200 px-5 py-3 text-sm font-semibold text-forest-700 hover:bg-forest-50">Xem tất cả đơn</Link>
+      <div className="mt-6 flex flex-wrap gap-3">
+        <Link href="/admin/provider/don" className="rounded-xl border border-forest-200 px-5 py-3 text-sm font-semibold text-forest-700 hover:bg-forest-50">Đơn & xác nhận</Link>
+        <Link href="/admin/provider/thong-ke" className="rounded-xl border border-forest-200 px-5 py-3 text-sm font-semibold text-forest-700 hover:bg-forest-50">Thống kê chi tiết</Link>
       </div>
 
       <h2 className="mt-8 text-lg font-semibold text-ink">Đơn gần đây</h2>

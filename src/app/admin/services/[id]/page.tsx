@@ -163,7 +163,7 @@ export default async function EditServicePage({
                   initial={{
                     id: service.id, category: service.category, title: service.title, slug: service.slug,
                     summary: service.summary, description: service.description, area: service.area, mapUrl: service.mapUrl, policy: service.policy,
-                    basePrice: toNumber(service.basePrice), priceUnit: service.priceUnit,
+                    basePrice: toNumber(service.basePrice), originalPrice: toNumber(service.originalPrice), priceUnit: service.priceUnit,
                     contactName: service.contactName, contactPhone: service.contactPhone, contactZalo: service.contactZalo,
                     featured: service.featured, published: service.published, easyRoad: service.easyRoad, pool: service.pool, ownerId: service.ownerId,
                     ctvCommission: toNumber(service.ctvCommission),
@@ -408,7 +408,7 @@ export default async function EditServicePage({
                   initial={{
                     id: service.id, category: service.category, title: service.title, slug: service.slug,
                     summary: service.summary, description: service.description, area: service.area, mapUrl: service.mapUrl, policy: service.policy,
-                    basePrice: toNumber(service.basePrice), priceUnit: service.priceUnit,
+                    basePrice: toNumber(service.basePrice), originalPrice: toNumber(service.originalPrice), priceUnit: service.priceUnit,
                     contactName: service.contactName, contactPhone: service.contactPhone, contactZalo: service.contactZalo,
                     featured: service.featured, published: service.published, easyRoad: service.easyRoad, pool: service.pool, ownerId: service.ownerId,
                     ctvCommission: toNumber(service.ctvCommission),
@@ -604,6 +604,7 @@ export default async function EditServicePage({
                                       <L label="Tiện ích (cách nhau dấu phẩy)" cls="sm:col-span-7"><input name="amenities" defaultValue={room.amenities ?? ""} placeholder="Wifi, Nóng lạnh, Ban công" className={inp} /></L>
                                       <L label="Mô tả ngắn" cls="sm:col-span-5"><input name="description" defaultValue={room.description ?? ""} className={inp} /></L>
                                       <RoomConDayPrices room={room} />
+                                      <RoomConCommission room={room} />
                                       <div className="flex gap-1 sm:col-span-12">
                                         <button className="rounded-lg bg-forest-600 px-3 py-2 text-sm text-white">Lưu</button>
                                         <OrderBtn action={moveRoomUp} label="↑" title="Chuyển phòng lên trên" />
@@ -909,6 +910,7 @@ export default async function EditServicePage({
                         <L label="Tiện ích (cách nhau dấu phẩy)" cls="sm:col-span-7"><input name="amenities" defaultValue={room.amenities ?? ""} placeholder="Wifi, Nóng lạnh, Ban công" className={inp} /></L>
                         <L label="Mô tả ngắn" cls="sm:col-span-5"><input name="description" defaultValue={room.description ?? ""} className={inp} /></L>
                         <RoomConDayPrices room={room} />
+                        <RoomConCommission room={room} />
                         <div className="flex gap-1 sm:col-span-12">
                           <button className="rounded-lg bg-forest-600 px-3 py-2 text-sm text-white">Lưu</button>
                           <OrderBtn action={moveRoomUp} label="↑" title="Chuyển phòng lên trên" />
@@ -960,6 +962,7 @@ export default async function EditServicePage({
                 <L label="Tiện ích (cách nhau dấu phẩy)" cls="sm:col-span-7"><input name="amenities" placeholder="Wifi, Nóng lạnh, Ban công" className={inp} /></L>
                 <L label="Mô tả ngắn" cls="sm:col-span-5"><input name="description" className={inp} /></L>
                 <RoomConDayPrices />
+                <RoomConCommission />
                 <div className="sm:col-span-12">
                   <button className="rounded-lg bg-forest-100 px-3 py-2 text-sm font-medium text-forest-700">+ Thêm phòng</button>
                 </div>
@@ -1227,6 +1230,47 @@ function RoomConDayPrices({ room }: { room?: RoomDayPrices }) {
           </L>
         ))}
       </div>
+    </details>
+  );
+}
+
+const COMM_DAY_FIELDS = [
+  { name: "commissionMon", label: "T2" },
+  { name: "commissionTue", label: "T3" },
+  { name: "commissionWed", label: "T4" },
+  { name: "commissionThu", label: "T5" },
+  { name: "commissionFri", label: "T6" },
+  { name: "commissionSat", label: "T7" },
+  { name: "commissionSun", label: "CN" },
+] as const;
+
+interface RoomCommissionVals {
+  commission: unknown;
+  commissionMon: unknown; commissionTue: unknown; commissionWed: unknown; commissionThu: unknown;
+  commissionFri: unknown; commissionSat: unknown; commissionSun: unknown;
+}
+
+/** Chiết khấu CTV theo phòng (đ/đêm): mức cơ bản + ghi đè theo thứ T2–CN. */
+function RoomConCommission({ room }: { room?: RoomCommissionVals }) {
+  const base = room ? toNumber(room.commission as never) : null;
+  const dayVals = COMM_DAY_FIELDS.map((d) => (room ? toNumber(room[d.name as keyof RoomCommissionVals] as never) : null));
+  const hasAny = base != null || dayVals.some((v) => v != null);
+  return (
+    <details open={hasAny} className="col-span-1 mt-1 sm:col-span-12">
+      <summary className="cursor-pointer text-[11px] font-medium text-sunset-600">
+        💰 Chiết khấu CTV cho phòng này (đ/đêm) — để trống = không chiết khấu
+      </summary>
+      <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-8">
+        <L label="Cơ bản/đêm">
+          <MoneyInput name="commission" defaultValue={base ?? ""} placeholder="0" className={inp} />
+        </L>
+        {COMM_DAY_FIELDS.map((d, i) => (
+          <L key={d.name} label={d.label}>
+            <MoneyInput name={d.name} defaultValue={dayVals[i] ?? ""} placeholder="—" className={inp} />
+          </L>
+        ))}
+      </div>
+      <p className="mt-1 text-[11px] text-gray-400">CTV đặt phòng này sẽ được hưởng mức chiết khấu tương ứng cho mỗi đêm (ghi đè theo thứ nếu có, không thì dùng mức cơ bản).</p>
     </details>
   );
 }

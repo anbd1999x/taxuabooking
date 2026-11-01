@@ -1,8 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { BookingStatus, PaymentStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
+import { toNumber } from "@/lib/format";
 import { bookingStatusSchema } from "@/lib/validation";
 import { adjustInventory, assignRoomsForBooking, statusHoldsInventory } from "@/lib/inventory";
 
@@ -11,18 +13,96 @@ export interface BookingActionState {
   error?: string;
 }
 
-/** Đánh dấu đơn đã / chưa thanh toán (đối soát với chủ dịch vụ). */
-export async function setBookingPayment(formData: FormData): Promise<void> {
+const REVALIDATE = [
+  "/admin/bookings",
+  "/admin/reports",
+  "/admin/ctv",
+  "/admin/ctv/don",
+  "/admin/provider",
+  "/admin/provider/don",
+  "/admin/availability",
+];
+
+/** Kiểm tra quyền thao tác một đơn: ADMIN toàn quyền; PROVIDER chỉ đơn của dịch vụ mình. */
+async function canManage(bookingId: string): Promise<boolean> {
+  const session = await getSession();
+  if (!session) return false;
+  if (session.role === "ADMIN") return true;
+  if (session.role !== "PROVIDER") return false;
+  const b = await prisma.bookingRequest.findUnique({
+    where: { id: bookingId },
+    select: { service: { select: { ownerId: true } } },
+  });
+  return !!b && b.service?.ownerId === session.sub;
+}
+
+/** Số tiền (đồng) từ ô nhập; rỗng ⇒ null. */
+function money(v: FormDataEntryValue | null): number | null {
+  const t = v == null ? "" : String(v).replace(/[^\d]/g, "");
+  if (!t) return null;
+  const n = Number(t);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/**
+ * Cập nhật TIẾN ĐỘ THANH TOÁN của khách: Chưa thu → Đã cọc → Đã thanh toán đủ.
+ * Ghi nhận số tiền đã thu để tính "còn thiếu". ADMIN & chủ dịch vụ (đơn của mình).
+ */
+export async function setBookingPaymentStep(formData: FormData): Promise<void> {
   const id = formData.get("id") ? String(formData.get("id")) : "";
-  if (!id) return;
-  const paid = formData.get("paid") === "true";
+  const status = String(formData.get("status") ?? "");
+  if (!id || !["UNPAID", "DEPOSITED", "PAID"].includes(status)) return;
+  if (!(await canManage(id))) return;
+
+  const b = await prisma.bookingRequest.findUnique({ where: { id }, select: { referencePrice: true } });
+  if (!b) return;
+  const entered = money(formData.get("amountCollected"));
+
+  let amountCollected: number | null = null;
+  let paidAt: Date | null = null;
+  if (status === "DEPOSITED") {
+    amountCollected = entered ?? 0;
+  } else if (status === "PAID") {
+    // Thanh toán đủ ⇒ đã thu = giá đơn (nếu có), còn thiếu = 0.
+    amountCollected = toNumber(b.referencePrice) ?? entered ?? 0;
+    paidAt = new Date();
+  }
+
   await prisma.bookingRequest.update({
     where: { id },
-    data: { paymentStatus: paid ? "PAID" : "UNPAID", paidAt: paid ? new Date() : null },
+    data: { paymentStatus: status as PaymentStatus, amountCollected, paidAt },
   });
-  for (const p of ["/admin/bookings", `/admin/bookings/${id}`, "/admin/reports", "/admin/ctv", "/admin/provider"]) {
-    revalidatePath(p);
-  }
+  for (const p of [...REVALIDATE, `/admin/bookings/${id}`]) revalidatePath(p);
+}
+
+/**
+ * Chuyển TRẠNG THÁI ĐƠN (vòng đời) kèm đồng bộ tồn kho: NEW → CONFIRMED (giữ phòng) →
+ * COMPLETED, hoặc CANCELLED (trả phòng). ADMIN & chủ dịch vụ (đơn của mình).
+ */
+export async function advanceBookingStatus(formData: FormData): Promise<void> {
+  const id = formData.get("id") ? String(formData.get("id")) : "";
+  const status = String(formData.get("status") ?? "");
+  if (!id || !["NEW", "CONFIRMED", "COMPLETED", "CANCELLED"].includes(status)) return;
+  if (!(await canManage(id))) return;
+  const newStatus = status as BookingStatus;
+
+  await prisma.$transaction(async (tx) => {
+    const booking = await tx.bookingRequest.findUnique({ where: { id } });
+    if (!booking) return;
+    const shouldHold = statusHoldsInventory(newStatus);
+    let inventoryApplied = booking.inventoryApplied;
+    if (shouldHold && !booking.inventoryApplied) {
+      if (booking.roomTypeId) await assignRoomsForBooking(tx, booking, true);
+      if (booking.cabinTripId || booking.rentalVehicleId) await adjustInventory(tx, booking, -1);
+      inventoryApplied = true;
+    } else if (!shouldHold && booking.inventoryApplied) {
+      if (booking.roomTypeId) await assignRoomsForBooking(tx, booking, false);
+      if (booking.cabinTripId || booking.rentalVehicleId) await adjustInventory(tx, booking, +1);
+      inventoryApplied = false;
+    }
+    await tx.bookingRequest.update({ where: { id }, data: { status: newStatus, inventoryApplied } });
+  });
+  for (const p of [...REVALIDATE, `/admin/bookings/${id}`]) revalidatePath(p);
 }
 
 /**

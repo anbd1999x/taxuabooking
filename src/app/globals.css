@@ -62,6 +62,14 @@ body {
 }
 
 /* Hiệu ứng chuyển động nhẹ nhàng */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slideIn {
+  from { transform: translateX(40px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
 @keyframes fade-up {
   from {
     opacity: 0;

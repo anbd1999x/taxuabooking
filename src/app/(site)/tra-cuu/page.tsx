@@ -21,7 +21,7 @@ const STATUS: Record<BookingStatus, { label: string; bg: string; fg: string }> =
   COMPLETED: { label: "Đã hoàn thành", bg: "#ecfdf5", fg: "#047857" },
   CANCELLED: { label: "Đã huỷ", bg: "#fef2f2", fg: "#b91c1c" },
 };
-const PAYMENT: Record<PaymentStatus, string> = { UNPAID: "Chưa thanh toán", PAID: "Đã thanh toán" };
+const PAYMENT: Record<PaymentStatus, string> = { UNPAID: "Chưa thanh toán", DEPOSITED: "Đã cọc", PAID: "Đã thanh toán" };
 
 function fmtD(d: Date | null): string {
   if (!d) return "";

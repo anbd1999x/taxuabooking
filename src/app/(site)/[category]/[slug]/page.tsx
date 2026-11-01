@@ -265,6 +265,26 @@ export default async function ServiceDetailPage({
           <h1 className="mt-2 text-2xl font-bold text-ink sm:text-3xl">{service.title}</h1>
           <p className="mt-2 text-gray-600">{service.summary}</p>
 
+          {(() => {
+            const base = toNumber(service.basePrice);
+            const orig = toNumber(service.originalPrice);
+            const onSale = base != null && orig != null && orig > base;
+            if (base == null) return null;
+            return (
+              <p className="mt-3 flex flex-wrap items-baseline gap-x-2">
+                <span className="text-sm text-gray-500">Giá từ</span>
+                {onSale && <span className="text-base text-gray-400 line-through">{formatPrice(orig)}</span>}
+                <span className="text-2xl font-extrabold text-forest-700">{formatPrice(base)}</span>
+                {service.priceUnit && <span className="text-sm text-gray-500">{service.priceUnit}</span>}
+                {onSale && (
+                  <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-bold text-red-600 ring-1 ring-red-100">
+                    Giảm {Math.round((1 - base / orig) * 100)}%
+                  </span>
+                )}
+              </p>
+            );
+          })()}
+
           <section className="mt-6">
             <h2 className="text-lg font-semibold text-ink">Giới thiệu</h2>
             <p className="mt-2 whitespace-pre-line leading-relaxed text-gray-700">
@@ -298,10 +318,17 @@ export default async function ServiceDetailPage({
               <h2 className="text-lg font-semibold text-ink">Các loại phòng</h2>
               <div className="mt-3 space-y-3">
                 {service.roomTypes.map((r) => {
-                  const roomPrices = r.rooms
-                    .map((rm) => toNumber(rm.salePrice) ?? toNumber(rm.listPrice) ?? 0)
-                    .filter((n) => n > 0);
-                  const fromPrice = roomPrices.length ? Math.min(...roomPrices) : null;
+                  // Phòng rẻ nhất + giá niêm yết của nó (để gạch ngang khi đang giảm).
+                  const priced = r.rooms
+                    .map((rm) => {
+                      const list = toNumber(rm.listPrice) ?? 0;
+                      const sale = toNumber(rm.salePrice);
+                      return { eff: sale ?? list, list, onSale: sale != null && list > sale };
+                    })
+                    .filter((p) => p.eff > 0);
+                  const cheapest = priced.length ? priced.reduce((a, b) => (b.eff < a.eff ? b : a)) : null;
+                  const fromPrice = cheapest?.eff ?? null;
+                  const fromOld = cheapest?.onSale ? cheapest.list : null;
                   const caps = r.rooms.map((rm) => rm.capacity);
                   const capLabel = caps.length
                     ? (Math.min(...caps) === Math.max(...caps) ? `${caps[0]}` : `${Math.min(...caps)}–${Math.max(...caps)}`)
@@ -316,6 +343,9 @@ export default async function ServiceDetailPage({
                           {fromPrice != null ? (
                             <>
                               <span className="text-gray-500">Từ </span>
+                              {fromOld != null && (
+                                <span className="mr-1 text-gray-400 line-through">{formatPrice(fromOld)}</span>
+                              )}
                               <span className="font-semibold text-forest-700">{formatPrice(fromPrice)}</span>
                               <span className="text-gray-500">/đêm</span>
                             </>
@@ -349,7 +379,11 @@ export default async function ServiceDetailPage({
                             href={`/${cat.slug}/${service.slug}/phong/${room.id}`}
                             className="rounded-lg bg-forest-50 px-3 py-1.5 text-sm font-medium text-forest-700 transition hover:bg-forest-100"
                           >
-                            {room.name} · {formatPrice(room.salePrice ?? room.listPrice)} →
+                            {room.name} ·{" "}
+                            {room.salePrice != null && toNumber(room.listPrice)! > toNumber(room.salePrice)! && (
+                              <span className="font-normal text-gray-400 line-through">{formatPrice(room.listPrice)} </span>
+                            )}
+                            {formatPrice(room.salePrice ?? room.listPrice)} →
                           </Link>
                         ))}
                       </div>

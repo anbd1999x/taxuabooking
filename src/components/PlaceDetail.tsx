@@ -92,7 +92,12 @@ export async function PlaceDetail({ place, basePath }: { place: Place & { review
   const hotline = settings.contactPhone || SITE.defaultPhone;
   const phone = place.phone || hotline;
   const telHref = `tel:${phone.replace(/\s/g, "")}`;
-  const zalo = (settings.contactZalo || SITE.defaultZalo).replace(/\s/g, "");
+  const hasOwnZalo = !!place.zalo;
+  const zalo = (place.zalo || settings.contactZalo || SITE.defaultZalo).replace(/\s/g, "");
+  const bookingLabel =
+    place.booking === "call" ? "Nhận đặt bàn trước — gọi quán" :
+    place.booking === "group" ? "Nhận đặt bàn cho nhóm từ 6 người" :
+    place.booking === "no" ? "Không nhận đặt bàn, nên tới sớm" : null;
 
   // Gợi ý quán khác: cùng khu trước, rồi cùng loại.
   const sameArea = await prisma.place.findMany({
@@ -144,7 +149,7 @@ export async function PlaceDetail({ place, basePath }: { place: Place & { review
 
   // Thẻ thông tin nhanh — chỉ hiện mục có dữ liệu.
   const facts: { k: string; v: string; d?: string }[] = [{ k: "Khu vực", v: place.area, d: "Tà Xùa, Bắc Yên" }];
-  if (place.hours) facts.push({ k: "Giờ mở cửa", v: place.hours, d: st ? (st.open ? "Đang mở cửa" : "Hiện đã đóng") : "Giờ Việt Nam" });
+  if (place.hours) facts.push({ k: "Giờ mở cửa", v: place.hours, d: place.hoursWeekend ? `Cuối tuần mở sớm ${place.hoursWeekend}` : st ? (st.open ? "Đang mở cửa" : "Hiện đã đóng") : "Giờ Việt Nam" });
   if (place.price) facts.push({ k: "Giá tham khảo", v: place.price, d: "Nên hỏi lại khi tới" });
   facts.push(count ? { k: "Đánh giá", v: `${(avg ?? 0).toFixed(1).replace(".", ",")} / 5`, d: `${count} lượt` } : { k: "Đánh giá", v: "Chưa có", d: "Hãy là người đầu tiên" });
 
@@ -288,10 +293,11 @@ export async function PlaceDetail({ place, basePath }: { place: Place & { review
               <div className="flex justify-between gap-3 text-sm"><span style={{ color: MUTED }}>Giờ mở cửa</span><b>{place.hours || "Liên hệ"}</b></div>
               {st && <div className="flex justify-between gap-3 text-sm"><span style={{ color: MUTED }}>Hôm nay</span><b style={{ color: st.open ? "oklch(0.38 0.1 155)" : "oklch(0.55 0.12 25)" }}>{st.open ? "Đang mở" : "Đã đóng"}</b></div>}
               <div className="flex justify-between gap-3 text-sm"><span style={{ color: MUTED }}>Khu vực</span><b className="text-right">{place.area}</b></div>
+              {bookingLabel && <div className="flex justify-between gap-3 text-sm"><span style={{ color: MUTED }}>Đặt bàn</span><b className="text-right">{bookingLabel}</b></div>}
               <div className="flex justify-between gap-3 text-sm"><span style={{ color: MUTED }}>Điện thoại</span><a href={telHref} className="font-bold text-forest-700">{phone}</a></div>
             </div>
             <a href={telHref} className="rounded-full px-3.5 py-3.5 text-center text-[15px] font-extrabold text-white" style={{ background: ACCENT }}>Gọi quán · {phone}</a>
-            <a href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="rounded-full px-3 py-3 text-center text-sm font-bold" style={{ border: `1.5px solid ${BTNBORDER}`, color: "oklch(0.3 0.05 160)" }}>Hỏi Tà Xùa Booking qua Zalo</a>
+            <a href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="rounded-full px-3 py-3 text-center text-sm font-bold" style={{ border: `1.5px solid ${BTNBORDER}`, color: "oklch(0.3 0.05 160)" }}>{hasOwnZalo ? "Nhắn quán qua Zalo" : "Hỏi Tà Xùa Booking qua Zalo"}</a>
             <div className="text-center text-xs leading-[1.5]" style={{ color: MUTED }}>
               Muốn ở gần đây? Xem <Link href="/homestay" className="font-bold">homestay khu {place.area}</Link> hoặc đặt <Link href="/xe-cabin" className="font-bold">vé xe cabin</Link>.
             </div>

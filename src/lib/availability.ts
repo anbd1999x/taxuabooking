@@ -124,6 +124,39 @@ export function roomPricing(r: RoomPriceFields): RoomPricing {
   };
 }
 
+/** Các cột chiết khấu CTV của một phòng con (mức cơ bản + theo thứ). */
+export type RoomCommissionFields = {
+  commission: unknown;
+  commissionMon: unknown;
+  commissionTue: unknown;
+  commissionWed: unknown;
+  commissionThu: unknown;
+  commissionFri: unknown;
+  commissionSat: unknown;
+  commissionSun: unknown;
+};
+
+/**
+ * Tổng chiết khấu CTV cho một phòng qua các đêm lưu trú.
+ * Mỗi đêm = chiết-khấu-theo-thứ (nếu nhập) ?? mức cơ bản ?? 0.
+ * daysOfWeek index theo getUTCDay(): 0=CN..6=T7.
+ */
+export function roomCommissionForNights(r: RoomCommissionFields, nights: Date[]): number {
+  const base = toNumber(r.commission as never) ?? 0;
+  const dow = [
+    toNumber(r.commissionSun as never),
+    toNumber(r.commissionMon as never),
+    toNumber(r.commissionTue as never),
+    toNumber(r.commissionWed as never),
+    toNumber(r.commissionThu as never),
+    toNumber(r.commissionFri as never),
+    toNumber(r.commissionSat as never),
+  ];
+  let total = 0;
+  for (const d of nights) total += dow[d.getUTCDay()] ?? base;
+  return total;
+}
+
 /** Giá niêm yết (giá thường) để hiển thị gạch ngang; null nếu không có chiết khấu. */
 export function roomListPrice(r: { listPrice: unknown; salePrice: unknown }): number | null {
   const list = toNumber(r.listPrice as never);

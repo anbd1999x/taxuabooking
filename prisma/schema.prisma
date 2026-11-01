@@ -71,10 +71,11 @@ enum UserRole {
   PROVIDER // Chủ nhà xe / chủ homestay
 }
 
-/// Trạng thái thanh toán của đơn (giữa CTV/hệ thống với chủ dịch vụ).
+/// Tiến độ thanh toán của khách cho đơn.
 enum PaymentStatus {
-  UNPAID // Chưa thanh toán
-  PAID // Đã thanh toán
+  UNPAID // Chưa thu
+  DEPOSITED // Đã cọc (thu một phần)
+  PAID // Đã thanh toán đủ
 }
 
 /// Tài khoản (Admin / CTV / Chủ dịch vụ).
@@ -111,6 +112,7 @@ model Service {
   mapUrl      String? // link Google Maps (chia sẻ hoặc nhúng) để hiển thị bản đồ
   policy      String? // chính sách homestay (nhận/trả phòng, huỷ, nội quy...) hiển thị cho khách
   basePrice   Decimal?        @db.Decimal(12, 0) // giá tham khảo (null = liên hệ)
+  originalPrice Decimal?      @db.Decimal(12, 0) // giá gốc hiển thị gạch ngang (null = không khuyến mãi)
   priceUnit   String? // đơn vị giá: "/đêm", "/ngày", "/vé", "/chuyến"...
   contactName String?
   contactPhone String?
@@ -220,6 +222,16 @@ model Room {
   priceFri    Decimal?        @db.Decimal(12, 0)
   priceSat    Decimal?        @db.Decimal(12, 0)
   priceSun    Decimal?        @db.Decimal(12, 0)
+  // Chiết khấu CTV cho phòng này (đ / phòng / đêm). commission = mức cơ bản;
+  // commissionMon..Sun ghi đè theo thứ. null = không chiết khấu (0).
+  commission    Decimal? @db.Decimal(12, 0)
+  commissionMon Decimal? @db.Decimal(12, 0)
+  commissionTue Decimal? @db.Decimal(12, 0)
+  commissionWed Decimal? @db.Decimal(12, 0)
+  commissionThu Decimal? @db.Decimal(12, 0)
+  commissionFri Decimal? @db.Decimal(12, 0)
+  commissionSat Decimal? @db.Decimal(12, 0)
+  commissionSun Decimal? @db.Decimal(12, 0)
   sortOrder   Int             @default(0)
   icalToken   String?         @unique // token bí mật cho link xuất lịch iCal (OTA)
   createdAt   DateTime        @default(now())
@@ -426,6 +438,7 @@ model BookingRequest {
   ctv           AdminUser?    @relation("BookingCtv", fields: [ctvId], references: [id], onDelete: SetNull)
   paymentStatus PaymentStatus @default(UNPAID)
   paidAt        DateTime?
+  amountCollected Decimal?    @db.Decimal(12, 0) // tổng tiền đã thu của khách (cọc + thanh toán)
   // Hoa hồng CTV (snapshot lúc đặt = Service.ctvCommission ?? CTV.commissionPerOrder ?? 0).
   commissionAmount Decimal?   @db.Decimal(12, 0)
   commissionPaid   Boolean    @default(false) // đã trả hoa hồng cho CTV chưa
@@ -468,8 +481,11 @@ model Place {
   area       String // khu vực (Trung tâm, Đỉnh Gió, Khe Cải...)
   address    String? // địa chỉ chi tiết (nếu có)
   phone      String? // SĐT quán (nếu có)
+  zalo       String? // Zalo quán (nếu khác SĐT)
   price      String? // "Từ 40.000đ"...
   hours      String? // "6:00–19:00"
+  hoursWeekend String? // giờ mở sớm cuối tuần (VD "05:30")
+  booking    String? // nhận đặt bàn: "no" | "call" | "group"
   tags       String? // đặc điểm, phân tách bằng dấu phẩy
   desc       String? // mô tả ngắn (tự biên soạn)
   content    String? // mô tả chi tiết (markdown) cho trang chi tiết

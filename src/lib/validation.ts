@@ -87,6 +87,7 @@ export const serviceInputSchema = z.object({
   mapUrl: z.string().trim().max(500).optional().nullable(),
   policy: z.string().trim().max(3000).optional().nullable(),
   basePrice: z.coerce.number().int().min(0).optional().nullable(),
+  originalPrice: z.coerce.number().int().min(0).optional().nullable(),
   priceUnit: z.string().trim().max(30).optional().nullable(),
   contactName: z.string().trim().max(120).optional().nullable(),
   contactPhone: z.string().trim().max(30).optional().nullable(),

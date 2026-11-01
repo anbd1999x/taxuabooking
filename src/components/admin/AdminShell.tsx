@@ -28,7 +28,8 @@ const CTV_NAV: NavItem[] = [
 const PROVIDER_NAV: NavItem[] = [
   { href: "/admin/provider", label: "Tổng quan", exact: true },
   { href: "/admin/availability", label: "Lịch giá & tình trạng" },
-  { href: "/admin/provider/don", label: "Đơn & thanh toán" },
+  { href: "/admin/provider/don", label: "Đơn & xác nhận" },
+  { href: "/admin/provider/thong-ke", label: "Thống kê" },
   { href: "/admin/provider/ctv", label: "CTV của tôi" },
 ];
 

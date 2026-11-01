@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { ActionForm } from "@/components/admin/ActionForm";
+import { MoneyInput } from "@/components/admin/MoneyInput";
 import { toNumber } from "@/lib/format";
 import { createAccount, toggleAccountActive, deleteAccount, resetAccountPassword, setCtvCommission } from "./actions";
 
@@ -41,7 +42,7 @@ export default async function AccountsPage() {
           <label className="block sm:col-span-1"><span className="text-xs font-medium text-gray-500">Mật khẩu</span><input name="password" className={inp} required /></label>
           <label className="block sm:col-span-2"><span className="text-xs font-medium text-gray-500">Họ tên</span><input name="name" className={inp} required /></label>
           <label className="block sm:col-span-1"><span className="text-xs font-medium text-gray-500">SĐT</span><input name="phone" className={inp} /></label>
-          <label className="block sm:col-span-2"><span className="text-xs font-medium text-gray-500">Hoa hồng/đơn (CTV, đ)</span><input name="commissionPerOrder" type="number" min={0} step={1000} placeholder="VD 100000" className={inp} /></label>
+          <label className="block sm:col-span-2"><span className="text-xs font-medium text-gray-500">Hoa hồng/đơn (CTV, đ)</span><MoneyInput name="commissionPerOrder" placeholder="VD 100.000" className={inp} /></label>
           <label className="block sm:col-span-4"><span className="text-xs font-medium text-gray-500">Thuộc chủ cơ sở (chỉ cho CTV)</span>
             <select name="providerId" defaultValue="" className={inp}>
               <option value="">— Không gắn —</option>
@@ -99,7 +100,7 @@ export default async function AccountsPage() {
                     {u.role === "CTV" ? (
                       <form action={setCtvCommission} className="flex items-center gap-1">
                         <input type="hidden" name="id" value={u.id} />
-                        <input name="commissionPerOrder" type="number" min={0} step={1000} defaultValue={toNumber(u.commissionPerOrder) ?? ""} placeholder="0" className="w-24 rounded border border-gray-200 px-2 py-1 text-xs" />
+                        <MoneyInput name="commissionPerOrder" defaultValue={toNumber(u.commissionPerOrder) ?? ""} placeholder="0" className="w-24 rounded border border-gray-200 px-2 py-1 text-xs" />
                         <button className="rounded bg-forest-100 px-2 py-1 text-xs font-medium text-forest-700">Lưu</button>
                       </form>
                     ) : (

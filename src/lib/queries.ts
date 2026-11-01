@@ -56,6 +56,7 @@ export interface ServiceCard {
   coverImage: string | null;
   images: { url: string; alt: string | null }[];
   basePrice: number | null;
+  originalPrice: number | null; // giá gốc gạch ngang (null = không khuyến mãi)
   priceUnit: string | null;
   featured: boolean;
   availability?: AvailabilitySummary;
@@ -151,6 +152,7 @@ export async function listServicesByCategory(
       coverImage: coverOf(s.images),
       images: s.images.map((i) => ({ url: i.url, alt: i.alt })),
       basePrice: toNumber(s.basePrice),
+      originalPrice: toNumber(s.originalPrice),
       priceUnit: s.priceUnit,
       featured: s.featured,
     };
@@ -275,6 +277,7 @@ async function getFeaturedServicesImpl(limit = 8): Promise<ServiceCard[]> {
     coverImage: coverOf(s.images),
     images: s.images.map((i) => ({ url: i.url, alt: i.alt })),
     basePrice: toNumber(s.basePrice),
+    originalPrice: toNumber(s.originalPrice),
     priceUnit: s.priceUnit,
     featured: s.featured,
   }));
@@ -293,7 +296,7 @@ async function getHomeServicesImpl(limit = 8): Promise<ServiceCard[]> {
   return services.map((s) => ({
     id: s.id, slug: s.slug, category: s.category, title: s.title, summary: s.summary,
     area: s.area, coverImage: coverOf(s.images), images: s.images.map((i) => ({ url: i.url, alt: i.alt })),
-    basePrice: toNumber(s.basePrice), priceUnit: s.priceUnit, featured: s.featured,
+    basePrice: toNumber(s.basePrice), originalPrice: toNumber(s.originalPrice), priceUnit: s.priceUnit, featured: s.featured,
   }));
 }
 
@@ -402,8 +405,17 @@ async function getHomestayCardsImpl(fromKey?: string | null, toKey?: string | nu
 
   return list.map((s) => {
     const rooms = s.roomTypes.flatMap((rt) => rt.rooms);
-    const prices = rooms.map((r) => toNumber(r.salePrice) ?? toNumber(r.listPrice) ?? 0).filter((n) => n > 0);
-    const from = prices.length ? Math.min(...prices) : toNumber(s.basePrice) ?? 0;
+    // Giá hiệu lực mỗi phòng + giá niêm yết (để gạch ngang khi phòng rẻ nhất đang giảm giá).
+    const priced = rooms
+      .map((r) => {
+        const list = toNumber(r.listPrice) ?? 0;
+        const sale = toNumber(r.salePrice);
+        return { eff: sale ?? list, list, onSale: sale != null && list > sale };
+      })
+      .filter((p) => p.eff > 0);
+    const cheapest = priced.length ? priced.reduce((a, b) => (b.eff < a.eff ? b : a)) : null;
+    const from = cheapest ? cheapest.eff : toNumber(s.basePrice) ?? 0;
+    const fromOld = cheapest?.onSale ? cheapest.list : null;
     const cat = /bungalow/i.test(`${s.title} ${s.area ?? ""}`) ? "Bungalow" : "Homestay";
 
     let status: HomestayCardStatus = "none";
@@ -420,6 +432,7 @@ async function getHomestayCardsImpl(fromKey?: string | null, toKey?: string | nu
       area: s.area ?? "Tà Xùa",
       desc: s.summary,
       price: from,
+      priceOld: fromOld,
       cover: s.images[0]?.url ?? null,
       featured: s.featured,
       cat,

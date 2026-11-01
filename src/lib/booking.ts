@@ -13,6 +13,7 @@ import {
   aggregateStay,
   roomPricing,
   priceForDay,
+  roomCommissionForNights,
   type AvailabilityRecord,
   type StayAvailabilityResult,
 } from "./availability";
@@ -30,6 +31,7 @@ export interface StayOption {
   availableUnits: number;
   pricePerUnit: number | null; // tổng giá 1 phòng/xe cho cả kỳ
   count: number; // số đêm/ngày
+  commission?: number; // tổng chiết khấu CTV cho phòng này cả kỳ (homestay)
 }
 
 export interface TripOption {
@@ -126,6 +128,7 @@ export async function computeAvailability(
         availableUnits: free ? 1 : 0,
         pricePerUnit: nights.length > 0 ? total : null,
         count: nights.length,
+        commission: roomCommissionForNights(room, nights),
       };
     });
 
@@ -249,6 +252,7 @@ export async function createBooking(
   let roomId: string | null = null;
   let cabinTripId: string | null = null;
   let rentalVehicleId: string | null = null;
+  let stayCommission = 0; // chiết khấu CTV theo phòng/đêm (homestay)
 
   const computed = await computeAvailability(
     input.serviceId,
@@ -270,6 +274,7 @@ export async function createBooking(
       bookingQty = 1;
       referencePrice = opt.pricePerUnit;
       needsConfirmation = !opt.bookable;
+      stayCommission = opt.commission ?? 0;
     }
   } else if (computed?.kind === "rental" && computed.stayOptions) {
     const opt = computed.stayOptions.find((o) => o.id === input.rentalVehicleId);
@@ -298,6 +303,13 @@ export async function createBooking(
     referencePrice = computed.basePrice != null ? computed.basePrice * qty : null;
     needsConfirmation = true;
   }
+
+  // Chiết khấu CTV: homestay (có phòng) tính theo phòng/đêm; còn lại = mức cố định/đơn.
+  const commissionAmount = ctvId
+    ? roomId
+      ? stayCommission
+      : await resolveCommission(service.id, ctvId)
+    : 0;
 
   // Mã yêu cầu không trùng.
   let code = generateBookingCode();
@@ -328,7 +340,7 @@ export async function createBooking(
       referencePrice,
       needsConfirmation,
       ctvId: ctvId ?? null,
-      commissionAmount: await resolveCommission(service.id, ctvId),
+      commissionAmount,
     },
   });
 

@@ -13,6 +13,7 @@ export interface HomestayCard {
   area: string;
   desc: string;
   price: number;
+  priceOld: number | null; // giá niêm yết gạch ngang khi đang giảm giá
   cover: string | null;
   featured: boolean;
   cat: string; // "Homestay" | "Bungalow"
@@ -458,7 +459,12 @@ export function HomestayList({
                 <div className="mt-1 flex flex-wrap items-end justify-between gap-x-2 gap-y-2 border-t border-[oklch(0.94_0.01_230)] pt-2 sm:mt-1.5 sm:pt-3">
                   <div className="min-w-0">
                     <div className="text-[11px] text-gray-500 sm:text-xs">{hasDates ? `${nights} đêm từ` : "Giá từ"}</div>
-                    <div><span className="text-[17px] font-extrabold tracking-[-0.02em] sm:text-[21px]" style={{ color: TH.G }}>{vnd(hasDates ? s.price * nights : s.price)}</span>{!hasDates && <span className="text-[12px] text-gray-500 sm:text-[13px]">/đêm</span>}</div>
+                    <div>
+                      {s.priceOld != null && s.priceOld > s.price && (
+                        <span className="mr-1.5 text-[12px] text-gray-400 line-through sm:text-[14px]">{vnd(hasDates ? s.priceOld * nights : s.priceOld)}</span>
+                      )}
+                      <span className="text-[17px] font-extrabold tracking-[-0.02em] sm:text-[21px]" style={{ color: TH.G }}>{vnd(hasDates ? s.price * nights : s.price)}</span>{!hasDates && <span className="text-[12px] text-gray-500 sm:text-[13px]">/đêm</span>}
+                    </div>
                   </div>
                   <span className="whitespace-nowrap rounded-full px-3 py-2 text-xs font-bold text-white transition group-hover:bg-sunset-500 sm:px-4 sm:py-2.5 sm:text-sm" style={{ background: TH.G }}>Xem phòng</span>
                 </div>
