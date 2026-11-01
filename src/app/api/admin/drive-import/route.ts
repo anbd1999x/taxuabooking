@@ -94,6 +94,8 @@ export async function POST(request: Request) {
     serviceId?: string;
     roomTypeId?: string;
     roomId?: string;
+    /** true = chỉ lưu file & trả url, không gắn DB (ảnh quán, ảnh bìa bài viết...). */
+    standalone?: boolean;
   };
   try {
     body = await request.json();
@@ -124,7 +126,7 @@ export async function POST(request: Request) {
   if (!/^[a-zA-Z0-9_-]{10,}$/.test(fileId)) {
     return NextResponse.json({ error: "Thiếu fileId." }, { status: 400 });
   }
-  if (!body.serviceId && !body.roomTypeId && !body.roomId) {
+  if (!body.standalone && !body.serviceId && !body.roomTypeId && !body.roomId) {
     return NextResponse.json({ error: "Thiếu đối tượng gắn media." }, { status: 400 });
   }
   const dl = await downloadDriveFile(fileId);
@@ -143,6 +145,7 @@ export async function POST(request: Request) {
     serviceId: body.serviceId ?? null,
     roomTypeId: body.roomTypeId ?? null,
     roomId: body.roomId ?? null,
+    standalone: body.standalone === true,
   });
   if ("error" in result) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json({ url: result.url }, { status: 201 });
