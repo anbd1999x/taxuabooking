@@ -21,11 +21,18 @@ export default async function ProviderHome() {
     prisma.bookingRequest.findMany({
       // Doanh thu chỉ tính đơn đã chốt (xác nhận / hoàn thành).
       where: { service: { ownerId }, status: { in: ["CONFIRMED", "COMPLETED"] } },
-      select: { referencePrice: true, amountCollected: true },
+      select: { category: true, referencePrice: true, roomAmount: true, amountCollected: true, paymentStatus: true },
     }),
   ]);
-  const total = all.reduce((n, b) => n + (toNumber(b.referencePrice) ?? 0), 0);
-  const collected = all.reduce((n, b) => n + (toNumber(b.amountCollected) ?? 0), 0);
+  // Đơn combo: doanh thu phía homestay = PHẦN TIỀN PHÒNG (không gộp tiền vé xe);
+  // coi là đã thu khi khách thanh toán đủ (tiền combo do Tà Xùa Booking thu).
+  const amountOf = (b: (typeof all)[number]) =>
+    b.category === "COMBO" ? toNumber(b.roomAmount) ?? 0 : toNumber(b.referencePrice) ?? 0;
+  const total = all.reduce((n, b) => n + amountOf(b), 0);
+  const collected = all.reduce(
+    (n, b) => n + (b.category === "COMBO" ? (b.paymentStatus === "PAID" ? amountOf(b) : 0) : toNumber(b.amountCollected) ?? 0),
+    0,
+  );
 
   return (
     <div>

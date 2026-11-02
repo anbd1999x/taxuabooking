@@ -452,6 +452,10 @@ export async function createComboBooking(
   const communal = isCommunalRoom(room.roomType.name, room.name);
   const pricePerPerson = comboPricePerPerson(roomCost, communal, people, fare);
   const total = Math.max(0, pricePerPerson) * people;
+  // Tách tiền từng bên: bill về homestay = tiền phòng, bill về nhà xe = tiền vé.
+  // (referencePrice = TỔNG khách trả, đã trừ giảm giá combo cho phòng thường.)
+  const roomAmount = communal ? roomCost * people : roomCost;
+  const busAmount = fare * people;
 
   const busSvc = await prisma.service.findUnique({ where: { id: outbound.serviceId }, select: { title: true } });
   const selectionLabel =
@@ -488,6 +492,8 @@ export async function createComboBooking(
       seatsSingle: people,
       selectionLabel,
       referencePrice: total,
+      roomAmount,
+      busAmount,
       needsConfirmation: true,
       ctvId: ctvId ?? null,
       commissionAmount: ctvId ? roomCommissionForNights(room, nights) : 0,

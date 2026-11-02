@@ -26,6 +26,10 @@ export interface ManageBooking {
   commissionAmount?: unknown;
   commissionPaid?: boolean;
   service?: { title: string } | null;
+  /** Đơn combo xem từ phía 1 bên: giá hiển thị = phần tiền của bên đó. */
+  displayPrice?: number | null;
+  /** Chú thích cạnh giá (vd "Phần tiền phòng của combo"). */
+  priceNote?: string | null;
 }
 
 const PAY_LABEL = { UNPAID: "Chưa thu", DEPOSITED: "Đã cọc", PAID: "Đã thanh toán đủ" } as const;
@@ -35,9 +39,13 @@ const PAY_TONE = {
   PAID: "bg-forest-100 text-forest-700",
 } as const;
 
-/** Thẻ quản lý 1 đơn: xác nhận từng bước (giữ phòng → cọc → thanh toán) + trả hoa hồng CTV. */
-export function OrderManageCard({ b }: { b: ManageBooking }) {
-  const price = toNumber(b.referencePrice as never) ?? 0;
+/**
+ * Thẻ quản lý 1 đơn: xác nhận từng bước (giữ phòng → cọc → thanh toán) + trả hoa hồng CTV.
+ * viewOnly (đơn combo phía chủ dịch vụ): chỉ hiển thị thông tin + phần tiền của bên đó,
+ * không có nút đổi trạng thái/thu tiền — combo do Tà Xùa Booking điều phối.
+ */
+export function OrderManageCard({ b, viewOnly = false }: { b: ManageBooking; viewOnly?: boolean }) {
+  const price = b.displayPrice ?? toNumber(b.referencePrice as never) ?? 0;
   const collected = toNumber(b.amountCollected as never) ?? 0;
   const owed = Math.max(0, price - collected);
   const meta = BOOKING_STATUS_META[b.status];
@@ -76,7 +84,7 @@ export function OrderManageCard({ b }: { b: ManageBooking }) {
       </div>
 
       {/* Bước 1: vòng đời đơn */}
-      {steps.length > 0 && (
+      {!viewOnly && steps.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-1.5">
           {steps.map((s) => (
             <form action={advanceBookingStatus} key={s.status}>
@@ -93,25 +101,35 @@ export function OrderManageCard({ b }: { b: ManageBooking }) {
         <p className="flex flex-wrap items-center gap-2 text-sm">
           <span className="text-gray-500">Thanh toán khách:</span>
           <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${PAY_TONE[b.paymentStatus]}`}>{PAY_LABEL[b.paymentStatus]}</span>
+          {b.priceNote && <span className="rounded-full bg-sunset-50 px-2.5 py-0.5 text-xs font-medium text-sunset-700">{b.priceNote}</span>}
         </p>
-        <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
-          <div><div className="text-gray-400">Giá đơn</div><div className="font-semibold text-ink">{formatPrice(price)}</div></div>
-          <div><div className="text-gray-400">Đã thu</div><div className="font-semibold text-forest-700">{formatPrice(collected)}</div></div>
-          <div><div className="text-gray-400">Còn thiếu</div><div className="font-semibold text-amber-700">{formatPrice(owed)}</div></div>
-        </div>
-        <form action={setBookingPaymentStep} className="mt-2 flex flex-wrap items-end gap-1.5">
-          <input type="hidden" name="id" value={b.id} />
-          <label className="text-xs text-gray-500">Số tiền đã thu
-            <MoneyInput name="amountCollected" defaultValue={collected || ""} placeholder="VD 500.000" className="mt-0.5 w-32 rounded-lg border border-gray-200 px-2 py-1.5 text-sm" />
-          </label>
-          <button name="status" value="DEPOSITED" className="rounded-lg bg-sky-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-sky-700">Đã cọc</button>
-          <button name="status" value="PAID" className="rounded-lg bg-forest-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-forest-700">Thanh toán đủ</button>
-          <button name="status" value="UNPAID" className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-white">Về chưa thu</button>
-        </form>
+        {viewOnly ? (
+          <div className="mt-2 text-center text-xs">
+            <div className="text-gray-400">{b.priceNote ? "Tiền của bạn trong đơn này" : "Giá đơn"}</div>
+            <div className="text-base font-bold text-ink">{formatPrice(price)}</div>
+          </div>
+        ) : (
+          <>
+            <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
+              <div><div className="text-gray-400">Giá đơn</div><div className="font-semibold text-ink">{formatPrice(price)}</div></div>
+              <div><div className="text-gray-400">Đã thu</div><div className="font-semibold text-forest-700">{formatPrice(collected)}</div></div>
+              <div><div className="text-gray-400">Còn thiếu</div><div className="font-semibold text-amber-700">{formatPrice(owed)}</div></div>
+            </div>
+            <form action={setBookingPaymentStep} className="mt-2 flex flex-wrap items-end gap-1.5">
+              <input type="hidden" name="id" value={b.id} />
+              <label className="text-xs text-gray-500">Số tiền đã thu
+                <MoneyInput name="amountCollected" defaultValue={collected || ""} placeholder="VD 500.000" className="mt-0.5 w-32 rounded-lg border border-gray-200 px-2 py-1.5 text-sm" />
+              </label>
+              <button name="status" value="DEPOSITED" className="rounded-lg bg-sky-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-sky-700">Đã cọc</button>
+              <button name="status" value="PAID" className="rounded-lg bg-forest-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-forest-700">Thanh toán đủ</button>
+              <button name="status" value="UNPAID" className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-white">Về chưa thu</button>
+            </form>
+          </>
+        )}
       </div>
 
       {/* Bước 3: hoa hồng CTV */}
-      {b.ctvName && comm > 0 && (
+      {!viewOnly && b.ctvName && comm > 0 && (
         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
           <span className="text-gray-500">Hoa hồng CTV:</span>
           <span className="font-semibold text-forest-700">{formatPrice(comm)}</span>

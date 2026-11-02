@@ -56,6 +56,13 @@ export default async function BookingDetailPage({
             {b.nights != null && <Row label="Số đêm/ngày" value={String(b.nights)} />}
             <Row label="Số lượng" value={String(b.quantity)} />
             <Row label="Giá tham khảo" value={formatPrice(b.referencePrice)} />
+            {/* Combo: bill tách từng bên — tiền phòng về homestay, tiền vé về nhà xe. */}
+            {b.category === "COMBO" && b.roomAmount != null && (
+              <Row label="Phần tiền phòng (homestay)" value={formatPrice(b.roomAmount)} />
+            )}
+            {b.category === "COMBO" && b.busAmount != null && (
+              <Row label="Phần tiền vé (nhà xe)" value={formatPrice(b.busAmount)} />
+            )}
           </dl>
 
           {b.note && (
