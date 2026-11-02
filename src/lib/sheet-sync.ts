@@ -40,7 +40,7 @@ const SHEET_TAG = "SHEET";
 // Nhãn hàng tiêu đề thường gặp (không phải tên phòng) → bỏ qua, không báo "không khớp".
 const HEADER_LABELS = new Set([
   "ngay", "thu", "date", "day", "weekday", "phong", "room", "rooms", "ten phong",
-  "stt", "loai phong", "note", "ghi chu", "tong", "total",
+  "stt", "loai phong", "note", "ghi chu", "tong", "total", "so phong",
 ]);
 
 /**
@@ -54,6 +54,9 @@ function norm(s: string): string {
     .replace(/đ/gi, "d")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
+    .replace(/([a-z])(\d)/g, "$1 $2") // tách chữ–số dính liền ("Vip3" ≡ "Vip 3")
+    .replace(/(\d)([a-z])/g, "$1 $2")
+    .replace(/\b0+(\d)/g, "$1") // bỏ số 0 đứng đầu ("Đôi 01" ≡ "Đôi 1")
     .trim();
 }
 
@@ -329,34 +332,24 @@ export async function listSheetTabs(id: string): Promise<SheetTab[]> {
  * Năm được gán NHẤT QUÁN cho cả hàng: neo theo tháng của ô đầu rồi tăng năm khi
  * tháng tụt xuống (Dec→Jan). Trả null nếu không tìm được đủ ngày.
  */
-function detectDateColumns(
-  rows: string[][],
-  ref: Date,
-): { headerRow: number; dateCols: { col: number; date: Date }[] } | null {
-  // Chọn hàng có nhiều ô ngày nhất.
-  let bestRow = -1;
-  let bestCells: { col: number; dm: DayMonth }[] = [];
-  for (let r = 0; r < rows.length; r++) {
-    const cells: { col: number; dm: DayMonth }[] = [];
-    for (let c = 0; c < rows[r].length; c++) {
-      const dm = parseDayMonth(rows[r][c]);
-      if (dm) cells.push({ col: c, dm });
-    }
-    if (cells.length >= 3 && cells.length > bestCells.length) {
-      bestRow = r;
-      bestCells = cells;
-    }
-  }
-  if (bestRow < 0) return null;
+interface DateBlock {
+  headerRow: number;
+  dateCols: { col: number; date: Date }[];
+}
 
+/** Dựng cột→ngày từ các ô ngày của MỘT hàng tiêu đề (gán năm nhất quán cả hàng). */
+function buildDateCols(
+  cells: { col: number; dm: DayMonth }[],
+  ref: Date,
+): { dateCols: { col: number; date: Date }[]; sawYear: boolean } {
   // Năm neo = tháng của ô đầu (ưu tiên năm ghi rõ nếu có).
-  const first = bestCells[0].dm;
+  const first = cells[0].dm;
   let year = first.y ?? yearForMonth(first.mo, ref);
   let prevMo = first.mo;
   let sawYear = false;
 
   const dateCols: { col: number; date: Date }[] = [];
-  for (const { col, dm } of bestCells) {
+  for (const { col, dm } of cells) {
     if (dm.y != null) {
       year = dm.y;
       sawYear = true;
@@ -367,13 +360,85 @@ function detectDateColumns(
     const date = safeDate(year, dm.mo, dm.d);
     if (date) dateCols.push({ col, date });
   }
-  if (dateCols.length < 3) return null;
-  // Tab không ghi năm → năm chỉ là phỏng đoán theo tháng hiện tại. Nếu sheet có
-  // hàng "thứ" thì đối chiếu thứ trong tuần để sửa lệch ±1 năm (vd tab "Tháng 4"
-  // của năm đã qua bị đoán nhầm thành năm sau).
-  if (!sawYear) applyWeekdayYearShift(rows, bestRow, dateCols);
-  fillMissingDateCols(rows, bestRow, dateCols);
-  return { headerRow: bestRow, dateCols };
+  return { dateCols, sawYear };
+}
+
+/**
+ * Dò MỌI khối ngày trong tab:
+ * - Bố cục thường: 1 hàng tiêu đề ngày duy nhất (chọn hàng nhiều ô ngày nhất).
+ * - Bố cục "khối tuần" lặp lại (mỗi tuần 1 hàng tiêu đề `2/11..8/11`, dưới là
+ *   các hàng phòng, rồi lại tuần kế): nhận diện khi có ≥2 hàng tiêu đề CÙNG bộ
+ *   cột; hàng tiêu đề khác bộ cột (bảng phụ bên cạnh) bị bỏ qua. Khối "mảnh"
+ *   chỉ còn 1–2 ngày (tuần vắt đầu/cuối tháng) được nhận khi cột nằm trong bộ
+ *   cột chung VÀ thứ-trong-tuần của ngày khớp đúng thứ của cột đó ở các khối đủ.
+ */
+function detectDateBlocks(rows: string[][], ref: Date): DateBlock[] {
+  const candidates: { row: number; cells: { col: number; dm: DayMonth }[] }[] = [];
+  for (let r = 0; r < rows.length; r++) {
+    const cells: { col: number; dm: DayMonth }[] = [];
+    for (let c = 0; c < rows[r].length; c++) {
+      const dm = parseDayMonth(rows[r][c]);
+      if (dm) cells.push({ col: c, dm });
+    }
+    if (cells.length > 0) candidates.push({ row: r, cells });
+  }
+  const strong = candidates.filter((c) => c.cells.length >= 3);
+  if (strong.length === 0) return [];
+
+  // Gom hàng tiêu đề theo "chữ ký" bộ cột.
+  const bySig = new Map<string, typeof strong>();
+  for (const c of strong) {
+    const sig = c.cells.map((x) => x.col).join(",");
+    const list = bySig.get(sig);
+    if (list) list.push(c);
+    else bySig.set(sig, [c]);
+  }
+  let group = [...bySig.values()].sort((a, b) => b.length - a.length)[0];
+  if (group.length < 2) {
+    // Không có bố cục lặp → hành vi cũ: 1 tiêu đề tốt nhất (nhiều ô ngày nhất).
+    let best = strong[0];
+    for (const c of strong) if (c.cells.length > best.cells.length) best = c;
+    group = [best];
+  }
+
+  const blocks: DateBlock[] = [];
+  for (const cand of group) {
+    const { dateCols, sawYear } = buildDateCols(cand.cells, ref);
+    if (dateCols.length < 3) continue;
+    // Tab không ghi năm → năm chỉ là phỏng đoán theo tháng hiện tại. Nếu sheet có
+    // hàng "thứ" thì đối chiếu thứ trong tuần để sửa lệch ±1 năm (vd tab "Tháng 4"
+    // của năm đã qua bị đoán nhầm thành năm sau).
+    if (!sawYear) applyWeekdayYearShift(rows, cand.row, dateCols);
+    fillMissingDateCols(rows, cand.row, dateCols);
+    blocks.push({ headerRow: cand.row, dateCols });
+  }
+
+  if (blocks.length >= 2) {
+    // Thứ-trong-tuần của từng cột phải nhất quán giữa các khối đủ mới dám nhận khối mảnh.
+    const colWd = new Map<number, number>();
+    let consistent = true;
+    for (const b of blocks) {
+      for (const dc of b.dateCols) {
+        const wd = dc.date.getUTCDay();
+        const cur = colWd.get(dc.col);
+        if (cur == null) colWd.set(dc.col, wd);
+        else if (cur !== wd) consistent = false;
+      }
+    }
+    if (consistent) {
+      const used = new Set(blocks.map((b) => b.headerRow));
+      for (const cand of candidates) {
+        if (used.has(cand.row) || cand.cells.length >= 3) continue;
+        const { dateCols } = buildDateCols(cand.cells, ref);
+        if (dateCols.length === 0 || dateCols.length !== cand.cells.length) continue;
+        if (dateCols.every((dc) => colWd.get(dc.col) === dc.date.getUTCDay())) {
+          blocks.push({ headerRow: cand.row, dateCols });
+        }
+      }
+    }
+  }
+  blocks.sort((a, b) => a.headerRow - b.headerRow);
+  return blocks;
 }
 
 /**
@@ -423,16 +488,117 @@ function transpose(rows: string[][]): string[][] {
   return out;
 }
 
-/** Dò hướng bảng: thử kiểu ngày-ngang trước, thất bại thì xoay bảng rồi dò lại. */
+/** Nhãn tháng kiểu "Tháng 8", "Tháng 1/2026", "Tháng4/2026" → {mo, y|null}. */
+function parseMonthLabel(raw: string): { mo: number; y: number | null } | null {
+  const m = norm(raw).match(/^thang\s*(\d{1,2})(?:\s+(\d{2,4}))?$/);
+  if (!m) return null;
+  const mo = +m[1];
+  if (mo < 1 || mo > 12) return null;
+  let y: number | null = m[2] ? +m[2] : null;
+  if (y != null && y < 100) y += 2000;
+  return { mo, y };
+}
+
+/** Ô chỉ ghi SỐ NGÀY trần: "1", "17 ( m 1 tết)" → 1..31. */
+function parseDayNumber(raw: string): number | null {
+  const m = raw.trim().match(/^(\d{1,2})\b/);
+  if (!m) return null;
+  const d = +m[1];
+  return d >= 1 && d <= 31 ? d : null;
+}
+
+/**
+ * Suy năm cho khối tháng không ghi năm bằng hàng "thứ" CỦA CHÍNH KHỐI (1–2 hàng
+ * ngay dưới hàng số ngày) — không quét cả tab, vì tab kiểu khối-tháng có nhiều
+ * hàng thứ của các tháng khác dễ trùng khớp nhầm (vd Tháng 8 2025 và Tháng 8
+ * 2026 cùng tab). Không có hàng thứ / không phân định được → dùng năm đoán.
+ */
+function inferYearByWeekday(
+  rows: string[][],
+  headerRow: number,
+  mo: number,
+  dayCells: { col: number; d: number }[],
+  ref: Date,
+): number {
+  const guess = yearForMonth(mo, ref);
+  for (let r = headerRow + 1; r <= Math.min(headerRow + 2, rows.length - 1); r++) {
+    let found = false;
+    for (const y of [guess, guess - 1, guess + 1]) {
+      let match = 0;
+      let wrong = 0;
+      for (const { col, d } of dayCells) {
+        const wd = parseWeekday(rows[r][col] ?? "");
+        if (wd == null) continue;
+        const date = safeDate(y, mo, d);
+        if (!date) continue;
+        found = true;
+        if (date.getUTCDay() === wd) match++;
+        else wrong++;
+      }
+      if (wrong === 0 && match >= 3) return y;
+    }
+    if (found) break; // có hàng thứ nhưng không năm nào khớp sạch → dùng guess
+  }
+  return guess;
+}
+
+/**
+ * Bố cục "khối tháng" (vd Pao homestay): CẢ NĂM trong 1 tab, mỗi tháng là một
+ * khối gồm hàng nhãn "Tháng 8"/"Tháng 1/2026" → hàng SỐ NGÀY trần "1,2,...,31"
+ * (không có tháng nên parseDayMonth không nhận ra) → hàng thứ → các hàng phòng.
+ * Nhận diện: ô đầu tiên của hàng là nhãn tháng, trong ≤3 hàng kế có hàng ≥10 số
+ * 1..31 tăng dần. Năm lấy từ nhãn, thiếu thì suy bằng hàng thứ của khối.
+ */
+function detectMonthBlocks(rows: string[][], ref: Date): DateBlock[] {
+  const blocks: DateBlock[] = [];
+  const used = new Set<number>(); // hàng số-ngày đã nhận (tránh 2 nhãn trỏ cùng 1 hàng)
+  for (let r = 0; r < rows.length; r++) {
+    const label = rows[r].map((c) => c.trim()).find((c) => c);
+    if (!label) continue;
+    const ml = parseMonthLabel(label);
+    if (!ml) continue;
+    for (let hr = r + 1; hr <= Math.min(r + 3, rows.length - 1); hr++) {
+      if (used.has(hr)) break;
+      const dayCells: { col: number; d: number }[] = [];
+      for (let c = 0; c < rows[hr].length; c++) {
+        const d = parseDayNumber(rows[hr][c]);
+        if (d != null) dayCells.push({ col: c, d });
+      }
+      if (dayCells.length < 10) continue;
+      if (dayCells.some((dc, i) => i > 0 && dc.d <= dayCells[i - 1].d)) continue;
+      const year = ml.y ?? inferYearByWeekday(rows, hr, ml.mo, dayCells, ref);
+      const dateCols: { col: number; date: Date }[] = [];
+      for (const { col, d } of dayCells) {
+        const date = safeDate(year, ml.mo, d);
+        if (date) dateCols.push({ col, date });
+      }
+      if (dateCols.length >= 3) {
+        blocks.push({ headerRow: hr, dateCols });
+        used.add(hr);
+      }
+      break; // mỗi nhãn tháng nhận tối đa 1 hàng số ngày
+    }
+  }
+  return blocks;
+}
+
+/**
+ * Dò hướng bảng: thử kiểu ngày-ngang trước, rồi bố cục khối-tháng, thất bại thì
+ * xoay bảng rồi dò lại theo cùng thứ tự.
+ */
 function detectLayout(
   rows: string[][],
   ref: Date,
-): { rows: string[][]; headerRow: number; dateCols: { col: number; date: Date }[] } | null {
-  const direct = detectDateColumns(rows, ref);
-  if (direct) return { rows, ...direct };
+): { rows: string[][]; blocks: DateBlock[] } | null {
+  const direct = detectDateBlocks(rows, ref);
+  if (direct.length > 0) return { rows, blocks: direct };
+  const monthly = detectMonthBlocks(rows, ref);
+  if (monthly.length > 0) return { rows, blocks: monthly };
   const flipped = transpose(rows);
-  const viaTranspose = detectDateColumns(flipped, ref);
-  return viaTranspose ? { rows: flipped, ...viaTranspose } : null;
+  const viaTranspose = detectDateBlocks(flipped, ref);
+  if (viaTranspose.length > 0) return { rows: flipped, blocks: viaTranspose };
+  const monthlyT = detectMonthBlocks(flipped, ref);
+  return monthlyT.length > 0 ? { rows: flipped, blocks: monthlyT } : null;
 }
 
 type RoomRef = { id: string; name: string; roomTypeId: string };
@@ -596,48 +762,58 @@ export async function syncServiceSheet(serviceId: string): Promise<SheetSyncResu
         skippedTabs.push(tab.name);
         continue;
       }
-      const { rows, headerRow, dateCols } = detected;
-      const firstDateCol = Math.min(...dateCols.map((d) => d.col));
-      // Đồng bộ TOÀN BỘ ngày trong sheet (cả quá khứ) để lịch tháng trong admin
-      // khớp sheet trọn tháng, không chỉ từ hôm nay trở đi.
-      const futureCols = dateCols;
+      const { rows, blocks } = detected;
       anyCalendarTab = true;
 
-      let matchedInTab = 0;
-      const seenInTab = new Set<string>();
-      for (let r = 0; r < rows.length; r++) {
-        if (r === headerRow) continue;
-        const row = rows[r];
-        // Ứng viên tên phòng = MỌI ô chữ bên trái vùng ngày, duyệt từ phải sang
-        // trái (tên phòng thường nằm sát vùng ngày; bên trái có thể là tên
-        // homestay / nhãn nhóm do ô gộp tách ra nhiều ô).
-        const candidates: string[] = [];
-        for (let c = Math.max(1, firstDateCol) - 1; c >= 0; c--) {
-          const v = (row[c] ?? "").trim();
-          if (v) candidates.push(v);
-        }
-        if (candidates.length === 0) continue;
-        let room: RoomRef | null = null;
-        for (const cand of candidates) {
-          room = matchRoom(roomByName, allRooms, cand);
-          if (room) break;
-        }
-        if (!room) {
-          if (candidates.some((c) => HEADER_LABELS.has(norm(c)))) continue;
-          const hasBooking = futureCols.some((dc) => cellStatus(row[dc.col] ?? "") !== "AVAILABLE");
-          if (hasBooking) unmatched.add(candidates[0]);
-          continue;
-        }
-        if (seenInTab.has(room.id)) continue;
-        seenInTab.add(room.id);
-        matchedRoomIds.add(room.id);
-        matchedInTab++;
-        for (const dc of futureCols) {
-          entries.push({ room, date: dc.date, status: cellStatus(row[dc.col] ?? "") });
+      // Bố cục 1 khối: quét MỌI hàng của tab (như cũ). Bố cục nhiều khối (lịch
+      // kiểu tuần-per-khối): mỗi khối chỉ quét các hàng từ sau tiêu đề của nó
+      // tới trước tiêu đề khối kế — mỗi phòng xuất hiện 1 lần trong mỗi khối.
+      const multi = blocks.length > 1;
+      const seenInTab = new Set<string>(); // phòng đã khớp trong tab (đếm syncedTabs)
+      for (let bi = 0; bi < blocks.length; bi++) {
+        const block = blocks[bi];
+        // Đồng bộ TOÀN BỘ ngày trong sheet (cả quá khứ) để lịch tháng trong admin
+        // khớp sheet trọn tháng, không chỉ từ hôm nay trở đi.
+        const dateCols = block.dateCols;
+        const firstDateCol = Math.min(...dateCols.map((d) => d.col));
+        const rStart = multi ? block.headerRow + 1 : 0;
+        const rEnd = multi ? (blocks[bi + 1]?.headerRow ?? rows.length) : rows.length;
+        const seenInBlock = new Set<string>();
+        for (let r = rStart; r < rEnd; r++) {
+          if (r === block.headerRow) continue;
+          const row = rows[r];
+          // Ứng viên tên phòng = MỌI ô chữ bên trái vùng ngày, duyệt từ phải sang
+          // trái (tên phòng thường nằm sát vùng ngày; bên trái có thể là tên
+          // homestay / nhãn nhóm do ô gộp tách ra nhiều ô).
+          const candidates: string[] = [];
+          for (let c = Math.max(1, firstDateCol) - 1; c >= 0; c--) {
+            const v = (row[c] ?? "").trim();
+            if (v) candidates.push(v);
+          }
+          if (candidates.length === 0) continue;
+          let room: RoomRef | null = null;
+          for (const cand of candidates) {
+            room = matchRoom(roomByName, allRooms, cand);
+            if (room) break;
+          }
+          if (!room) {
+            // Nhãn tiêu đề/nhãn tháng (vd hàng thứ ghi "Tháng 7/2026" ở cột đầu) → bỏ qua êm.
+            if (candidates.some((c) => HEADER_LABELS.has(norm(c)) || parseMonthLabel(c))) continue;
+            const hasBooking = dateCols.some((dc) => cellStatus(row[dc.col] ?? "") !== "AVAILABLE");
+            if (hasBooking) unmatched.add(candidates[0]);
+            continue;
+          }
+          if (seenInBlock.has(room.id)) continue;
+          seenInBlock.add(room.id);
+          seenInTab.add(room.id);
+          matchedRoomIds.add(room.id);
+          for (const dc of dateCols) {
+            entries.push({ room, date: dc.date, status: cellStatus(row[dc.col] ?? "") });
+          }
         }
       }
 
-      if (matchedInTab > 0) syncedTabs.push(tab.name);
+      if (seenInTab.size > 0) syncedTabs.push(tab.name);
       else skippedTabs.push(tab.name);
     }
 
