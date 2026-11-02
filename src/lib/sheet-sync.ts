@@ -48,6 +48,12 @@ const HEADER_LABELS = new Set([
   "so phong ban", "ti le lap", // cột/hàng thống kê trong sheet của chủ nhà
 ]);
 
+// Nhãn hàng/cột thống kê của chủ nhà ("SL phòng đã đặt", "Tổng số phòng đã đặt",
+// "Tỉ lệ đặt phòng", "Công suất"...) — không phải tên phòng, bỏ qua không cảnh báo.
+const STATS_LABEL_RE = /^(sl|so luong|tong|ti le|ty le|cong suat|doanh thu|so phong)\b/;
+// Ô chỉ chứa số/phần trăm/tỉ số — hàng mà MỌI ô ngày đều kiểu này là hàng đếm/thống kê.
+const NUMERIC_CELL_RE = /^[\d.,%/\s-]+$/;
+
 /**
  * Bỏ dấu + thường hoá + bỏ ký tự không phải chữ/số để so khớp tên phòng linh hoạt
  * ("Phòng 3 ( không view )" ≡ "Phòng 3 (không view)").
@@ -812,7 +818,16 @@ export async function syncServiceSheet(
           if (!room) {
             // Nhãn tiêu đề/nhãn tháng (vd hàng thứ ghi "Tháng 7/2026" ở cột đầu) → bỏ qua êm.
             if (candidates.some((c) => HEADER_LABELS.has(norm(c)) || parseMonthLabel(c))) continue;
-            const hasBooking = dateCols.some((dc) => cellStatus(row[dc.col] ?? "") !== "AVAILABLE");
+            // Hàng thống kê của chủ nhà: nhãn kiểu "SL/Tổng/Tỉ lệ..." hoặc mọi ô
+            // trong vùng ngày chỉ chứa số/%/tỉ số ("12", "85%", "5/14") → bỏ qua êm.
+            if (candidates.some((c) => STATS_LABEL_RE.test(norm(c)))) continue;
+            const cells = dateCols.map((dc) => (row[dc.col] ?? "").trim()).filter(Boolean);
+            if (cells.length > 0 && cells.every((v) => NUMERIC_CELL_RE.test(v))) continue;
+            // Chỉ cảnh báo khi hàng có booking từ HÔM NAY trở đi — phòng chỉ còn
+            // trong tab tháng đã qua (đã ngừng bán) không ảnh hưởng gì.
+            const hasBooking = dateCols.some(
+              (dc) => dc.date >= ref && cellStatus(row[dc.col] ?? "") !== "AVAILABLE",
+            );
             if (hasBooking) unmatched.add(candidates[0]);
             continue;
           }
