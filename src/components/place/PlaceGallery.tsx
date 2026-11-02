@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const BORDER = "oklch(0.92 0.01 160)";
 const ACCENT = "oklch(0.68 0.18 45)";
@@ -10,6 +10,9 @@ const ACCENT = "oklch(0.68 0.18 45)";
 export function PlaceGallery({ images, name }: { images: string[]; name: string }) {
   const [w, setW] = useState(1280);
   const [lb, setLb] = useState(-1); // chỉ số ảnh đang mở trong lightbox, -1 = đóng
+  const touch = useRef<{ x: number; y: number } | null>(null); // điểm bắt đầu vuốt
+
+  const go = (dir: number) => setLb((i) => (i + dir + images.length) % images.length);
 
   useEffect(() => {
     const onR = () => setW(window.innerWidth);
@@ -75,17 +78,46 @@ export function PlaceGallery({ images, name }: { images: string[]; name: string 
 
       {/* Lightbox */}
       {lb >= 0 && (
-        <div onClick={() => setLb(-1)} className="fixed inset-0 z-[60] flex cursor-zoom-out flex-col items-center justify-center gap-3.5 p-5" style={{ background: "oklch(0.12 0.02 200 / .92)" }}>
-          <div className="absolute right-5 top-4 text-sm font-bold text-white">{lb + 1} / {images.length}</div>
+        <div
+          onClick={() => setLb(-1)}
+          onTouchStart={(e) => { touch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
+          onTouchEnd={(e) => {
+            const s = touch.current;
+            touch.current = null;
+            if (!s) return;
+            const dx = e.changedTouches[0].clientX - s.x;
+            const dy = e.changedTouches[0].clientY - s.y;
+            // Vuốt ngang đủ dài → chuyển ảnh (không coi là chạm để đóng).
+            if (images.length > 1 && Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+              go(dx < 0 ? 1 : -1);
+            }
+          }}
+          className="fixed inset-0 z-[60] flex cursor-zoom-out flex-col items-center justify-center gap-3.5 p-5"
+          style={{ background: "oklch(0.12 0.02 200 / .92)" }}
+        >
+          {/* Nút đóng — luôn hiển thị */}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setLb(-1); }}
+            className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full text-[26px] leading-none text-white"
+            style={{ background: "oklch(1 0 0 / .16)" }}
+            aria-label="Đóng"
+          >
+            ×
+          </button>
+          <div className="absolute left-5 top-5 text-sm font-bold text-white">{lb + 1} / {images.length}</div>
           {images.length > 1 && (
             <>
-              <button type="button" onClick={(e) => { e.stopPropagation(); setLb((i) => (i - 1 + images.length) % images.length); }} className="absolute left-3.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-[22px] text-white" style={{ background: "oklch(1 0 0 / .14)" }} aria-label="Ảnh trước">‹</button>
-              <button type="button" onClick={(e) => { e.stopPropagation(); setLb((i) => (i + 1) % images.length); }} className="absolute right-3.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-[22px] text-white" style={{ background: "oklch(1 0 0 / .14)" }} aria-label="Ảnh sau">›</button>
+              <button type="button" onClick={(e) => { e.stopPropagation(); go(-1); }} className="absolute left-3.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-[22px] text-white" style={{ background: "oklch(1 0 0 / .14)" }} aria-label="Ảnh trước">‹</button>
+              <button type="button" onClick={(e) => { e.stopPropagation(); go(1); }} className="absolute right-3.5 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full text-[22px] text-white" style={{ background: "oklch(1 0 0 / .14)" }} aria-label="Ảnh sau">›</button>
             </>
           )}
-          <div onClick={(e) => e.stopPropagation()} className="relative cursor-default overflow-hidden rounded-2xl" style={{ width: "min(1100px,92vw)", height: "min(70vh,720px)" }}>
-            <Image src={images[lb]} alt={`${name} ${lb + 1}`} fill sizes="92vw" className="object-contain" />
+          <div onClick={(e) => e.stopPropagation()} className="relative cursor-default select-none overflow-hidden rounded-2xl" style={{ width: "min(1100px,92vw)", height: "min(70vh,720px)" }}>
+            <Image src={images[lb]} alt={`${name} ${lb + 1}`} fill sizes="92vw" className="object-contain" draggable={false} />
           </div>
+          {images.length > 1 && (
+            <div className="text-xs font-semibold text-white/70">Vuốt sang để xem ảnh khác · chạm nền để đóng</div>
+          )}
         </div>
       )}
     </>
