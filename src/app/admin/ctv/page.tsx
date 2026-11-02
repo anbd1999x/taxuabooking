@@ -76,6 +76,10 @@ export function OrdersTable({
     service?: { title: string } | null;
     commissionAmount?: import("@prisma/client").Prisma.Decimal | number | string | null;
     commissionPaid?: boolean;
+    // Đơn COMBO: bill tách từng bên (tiền phòng về homestay, tiền vé về nhà xe).
+    category?: string;
+    roomAmount?: unknown;
+    busAmount?: unknown;
   }[];
   /** true ⇒ hiện nút đánh dấu "đã trả hoa hồng" (admin / chủ dịch vụ). */
   settleCommission?: boolean;
@@ -107,7 +111,14 @@ export function OrdersTable({
                   <td className="px-4 py-3 font-semibold text-forest-700">{b.code}</td>
                   <td className="px-4 py-3">{b.service?.title ?? b.serviceTitle}</td>
                   <td className="px-4 py-3 hidden sm:table-cell text-gray-600">{formatDate(b.useDate)}</td>
-                  <td className="px-4 py-3 text-right font-semibold">{formatPrice(b.referencePrice as number)}</td>
+                  <td className="px-4 py-3 text-right font-semibold">
+                    {formatPrice(b.referencePrice as number)}
+                    {b.category === "COMBO" && b.roomAmount != null && (
+                      <div className="mt-0.5 whitespace-nowrap text-[11px] font-normal text-gray-500">
+                        🛏 phòng {formatPrice(b.roomAmount as number)} · 🚌 xe {formatPrice(b.busAmount as number)}
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-3"><span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs">{meta.label}</span></td>
                   <td className="px-4 py-3 text-right font-semibold text-forest-700">{comm > 0 ? formatPrice(comm) : "—"}</td>
                   <td className="px-4 py-3">
