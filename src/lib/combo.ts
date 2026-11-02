@@ -39,6 +39,24 @@ export const EMPTY_FILTERS: ComboFilters = {
 /** Loại phòng cho combo. */
 export type ComboRoomKind = "all" | "single" | "double" | "dorm";
 
+/**
+ * Phòng CỘNG ĐỒNG (dorm): giá phòng trong app là GIÁ MỖI NGƯỜI (giường ghép),
+ * nên combo/khách = giá phòng + vé khứ hồi — KHÔNG chia theo đoàn, KHÔNG trừ
+ * giảm giá combo. Nhận diện theo tên hạng/phòng (khác với bộ lọc "Phòng tập
+ * thể" vốn gồm cả phòng gia đình đông người).
+ */
+export function isCommunalRoom(typeName: string, roomName = ""): boolean {
+  const n = `${typeName} ${roomName}`.toLowerCase();
+  return /cộng đồng|cong dong|dorm|tập thể|tap the|giường tầng|giuong tang|phòng chung|phong chung/.test(n);
+}
+
+/** Giá combo cho MỖI KHÁCH theo loại phòng (dorm: không chia, không giảm). */
+export function comboPricePerPerson(roomCost: number, communal: boolean, people: number, fare: number): number {
+  return communal
+    ? roomCost + fare
+    : Math.round(roomCost / people) + fare - COMBO_DISCOUNT;
+}
+
 /** Phân loại phòng theo tên hạng + sức chứa. */
 function roomKindOf(capacity: number, typeName: string): Exclude<ComboRoomKind, "all"> {
   const n = typeName.toLowerCase();
@@ -89,6 +107,8 @@ export interface ComboRoomOption {
   easyRoad: boolean;
   pool: boolean;
   kind: Exclude<ComboRoomKind, "all">;
+  /** Phòng cộng đồng: roomCost là giá MỖI NGƯỜI, không chia theo đoàn. */
+  communal: boolean;
 }
 
 export interface ComboMatch {
@@ -141,6 +161,8 @@ const BOOKABLE: AvailabilityStatus[] = ["AVAILABLE", "LIMITED"];
  * xe chạy chiều về = ngày check-out. Số đêm = check-out − check-in.
  *
  * Giá combo / khách = (tiền phòng cả kỳ ÷ số người) + vé khứ hồi 1 người − 50k.
+ * Riêng PHÒNG CỘNG ĐỒNG (giá phòng = giá mỗi người): combo / khách = giá phòng
+ * cộng đồng + vé khứ hồi (không chia theo đoàn, không trừ 50k).
  * Kết quả sắp xếp theo mức gần giá mong muốn nhất (không nhập giá → rẻ trước).
  */
 export async function findComboMatches(input: {
@@ -184,8 +206,8 @@ export async function findComboMatches(input: {
   const matches: ComboMatch[] = [];
   for (const bus of buses) {
     for (const room of rooms) {
-      const roomSharePerPerson = Math.round(room.roomCost / people);
-      const pricePerPerson = roomSharePerPerson + bus.farePerPerson - COMBO_DISCOUNT;
+      const roomSharePerPerson = room.communal ? room.roomCost : Math.round(room.roomCost / people);
+      const pricePerPerson = comboPricePerPerson(room.roomCost, room.communal, people, bus.farePerPerson);
       if (pricePerPerson <= 0) continue;
       const distance = budget != null ? Math.abs(pricePerPerson - budget) : pricePerPerson;
       matches.push({
@@ -221,16 +243,16 @@ export async function findComboMatches(input: {
   }
   for (const h of homeMap.values()) {
     const amen = new Set<string>();
-    let minRoomCost = Infinity;
+    let minPerPerson = Infinity;
     for (const r of h.rooms) {
       for (const [k, label] of FEAT) if (r.features[k]) amen.add(label);
       if (r.pool) amen.add("🏊 Hồ bơi");
       if (r.easyRoad) amen.add("🛣️ Đường dễ đi");
-      if (r.roomCost < minRoomCost) minRoomCost = r.roomCost;
+      const pp = comboPricePerPerson(r.roomCost, r.communal, people, cheapestFare);
+      if (pp < minPerPerson) minPerPerson = pp;
     }
     h.amenities = [...amen];
-    const share = Math.round((minRoomCost === Infinity ? 0 : minRoomCost) / people);
-    h.bestPricePerPerson = Math.max(0, share + cheapestFare - COMBO_DISCOUNT);
+    h.bestPricePerPerson = Math.max(0, minPerPerson === Infinity ? 0 : minPerPerson);
   }
   const homes = [...homeMap.values()].sort((a, b) => {
     const da = budget != null ? Math.abs(a.bestPricePerPerson - budget) : a.bestPricePerPerson;
@@ -383,6 +405,7 @@ async function findRooms(
       easyRoad: s.easyRoad,
       pool: s.pool,
       kind,
+      communal: isCommunalRoom(rt.name, room.name),
     });
   }
   return out;
@@ -426,7 +449,8 @@ export async function createComboBooking(
   let roomCost = 0;
   for (const d of nights) roomCost += priceForDay(d, pricing, null);
   const fare = (toNumber(outbound.price) ?? 0) + (toNumber(ret.price) ?? 0);
-  const pricePerPerson = Math.round(roomCost / people) + fare - COMBO_DISCOUNT;
+  const communal = isCommunalRoom(room.roomType.name, room.name);
+  const pricePerPerson = comboPricePerPerson(roomCost, communal, people, fare);
   const total = Math.max(0, pricePerPerson) * people;
 
   const busSvc = await prisma.service.findUnique({ where: { id: outbound.serviceId }, select: { title: true } });

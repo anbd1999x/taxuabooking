@@ -55,7 +55,13 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
             home,
             room,
             count: 1,
-            bestPrice: Math.max(0, Math.round(room.roomCost / people) + cheapestFare - COMBO_DISCOUNT),
+            // Phòng cộng đồng: roomCost = giá mỗi người → không chia, không giảm combo.
+            bestPrice: Math.max(
+              0,
+              room.communal
+                ? room.roomCost + cheapestFare
+                : Math.round(room.roomCost / people) + cheapestFare - COMBO_DISCOUNT,
+            ),
           });
       }
     }
@@ -188,8 +194,9 @@ function ComboRoomCard({
     return out;
   }, [room]);
 
-  const roomShare = Math.round(room.roomCost / people);
-  const pricePerPerson = Math.max(0, roomShare + (bus?.farePerPerson ?? 0) - COMBO_DISCOUNT);
+  // Phòng cộng đồng: giá phòng là giá MỖI NGƯỜI → không chia theo đoàn, không trừ giảm combo.
+  const roomShare = room.communal ? room.roomCost : Math.round(room.roomCost / people);
+  const pricePerPerson = Math.max(0, roomShare + (bus?.farePerPerson ?? 0) - (room.communal ? 0 : COMBO_DISCOUNT));
   const total = pricePerPerson * people;
   const diff = budget != null ? pricePerPerson - budget : null;
 
@@ -270,7 +277,7 @@ function ComboRoomCard({
             <div className="text-[13px] font-semibold text-gray-500">{home.title}</div>
             <div className="text-[19px] font-extrabold tracking-[-0.015em] text-ink">{count > 1 ? room.typeName : room.roomName}</div>
             <div className="mt-0.5 text-[13px] text-gray-500">
-              Tối đa {room.capacity} người · {nights} đêm · <span className="font-bold text-ink">{vnd(room.roomCost)}</span>/phòng cả kỳ ·{" "}
+              Tối đa {room.capacity} người · {nights} đêm · <span className="font-bold text-ink">{vnd(room.roomCost)}</span>/{room.communal ? "người" : "phòng"} cả kỳ ·{" "}
               <span className="font-bold text-[oklch(0.38_0.1_155)]">{count > 1 ? `Còn ${count} phòng` : "Còn phòng"}</span>
             </div>
             {amenities.length > 0 && (
@@ -327,9 +334,11 @@ function ComboRoomCard({
             <div className="mt-0.5 text-[13px] font-semibold text-gray-500">≈ {vnd(total)} cho {people} người</div>
           </div>
           <div className="flex flex-col gap-1 text-xs leading-relaxed text-gray-500">
-            <div className="flex justify-between gap-2"><span>Phòng ÷ {people}</span><span className="font-bold text-ink">{vnd(roomShare)}</span></div>
+            <div className="flex justify-between gap-2"><span>{room.communal ? "Giường cộng đồng / khách" : `Phòng ÷ ${people}`}</span><span className="font-bold text-ink">{vnd(roomShare)}</span></div>
             <div className="flex justify-between gap-2"><span>Vé khứ hồi / khách</span><span className="font-bold text-ink">{vnd(bus?.farePerPerson ?? 0)}</span></div>
-            <div className="flex justify-between gap-2"><span>Giảm combo</span><span className="font-bold text-forest-700">− {vnd(COMBO_DISCOUNT)}</span></div>
+            {!room.communal && (
+              <div className="flex justify-between gap-2"><span>Giảm combo</span><span className="font-bold text-forest-700">− {vnd(COMBO_DISCOUNT)}</span></div>
+            )}
           </div>
           <div className="flex-1" />
 
