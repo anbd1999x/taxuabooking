@@ -41,6 +41,7 @@ const SHEET_TAG = "SHEET";
 const HEADER_LABELS = new Set([
   "ngay", "thu", "date", "day", "weekday", "phong", "room", "rooms", "ten phong",
   "stt", "loai phong", "note", "ghi chu", "tong", "total", "so phong",
+  "so phong ban", "ti le lap", // cột/hàng thống kê trong sheet của chủ nhà
 ]);
 
 /**
@@ -56,7 +57,8 @@ function norm(s: string): string {
     .replace(/[^a-z0-9]+/g, " ")
     .replace(/([a-z])(\d)/g, "$1 $2") // tách chữ–số dính liền ("Vip3" ≡ "Vip 3")
     .replace(/(\d)([a-z])/g, "$1 $2")
-    .replace(/\b0+(\d)/g, "$1") // bỏ số 0 đứng đầu ("Đôi 01" ≡ "Đôi 1")
+    .replace(/\bp (\d+)\b/g, "phong $1") // sheet ghi tắt "P6" ≡ "Phòng 6" (chữ–số đã tách ở trên)
+    .replace(/\b0+(\d)/g, "$1") // bỏ số 0 đứng đầu ("Đôi 01" ≡ "Đôi 1", "P06" ≡ "Phòng 6")
     .trim();
 }
 
@@ -134,6 +136,9 @@ function parseDayMonth(raw: string): DayMonth | null {
     if (m[3]) {
       y = +m[3];
       if (y < 100) y += 2000;
+      // Năm vô lý (vd gõ nhầm "1/1/0227") → coi như không ghi năm, để suy theo
+      // các ô cùng hàng / tháng hiện tại.
+      if (y < 1990 || y > 2100) y = null;
     }
     return { d, mo, y };
   }
