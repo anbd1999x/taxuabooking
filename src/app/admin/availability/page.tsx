@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { toDateKey } from "@/lib/dates";
 import { RoomGrid, type RoomGroup } from "@/components/admin/RoomGrid";
+import { SheetSyncAll } from "@/components/admin/SheetSyncAll";
 import { MonthOverview } from "@/components/admin/MonthOverview";
 import { CabinMonth, type CabinDay } from "@/components/admin/CabinMonth";
 import { AvailabilityEditor } from "@/components/admin/AvailabilityEditor";
@@ -47,6 +48,13 @@ export default async function AvailabilityPage({
   });
 
   const selected = serviceId ? services.find((s) => s.id === serviceId) : undefined;
+
+  // Homestay có link Google Sheet — cho nút "Đồng bộ tất cả" (PROVIDER chỉ thấy của mình).
+  const sheetServices = await prisma.service.findMany({
+    where: { category: { in: ["HOMESTAY", "BUNGALOW"] }, sheetUrl: { not: null }, ...ownerFilter },
+    orderBy: { title: "asc" },
+    select: { id: true, title: true, sheetSyncResult: true },
+  });
 
   // Khoảng ngày của tháng
   const [y, m] = month.split("-").map(Number);
@@ -217,6 +225,8 @@ export default async function AvailabilityPage({
         <input type="hidden" name="view" value={view} />
         <button className="rounded-xl bg-forest-100 px-4 py-2.5 text-sm font-medium text-forest-700">Chọn</button>
       </form>
+
+      <SheetSyncAll items={sheetServices.map((s) => ({ id: s.id, title: s.title, last: s.sheetSyncResult }))} />
 
       {!selected ? (
         <p className="mt-8 rounded-2xl border border-dashed border-gray-300 bg-white py-12 text-center text-gray-500">
