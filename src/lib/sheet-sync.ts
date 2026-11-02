@@ -164,8 +164,8 @@ function cellStatus(raw: string): RoomStatus {
   if (!t) return "AVAILABLE";
   // "Checkout" = khách trả phòng buổi sáng → đêm đó phòng trống (chủ sheet cũng
   // không tính vào tỉ lệ đặt). "Checkin" = khách ở đêm đó.
-  if (/check ?out/.test(t)) return "AVAILABLE";
-  if (/check ?in/.test(t)) return "BOOKED";
+  if (/check ?out/.test(t) || t === "out") return "AVAILABLE";
+  if (/check ?in/.test(t) || t === "in") return "BOOKED";
   if (/(dat|chot|book|full|kin|het|day|sold)/.test(t)) return "BOOKED";
   if (/(cho|wait|hold|giu|pending)/.test(t)) return "PENDING";
   if (/(dong|close|khoa|nghi|off|bao tri)/.test(t)) return "CLOSED";
@@ -180,6 +180,8 @@ function parseWeekday(raw: string): number | null {
   const t = norm(raw);
   if (!t) return null;
   if (/^(cn\b|chu nhat)/.test(t)) return 0;
+  const bare = t.match(/^([2-7])$/); // hàng thứ ghi trần "2".."7" (CN riêng)
+  if (bare) return +bare[1] - 1;
   const m = t.match(/^(?:thu|t) ?(\d|hai|ba|tu|nam|sau|bay)\b/);
   if (!m) return null;
   const words: Record<string, number> = { hai: 1, ba: 2, tu: 3, nam: 4, sau: 5, bay: 6 };
@@ -351,11 +353,13 @@ function detectDateColumns(
   const first = bestCells[0].dm;
   let year = first.y ?? yearForMonth(first.mo, ref);
   let prevMo = first.mo;
+  let sawYear = false;
 
   const dateCols: { col: number; date: Date }[] = [];
   for (const { col, dm } of bestCells) {
     if (dm.y != null) {
       year = dm.y;
+      sawYear = true;
     } else if (dm.mo < prevMo) {
       year += 1; // vắt sang năm mới (vd Dec → Jan)
     }
@@ -364,8 +368,51 @@ function detectDateColumns(
     if (date) dateCols.push({ col, date });
   }
   if (dateCols.length < 3) return null;
+  // Tab không ghi năm → năm chỉ là phỏng đoán theo tháng hiện tại. Nếu sheet có
+  // hàng "thứ" thì đối chiếu thứ trong tuần để sửa lệch ±1 năm (vd tab "Tháng 4"
+  // của năm đã qua bị đoán nhầm thành năm sau).
+  if (!sawYear) applyWeekdayYearShift(rows, bestRow, dateCols);
   fillMissingDateCols(rows, bestRow, dateCols);
   return { headerRow: bestRow, dateCols };
+}
+
+/**
+ * Chọn độ lệch năm (-1/0/+1) khớp hàng "thứ" nhất rồi áp vào dateCols. Chỉ nhận
+ * khi có hàng khớp ≥3 ô thứ và không sai ô nào; hoà thì giữ nguyên (lệch 0).
+ */
+function applyWeekdayYearShift(
+  rows: string[][],
+  headerRow: number,
+  dateCols: { col: number; date: Date }[],
+): void {
+  let best = 0;
+  let bestScore = 0;
+  for (const shift of [0, -1, 1]) {
+    let score = 0; // số ô thứ khớp tốt nhất trong một hàng (hàng có ô sai = loại)
+    for (let r = 0; r < rows.length; r++) {
+      if (r === headerRow) continue;
+      let match = 0;
+      let wrong = 0;
+      for (const dc of dateCols) {
+        const wd = parseWeekday(rows[r][dc.col] ?? "");
+        if (wd == null) continue;
+        const d = shift === 0 ? dc.date : safeDate(dc.date.getUTCFullYear() + shift, dc.date.getUTCMonth() + 1, dc.date.getUTCDate());
+        if (!d) continue;
+        if (d.getUTCDay() === wd) match++;
+        else wrong++;
+      }
+      if (wrong === 0 && match > score) score = match;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      best = shift;
+    }
+  }
+  if (best === 0 || bestScore < 3) return;
+  for (const dc of dateCols) {
+    const shifted = safeDate(dc.date.getUTCFullYear() + best, dc.date.getUTCMonth() + 1, dc.date.getUTCDate());
+    if (shifted) dc.date = shifted;
+  }
 }
 
 /** Xoay bảng (hàng↔cột) — hỗ trợ sheet kiểu ngày dọc cột A, tên phòng ngang hàng đầu. */
