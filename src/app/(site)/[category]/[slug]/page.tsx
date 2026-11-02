@@ -96,7 +96,12 @@ export default async function ServiceDetailPage({
   // (không gom theo hạng); bằng nhau thì giữ thứ tự hạng phòng.
   const stayRooms = service.roomTypes
     .flatMap((rt) => rt.rooms.map((r) => ({ rt, r })))
-    .sort((a, b) => a.r.sortOrder - b.r.sortOrder);
+    .sort(
+      (a, b) =>
+        a.r.sortOrder - b.r.sortOrder ||
+        a.rt.sortOrder - b.rt.sortOrder ||
+        a.r.name.localeCompare(b.r.name, "vi"),
+    );
   const isStayWithRooms = cat.availabilityKind === "stay" && cat.key !== "COMBO" && stayRooms.length > 0;
 
   if (isStayWithRooms) {

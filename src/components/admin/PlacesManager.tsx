@@ -12,7 +12,7 @@ type Kind = "RESTAURANT" | "CAFE";
 const KIND_SLUG: Record<Kind, string> = { RESTAURANT: "nha-hang", CAFE: "cafe" };
 const KIND_NAME: Record<Kind, string> = { RESTAURANT: "Nhà hàng", CAFE: "Cafe" };
 
-const AREA_DEFAULTS = ["Trung tâm", "Đỉnh Gió", "Khe Cải", "Sống lưng khủng long", "Mống Vài", "Thảo nguyên", "Làng Chếu"];
+const AREA_DEFAULTS = ["Trung tâm", "Đỉnh Gió", "Khe Cải", "Sống lưng khủng long", "Mống Vàng", "Thảo nguyên", "Làng Chếu"];
 const TAG_SUGGEST = ["Gợi ý", "Đặc sản Tây Bắc", "Nhóm đông", "Lẩu nướng", "Cơm suất", "View săn mây", "Có đồ ăn", "Mở sớm", "Mở khuya", "Ngoài trời", "Có homestay"];
 const BOOKING_OPTS: { v: string; label: string }[] = [
   { v: "no", label: "Không nhận, tới sớm" },

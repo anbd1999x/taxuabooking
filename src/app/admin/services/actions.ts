@@ -619,6 +619,32 @@ export async function deleteRoomType(formData: FormData): Promise<void> {
 }
 
 // ---------------- Phòng riêng lẻ ----------------
+
+/** Đánh số lại `sortOrder` cho TẤT CẢ phòng của một dịch vụ thành dãy 0..n duy nhất
+ *  (thứ tự hiển thị "trên mọi hạng"). Nhờ đó số không bao giờ trùng giữa các hạng
+ *  → thứ tự trên web ổn định, không "nhảy". Giữ nguyên trật tự theo số hiện có;
+ *  khi trùng số, phòng vừa sửa (`preferId`) được ưu tiên để nhảy đúng về chỗ đã gõ,
+ *  còn lại dồn theo thời điểm tạo cho ổn định. */
+async function normalizeServiceRoomOrder(serviceId: string, preferId?: string): Promise<void> {
+  const rooms = await prisma.room.findMany({
+    where: { roomType: { serviceId } },
+    select: { id: true, sortOrder: true, createdAt: true },
+  });
+  rooms.sort(
+    (a, b) =>
+      a.sortOrder - b.sortOrder ||
+      (a.id === preferId ? -1 : b.id === preferId ? 1 : 0) ||
+      a.createdAt.getTime() - b.createdAt.getTime(),
+  );
+  await Promise.all(
+    rooms.map((r, i) =>
+      r.sortOrder === i
+        ? Promise.resolve()
+        : prisma.room.update({ where: { id: r.id }, data: { sortOrder: i } }),
+    ),
+  );
+}
+
 export async function upsertRoom(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const serviceId = s(formData.get("serviceId"));
   const roomTypeId = s(formData.get("roomTypeId"));
@@ -658,6 +684,7 @@ export async function upsertRoom(_prev: ActionState, formData: FormData): Promis
     commissionSun: num(formData.get("commissionSun")) ?? null,
   };
   try {
+    let roomId = id;
     if (id) {
       const existing = await prisma.room.findUnique({ where: { id } });
       await prisma.room.update({ where: { id }, data: { ...data, roomTypeId } });
@@ -667,9 +694,15 @@ export async function upsertRoom(_prev: ActionState, formData: FormData): Promis
         await resyncRoomTypeWindow(roomTypeId);
       }
     } else {
-      await prisma.room.create({ data: { roomTypeId, ...data } });
+      const created = await prisma.room.create({ data: { roomTypeId, ...data } });
+      roomId = created.id;
       await resyncRoomTypeWindow(roomTypeId);
     }
+    // Dồn lại thứ tự hiển thị trên mọi hạng thành dãy 0..n duy nhất (không trùng/nhảy).
+    const svcId =
+      serviceId ||
+      (await prisma.roomType.findUnique({ where: { id: roomTypeId }, select: { serviceId: true } }))?.serviceId;
+    if (svcId) await normalizeServiceRoomOrder(svcId, roomId ?? undefined);
   } catch {
     return { error: "Lưu phòng thất bại." };
   }
@@ -701,11 +734,10 @@ export async function duplicateRoom(formData: FormData): Promise<void> {
   if (!src) return;
   const siblingRooms = await prisma.room.findMany({
     where: { roomTypeId: src.roomTypeId },
-    select: { name: true, sortOrder: true },
+    select: { name: true },
   });
-  const maxOrder = siblingRooms.reduce((mx, r) => Math.max(mx, r.sortOrder), 0);
   const newName = nextRoomName(src.name, siblingRooms.map((r) => r.name));
-  await prisma.room.create({
+  const created = await prisma.room.create({
     data: {
       roomTypeId: src.roomTypeId,
       name: newName,
@@ -733,7 +765,8 @@ export async function duplicateRoom(formData: FormData): Promise<void> {
       commissionFri: src.commissionFri,
       commissionSat: src.commissionSat,
       commissionSun: src.commissionSun,
-      sortOrder: maxOrder + 1,
+      // Đặt sát ngay sau phòng gốc trong thứ tự chung; normalize sẽ dồn lại 0..n.
+      sortOrder: src.sortOrder,
       images: {
         create: src.images.map((img) => ({
           url: img.url,
@@ -745,19 +778,27 @@ export async function duplicateRoom(formData: FormData): Promise<void> {
     },
   });
   await resyncRoomTypeWindow(src.roomTypeId);
+  const svcId =
+    serviceId ||
+    (await prisma.roomType.findUnique({ where: { id: src.roomTypeId }, select: { serviceId: true } }))?.serviceId;
+  if (svcId) await normalizeServiceRoomOrder(svcId, created.id);
   if (serviceId) revalidatePath(`/admin/services/${serviceId}`);
   revalidatePath("/admin/availability");
 }
 
-/** Đổi vị trí phòng trong cùng hạng phòng (nút ↑ ↓ ở form phòng). */
+/** Đổi vị trí phòng trong thứ tự hiển thị chung của cả dịch vụ (nút ↑ ↓ ở form phòng). */
 async function moveRoomDir(formData: FormData, dir: "left" | "right"): Promise<void> {
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   if (!id) return;
-  const room = await prisma.room.findUnique({ where: { id }, select: { roomTypeId: true } });
+  const room = await prisma.room.findUnique({
+    where: { id },
+    select: { roomType: { select: { serviceId: true } } },
+  });
   if (!room) return;
+  const svcId = serviceId || room.roomType.serviceId;
   const rows = await prisma.room.findMany({
-    where: { roomTypeId: room.roomTypeId },
+    where: { roomType: { serviceId: svcId } },
     orderBy: { sortOrder: "asc" },
     select: { id: true, sortOrder: true },
   });
@@ -765,6 +806,7 @@ async function moveRoomDir(formData: FormData, dir: "left" | "right"): Promise<v
     prisma.room.update({ where: { id: iid }, data: { sortOrder: so } }),
   );
   if (serviceId) revalidatePath(`/admin/services/${serviceId}`);
+  revalidatePath("/admin/availability");
 }
 
 export async function moveRoomUp(formData: FormData): Promise<void> {
@@ -790,6 +832,17 @@ export async function deleteRoom(formData: FormData): Promise<void> {
   if (roomTypeId) {
     try {
       await resyncRoomTypeWindow(roomTypeId);
+    } catch {}
+  }
+  // Dồn lại thứ tự chung để không để lại khoảng trống sau khi xoá.
+  const svcId =
+    serviceId ||
+    (roomTypeId
+      ? (await prisma.roomType.findUnique({ where: { id: roomTypeId }, select: { serviceId: true } }))?.serviceId
+      : undefined);
+  if (svcId) {
+    try {
+      await normalizeServiceRoomOrder(svcId);
     } catch {}
   }
   if (serviceId) revalidatePath(`/admin/services/${serviceId}`);

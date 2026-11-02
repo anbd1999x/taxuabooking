@@ -587,7 +587,7 @@ export default async function EditServicePage({
                                     <ActionForm action={upsertRoom} className="grid grid-cols-1 gap-2 rounded-xl bg-white p-3 ring-1 ring-black/5 sm:grid-cols-12 sm:items-end">
                                       <input type="hidden" name="serviceId" value={service.id} />
                                       <input type="hidden" name="id" value={room.id} />
-                                      <L label="Thứ tự hiển thị (web, nhỏ → lớn, tính trên mọi hạng)" cls="sm:col-span-3">
+                                      <L label="Thứ tự hiển thị trên web (nhỏ → lớn, chung mọi hạng; tự dồn lại 0,1,2…)" cls="sm:col-span-3">
                                         <input name="sortOrder" type="number" defaultValue={room.sortOrder} className={inp} />
                                       </L>
                                       <L label="Hạng phòng" cls="sm:col-span-3">
@@ -895,7 +895,7 @@ export default async function EditServicePage({
                       <ActionForm action={upsertRoom} className="grid grid-cols-1 gap-2 rounded-xl bg-white p-3 ring-1 ring-black/5 sm:grid-cols-12 sm:items-end">
                         <input type="hidden" name="serviceId" value={service.id} />
                         <input type="hidden" name="id" value={room.id} />
-                        <L label="Thứ tự hiển thị (web, nhỏ → lớn, tính trên mọi hạng)" cls="sm:col-span-3">
+                        <L label="Thứ tự hiển thị trên web (nhỏ → lớn, chung mọi hạng; tự dồn lại 0,1,2…)" cls="sm:col-span-3">
                           <input name="sortOrder" type="number" defaultValue={room.sortOrder} className={inp} />
                         </L>
                         <L label="Hạng phòng" cls="sm:col-span-3">

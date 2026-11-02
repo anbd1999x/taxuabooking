@@ -299,6 +299,40 @@ function detectLayout(
 type RoomRef = { id: string; name: string; roomTypeId: string };
 type SheetEntry = { room: RoomRef; date: Date; status: RoomStatus };
 
+/**
+ * Khớp một nhãn trong sheet với phòng trong app. Thử khớp chính xác trước; nếu
+ * không được thì chấp nhận nhãn CHỨA tên phòng như một cụm từ nguyên vẹn (có
+ * ranh giới từ) — xử lý ô gộp kiểu "CHILLOUT VILLAGE PHÒNG ĐÔI Rustic 4" hay
+ * "Shan 1 (có máy chiếu)". Nhiều phòng cùng khớp (độ dài bằng nhau) → bỏ qua
+ * cho an toàn; tên dài hơn thắng ("Phòng 1 VIP" thắng "Phòng 1").
+ */
+function matchRoom(
+  roomByName: Map<string, RoomRef>,
+  rooms: RoomRef[],
+  label: string,
+): RoomRef | null {
+  const n = norm(label);
+  if (!n) return null;
+  const exact = roomByName.get(n);
+  if (exact) return exact;
+  let best: RoomRef | null = null;
+  let bestLen = 0;
+  let ambiguous = false;
+  const padded = ` ${n} `;
+  for (const rm of rooms) {
+    const rn = norm(rm.name);
+    if (!rn || !padded.includes(` ${rn} `)) continue;
+    if (rn.length > bestLen) {
+      best = rm;
+      bestLen = rn.length;
+      ambiguous = false;
+    } else if (rn.length === bestLen && rm.id !== best?.id) {
+      ambiguous = true;
+    }
+  }
+  return ambiguous ? null : best;
+}
+
 /** Tải CSV của một tab (gid). Trả null nếu không phải CSV (sheet chưa công khai / lỗi). */
 async function fetchTabCsv(id: string, gid: string): Promise<string[][] | null> {
   const ctrl = new AbortController();
@@ -395,21 +429,24 @@ export async function syncServiceSheet(serviceId: string): Promise<SheetSyncResu
       for (let r = 0; r < rows.length; r++) {
         if (r === headerRow) continue;
         const row = rows[r];
-        // Tên phòng = ô chữ đầu tiên bên trái vùng ngày.
-        let label = "";
-        for (let c = 0; c < Math.max(1, firstDateCol); c++) {
+        // Ứng viên tên phòng = MỌI ô chữ bên trái vùng ngày, duyệt từ phải sang
+        // trái (tên phòng thường nằm sát vùng ngày; bên trái có thể là tên
+        // homestay / nhãn nhóm do ô gộp tách ra nhiều ô).
+        const candidates: string[] = [];
+        for (let c = Math.max(1, firstDateCol) - 1; c >= 0; c--) {
           const v = (row[c] ?? "").trim();
-          if (v) {
-            label = v;
-            break;
-          }
+          if (v) candidates.push(v);
         }
-        if (!label) continue;
-        const room = roomByName.get(norm(label));
+        if (candidates.length === 0) continue;
+        let room: RoomRef | null = null;
+        for (const cand of candidates) {
+          room = matchRoom(roomByName, allRooms, cand);
+          if (room) break;
+        }
         if (!room) {
-          if (HEADER_LABELS.has(norm(label))) continue;
+          if (candidates.some((c) => HEADER_LABELS.has(norm(c)))) continue;
           const hasBooking = futureCols.some((dc) => cellStatus(row[dc.col] ?? "") !== "AVAILABLE");
-          if (hasBooking) unmatched.add(label);
+          if (hasBooking) unmatched.add(candidates[0]);
           continue;
         }
         if (seenInTab.has(room.id)) continue;
