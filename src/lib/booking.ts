@@ -88,9 +88,12 @@ export async function computeAvailability(
       orderBy: { sortOrder: "asc" },
       include: { rooms: { orderBy: { sortOrder: "asc" } } },
     });
-    const rooms = roomTypes.flatMap((rt) =>
-      rt.rooms.map((r) => ({ ...r, typeName: rt.name })),
-    );
+    const rooms = roomTypes
+      .flatMap((rt) => rt.rooms.map((r) => ({ ...r, typeName: rt.name })))
+      // "Thứ tự hiển thị" TOÀN CỤC giữa các hạng (giống lưới admin) — các hạng có
+      // phòng xen kẽ (vd Mơ có/không bồn) vẫn hiện đúng thứ tự Mơ 1..Mơ 9 như sheet.
+      // sort ổn định: phòng cùng sortOrder giữ nguyên thứ tự theo hạng như cũ.
+      .sort((a, b) => a.sortOrder - b.sortOrder);
     // Combo (hoặc homestay chưa khai báo phòng) -> chỉ nhận yêu cầu, admin xác nhận.
     if (rooms.length === 0) {
       return {
@@ -121,7 +124,12 @@ export async function computeAvailability(
       const free = nights.length > 0 && (!occ || nights.every((d) => !occ.has(toDateKey(d))));
       const pricing = roomPricing(room);
       let total = 0;
-      for (const d of nights) total += priceForDay(d, pricing, null);
+      let hasIbNight = false; // đêm nào không công khai giá (≤ 0) → giá tham khảo = null
+      for (const d of nights) {
+        const p = priceForDay(d, pricing, null);
+        if (p <= 0) hasIbNight = true;
+        else total += p;
+      }
       return {
         id: room.id,
         name: `${room.typeName} · ${room.name}`,
@@ -129,7 +137,7 @@ export async function computeAvailability(
         status: free ? "AVAILABLE" : "SOLD_OUT",
         bookable: free,
         availableUnits: free ? 1 : 0,
-        pricePerUnit: nights.length > 0 ? total : null,
+        pricePerUnit: nights.length > 0 && !hasIbNight ? total : null,
         count: nights.length,
         commission: roomCommissionForNights(room, nights),
       };
