@@ -458,18 +458,55 @@ function matchRoom(
   let bestLen = 0;
   let ambiguous = false;
   const padded = ` ${n} `;
-  for (const rm of rooms) {
-    const rn = norm(rm.name);
-    if (!rn || !padded.includes(` ${rn} `)) continue;
-    if (rn.length > bestLen) {
+  const consider = (rm: RoomRef, matchLen: number) => {
+    if (matchLen > bestLen) {
       best = rm;
-      bestLen = rn.length;
+      bestLen = matchLen;
       ambiguous = false;
-    } else if (rn.length === bestLen && rm.id !== best?.id) {
+    } else if (matchLen === bestLen && rm.id !== best?.id) {
       ambiguous = true;
     }
+  };
+  for (const rm of rooms) {
+    const rn = norm(rm.name);
+    if (!rn) continue;
+    // 1) Nhãn CHỨA tên phòng nguyên vẹn ("DON VIP Shan 1" ⊃ "Shan 1").
+    if (padded.includes(` ${rn} `)) {
+      consider(rm, rn.length);
+      continue;
+    }
+    // 2) Lõi tên phòng = bỏ từ chung đứng đầu ("Phòng 201" → "201"; "Phòng Cộng
+    //    Đồng" → "cong dong"). Nhãn khớp/chứa lõi ("201 (4ng) BỒN TẮM" ⊃ "201").
+    //    Lõi số cần ≥3 chữ số, lõi chữ cần ≥4 ký tự — tránh dính cột số người.
+    const core = rn.replace(/^(?:phong|can|nha|room|house)\s+/, "");
+    if (core !== rn && (/^\d+$/.test(core) ? core.length >= 3 : core.length >= 4)) {
+      if (n === core || padded.includes(` ${core} `)) {
+        consider(rm, core.length);
+        continue;
+      }
+    }
+    // 3) Sheet ghi TẮT: tên phòng chứa nhãn ("Phòng Cộng Đồng" ⊃ "Cộng Đồng").
+    //    Nhãn phải ≥4 ký tự; nhiều phòng cùng chứa (vd "Family") → ambiguous.
+    if (n.length >= 4 && ` ${rn} `.includes(padded)) {
+      consider(rm, n.length);
+      continue;
+    }
+    // 4) Lỗi gõ sai đúng 1 ký tự ("Bulgalow gỗ" ≈ "Bungalow Gỗ") — chỉ cho tên
+    //    không chứa chữ số (tránh "Samu 1" ≈ "Samu 2").
+    if (fuzzyOneChar(n, rn)) consider(rm, rn.length);
   }
   return ambiguous ? null : best;
+}
+
+/** Hai chuỗi cùng độ dài (≥6), không có chữ số, khác nhau đúng 1 ký tự. */
+function fuzzyOneChar(a: string, b: string): boolean {
+  if (a.length !== b.length || a.length < 6) return false;
+  if (/\d/.test(a) || /\d/.test(b)) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i] && ++diff > 1) return false;
+  }
+  return diff === 1;
 }
 
 /** Tải CSV của một tab (gid). Trả null nếu không phải CSV (sheet chưa công khai / lỗi). */
