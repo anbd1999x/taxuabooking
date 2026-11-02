@@ -132,7 +132,9 @@ export default async function ServiceDetailPage({
         earlyFee: toNumber(r.earlyCheckinFee),
         lateFee: toNumber(r.lateCheckoutFee),
         amenities: (r.amenities ?? "").split(",").map((a) => a.trim()).filter(Boolean),
-        media: r.images.map((i) => ({
+        // Ảnh thẻ phòng = ảnh riêng của phòng + ảnh/video của hạng phòng (nhiều
+        // homestay chỉ có ảnh theo hạng, phòng con chưa up ảnh riêng).
+        media: [...r.images, ...rt.images].map((i) => ({
           url: i.url,
           type: /\.(mp4|webm|mov|m4v|ogg)(\?|$)/i.test(i.url) ? ("video" as const) : ("image" as const),
         })),
