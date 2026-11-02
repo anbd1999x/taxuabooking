@@ -18,6 +18,7 @@ export interface HomestayCard {
   homeName: string; // tên homestay
   area: string;
   distanceKm: number | null; // cách trung tâm Tà Xùa (km); null = chưa nhập
+  amen: Record<AmenKey, boolean>; // tiện ích (hạng phòng + dịch vụ) để lọc
   desc: string;
   capacity: number;
   count: number; // số phòng giống nhau trong nhóm
@@ -29,6 +30,19 @@ export interface HomestayCard {
   status: "ok" | "low" | "full" | "none";
   freeRooms: number;
 }
+
+export type AmenKey = "cloudView" | "bathtub" | "breakfast" | "airCon" | "heating" | "pool" | "easyRoad";
+
+/** Tiện ích lọc được ở trang danh sách (đồng bộ nhãn với trang combo). */
+const AMENITIES: { key: AmenKey; label: string; icon: string }[] = [
+  { key: "cloudView", label: "View mây", icon: "⛅" },
+  { key: "bathtub", label: "Bồn tắm", icon: "🛁" },
+  { key: "breakfast", label: "Ăn sáng", icon: "🍳" },
+  { key: "airCon", label: "Điều hòa", icon: "❄️" },
+  { key: "heating", label: "Đêm sưởi", icon: "🔥" },
+  { key: "pool", label: "Hồ bơi", icon: "🏊" },
+  { key: "easyRoad", label: "Đường dễ đi", icon: "🛣️" },
+];
 
 const STATUS: Record<HomestayCard["status"], { bg: string; fg: string; text: (n: number) => string }> = {
   ok: { bg: "oklch(0.95 0.05 155)", fg: "oklch(0.38 0.1 155)", text: (n) => `Còn ${n} phòng` },
@@ -80,6 +94,7 @@ export function HomestayList({
   const [type, setType] = useState("all");
   const [zone, setZone] = useState("all"); // lọc theo khu vực (Trung tâm, Khe Cải, Đỉnh Gió...)
   const [sort, setSort] = useState("rec"); // rec | priceAsc | priceDesc | near
+  const [amen, setAmen] = useState<Set<AmenKey>>(new Set()); // tiện ích phải có (chọn nhiều)
 
   const sunRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
@@ -242,7 +257,7 @@ export function HomestayList({
       el.style.opacity = "1";
       el.style.transform = "none";
     });
-  }, [q, ci, co, price, type, zone, sort]);
+  }, [q, ci, co, price, type, zone, sort, amen]);
 
   // Mở trang với sẵn ngày (từ trang chủ) → cuộn xuống danh sách để thấy kết quả
   // ngay trên mobile. Không chạy khi đang gõ lọc trực tiếp.
@@ -299,7 +314,14 @@ export function HomestayList({
   // "Trung tâm..." thì coi như 0; thiếu hẳn thì xếp cuối.
   const distOf = (x: HomestayCard) => x.distanceKm ?? (norm(x.area).includes("trung tam") ? 0 : Number.POSITIVE_INFINITY);
   const items = all
-    .filter((x) => (type === "all" || x.cat === type) && (zone === "all" || x.area === zone) && inPrice(x.price) && (!qn || norm(`${x.name} ${x.homeName} ${x.area}`).includes(qn)))
+    .filter(
+      (x) =>
+        (type === "all" || x.cat === type) &&
+        (zone === "all" || x.area === zone) &&
+        inPrice(x.price) &&
+        [...amen].every((k) => x.amen?.[k]) &&
+        (!qn || norm(`${x.name} ${x.homeName} ${x.area}`).includes(qn)),
+    )
     // Sắp theo tiêu chí đã chọn (sort ổn định — "rec" giữ thứ tự nổi bật từ server).
     .sort((a, b) => {
       if (sort === "priceAsc") return (a.price > 0 ? a.price : Infinity) - (b.price > 0 ? b.price : Infinity);
@@ -309,7 +331,14 @@ export function HomestayList({
     })
     // Có ngày → đẩy phòng đã kín xuống cuối (sort ổn định, giữ thứ tự nổi bật).
     .sort((a, b) => (a.status === "full" ? 1 : 0) - (b.status === "full" ? 1 : 0));
-  const hasFilter = Boolean(q || ci || co || price !== "all" || type !== "all" || zone !== "all" || sort !== "rec");
+  const hasFilter = Boolean(q || ci || co || price !== "all" || type !== "all" || zone !== "all" || sort !== "rec" || amen.size > 0);
+  const toggleAmen = (k: AmenKey) =>
+    setAmen((prev) => {
+      const next = new Set(prev);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
+      return next;
+    });
   const wide = w >= 980;
   const heroH = w < 640 ? 500 : 560;
   const dateQS = (() => { const p = new URLSearchParams(); if (hasDates) { p.set("from", ci); p.set("to", co); } const s = p.toString(); return s ? `?${s}` : ""; })();
@@ -477,9 +506,26 @@ export function HomestayList({
               ))}
             </div>
             <div className="flex items-center gap-2">
-              {hasFilter && <button type="button" onClick={() => { setQ(""); setCi(""); setCo(""); setPrice("all"); setType("all"); setZone("all"); setSort("rec"); }} className="px-3 py-2 text-sm font-bold text-gray-500">Xoá lọc</button>}
+              {hasFilter && <button type="button" onClick={() => { setQ(""); setCi(""); setCo(""); setPrice("all"); setType("all"); setZone("all"); setSort("rec"); setAmen(new Set()); }} className="px-3 py-2 text-sm font-bold text-gray-500">Xoá lọc</button>}
               <span className="text-sm font-semibold text-gray-500">{items.length} loại phòng{hasDates ? ` · ${nights} đêm` : ""}</span>
             </div>
+          </div>
+          {/* Tiện ích phòng (chọn nhiều — phòng phải có đủ các tiện ích đã chọn) */}
+          <div className="flex flex-wrap gap-1.5 px-1 pb-1">
+            {AMENITIES.map((a) => {
+              const on = amen.has(a.key);
+              return (
+                <button
+                  key={a.key}
+                  type="button"
+                  onClick={() => toggleAmen(a.key)}
+                  className="rounded-full px-3 py-1.5 text-[13px] font-bold transition"
+                  style={{ background: on ? "oklch(0.95 0.05 155)" : "oklch(0.97 0.005 230)", color: on ? "oklch(0.32 0.09 155)" : "oklch(0.45 0.02 160)", boxShadow: on ? "inset 0 0 0 1.5px oklch(0.55 0.1 155)" : "inset 0 0 0 1px oklch(0.92 0.01 230)" }}
+                >
+                  {a.icon} {a.label}
+                </button>
+              );
+            })}
           </div>
           {dateErr && <div className="px-1.5 pb-1 text-[13px] font-semibold text-red-600">{dateErr}</div>}
         </div>
@@ -513,6 +559,18 @@ export function HomestayList({
                 </div>
                 <div className="line-clamp-1 text-[15px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink sm:line-clamp-none sm:text-[19px]">{s.name}</div>
                 <div className="text-[11px] font-semibold text-gray-500 sm:text-[12px]">Tối đa {s.capacity} khách{s.count > 1 ? ` · ${s.count} phòng loại này` : ""}</div>
+                {(() => {
+                  const tags = AMENITIES.filter((a) => s.amen?.[a.key]);
+                  if (tags.length === 0) return null;
+                  return (
+                    <div className="flex flex-wrap gap-1">
+                      {tags.slice(0, 4).map((a) => (
+                        <span key={a.key} className="rounded-full bg-[oklch(0.96_0.02_155)] px-2 py-0.5 text-[10px] font-semibold text-[oklch(0.36_0.08_155)] sm:text-[11px]">{a.icon} {a.label}</span>
+                      ))}
+                      {tags.length > 4 && <span className="rounded-full bg-[oklch(0.96_0.005_230)] px-2 py-0.5 text-[10px] font-semibold text-gray-500 sm:text-[11px]">+{tags.length - 4}</span>}
+                    </div>
+                  );
+                })()}
                 <div className="line-clamp-2 text-[13px] leading-[1.5] text-gray-500 sm:line-clamp-3 sm:text-sm sm:leading-[1.55]">{s.desc}</div>
                 <div className="flex-1" />
                 <div className="mt-1 flex flex-wrap items-end justify-between gap-x-2 gap-y-2 border-t border-[oklch(0.94_0.01_230)] pt-2 sm:mt-1.5 sm:pt-3">
@@ -541,7 +599,7 @@ export function HomestayList({
           <div className="flex flex-col items-center gap-2.5 rounded-[22px] border border-dashed border-[oklch(0.85_0.02_230)] bg-white px-6 py-14 text-center">
             <div className="text-[19px] font-extrabold text-ink">Không có phòng phù hợp</div>
             <div className="max-w-[420px] text-[15px] text-gray-500">Thử đổi ngày hoặc khoảng giá. Hoặc gọi 0397 943 155, tụi mình tìm chỗ giúp.</div>
-            <button type="button" onClick={() => { setQ(""); setCi(""); setCo(""); setPrice("all"); setType("all"); setZone("all"); setSort("rec"); }} className="mt-1.5 rounded-full px-5 py-2.5 text-sm font-bold text-white" style={{ background: TH.G }}>Xoá bộ lọc</button>
+            <button type="button" onClick={() => { setQ(""); setCi(""); setCo(""); setPrice("all"); setType("all"); setZone("all"); setSort("rec"); setAmen(new Set()); }} className="mt-1.5 rounded-full px-5 py-2.5 text-sm font-bold text-white" style={{ background: TH.G }}>Xoá bộ lọc</button>
           </div>
         )}
       </main>

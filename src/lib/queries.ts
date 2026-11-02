@@ -538,6 +538,16 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
           homeName: s.title,
           area: s.area ?? "Tà Xùa",
           distanceKm: s.distanceKm ?? null,
+          // Tiện ích để lọc ở trang danh sách (hạng phòng + dịch vụ).
+          amen: {
+            cloudView: rt.cloudView,
+            bathtub: rt.hasBathtub,
+            breakfast: rt.breakfast,
+            airCon: rt.airCon,
+            heating: rt.heating,
+            pool: s.pool,
+            easyRoad: s.easyRoad,
+          },
           desc: first.desc,
           capacity: first.capacity,
           count: g.length, // tổng số phòng giống nhau
