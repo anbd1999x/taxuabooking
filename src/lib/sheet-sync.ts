@@ -162,6 +162,10 @@ function yearForMonth(mo: number, ref: Date): number {
 function cellStatus(raw: string): RoomStatus {
   const t = norm(raw);
   if (!t) return "AVAILABLE";
+  // "Checkout" = khách trả phòng buổi sáng → đêm đó phòng trống (chủ sheet cũng
+  // không tính vào tỉ lệ đặt). "Checkin" = khách ở đêm đó.
+  if (/check ?out/.test(t)) return "AVAILABLE";
+  if (/check ?in/.test(t)) return "BOOKED";
   if (/(dat|chot|book|full|kin|het|day|sold)/.test(t)) return "BOOKED";
   if (/(cho|wait|hold|giu|pending)/.test(t)) return "PENDING";
   if (/(dong|close|khoa|nghi|off|bao tri)/.test(t)) return "CLOSED";
@@ -169,6 +173,84 @@ function cellStatus(raw: string): RoomStatus {
   if (/\b(trong|available|avail|free|empty|ok)\b/.test(t)) return "AVAILABLE";
   // Ô có chữ lạ nhưng không trống → coi như không bán được (an toàn).
   return "BOOKED";
+}
+
+/** Thứ trong tuần từ ô "Thứ 2"/"Thứ Hai"/"CN"/"Chủ nhật"... (0 = CN, như getUTCDay). */
+function parseWeekday(raw: string): number | null {
+  const t = norm(raw);
+  if (!t) return null;
+  if (/^(cn\b|chu nhat)/.test(t)) return 0;
+  const m = t.match(/^(?:thu|t) ?(\d|hai|ba|tu|nam|sau|bay)\b/);
+  if (!m) return null;
+  const words: Record<string, number> = { hai: 1, ba: 2, tu: 3, nam: 4, sau: 5, bay: 6 };
+  if (m[1] in words) return words[m[1]];
+  const n = +m[1];
+  return n >= 2 && n <= 7 ? n - 1 : null;
+}
+
+const DAY_MS = 86_400_000;
+
+/**
+ * Bù những cột ngày bị bỏ trống trong hàng tiêu đề (chủ sheet gộp ô / quên điền
+ * — vd hàng 1/11 chỉ ghi "chủ nhật" + trạng thái, không ghi ngày):
+ * - Khe GIỮA 2 ngày đã nhận diện: số cột trống khớp đúng số ngày thiếu → điền tuần tự.
+ * - Mép TRƯỚC/SAU vùng ngày: chỉ điền khi ô tiêu đề trống VÀ hàng "thứ" xác nhận
+ *   đúng thứ của ngày suy ra (tránh nuốt nhầm cột nhãn như tên phòng/"Thứ").
+ * Sửa trực tiếp mảng dateCols (thêm phần tử + sắp lại theo cột).
+ */
+function fillMissingDateCols(
+  rows: string[][],
+  headerRow: number,
+  dateCols: { col: number; date: Date }[],
+): void {
+  if (dateCols.length === 0) return;
+  // Hàng ghi thứ = hàng khớp đúng thứ của ≥3 ngày đã nhận diện và không sai ngày nào.
+  let wdRow = -1;
+  for (let r = 0; r < rows.length && wdRow < 0; r++) {
+    if (r === headerRow) continue;
+    let match = 0;
+    let wrong = 0;
+    for (const dc of dateCols) {
+      const wd = parseWeekday(rows[r][dc.col] ?? "");
+      if (wd == null) continue;
+      if (wd === dc.date.getUTCDay()) match++;
+      else wrong++;
+    }
+    if (match >= 3 && wrong === 0) wdRow = r;
+  }
+  const width = Math.max(0, ...rows.map((r) => r.length));
+  const headerCellEmpty = (c: number) => !(rows[headerRow][c] ?? "").trim();
+  const wdConfirms = (c: number, d: Date) =>
+    wdRow >= 0 && parseWeekday(rows[wdRow][c] ?? "") === d.getUTCDay();
+
+  const added: { col: number; date: Date }[] = [];
+  for (let i = 1; i < dateCols.length; i++) {
+    const a = dateCols[i - 1];
+    const b = dateCols[i];
+    const colDiff = b.col - a.col;
+    const dayDiff = Math.round((b.date.getTime() - a.date.getTime()) / DAY_MS);
+    if (colDiff > 1 && colDiff === dayDiff) {
+      for (let k = 1; k < colDiff; k++) {
+        added.push({ col: a.col + k, date: new Date(a.date.getTime() + k * DAY_MS) });
+      }
+    }
+  }
+  const first = dateCols[0];
+  for (let c = first.col - 1, step = 1; c >= 0; c--, step++) {
+    const d = new Date(first.date.getTime() - step * DAY_MS);
+    if (!headerCellEmpty(c) || !wdConfirms(c, d)) break;
+    added.push({ col: c, date: d });
+  }
+  const last = dateCols[dateCols.length - 1];
+  for (let c = last.col + 1, step = 1; c < width; c++, step++) {
+    const d = new Date(last.date.getTime() + step * DAY_MS);
+    if (!headerCellEmpty(c) || !wdConfirms(c, d)) break;
+    added.push({ col: c, date: d });
+  }
+  if (added.length) {
+    dateCols.push(...added);
+    dateCols.sort((x, y) => x.col - y.col);
+  }
 }
 
 /** Trích spreadsheetId từ bất kỳ URL Google Sheet nào. */
@@ -183,15 +265,23 @@ function extractGid(url: string): string {
   return m ? m[1] : "0";
 }
 
-/** Link export CSV cho một tab (gid) của spreadsheet. */
-function csvUrlFor(id: string, gid: string): string {
-  return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`;
+/**
+ * Các link CSV cho một tab (gid), thử theo thứ tự. Dùng /export trước vì nó trả
+ * đúng giá trị hiển thị của từng ô; gviz chỉ là dự phòng — gviz tự đoán KIỂU của
+ * cả cột và trả rỗng những ô lệch kiểu (vd ô ngày thật giữa cột chữ → mất ngày),
+ * đồng thời tự nối các ô gộp vào tiêu đề.
+ */
+function csvUrlsFor(id: string, gid: string): string[] {
+  return [
+    `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`,
+    `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`,
+  ];
 }
 
 /** Kiểm tra URL có phải Google Sheet hợp lệ không (dùng cho validate form). */
 export function sheetCsvUrl(url: string): string | null {
   const id = extractSheetId(url);
-  return id ? csvUrlFor(id, extractGid(url)) : null;
+  return id ? csvUrlsFor(id, extractGid(url))[0] : null;
 }
 
 /**
@@ -273,7 +363,9 @@ function detectDateColumns(
     const date = safeDate(year, dm.mo, dm.d);
     if (date) dateCols.push({ col, date });
   }
-  return dateCols.length >= 3 ? { headerRow: bestRow, dateCols } : null;
+  if (dateCols.length < 3) return null;
+  fillMissingDateCols(rows, bestRow, dateCols);
+  return { headerRow: bestRow, dateCols };
 }
 
 /** Xoay bảng (hàng↔cột) — hỗ trợ sheet kiểu ngày dọc cột A, tên phòng ngang hàng đầu. */
@@ -335,24 +427,27 @@ function matchRoom(
 
 /** Tải CSV của một tab (gid). Trả null nếu không phải CSV (sheet chưa công khai / lỗi). */
 async function fetchTabCsv(id: string, gid: string): Promise<string[][] | null> {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 20000);
-  try {
-    const res = await fetch(csvUrlFor(id, gid), {
-      redirect: "follow",
-      signal: ctrl.signal,
-      headers: { "User-Agent": "TaXuaBooking/1.0 sheet sync" },
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    const text = await res.text();
-    if (/^<!DOCTYPE html/i.test(text.trimStart())) return null; // trang đăng nhập = chưa công khai
-    return parseCsv(text);
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
+  for (const url of csvUrlsFor(id, gid)) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20000);
+    try {
+      const res = await fetch(url, {
+        redirect: "follow",
+        signal: ctrl.signal,
+        headers: { "User-Agent": "TaXuaBooking/1.0 sheet sync" },
+        cache: "no-store",
+      });
+      if (!res.ok) continue;
+      const text = await res.text();
+      if (/^<!DOCTYPE html/i.test(text.trimStart())) continue; // trang đăng nhập = chưa công khai
+      return parseCsv(text);
+    } catch {
+      // thử link kế tiếp
+    } finally {
+      clearTimeout(timer);
+    }
   }
+  return null;
 }
 
 /**
