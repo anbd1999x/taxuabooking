@@ -337,7 +337,7 @@ function ComboRoomCard({
             <div className="flex justify-between gap-2"><span>{room.communal ? "Giường cộng đồng / khách" : `Phòng ÷ ${people}`}</span><span className="font-bold text-ink">{vnd(roomShare)}</span></div>
             <div className="flex justify-between gap-2"><span>Vé khứ hồi / khách</span><span className="font-bold text-ink">{vnd(bus?.farePerPerson ?? 0)}</span></div>
             {!room.communal && (
-              <div className="flex justify-between gap-2"><span>Giảm combo</span><span className="font-bold text-forest-700">− {vnd(COMBO_DISCOUNT)}</span></div>
+              <div className="flex justify-between gap-2"><span>Khuyến mãi combo</span><span className="font-bold text-forest-700">− {vnd(COMBO_DISCOUNT)}</span></div>
             )}
           </div>
           <div className="flex-1" />
