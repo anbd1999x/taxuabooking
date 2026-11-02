@@ -112,7 +112,7 @@ export function HomestayBooking({
   rooms: HomestayRoom[];
   startKey: string;
   numDays: number;
-  /** Chính sách bán cuối tuần theo cụm (NONE | FRI_SAT | SAT_SUN | FRI_SUN). */
+  /** Chính sách bán cuối tuần theo cụm (NONE | FRI_SAT | SAT_SUN | FRI_SUN | SAT_PAIRED). */
   weekendPolicy?: string | null;
   /** Ngày nhận/trả từ URL (?from=&to=) để chọn sẵn khi mở trang. */
   initialCheckIn?: string | null;
@@ -219,9 +219,20 @@ export function HomestayBooking({
       SAT_SUN: { wd: [6, 0], label: "T7 + CN" },
       FRI_SUN: { wd: [5, 6, 0], label: "T6 + T7 + CN" },
     };
-    const b = weekendPolicy ? BLOCKS[weekendPolicy] : undefined;
-    if (!b || nights.length === 0) return null;
+    if (nights.length === 0) return null;
     const have = new Set(nights.map(keyOf));
+    // T7 không bán lẻ: mỗi đêm thứ 7 phải kèm đêm T6 liền trước hoặc đêm CN liền sau.
+    if (weekendPolicy === "SAT_PAIRED") {
+      for (const d of nights) {
+        if (d.getUTCDay() !== 6) continue;
+        if (!have.has(keyOf(addDays(d, -1))) && !have.has(keyOf(addDays(d, 1)))) {
+          return "Homestay này không bán lẻ đêm thứ 7 — vui lòng đặt kèm đêm thứ 6 hoặc chủ nhật (T6+T7, T7+CN hoặc cả ba đêm).";
+        }
+      }
+      return null;
+    }
+    const b = weekendPolicy ? BLOCKS[weekendPolicy] : undefined;
+    if (!b) return null;
     for (const d of nights) {
       const pos = b.wd.indexOf(d.getUTCDay());
       if (pos === -1) continue;

@@ -85,6 +85,7 @@ enum WeekendPolicy {
   FRI_SAT // Cụm T6 + T7 (phải đặt cả 2 đêm)
   SAT_SUN // Cụm T7 + CN (phải đặt cả 2 đêm)
   FRI_SUN // Cụm T6 + T7 + CN (phải đặt cả 3 đêm)
+  SAT_PAIRED // T7 không bán lẻ: phải kèm T6 hoặc CN (T6+T7, T7+CN hoặc cả 3 đêm)
 }
 
 /// Tài khoản (Admin / CTV / Chủ dịch vụ).

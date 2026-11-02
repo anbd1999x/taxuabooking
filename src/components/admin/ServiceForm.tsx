@@ -205,6 +205,7 @@ export function ServiceForm({
           <option value="FRI_SAT">Chỉ bán nguyên cụm T6 + T7</option>
           <option value="SAT_SUN">Chỉ bán nguyên cụm T7 + CN</option>
           <option value="FRI_SUN">Chỉ bán nguyên cụm T6 + T7 + CN</option>
+          <option value="SAT_PAIRED">T7 phải kèm T6 hoặc CN (không bán lẻ T7)</option>
         </select>
         <span className="mt-1 block text-xs text-gray-400">Cuối tuần chỉ nhận đặt nguyên cụm, không bán lẻ (vd không bán riêng đêm T7). Khách chọn ngày thiếu đêm trong cụm sẽ bị chặn.</span>
       </label>
