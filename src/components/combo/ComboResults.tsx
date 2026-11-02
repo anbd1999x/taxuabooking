@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { ComboBusOption, ComboHomeOption, ComboRoomFeatures, ComboRoomOption, ComboSearchResult } from "@/lib/combo";
 
 const COMBO_DISCOUNT = 50000;
@@ -200,6 +200,8 @@ function ComboRoomCard({
   const total = pricePerPerson * people;
   const diff = budget != null ? pricePerPerson - budget : null;
 
+  // Xem nhanh phòng / xe ngay trong trang (không rời phễu đặt combo).
+  const [preview, setPreview] = useState<"room" | "bus" | null>(null);
   const [openForm, setOpenForm] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -352,9 +354,9 @@ function ComboRoomCard({
           </button>
 
           <div className="flex gap-2">
-            <Link href={`/homestay/${home.slug}?from=${encodeURIComponent(checkIn)}&to=${encodeURIComponent(checkOut)}`} className="flex-1 rounded-full border border-forest-200 py-2 text-center text-[13px] font-bold text-forest-700 hover:bg-forest-50">Xem phòng</Link>
+            <button type="button" onClick={() => setPreview("room")} className="flex-1 rounded-full border border-forest-200 py-2 text-center text-[13px] font-bold text-forest-700 hover:bg-forest-50">Xem phòng</button>
             {bus && (
-              <Link href={`/xe-cabin/${bus.slug}?from=${encodeURIComponent(fromKey)}&to=${encodeURIComponent(toKey)}`} className="flex-1 rounded-full border border-forest-200 py-2 text-center text-[13px] font-bold text-forest-700 hover:bg-forest-50">Xem xe</Link>
+              <button type="button" onClick={() => setPreview("bus")} className="flex-1 rounded-full border border-forest-200 py-2 text-center text-[13px] font-bold text-forest-700 hover:bg-forest-50">Xem xe</button>
             )}
           </div>
         </div>
@@ -409,6 +411,162 @@ function ComboRoomCard({
           </div>
         </div>
       )}
+
+      {/* Xem nhanh PHÒNG — ở lại trang combo, CTA chính vẫn là đặt combo */}
+      {preview === "room" && (
+        <QuickView title={`${home.title} · ${count > 1 ? room.typeName : room.roomName}`} onClose={() => setPreview(null)}>
+          <MiniGallery images={room.images.length ? room.images : room.cover ? [room.cover] : []} alt={room.roomName} />
+          <div className="flex flex-col gap-3 p-5">
+            <div className="text-sm text-gray-600">
+              Tiêu chuẩn <b>{room.capacity} người</b> · {nights} đêm ({checkIn} → {checkOut}) ·{" "}
+              <b className="text-ink">{vnd(room.roomCost)}</b>/{room.communal ? "người" : "phòng"} cả kỳ
+            </div>
+            {(amenities.length > 0 || room.amenityList.length > 0) && (
+              <div className="flex flex-wrap gap-1.5">
+                {[...amenities, ...room.amenityList.filter((a) => !amenities.some((x) => x.includes(a)))].map((a, i) => (
+                  <span key={i} className="rounded-full bg-[oklch(0.95_0.025_155)] px-2.5 py-1 text-xs font-semibold text-[oklch(0.36_0.08_155)]">{a}</span>
+                ))}
+              </div>
+            )}
+            {room.description && (
+              <p className="whitespace-pre-line text-sm leading-relaxed text-gray-600">{room.description}</p>
+            )}
+            <div className="rounded-xl bg-[oklch(0.975_0.008_150)] p-3.5 text-sm">
+              Combo với xe {bus?.title ?? "cabin"}: <b className="text-sunset-600">{vnd(pricePerPerson)}/khách</b> · ≈ {vnd(total)} cho {people} người
+            </div>
+          </div>
+          <div className="flex items-center gap-3 border-t border-gray-100 p-4">
+            <button
+              type="button"
+              onClick={() => { setPreview(null); setErr(""); setOpenForm(true); }}
+              className="flex-1 rounded-full bg-sunset-500 py-3 text-center text-sm font-bold text-white hover:bg-sunset-600"
+            >
+              Đặt combo với phòng này →
+            </button>
+            <Link
+              href={`/homestay/${home.slug}?from=${encodeURIComponent(checkIn)}&to=${encodeURIComponent(checkOut)}`}
+              target="_blank"
+              className="whitespace-nowrap text-xs font-semibold text-gray-400 underline-offset-2 hover:text-forest-700 hover:underline"
+            >
+              Trang chi tiết ↗
+            </Link>
+          </div>
+        </QuickView>
+      )}
+
+      {/* Xem nhanh XE — giờ chạy + lộ trình đón trả của xe đang chọn */}
+      {preview === "bus" && bus && (
+        <QuickView title={`${bus.title} · xe cabin khứ hồi`} onClose={() => setPreview(null)}>
+          <MiniGallery images={bus.images.length ? bus.images : bus.cover ? [bus.cover] : []} alt={bus.title} />
+          <div className="flex flex-col gap-3 p-5">
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="rounded-xl bg-[oklch(0.975_0.008_150)] p-3">
+                <div className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Chiều đi</div>
+                <div className="mt-0.5 font-bold text-ink">{fmtDayKey(fromKey)} · {bus.outboundTime}</div>
+              </div>
+              <div className="rounded-xl bg-[oklch(0.975_0.008_150)] p-3">
+                <div className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Chiều về</div>
+                <div className="mt-0.5 font-bold text-ink">{fmtDayKey(toKey)} · {bus.returnTime}</div>
+              </div>
+            </div>
+            <div className="text-sm text-gray-600">
+              Vé khứ hồi <b className="text-ink">{vnd(bus.farePerPerson)}/khách</b> ·{" "}
+              <b className="text-[oklch(0.38_0.1_155)]">{bus.seatsAvailable <= 5 ? `Còn ${bus.seatsAvailable} chỗ` : "Còn chỗ"}</b>
+            </div>
+            {[["Lộ trình chiều đi", bus.outboundStops] as const, ["Lộ trình chiều về", bus.returnStops] as const].map(
+              ([label, stops]) =>
+                stops.length > 0 && (
+                  <div key={label}>
+                    <div className="text-xs font-extrabold tracking-wide text-sunset-600">{label.toUpperCase()}</div>
+                    <ul className="mt-1.5 flex flex-col gap-1">
+                      {stops.map((st, i) => (
+                        <li key={i} className="flex items-baseline gap-2.5 text-sm">
+                          <span className="w-12 shrink-0 font-bold text-ink">{st.time}</span>
+                          <span className="text-gray-600">{st.place}{st.tag ? <span className="ml-1.5 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">{st.tag}</span> : null}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ),
+            )}
+          </div>
+          <div className="flex items-center gap-3 border-t border-gray-100 p-4">
+            <button
+              type="button"
+              onClick={() => setPreview(null)}
+              className="flex-1 rounded-full bg-forest-600 py-3 text-center text-sm font-bold text-white hover:bg-forest-700"
+            >
+              Dùng xe này cho combo ✓
+            </button>
+            <Link
+              href={`/xe-cabin/${bus.slug}?from=${encodeURIComponent(fromKey)}&to=${encodeURIComponent(toKey)}`}
+              target="_blank"
+              className="whitespace-nowrap text-xs font-semibold text-gray-400 underline-offset-2 hover:text-forest-700 hover:underline"
+            >
+              Trang nhà xe ↗
+            </Link>
+          </div>
+        </QuickView>
+      )}
     </article>
+  );
+}
+
+function fmtDayKey(key: string): string {
+  const [y, m, d] = key.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+/** Hộp xem nhanh: bottom sheet trên mobile, hộp giữa màn hình trên desktop. */
+function QuickView({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/55 sm:items-center sm:p-6" onClick={onClose}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="flex max-h-[88vh] w-full flex-col overflow-hidden rounded-t-[22px] bg-white shadow-2xl sm:max-w-[640px] sm:rounded-[22px]"
+      >
+        <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-3.5">
+          <div className="min-w-0 truncate text-base font-extrabold text-ink">{title}</div>
+          <button type="button" onClick={onClose} aria-label="Đóng" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xl text-gray-400 hover:bg-gray-100">×</button>
+        </div>
+        <div className="overflow-y-auto">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/** Ảnh lớn + dải thumbnail bấm chuyển (dùng trong hộp xem nhanh). */
+function MiniGallery({ images, alt }: { images: string[]; alt: string }) {
+  const [idx, setIdx] = useState(0);
+  if (images.length === 0) {
+    return <div className="flex aspect-[16/9] items-center justify-center bg-gray-100 text-5xl">🛏️</div>;
+  }
+  const cur = images[Math.min(idx, images.length - 1)];
+  return (
+    <div>
+      <div className="relative aspect-[16/9] bg-gray-100">
+        <Image src={cur} alt={alt} fill sizes="640px" className="object-cover" />
+      </div>
+      {images.length > 1 && (
+        <div className="flex gap-1.5 overflow-x-auto px-3 py-2">
+          {images.map((u, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setIdx(i)}
+              className="relative h-[52px] w-[72px] shrink-0 overflow-hidden rounded-lg"
+              style={i === idx ? { boxShadow: "0 0 0 2px oklch(0.29 0.055 160)" } : { opacity: 0.75 }}
+            >
+              <Image src={u} alt="" fill sizes="72px" className="object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

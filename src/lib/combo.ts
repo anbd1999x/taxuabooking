@@ -79,6 +79,16 @@ export interface ComboBusOption {
   farePerPerson: number;
   /** Số chỗ đơn còn ít nhất giữa 2 chiều. */
   seatsAvailable: number;
+  /** Dữ liệu XEM NHANH trong trang combo (không rời phễu đặt). */
+  images: string[];
+  outboundStops: ComboRouteStop[];
+  returnStops: ComboRouteStop[];
+}
+
+export interface ComboRouteStop {
+  time: string;
+  place: string;
+  tag: string | null;
 }
 
 export interface ComboRoomFeatures {
@@ -109,6 +119,10 @@ export interface ComboRoomOption {
   kind: Exclude<ComboRoomKind, "all">;
   /** Phòng cộng đồng: roomCost là giá MỖI NGƯỜI, không chia theo đoàn. */
   communal: boolean;
+  /** Dữ liệu XEM NHANH trong trang combo: ảnh (không video), mô tả, tiện ích phòng. */
+  images: string[];
+  description: string | null;
+  amenityList: string[];
 }
 
 export interface ComboMatch {
@@ -277,7 +291,8 @@ async function findBuses(from: Date, to: Date): Promise<ComboBusOption[]> {
     where: { category: "CABIN", published: true },
     orderBy: [{ featured: "desc" }, { title: "asc" }],
     include: {
-      images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 1 },
+      images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 6 },
+      cabinRoutes: { include: { stops: { orderBy: { sortOrder: "asc" } } } },
       cabinTrips: {
         where: {
           OR: [
@@ -299,6 +314,12 @@ async function findBuses(from: Date, to: Date): Promise<ComboBusOption[]> {
     if (!okOut || !okRet) continue;
     const fare = (toNumber(outbound.price) ?? 0) + (toNumber(ret.price) ?? 0);
     if (fare <= 0) continue;
+    const stopsOf = (dir: "OUTBOUND" | "RETURN") =>
+      (s.cabinRoutes.find((r) => r.direction === dir)?.stops ?? []).map((st) => ({
+        time: st.time,
+        place: st.place,
+        tag: st.tag,
+      }));
     out.push({
       serviceId: s.id,
       slug: s.slug,
@@ -311,6 +332,9 @@ async function findBuses(from: Date, to: Date): Promise<ComboBusOption[]> {
       returnTime: ret.departureTime,
       farePerPerson: fare,
       seatsAvailable: Math.min(outbound.seatsAvailable, ret.seatsAvailable),
+      images: s.images.map((i) => i.url).filter((u) => !VIDEO_URL_RE.test(u)),
+      outboundStops: stopsOf("OUTBOUND"),
+      returnStops: stopsOf("RETURN"),
     });
   }
   return out;
@@ -406,6 +430,9 @@ async function findRooms(
       pool: s.pool,
       kind,
       communal: isCommunalRoom(rt.name, room.name),
+      images: room.images.map((i) => i.url).filter((u) => !VIDEO_URL_RE.test(u)).slice(0, 8),
+      description: room.description,
+      amenityList: (room.amenities ?? "").split(",").map((a) => a.trim()).filter(Boolean),
     });
   }
   return out;
