@@ -226,7 +226,10 @@ export default async function AvailabilityPage({
         <button className="rounded-xl bg-forest-100 px-4 py-2.5 text-sm font-medium text-forest-700">Chọn</button>
       </form>
 
-      <SheetSyncAll items={sheetServices.map((s) => ({ id: s.id, title: s.title, last: s.sheetSyncResult }))} />
+      <SheetSyncAll
+        items={sheetServices.map((s) => ({ id: s.id, title: s.title, last: s.sheetSyncResult }))}
+        historyHref={session?.role === "ADMIN" ? "/admin/sheet-sync" : undefined}
+      />
 
       {!selected ? (
         <p className="mt-8 rounded-2xl border border-dashed border-gray-300 bg-white py-12 text-center text-gray-500">

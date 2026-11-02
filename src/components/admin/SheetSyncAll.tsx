@@ -20,7 +20,7 @@ const CONCURRENCY = 2; // mỗi homestay đã tự tải song song nhiều tab �
  * /api/admin/sheet-sync từng nhà một (2 nhà song song), hiện tiến độ + kết quả
  * từng nhà. Tách thành nhiều request ngắn để không vượt timeout proxy.
  */
-export function SheetSyncAll({ items }: { items: SheetSyncItem[] }) {
+export function SheetSyncAll({ items, historyHref }: { items: SheetSyncItem[]; historyHref?: string }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [running, setRunning] = useState(false);
@@ -96,6 +96,14 @@ export function SheetSyncAll({ items }: { items: SheetSyncItem[] }) {
           <h2 className="text-sm font-semibold text-ink">Đồng bộ lịch Google Sheet hàng loạt</h2>
           <p className="mt-0.5 text-xs text-gray-500">
             {items.length} homestay có link sheet — kéo lịch phòng mới nhất về cho tất cả trong một lần bấm.
+            {historyHref && (
+              <>
+                {" "}
+                <a href={historyHref} className="font-medium text-forest-700 underline-offset-2 hover:underline">
+                  Lịch sử đồng bộ →
+                </a>
+              </>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">

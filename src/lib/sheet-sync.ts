@@ -25,10 +25,14 @@ export interface SheetSyncResult {
   unmatchedRows: string[]; // nhãn hàng trong sheet không khớp phòng nào
   missingRooms: string[]; // phòng trong app không thấy trong sheet
   days: number;
+  changes: number; // số ô (phòng × ngày) đổi trạng thái trong lần chạy này
   syncedTabs: string[]; // tên các tab (tháng) đã đồng bộ
   skippedTabs: string[]; // tab bỏ qua (không phải lịch, hoặc đã qua)
   error?: string;
 }
+
+/** Nguồn kích hoạt đồng bộ — ghi vào nhật ký SheetSyncLog. */
+export type SheetSyncSource = "MANUAL" | "CRON";
 
 export interface SheetTab {
   name: string;
@@ -710,7 +714,10 @@ async function fetchTabCsv(id: string, gid: string): Promise<string[][] | null> 
  * (mỗi tab 1 tháng) từ 1 link và đồng bộ lần lượt; tab không phải lịch hoặc đã
  * qua sẽ bị bỏ qua.
  */
-export async function syncServiceSheet(serviceId: string): Promise<SheetSyncResult> {
+export async function syncServiceSheet(
+  serviceId: string,
+  source: SheetSyncSource = "MANUAL",
+): Promise<SheetSyncResult> {
   const base: SheetSyncResult = {
     serviceId,
     ok: false,
@@ -719,6 +726,7 @@ export async function syncServiceSheet(serviceId: string): Promise<SheetSyncResu
     unmatchedRows: [],
     missingRooms: [],
     days: 0,
+    changes: 0,
     syncedTabs: [],
     skippedTabs: [],
   };
@@ -736,7 +744,7 @@ export async function syncServiceSheet(serviceId: string): Promise<SheetSyncResu
   if (!service.sheetUrl) return { ...base, error: "Chưa có link Google Sheet." };
 
   const id = extractSheetId(service.sheetUrl);
-  if (!id) return fail(serviceId, base, "Link Google Sheet không hợp lệ.");
+  if (!id) return fail(serviceId, base, "Link Google Sheet không hợp lệ.", source);
 
   // Bảng tra phòng theo tên đã chuẩn hoá.
   const allRooms = service.roomTypes.flatMap((rt) => rt.rooms);
@@ -850,6 +858,7 @@ export async function syncServiceSheet(serviceId: string): Promise<SheetSyncResu
     const existingByKey = new Map(existingList.map((x) => [`${x.roomId}|${toDateKey(x.date)}`, x]));
 
     const affectedTypes = new Map<string, Set<string>>(); // roomTypeId -> dateKeys
+    let reopens = 0; // số ô sheet mở lại thành Trống (xoá bản ghi cũ, không tạo mới)
     const deleteIds: string[] = [];
     const creates: { roomId: string; date: Date; status: RoomStatus; note: string }[] = [];
     for (const { room, date, status } of deduped) {
@@ -868,6 +877,7 @@ export async function syncServiceSheet(serviceId: string): Promise<SheetSyncResu
         // Ô trống: chỉ mở lại ngày do chính sheet đã khoá trước đó.
         if (ownedBySheet && existing) {
           deleteIds.push(existing.id);
+          reopens++;
           mark(affectedTypes, room.roomTypeId, dk);
         }
       } else {
@@ -893,11 +903,22 @@ export async function syncServiceSheet(serviceId: string): Promise<SheetSyncResu
     }
 
     const missing = allRooms.filter((rm) => !matchedRoomIds.has(rm.id)).map((rm) => rm.name);
+    const changes = creates.length + reopens;
     const summary = `${syncedTabs.length} tab · ${matchedRoomIds.size} phòng · ${totalDays} ngày đã đồng bộ`;
     await prisma.service.update({
       where: { id: serviceId },
       data: { sheetSyncedAt: new Date(), sheetSyncResult: summary },
     });
+
+    // Nhật ký: chạy tay ghi mọi lần; cron chỉ ghi khi có thay đổi (tránh spam 5').
+    if (source === "MANUAL" || changes > 0) {
+      const warns =
+        (unmatched.size ? ` · ⚠ ${unmatched.size} dòng không khớp` : "") +
+        (missing.length ? ` · ⚠ thiếu ${missing.length} phòng` : "");
+      await prisma.sheetSyncLog
+        .create({ data: { serviceId, ok: true, source, summary: summary + warns, changes } })
+        .catch(() => {});
+    }
 
     return {
       serviceId,
@@ -907,12 +928,13 @@ export async function syncServiceSheet(serviceId: string): Promise<SheetSyncResu
       unmatchedRows: [...unmatched],
       missingRooms: missing,
       days: totalDays,
+      changes,
       syncedTabs,
       skippedTabs,
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Lỗi không rõ";
-    return fail(serviceId, base, msg);
+    return fail(serviceId, base, msg, source);
   }
 }
 
@@ -925,20 +947,43 @@ function mark(map: Map<string, Set<string>>, rtId: string, dk: string) {
   set.add(dk);
 }
 
-async function fail(serviceId: string, base: SheetSyncResult, msg: string): Promise<SheetSyncResult> {
+async function fail(
+  serviceId: string,
+  base: SheetSyncResult,
+  msg: string,
+  source: SheetSyncSource,
+): Promise<SheetSyncResult> {
   await prisma.service
     .update({ where: { id: serviceId }, data: { sheetSyncedAt: new Date(), sheetSyncResult: `Lỗi: ${msg}` } })
     .catch(() => {});
+  // Nhật ký lỗi: cron lỗi LẶP LẠI giống hệt lần ghi gần nhất thì bỏ qua (tránh 288 dòng/ngày).
+  try {
+    const summary = `Lỗi: ${msg}`;
+    if (source === "CRON") {
+      const last = await prisma.sheetSyncLog.findFirst({
+        where: { serviceId },
+        orderBy: { createdAt: "desc" },
+        select: { ok: true, summary: true },
+      });
+      if (last && !last.ok && last.summary === summary) return { ...base, error: msg };
+    }
+    await prisma.sheetSyncLog.create({ data: { serviceId, ok: false, source, summary, changes: 0 } });
+  } catch {
+    /* log lỗi không được phép làm hỏng kết quả đồng bộ */
+  }
   return { ...base, error: msg };
 }
 
 /** Đồng bộ TẤT CẢ homestay có link sheet (dùng cho cron). */
-export async function syncAllSheets(): Promise<SheetSyncResult[]> {
+export async function syncAllSheets(source: SheetSyncSource = "CRON"): Promise<SheetSyncResult[]> {
   const services = await prisma.service.findMany({
     where: { sheetUrl: { not: null }, category: { in: ["HOMESTAY", "BUNGALOW"] } },
     select: { id: true },
   });
   const out: SheetSyncResult[] = [];
-  for (const s of services) out.push(await syncServiceSheet(s.id));
+  for (const s of services) out.push(await syncServiceSheet(s.id, source));
+  // Dọn nhật ký cũ hơn 30 ngày (giữ bảng gọn khi cron chạy dày).
+  const cutoff = new Date(Date.now() - 30 * 86_400_000);
+  await prisma.sheetSyncLog.deleteMany({ where: { createdAt: { lt: cutoff } } }).catch(() => {});
   return out;
 }

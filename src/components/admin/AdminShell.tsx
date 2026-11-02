@@ -13,6 +13,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: "/admin", label: "Tổng quan", exact: true },
   { href: "/admin/services", label: "Quản lý dịch vụ" },
   { href: "/admin/availability", label: "Lịch giá & tình trạng" },
+  { href: "/admin/sheet-sync", label: "Đồng bộ Sheet" },
   { href: "/admin/bookings", label: "Yêu cầu đặt" },
   { href: "/admin/articles", label: "Bài viết (SEO)" },
   { href: "/admin/places", label: "Nhà hàng & Cafe" },

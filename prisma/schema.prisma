@@ -144,6 +144,7 @@ model Service {
   updatedAt   DateTime        @updatedAt
 
   images         ServiceImage[]
+  sheetSyncLogs  SheetSyncLog[]
   roomTypes      RoomType[]
   cabinTrips     CabinTrip[]
   rentalVehicles RentalVehicle[]
@@ -155,6 +156,22 @@ model Service {
 
   @@index([category, published])
   @@index([featured])
+}
+
+/// Nhật ký đồng bộ lịch Google Sheet của homestay. Ghi khi: chạy tay (luôn),
+/// cron có thay đổi, hoặc lỗi (cron lỗi lặp lại giống hệt thì không ghi thêm).
+model SheetSyncLog {
+  id        String   @id @default(cuid())
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  ok        Boolean
+  source    String   @default("MANUAL") // "MANUAL" (nút trong admin) | "CRON" (tự động định kỳ)
+  summary   String // "15 tab · 17 phòng · 457 ngày đã đồng bộ" | "Lỗi: ..."
+  changes   Int      @default(0) // số ô (phòng × ngày) đổi trạng thái trong lần chạy này
+  createdAt DateTime @default(now())
+
+  @@index([serviceId, createdAt])
+  @@index([createdAt])
 }
 
 /// Ảnh của bài đăng (upload nhiều ảnh).
