@@ -30,13 +30,22 @@ interface RoomEntry {
 export function ComboResults({ result }: { result: ComboSearchResult }) {
   const { homes, buses, people, nights, budget, checkIn, checkOut, fromKey, toKey } = result;
 
+  // Bộ lọc khu vực + tiêu chí sắp xếp sau khi có kết quả.
+  const [zone, setZone] = useState("all");
+  const [sort, setSort] = useState("match"); // match | priceAsc | priceDesc | near
+  const zones = useMemo(() => [...new Set(homes.map((h) => h.area).filter((a): a is string => Boolean(a)))], [homes]);
+
   // Hiện đúng từng căn phòng phù hợp (không gom theo homestay); các phòng
-  // GIỐNG NHAU (cùng hạng + giá + ảnh) gom làm 1 thẻ. Sắp theo mức gần giá
-  // mong muốn nhất (không nhập giá → rẻ trước).
+  // GIỐNG NHAU (cùng hạng + giá + ảnh) gom làm 1 thẻ. Mặc định sắp theo mức
+  // gần giá mong muốn nhất (không nhập giá → rẻ trước).
   const rooms = useMemo<RoomEntry[]>(() => {
+    // Cách trung tâm: thiếu số km nhưng khu vực là "Trung tâm..." thì coi như 0; thiếu hẳn xếp cuối.
+    const distOf = (h: ComboHomeOption) =>
+      h.distanceKm ?? (/trung tâm/i.test(h.area ?? "") ? 0 : Number.POSITIVE_INFINITY);
     const cheapestFare = buses.length ? Math.min(...buses.map((b) => b.farePerPerson)) : 0;
     const groups = new Map<string, RoomEntry>();
     for (const home of homes) {
+      if (zone !== "all" && home.area !== zone) continue;
       for (const room of home.rooms) {
         const key = `${home.serviceId}|${room.roomTypeId}|${room.roomCost}|${room.capacity}|${room.cover ?? ""}`;
         const g = groups.get(key);
@@ -52,12 +61,15 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
     }
     const arr = [...groups.values()];
     arr.sort((a, b) => {
+      if (sort === "priceAsc") return a.bestPrice - b.bestPrice;
+      if (sort === "priceDesc") return b.bestPrice - a.bestPrice;
+      if (sort === "near") return distOf(a.home) - distOf(b.home) || a.bestPrice - b.bestPrice;
       const da = budget != null ? Math.abs(a.bestPrice - budget) : a.bestPrice;
       const db = budget != null ? Math.abs(b.bestPrice - budget) : b.bestPrice;
       return da - db || a.bestPrice - b.bestPrice;
     });
     return arr;
-  }, [homes, buses, people, budget]);
+  }, [homes, buses, people, budget, zone, sort]);
 
   const bestRoomId = buses.length > 0 && rooms.length > 0 ? rooms[0].room.roomId : null;
 
@@ -70,7 +82,7 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
 
   return (
     <div>
-      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-sm text-gray-600">
           <span className="font-bold text-ink">{rooms.length}</span> phòng · {buses.length} nhà xe · {people} người ·{" "}
           {nights} đêm ({checkIn} → {checkOut})
@@ -80,6 +92,38 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
             Khớp giá mong muốn <span className="font-semibold text-forest-700">{vnd(budget)}</span>/khách
           </p>
         )}
+      </div>
+
+      {/* Lọc khu vực + sắp xếp kết quả */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {zones.length > 1 &&
+            [["all", "Mọi khu vực"] as const, ...zones.map((z) => [z, z.replace(/^Trung tâm Tà Xùa$/i, "Trung tâm")] as const)].map(([k, n]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setZone(k)}
+                className="rounded-full px-3.5 py-2 text-[13px] font-bold transition"
+                style={{ background: zone === k ? "oklch(0.29 0.055 160)" : "white", color: zone === k ? "white" : "oklch(0.35 0.02 160)", boxShadow: zone === k ? "none" : "inset 0 0 0 1px oklch(0.9 0.01 200)" }}
+              >
+                {n}
+              </button>
+            ))}
+        </div>
+        <label className="flex items-center gap-2 text-[13px] font-semibold text-gray-500">
+          Sắp xếp
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            className="rounded-full bg-white px-3 py-2 text-[13px] font-bold text-ink outline-none"
+            style={{ boxShadow: "inset 0 0 0 1px oklch(0.9 0.01 200)" }}
+          >
+            <option value="match">{budget != null ? "Khớp giá mong muốn" : "Rẻ nhất trước"}</option>
+            <option value="priceAsc">Giá thấp → cao</option>
+            <option value="priceDesc">Giá cao → thấp</option>
+            <option value="near">Gần trung tâm nhất</option>
+          </select>
+        </label>
       </div>
 
       <div className="flex flex-col gap-[18px]">
@@ -215,6 +259,7 @@ function ComboRoomCard({
           {home.area && (
             <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[oklch(0.3_0.04_160)]">
               {home.area}
+              {home.distanceKm != null && (home.distanceKm === 0 ? " · trung tâm" : ` · ${home.distanceKm.toLocaleString("vi-VN")}km`)}
             </span>
           )}
         </div>

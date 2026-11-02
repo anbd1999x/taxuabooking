@@ -76,6 +76,7 @@ export interface ComboRoomOption {
   slug: string;
   title: string; // tên homestay
   area: string | null;
+  distanceKm: number | null; // cách trung tâm Tà Xùa (km)
   cover: string | null;
   roomTypeId: string;
   roomId: string;
@@ -108,6 +109,7 @@ export interface ComboHomeOption {
   slug: string;
   title: string;
   area: string | null;
+  distanceKm: number | null; // cách trung tâm Tà Xùa (km)
   cover: string | null;
   amenities: string[]; // nhãn tiện ích để hiển thị
   rooms: ComboRoomOption[];
@@ -212,7 +214,7 @@ export async function findComboMatches(input: {
   for (const r of rooms) {
     let h = homeMap.get(r.serviceId);
     if (!h) {
-      h = { serviceId: r.serviceId, slug: r.slug, title: r.title, area: r.area, cover: r.cover, amenities: [], rooms: [], bestPricePerPerson: 0 };
+      h = { serviceId: r.serviceId, slug: r.slug, title: r.title, area: r.area, distanceKm: r.distanceKm, cover: r.cover, amenities: [], rooms: [], bestPricePerPerson: 0 };
       homeMap.set(r.serviceId, h);
     }
     h.rooms.push(r);
@@ -363,6 +365,7 @@ async function findRooms(
       slug: s.slug,
       title: s.title,
       area: s.area,
+      distanceKm: s.distanceKm ?? null,
       cover: firstImageUrl(room.images) ?? (rt.imageUrl && !VIDEO_URL_RE.test(rt.imageUrl) ? rt.imageUrl : null) ?? s.images[0]?.url ?? null,
       roomTypeId: rt.id,
       roomId: room.id,

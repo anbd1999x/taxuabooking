@@ -434,6 +434,7 @@ async function getHomestayCardsImpl(fromKey?: string | null, toKey?: string | nu
       slug: s.slug,
       name: s.title,
       area: s.area ?? "Tà Xùa",
+      distanceKm: s.distanceKm ?? null,
       desc: s.summary,
       price: from,
       priceOld: fromOld,
@@ -536,6 +537,7 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
           name: g.length > 1 ? rt.name : `${rt.name} · ${first.roomName}`,
           homeName: s.title,
           area: s.area ?? "Tà Xùa",
+          distanceKm: s.distanceKm ?? null,
           desc: first.desc,
           capacity: first.capacity,
           count: g.length, // tổng số phòng giống nhau

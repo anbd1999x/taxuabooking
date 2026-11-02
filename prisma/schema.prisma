@@ -118,6 +118,7 @@ model Service {
   summary     String // mô tả ngắn
   description String // mô tả chi tiết
   area        String? // khu vực hoặc tuyến đường
+  distanceKm  Float? // cách trung tâm Tà Xùa bao nhiêu km (0 = ngay trung tâm) — lọc/sắp xếp "gần trung tâm"
   mapUrl      String? // link Google Maps (chia sẻ hoặc nhúng) để hiển thị bản đồ
   policy      String? // chính sách homestay (nhận/trả phòng, huỷ, nội quy...) hiển thị cho khách
   basePrice   Decimal?        @db.Decimal(12, 0) // giá tham khảo (null = liên hệ)

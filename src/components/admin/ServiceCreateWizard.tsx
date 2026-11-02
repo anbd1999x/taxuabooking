@@ -70,6 +70,12 @@ export function ServiceCreateWizard({ category }: { category: ServiceCategory })
               <input name="area" className={inp} placeholder={kind === "trip" ? "Hà Nội → Tà Xùa" : "Trung tâm Tà Xùa"} />
             )}
           </label>
+          {isStay && (
+            <label className="block">
+              <span className="text-sm font-medium text-gray-600">Cách trung tâm (km)</span>
+              <input name="distanceKm" type="number" inputMode="decimal" step="0.1" min="0" className={inp} placeholder="VD: 1.5 — 0 = ngay trung tâm" />
+            </label>
+          )}
           <label className="block">
             <span className="text-sm font-medium text-gray-600">Giá cơ bản (đ)</span>
             <MoneyInput name="basePrice" className={inp} placeholder="Tự tính nếu để trống" />

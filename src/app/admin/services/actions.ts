@@ -33,6 +33,13 @@ function num(v: FormDataEntryValue | null): number | undefined {
   const n = Number(t.replace(/[^\d]/g, ""));
   return Number.isFinite(n) ? n : undefined;
 }
+/** Số thập phân (km...): chấp nhận cả dấu phẩy ("1,5" = 1.5). */
+function fnum(v: FormDataEntryValue | null): number | undefined {
+  const t = s(v);
+  if (t == null) return undefined;
+  const n = Number(t.replace(",", ".").replace(/[^\d.]/g, ""));
+  return Number.isFinite(n) ? n : undefined;
+}
 
 async function uniqueSlug(base: string, excludeId?: string): Promise<string> {
   const root = slugify(base) || "dich-vu";
@@ -56,6 +63,7 @@ export async function createService(
     summary: formData.get("summary"),
     description: formData.get("description"),
     area: s(formData.get("area")),
+    distanceKm: fnum(formData.get("distanceKm")),
     mapUrl: s(formData.get("mapUrl")),
     policy: s(formData.get("policy")),
     basePrice: num(formData.get("basePrice")),
@@ -85,6 +93,7 @@ export async function createService(
       summary: d.summary,
       description: d.description,
       area: d.area ?? null,
+      distanceKm: d.distanceKm ?? null,
       mapUrl: d.mapUrl ?? null,
       policy: d.policy ?? null,
       basePrice: d.basePrice ?? null,
@@ -119,6 +128,7 @@ export async function createServiceFull(
     summary: formData.get("summary"),
     description: formData.get("description"),
     area: s(formData.get("area")),
+    distanceKm: fnum(formData.get("distanceKm")),
     mapUrl: s(formData.get("mapUrl")),
     policy: s(formData.get("policy")),
     basePrice: num(formData.get("basePrice")),
@@ -199,6 +209,7 @@ export async function createServiceFull(
       summary: d.summary,
       description: d.description,
       area: d.area ?? null,
+      distanceKm: d.distanceKm ?? null,
       mapUrl: d.mapUrl ?? null,
       policy: d.policy ?? null,
       basePrice,
@@ -288,6 +299,7 @@ export async function updateService(
     summary: formData.get("summary"),
     description: formData.get("description"),
     area: s(formData.get("area")),
+    distanceKm: fnum(formData.get("distanceKm")),
     mapUrl: s(formData.get("mapUrl")),
     policy: s(formData.get("policy")),
     basePrice: num(formData.get("basePrice")),
@@ -318,6 +330,7 @@ export async function updateService(
       summary: d.summary,
       description: d.description,
       area: d.area ?? null,
+      distanceKm: d.distanceKm ?? null,
       mapUrl: d.mapUrl ?? null,
       policy: d.policy ?? null,
       basePrice: d.basePrice ?? null,

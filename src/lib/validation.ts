@@ -84,6 +84,7 @@ export const serviceInputSchema = z.object({
   summary: z.string().trim().min(5, "Vui lòng nhập mô tả ngắn.").max(500, "Mô tả ngắn tối đa 500 ký tự (dùng ô Mô tả cho nội dung dài)."),
   description: z.string().trim().min(5, "Vui lòng nhập mô tả.").max(5000, "Mô tả tối đa 5000 ký tự."),
   area: z.string().trim().max(200).optional().nullable(),
+  distanceKm: z.coerce.number().min(0).max(999).optional().nullable(),
   mapUrl: z.string().trim().max(500).optional().nullable(),
   policy: z.string().trim().max(3000).optional().nullable(),
   basePrice: z.coerce.number().int().min(0).optional().nullable(),

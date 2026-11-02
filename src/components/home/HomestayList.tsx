@@ -17,6 +17,7 @@ export interface HomestayCard {
   name: string; // tên phòng (hạng · phòng; nhóm nhiều phòng = tên hạng)
   homeName: string; // tên homestay
   area: string;
+  distanceKm: number | null; // cách trung tâm Tà Xùa (km); null = chưa nhập
   desc: string;
   capacity: number;
   count: number; // số phòng giống nhau trong nhóm
@@ -77,6 +78,8 @@ export function HomestayList({
   const [co, setCo] = useState(initialTo); // trả phòng = to
   const [price, setPrice] = useState("all");
   const [type, setType] = useState("all");
+  const [zone, setZone] = useState("all"); // lọc theo khu vực (Trung tâm, Khe Cải, Đỉnh Gió...)
+  const [sort, setSort] = useState("rec"); // rec | priceAsc | priceDesc | near
 
   const sunRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
@@ -239,7 +242,7 @@ export function HomestayList({
       el.style.opacity = "1";
       el.style.transform = "none";
     });
-  }, [q, ci, co, price, type]);
+  }, [q, ci, co, price, type, zone, sort]);
 
   // Mở trang với sẵn ngày (từ trang chủ) → cuộn xuống danh sách để thấy kết quả
   // ngay trên mobile. Không chạy khi đang gõ lọc trực tiếp.
@@ -290,11 +293,23 @@ export function HomestayList({
         (price === "gt900" && p > 900000) ||
         (price === "lt1500" && p < 1500000) ||
         (price === "gt1500" && p > 1500000)));
+  // Khu vực có trong dữ liệu (để dựng dãy chip lọc).
+  const zones = useMemo(() => [...new Set(all.map((x) => x.area).filter(Boolean))], [all]);
+  // Khoảng cách tới trung tâm để sắp "gần trung tâm": thiếu số km nhưng khu vực là
+  // "Trung tâm..." thì coi như 0; thiếu hẳn thì xếp cuối.
+  const distOf = (x: HomestayCard) => x.distanceKm ?? (norm(x.area).includes("trung tam") ? 0 : Number.POSITIVE_INFINITY);
   const items = all
-    .filter((x) => (type === "all" || x.cat === type) && inPrice(x.price) && (!qn || norm(`${x.name} ${x.homeName} ${x.area}`).includes(qn)))
+    .filter((x) => (type === "all" || x.cat === type) && (zone === "all" || x.area === zone) && inPrice(x.price) && (!qn || norm(`${x.name} ${x.homeName} ${x.area}`).includes(qn)))
+    // Sắp theo tiêu chí đã chọn (sort ổn định — "rec" giữ thứ tự nổi bật từ server).
+    .sort((a, b) => {
+      if (sort === "priceAsc") return (a.price > 0 ? a.price : Infinity) - (b.price > 0 ? b.price : Infinity);
+      if (sort === "priceDesc") return b.price - a.price;
+      if (sort === "near") return distOf(a) - distOf(b);
+      return 0;
+    })
     // Có ngày → đẩy phòng đã kín xuống cuối (sort ổn định, giữ thứ tự nổi bật).
     .sort((a, b) => (a.status === "full" ? 1 : 0) - (b.status === "full" ? 1 : 0));
-  const hasFilter = Boolean(q || ci || co || price !== "all" || type !== "all");
+  const hasFilter = Boolean(q || ci || co || price !== "all" || type !== "all" || zone !== "all" || sort !== "rec");
   const wide = w >= 980;
   const heroH = w < 640 ? 500 : 560;
   const dateQS = (() => { const p = new URLSearchParams(); if (hasDates) { p.set("from", ci); p.set("to", co); } const s = p.toString(); return s ? `?${s}` : ""; })();
@@ -444,15 +459,25 @@ export function HomestayList({
                 {[["all", "Mọi mức giá"], ["lt500", "Dưới 500k"], ["mid", "500k – 900k"], ["gt900", "Trên 900k"], ["lt1500", "Dưới 1.500k"], ["gt1500", "Trên 1.500k"]].map(([v, n]) => <option key={v} value={v}>{n}</option>)}
               </select>
             </label>
+            <label className={cell}>
+              <span className="text-xs font-semibold text-gray-500">Sắp xếp</span>
+              <select value={sort} onChange={(e) => setSort(e.target.value)} className={inp}>
+                {[["rec", "Phù hợp nhất"], ["priceAsc", "Giá thấp → cao"], ["priceDesc", "Giá cao → thấp"], ["near", "Gần trung tâm nhất"]].map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+              </select>
+            </label>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 px-1 py-0.5">
-            <div className="flex flex-wrap gap-1.5">
+            <div className="flex flex-wrap items-center gap-1.5">
               {[["all", "Tất cả"], ["Homestay", "Homestay"], ["Bungalow", "Bungalow"]].map(([k, n]) => (
                 <button key={k} type="button" onClick={() => setType(k)} className="rounded-full px-3.5 py-2 text-sm font-bold transition" style={{ background: type === k ? TH.G : "oklch(0.95 0.01 230)", color: type === k ? "white" : "oklch(0.35 0.02 160)" }}>{n}</button>
               ))}
+              {zones.length > 1 && <span className="mx-1 h-5 w-px bg-[oklch(0.9_0.01_230)]" />}
+              {zones.length > 1 && [["all", "Mọi khu vực"], ...zones.map((z) => [z, z.replace(/^Trung tâm Tà Xùa$/i, "Trung tâm")])].map(([k, n]) => (
+                <button key={k} type="button" onClick={() => setZone(k)} className="rounded-full px-3.5 py-2 text-sm font-bold transition" style={{ background: zone === k ? "oklch(0.52 0.12 50)" : "oklch(0.95 0.01 230)", color: zone === k ? "white" : "oklch(0.35 0.02 160)" }}>{n}</button>
+              ))}
             </div>
             <div className="flex items-center gap-2">
-              {hasFilter && <button type="button" onClick={() => { setQ(""); setCi(""); setCo(""); setPrice("all"); setType("all"); }} className="px-3 py-2 text-sm font-bold text-gray-500">Xoá lọc</button>}
+              {hasFilter && <button type="button" onClick={() => { setQ(""); setCi(""); setCo(""); setPrice("all"); setType("all"); setZone("all"); setSort("rec"); }} className="px-3 py-2 text-sm font-bold text-gray-500">Xoá lọc</button>}
               <span className="text-sm font-semibold text-gray-500">{items.length} loại phòng{hasDates ? ` · ${nights} đêm` : ""}</span>
             </div>
           </div>
@@ -482,7 +507,10 @@ export function HomestayList({
                 </div>
               </div>
               <div className="flex flex-1 flex-col gap-1 p-3 sm:gap-2 sm:p-5 sm:pt-[18px]">
-                <div className="line-clamp-1 text-[11px] font-semibold text-gray-500 sm:text-[13px]">{s.homeName} · {s.area}</div>
+                <div className="line-clamp-1 text-[11px] font-semibold text-gray-500 sm:text-[13px]">
+                  {s.homeName} · {s.area}
+                  {s.distanceKm != null && (s.distanceKm === 0 ? " · ngay trung tâm" : ` · cách trung tâm ${s.distanceKm.toLocaleString("vi-VN")}km`)}
+                </div>
                 <div className="line-clamp-1 text-[15px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink sm:line-clamp-none sm:text-[19px]">{s.name}</div>
                 <div className="text-[11px] font-semibold text-gray-500 sm:text-[12px]">Tối đa {s.capacity} khách{s.count > 1 ? ` · ${s.count} phòng loại này` : ""}</div>
                 <div className="line-clamp-2 text-[13px] leading-[1.5] text-gray-500 sm:line-clamp-3 sm:text-sm sm:leading-[1.55]">{s.desc}</div>
@@ -513,7 +541,7 @@ export function HomestayList({
           <div className="flex flex-col items-center gap-2.5 rounded-[22px] border border-dashed border-[oklch(0.85_0.02_230)] bg-white px-6 py-14 text-center">
             <div className="text-[19px] font-extrabold text-ink">Không có phòng phù hợp</div>
             <div className="max-w-[420px] text-[15px] text-gray-500">Thử đổi ngày hoặc khoảng giá. Hoặc gọi 0397 943 155, tụi mình tìm chỗ giúp.</div>
-            <button type="button" onClick={() => { setQ(""); setCi(""); setCo(""); setPrice("all"); setType("all"); }} className="mt-1.5 rounded-full px-5 py-2.5 text-sm font-bold text-white" style={{ background: TH.G }}>Xoá bộ lọc</button>
+            <button type="button" onClick={() => { setQ(""); setCi(""); setCo(""); setPrice("all"); setType("all"); setZone("all"); setSort("rec"); }} className="mt-1.5 rounded-full px-5 py-2.5 text-sm font-bold text-white" style={{ background: TH.G }}>Xoá bộ lọc</button>
           </div>
         )}
       </main>

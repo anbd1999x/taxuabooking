@@ -106,17 +106,14 @@ export function articleTopicLabel(key: string | null | undefined): string | null
   return ARTICLE_TOPICS.find((t) => t.key === key)?.label ?? null;
 }
 
-/** Khu vực chuẩn cho homestay/bungalow (dropdown trong admin). */
+/** Khu vực chuẩn cho homestay/bungalow (dropdown trong admin).
+ *  Khoảng cách tới trung tâm nhập riêng ở ô "Cách trung tâm (km)" (Service.distanceKm). */
 export const AREA_OPTIONS = [
   "Trung tâm Tà Xùa",
   "Đỉnh Gió",
   "Khe Cải",
   "Sống lưng khủng long",
-  "Mống Vài",
-  "Cách trung tâm 1km",
-  "Cách trung tâm 1.5km",
-  "Cách trung tâm 2-5km",
-  "Cách trung tâm 10km",
+  "Mống Vàng",
 ];
 
 export function categoryBySlug(slug: string): CategoryMeta | undefined {

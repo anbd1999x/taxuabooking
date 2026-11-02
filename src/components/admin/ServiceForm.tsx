@@ -16,6 +16,7 @@ interface Initial {
   summary?: string;
   description?: string;
   area?: string | null;
+  distanceKm?: number | null;
   mapUrl?: string | null;
   policy?: string | null;
   basePrice?: number | null;
@@ -108,6 +109,21 @@ export function ServiceForm({
             <input name="area" defaultValue={initial.area ?? ""} className={inputCls} />
           )}
         </label>
+        {areaSelect && (
+          <label className="block">
+            <span className="text-sm font-medium text-gray-600">Cách trung tâm (km)</span>
+            <input
+              name="distanceKm"
+              type="number"
+              inputMode="decimal"
+              step="0.1"
+              min="0"
+              defaultValue={initial.distanceKm ?? ""}
+              placeholder="VD: 1.5 — 0 = ngay trung tâm"
+              className={inputCls}
+            />
+          </label>
+        )}
         <label className="block">
           <span className="text-sm font-medium text-gray-600">Giá bán (đ)</span>
           <MoneyInput name="basePrice" defaultValue={initial.basePrice ?? ""} placeholder="Để trống = Liên hệ" className={inputCls} />
