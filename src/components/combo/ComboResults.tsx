@@ -273,6 +273,16 @@ function ComboPlanCard({
   const total = pricePerPerson * people;
   const diff = budget != null ? pricePerPerson - budget : null;
 
+  // Khách chọn ĐÚNG CĂN trong nhóm phòng giống nhau (nhóm cần 1 phòng mà còn nhiều căn trống).
+  const [pick, setPick] = useState<Record<number, string>>({});
+  const chosenRoomIds = useMemo(
+    () =>
+      plan.groups.flatMap((g, i) =>
+        g.count === 1 && g.options.length > 1 ? [pick[i] ?? g.roomIds[0]] : g.roomIds,
+      ),
+    [plan, pick],
+  );
+
   // Xem nhanh phòng (theo nhóm) / xe ngay trong trang (không rời phễu đặt combo).
   const [preview, setPreview] = useState<{ kind: "room"; group: ComboPlanGroup } | { kind: "bus" } | null>(null);
   const [openForm, setOpenForm] = useState(false);
@@ -304,7 +314,7 @@ function ComboPlanCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fromKey, toKey,
-          roomIds: plan.roomIds,
+          roomIds: chosenRoomIds,
           outboundTripId: bus.outboundTripId,
           returnTripId: bus.returnTripId,
           origin: origin || null,
@@ -383,6 +393,19 @@ function ComboPlanCard({
                 </button>
               ))}
             </div>
+            {/* Nhóm còn NHIỀU căn giống nhau trống → liệt kê để khách biết (chọn đúng căn khi đặt) */}
+            {plan.groups.some((g) => g.options.length > g.count) && (
+              <div className="mt-1.5 flex flex-col gap-0.5 text-xs text-gray-500">
+                {plan.groups
+                  .filter((g) => g.options.length > g.count)
+                  .map((g, i) => (
+                    <div key={i}>
+                      Còn <b className="text-forest-700">{g.options.length} căn</b> {g.room.typeName.toLowerCase()} trống:{" "}
+                      {g.options.map((o) => o.roomName).join(" · ")}
+                    </div>
+                  ))}
+              </div>
+            )}
             {amenities.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {amenities.map((a, i) => (
@@ -498,9 +521,25 @@ function ComboPlanCard({
                 <div className="flex flex-col gap-1.5 rounded-xl bg-[oklch(0.975_0.008_150)] p-3.5 text-[13px]">
                   <div className="flex justify-between gap-2"><span className="text-gray-500">Homestay</span><span className="font-bold text-ink">{home.title}</span></div>
                   {plan.groups.map((g, i) => (
-                    <div key={i} className="flex justify-between gap-2">
+                    <div key={i} className="flex items-center justify-between gap-2">
                       <span className="text-gray-500">{i === 0 ? (plan.roomCount > 1 ? "Phòng (ghép)" : "Phòng") : ""}</span>
-                      <span className="font-bold text-ink">{g.count}× {g.room.typeName}{g.count === 1 && plan.roomCount === 1 ? ` · ${g.room.roomName}` : ""}</span>
+                      {g.count === 1 && g.options.length > 1 ? (
+                        // Còn nhiều căn giống nhau → khách chọn đúng căn muốn ở.
+                        <span className="flex items-center gap-1.5 font-bold text-ink">
+                          {g.room.typeName} ·
+                          <select
+                            value={pick[i] ?? g.roomIds[0]}
+                            onChange={(e) => setPick({ ...pick, [i]: e.target.value })}
+                            className="rounded-lg border border-forest-200 bg-white px-2 py-1 text-[13px] font-bold text-forest-700 outline-none"
+                          >
+                            {g.options.map((o) => (
+                              <option key={o.roomId} value={o.roomId}>{o.roomName}</option>
+                            ))}
+                          </select>
+                        </span>
+                      ) : (
+                        <span className="font-bold text-ink">{g.count}× {g.room.typeName}{g.count === 1 && plan.roomCount === 1 ? ` · ${g.room.roomName}` : ""}</span>
+                      )}
                     </div>
                   ))}
                   {plan.extraGuests > 0 && (

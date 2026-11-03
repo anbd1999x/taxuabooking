@@ -218,10 +218,12 @@ export interface ComboRoomOption {
 /** Một nhóm phòng GIỐNG NHAU (cùng hạng + giá + sức chứa) trong một phương án ghép. */
 export interface ComboPlanGroup {
   room: ComboRoomOption; // phòng đại diện (ảnh/mô tả/tiện ích để xem nhanh)
-  roomIds: string[]; // các phòng cụ thể sẽ giữ khi đặt
+  roomIds: string[]; // các phòng cụ thể sẽ giữ khi đặt (mặc định: đầu nhóm)
   count: number;
   /** Tiền 1 phòng cả kỳ (phòng cộng đồng: giá 1 NGƯỜI cả kỳ). */
   unitCost: number;
+  /** MỌI phòng giống nhau còn trống trong nhóm — để hiện "còn N phòng" + cho khách chọn đúng căn. */
+  options: { roomId: string; roomName: string }[];
 }
 
 /**
@@ -365,14 +367,18 @@ export function buildStayPlans(rooms: ComboRoomOption[], people: number): ComboS
   const normal = rooms.filter((r) => !r.communal);
   const dorm = rooms.filter((r) => r.communal);
 
+  // Tên phòng gọn (bỏ tiền tố tên hạng) để hiện danh sách "còn N phòng".
+  const plainName = (r: ComboRoomOption) =>
+    r.roomName.startsWith(`${r.typeName} · `) ? r.roomName.slice(r.typeName.length + 3) : r.roomName;
+
   // --- Phòng thường: nhóm phòng giống nhau (cùng hạng + giá + sức chứa + phụ thu) ---
-  interface G { rep: ComboRoomOption; ids: string[]; cap: number; capMax: number; extraStay: number; cost: number }
+  interface G { rep: ComboRoomOption; ids: string[]; names: string[]; cap: number; capMax: number; extraStay: number; cost: number }
   const gm = new Map<string, G>();
   for (const r of normal) {
     const k = `${r.roomTypeId}|${r.roomCost}|${r.capacity}|${r.maxCapacity}|${r.extraFeeStay}`;
     const g = gm.get(k);
-    if (g) g.ids.push(r.roomId);
-    else gm.set(k, { rep: r, ids: [r.roomId], cap: r.capacity, capMax: r.maxCapacity, extraStay: r.extraFeeStay, cost: r.roomCost });
+    if (g) { g.ids.push(r.roomId); g.names.push(plainName(r)); }
+    else gm.set(k, { rep: r, ids: [r.roomId], names: [plainName(r)], cap: r.capacity, capMax: r.maxCapacity, extraStay: r.extraFeeStay, cost: r.roomCost });
   }
   // Nhóm rẻ nhất TÍNH TRÊN MỖI CHỖ đứng trước để DFS tìm phương án tốt sớm.
   const groups = [...gm.values()].sort((a, b) => a.cost / a.cap - b.cost / b.cap);
@@ -438,7 +444,13 @@ export function buildStayPlans(rooms: ComboRoomOption[], people: number): ComboS
     for (let j = 0; j < groups.length; j++) {
       if (f.counts[j] === 0) continue;
       const g = groups[j];
-      pgs.push({ room: g.rep, roomIds: g.ids.slice(0, f.counts[j]), count: f.counts[j], unitCost: g.cost });
+      pgs.push({
+        room: g.rep,
+        roomIds: g.ids.slice(0, f.counts[j]),
+        count: f.counts[j],
+        unitCost: g.cost,
+        options: g.ids.map((id, x) => ({ roomId: id, roomName: g.names[x] })),
+      });
     }
     const plan = makePlan(serviceId, pgs, f.cost, f.capStd + extraGuests, false, extraGuests, extraCost);
     if (seenLabel.has(plan.label)) continue; // cùng kiểu ghép → giữ bản rẻ nhất
@@ -461,8 +473,8 @@ export function buildStayPlans(rooms: ComboRoomOption[], people: number): ComboS
       remaining -= take;
       const k = `${r.roomTypeId}|${r.roomCost}`;
       const g = pgm.get(k);
-      if (g) { g.roomIds.push(r.roomId); g.count += 1; }
-      else pgm.set(k, { room: r, roomIds: [r.roomId], count: 1, unitCost: r.roomCost });
+      if (g) { g.roomIds.push(r.roomId); g.count += 1; g.options.push({ roomId: r.roomId, roomName: plainName(r) }); }
+      else pgm.set(k, { room: r, roomIds: [r.roomId], count: 1, unitCost: r.roomCost, options: [{ roomId: r.roomId, roomName: plainName(r) }] });
     }
     if (remaining <= 0) plans.push(makePlan(serviceId, [...pgm.values()], total, cap, true));
   }
