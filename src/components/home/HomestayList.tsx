@@ -248,10 +248,11 @@ export function HomestayList({
     return () => { window.removeEventListener("resize", onR); cancelAnimationFrame(raf); io?.disconnect(); };
   }, []);
 
-  // Đổi bộ lọc → thẻ bị loại rồi quay lại sẽ bị React mount lại với class
-  // opacity-0 mà IntersectionObserver (chỉ gắn lúc mount đầu) không còn theo dõi
-  // → thẻ trong suốt vĩnh viễn, nhìn như "lọc xong không hiện gì". Sau mỗi lần
-  // đổi lọc: hiện ngay mọi thẻ (hiệu ứng reveal chỉ dành cho lần tải đầu).
+  // Đổi bộ lọc / dữ liệu server mới → thẻ mount lại với class opacity-0 mà
+  // IntersectionObserver (chỉ gắn lúc mount đầu) không còn theo dõi → thẻ trong
+  // suốt vĩnh viễn, nhìn như "không có dữ liệu". Sau mỗi lần đổi lọc HOẶC nhận
+  // items mới (bấm Tìm kiếm → router.refresh): hiện ngay mọi thẻ (hiệu ứng
+  // reveal chỉ dành cho lần tải đầu).
   const firstRender = useRef(true);
   useEffect(() => {
     if (firstRender.current) { firstRender.current = false; return; }
@@ -259,7 +260,7 @@ export function HomestayList({
       el.style.opacity = "1";
       el.style.transform = "none";
     });
-  }, [q, ci, co, price, type, zone, sort, amen]);
+  }, [q, ci, co, price, type, zone, sort, amen, all]);
 
   // Mở trang với sẵn ngày (từ trang chủ) → cuộn xuống danh sách để thấy kết quả
   // ngay trên mobile. Không chạy khi đang gõ lọc trực tiếp.
@@ -303,8 +304,6 @@ export function HomestayList({
   // đã tính trong items; ngày nháp chưa bấm Tìm kiếm không đổi hiển thị.
   const hasDates = Boolean(initialFrom && initialTo && initialTo > initialFrom);
   const nights = hasDates ? Math.max(1, Math.round((+new Date(initialTo) - +new Date(initialFrom)) / 864e5)) : 0;
-  const draftReady = Boolean(ci && co && !dateErr); // ngày nháp hợp lệ để bấm Tìm kiếm
-  const draftDirty = ci !== initialFrom || co !== initialTo; // đổi ngày nhưng chưa tìm
   const qn = norm(q.trim());
   const inPrice = (p: number) =>
     price === "all" ||
@@ -514,10 +513,14 @@ export function HomestayList({
               type="button"
               onClick={submitSearch}
               disabled={Boolean(dateErr)}
-              className="flex items-center justify-center gap-2 rounded-[14px] px-4 py-2.5 text-[15px] font-extrabold text-white transition hover:brightness-110 disabled:opacity-50"
-              style={{ background: draftDirty && draftReady ? "oklch(0.52 0.12 50)" : TH.G }}
+              className="flex items-center justify-center gap-2 rounded-[14px] px-5 py-2.5 text-[15px] font-bold text-white transition hover:brightness-110 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ background: TH.G }}
             >
-              🔍 Tìm kiếm{draftDirty && draftReady ? " ngay" : ""}
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20.5 20.5-4.2-4.2" />
+              </svg>
+              Tìm kiếm
             </button>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 px-1 py-0.5">
