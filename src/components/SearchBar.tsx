@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CATEGORY_LIST } from "@/lib/constants";
 import { DateField } from "@/components/DateField";
+import { QtyInput } from "@/components/QtyInput";
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -57,7 +58,7 @@ export function SearchBar() {
 
       <label className={`${cell} lg:border-l lg:border-gray-100`}>
         <span className={label}>Số khách</span>
-        <input type="number" min={1} max={20} value={guests} onChange={(e) => setGuests(Math.max(1, Number(e.target.value)))} className={control} />
+        <QtyInput min={1} max={20} value={guests} onChange={setGuests} className={control} ariaLabel="Số khách" />
       </label>
 
       <button

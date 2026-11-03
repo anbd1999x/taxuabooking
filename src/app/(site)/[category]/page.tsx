@@ -164,6 +164,7 @@ export default async function CategoryPage({
         initialFrom={str(sp.from) ?? ""}
         initialTo={str(sp.to) ?? ""}
         initialQ={str(sp.q) ?? ""}
+        initialPeople={Math.min(20, Math.max(0, Math.trunc(Number(str(sp.people))) || 0))}
       />
     );
   }

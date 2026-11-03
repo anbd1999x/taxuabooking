@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { DateField } from "@/components/DateField";
+import { QtyInput } from "@/components/QtyInput";
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -117,7 +118,7 @@ export function ComboSearch({
         </label>
         <label className={cell}>
           <span className="text-xs font-medium text-gray-500">Số người</span>
-          <input type="number" min={1} max={20} value={people} onChange={(e) => setPeople(Math.max(1, Number(e.target.value)))} className={inp} />
+          <QtyInput min={1} max={20} value={people} onChange={setPeople} className={inp} ariaLabel="Số người" />
         </label>
         <label className={cell}>
           <span className="text-xs font-medium text-gray-500">Giá mong muốn / khách</span>

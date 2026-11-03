@@ -10,18 +10,20 @@ import {
   getCabinPriceRows,
   getHomeCabinRoute,
 } from "@/lib/queries";
+import { getComboOrigins } from "@/lib/combo";
 
 export const dynamic = "force-dynamic";
 
 const HERO_IMAGE = "/banner.jpg";
 
 export default async function HomePage() {
-  const [services, articles, settings, cabinPrices, route] = await Promise.all([
+  const [services, articles, settings, cabinPrices, route, comboOrigins] = await Promise.all([
     getHomeServices(8),
     getArticles(3),
     getSettings(),
     getCabinPriceRows(),
     getHomeCabinRoute(),
+    getComboOrigins(),
   ]);
 
   const heroTitle = settings.heroTitle || "Lên Tà Xùa săn mây, mọi thứ có ở đây.";
@@ -54,7 +56,7 @@ export default async function HomePage() {
 
       {/* SEARCH (đè lên hero) */}
       <div className="container-page relative z-10 -mt-24 mb-12 sm:-mt-20 sm:mb-16">
-        <HeroSearch />
+        <HeroSearch comboOrigins={comboOrigins} />
       </div>
 
       {/* CABIN */}

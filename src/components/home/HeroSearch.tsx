@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CATEGORY_LIST } from "@/lib/constants";
 import { DateField } from "@/components/DateField";
+import { QtyInput } from "@/components/QtyInput";
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -12,13 +13,19 @@ function todayKey() {
 // Các tỉnh đón khách đi Tà Xùa (khớp trang xe cabin).
 const FROMS = ["Hà Nội", "Bắc Ninh", "Bắc Giang", "Thái Nguyên", "Vĩnh Phúc", "Hưng Yên", "Hải Dương", "Hải Phòng", "Nam Định", "Ninh Bình", "Hà Nam", "Phú Thọ"];
 
-export function HeroSearch() {
+export function HeroSearch({
+  comboOrigins = [],
+}: {
+  /** Điểm xuất phát đã khai trong bảng giá chặng (server truyền xuống, cho tab Combo). */
+  comboOrigins?: string[];
+}) {
   const router = useRouter();
   const [slug, setSlug] = useState(CATEGORY_LIST[0].slug);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [qty, setQty] = useState(2);
   const [pickup, setPickup] = useState("Hà Nội");
+  const [origin, setOrigin] = useState("");
 
   const cat = CATEGORY_LIST.find((c) => c.slug === slug)!;
   const kind = cat.availabilityKind;
@@ -36,6 +43,8 @@ export function HeroSearch() {
     if (to && showReturn) params.set("to", to);
     if (isTrip && pickup && pickup !== "Hà Nội") params.set("pickup", pickup);
     if (isCombo && qty !== 2) params.set("people", String(qty));
+    if (isCombo && origin) params.set("origin", origin);
+    if (cat.key === "HOMESTAY") params.set("people", String(qty)); // lọc phòng đủ chỗ cho đoàn
     const qs = params.toString();
     router.push(`/${slug}${qs ? `?${qs}` : ""}`, { scroll: false });
     router.refresh();
@@ -71,6 +80,15 @@ export function HeroSearch() {
             </select>
           </label>
         )}
+        {isCombo && comboOrigins.length > 0 && (
+          <label className={cell}>
+            <span className="block text-xs font-medium text-gray-500">Điểm xuất phát</span>
+            <select value={origin} onChange={(e) => setOrigin(e.target.value)} className="mt-0.5 w-full bg-transparent text-[15px] font-bold text-ink outline-none">
+              <option value="">Chọn điểm đón</option>
+              {comboOrigins.map((o) => <option key={o} value={o}>{o}</option>)}
+            </select>
+          </label>
+        )}
         <label className={cell}>
           <span className="block text-xs font-medium text-gray-500">{fromLabel}</span>
           <DateField value={from} min={todayKey()} onChange={setFrom} className="mt-0.5 w-full bg-transparent text-[15px] font-bold text-ink outline-none" displayClassName="text-[15px] font-bold text-ink" ariaLabel={fromLabel} />
@@ -84,7 +102,7 @@ export function HeroSearch() {
         {!isTrip && (
           <label className={cell}>
             <span className="block text-xs font-medium text-gray-500">{qtyLabel}</span>
-            <input type="number" min={1} max={20} value={qty} onChange={(e) => setQty(Math.max(1, Number(e.target.value)))} className="mt-0.5 w-full bg-transparent text-[15px] font-bold text-ink outline-none" />
+            <QtyInput min={1} max={20} value={qty} onChange={setQty} className="mt-0.5 w-full bg-transparent text-[15px] font-bold text-ink outline-none" ariaLabel={qtyLabel} />
           </label>
         )}
         <button

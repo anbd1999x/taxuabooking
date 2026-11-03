@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ServiceCategory, AvailabilityStatus } from "@prisma/client";
 import { DateField } from "@/components/DateField";
+import { QtyInput } from "@/components/QtyInput";
 import { AVAILABILITY_META } from "@/lib/constants";
 import type { AvailabilityKind } from "@/lib/constants";
 import { Badge } from "./ui/Badge";
@@ -248,13 +249,13 @@ export function BookingPanel({
         {kind !== "stay" && (
           <label className="flex flex-col gap-1">
             <span className="text-xs font-medium text-gray-500">{qtyLabel}</span>
-            <input
-              type="number"
+            <QtyInput
               min={1}
               max={20}
               value={quantity}
-              onChange={(e) => { setQuantity(Math.max(1, Number(e.target.value))); setAvail(null); }}
+              onChange={(n) => { setQuantity(n); setAvail(null); }}
               className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-200"
+              ariaLabel={qtyLabel}
             />
           </label>
         )}

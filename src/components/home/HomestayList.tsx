@@ -79,11 +79,14 @@ export function HomestayList({
   initialFrom = "",
   initialTo = "",
   initialQ = "",
+  initialPeople = 0,
 }: {
   items: HomestayCard[];
   initialFrom?: string;
   initialTo?: string;
   initialQ?: string;
+  /** Số người trong đoàn (?people= từ trang chủ); 0 = không lọc. */
+  initialPeople?: number;
 }) {
   const router = useRouter();
   const [w, setW] = useState(1280);
@@ -92,6 +95,7 @@ export function HomestayList({
   // tính theo ngày TRÊN URL (initialFrom/initialTo) — chỉ đổi khi bấm "Tìm kiếm".
   const [ci, setCi] = useState(initialFrom); // nhận phòng = from
   const [co, setCo] = useState(initialTo); // trả phòng = to
+  const [guests, setGuests] = useState(initialPeople); // 0 = mọi số khách
   const [price, setPrice] = useState("all");
   const [type, setType] = useState("all");
   const [zone, setZone] = useState("all"); // lọc theo khu vực (Trung tâm, Khe Cải, Đỉnh Gió...)
@@ -260,7 +264,7 @@ export function HomestayList({
       el.style.opacity = "1";
       el.style.transform = "none";
     });
-  }, [q, ci, co, price, type, zone, sort, amen, all]);
+  }, [q, ci, co, guests, price, type, zone, sort, amen, all]);
 
   // Mở trang với sẵn ngày (từ trang chủ) → cuộn xuống danh sách để thấy kết quả
   // ngay trên mobile. Không chạy khi đang gõ lọc trực tiếp.
@@ -318,11 +322,15 @@ export function HomestayList({
   // Khoảng cách tới trung tâm để sắp "gần trung tâm": thiếu số km nhưng khu vực là
   // "Trung tâm..." thì coi như 0; thiếu hẳn thì xếp cuối.
   const distOf = (x: HomestayCard) => x.distanceKm ?? (norm(x.area).includes("trung tam") ? 0 : Number.POSITIVE_INFINITY);
+  // Đủ chỗ cho cả đoàn (như combo): tính cả việc lấy NHIỀU phòng giống nhau cùng
+  // loại — freeRooms = số phòng còn trống trong kỳ (chưa chọn ngày = tổng số phòng).
+  const fitsGuests = (x: HomestayCard) => guests === 0 || x.capacity * x.freeRooms >= guests;
   const preFiltered = all.filter(
     (x) =>
       (type === "all" || x.cat === type) &&
       (zone === "all" || x.area === zone) &&
       inPrice(x.price) &&
+      fitsGuests(x) &&
       [...amen].every((k) => x.amen?.[k]) &&
       (!qn || norm(`${x.name} ${x.homeName} ${x.area}`).includes(qn)),
   );
@@ -337,7 +345,7 @@ export function HomestayList({
       if (sort === "near") return distOf(a) - distOf(b);
       return 0;
     });
-  const hasFilter = Boolean(q || ci || co || price !== "all" || type !== "all" || zone !== "all" || sort !== "rec" || amen.size > 0);
+  const hasFilter = Boolean(q || ci || co || guests > 0 || price !== "all" || type !== "all" || zone !== "all" || sort !== "rec" || amen.size > 0);
   const toggleAmen = (k: AmenKey) =>
     setAmen((prev) => {
       const next = new Set(prev);
@@ -355,6 +363,7 @@ export function HomestayList({
     const p = new URLSearchParams();
     if (ci && co && co > ci) { p.set("from", ci); p.set("to", co); }
     if (q) p.set("q", q);
+    if (guests > 0) p.set("people", String(guests));
     router.replace(`/homestay${p.toString() ? `?${p}` : ""}`, { scroll: false });
     router.refresh(); // ép lấy dữ liệu mới, tránh client router cache trả kết quả cũ
     const el = listRef.current;
@@ -363,7 +372,7 @@ export function HomestayList({
 
   // Xoá lọc: về trạng thái không ngày (server trả "Chọn ngày để xem").
   function clearAll() {
-    setQ(""); setCi(""); setCo(""); setPrice("all"); setType("all"); setZone("all"); setSort("rec"); setAmen(new Set());
+    setQ(""); setCi(""); setCo(""); setGuests(0); setPrice("all"); setType("all"); setZone("all"); setSort("rec"); setAmen(new Set());
     router.replace("/homestay", { scroll: false });
     router.refresh();
   }
@@ -496,6 +505,15 @@ export function HomestayList({
             <label className={cell}>
               <span className="text-xs font-semibold text-gray-500">Trả phòng</span>
               <DateField value={co} min={ci || undefined} onChange={setCo} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Trả phòng" />
+            </label>
+            <label className={cell}>
+              <span className="text-xs font-semibold text-gray-500">Số người</span>
+              <select value={guests} onChange={(e) => setGuests(Number(e.target.value))} className={inp}>
+                <option value={0}>Mọi số khách</option>
+                {Array.from({ length: 20 }, (_, i) => i + 1).map((n) => (
+                  <option key={n} value={n}>{n} người</option>
+                ))}
+              </select>
             </label>
             <label className={cell}>
               <span className="text-xs font-semibold text-gray-500">Khoảng giá</span>
