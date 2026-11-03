@@ -95,6 +95,7 @@ function resolveMap(mapUrl: string | null | undefined, fallbackQuery: string): {
 
 export function HomestayBooking({
   serviceId,
+  contactOnly,
   rooms,
   startKey,
   numDays,
@@ -112,6 +113,8 @@ export function HomestayBooking({
   weekendPolicy,
 }: {
   serviceId: string;
+  /** Không quản lý lịch trên web: ẩn lịch & form đặt, khách nhắn tin để nhận thông tin. */
+  contactOnly?: boolean;
   rooms: HomestayRoom[];
   startKey: string;
   numDays: number;
@@ -136,6 +139,8 @@ export function HomestayBooking({
   suggestions?: HomestaySuggestion[];
 }) {
   const map = resolveMap(mapUrl, mapQuery);
+  // Link nhắn tin cho homestay "chỉ liên hệ": ưu tiên Zalo, không có thì gọi điện.
+  const chatUrl = zalo ? `https://zalo.me/${zalo}` : `tel:${phone.replace(/\s/g, "")}`;
   const policyLines = (policy ?? "")
     .split("\n")
     .map((l) => l.replace(/^[-•·\s]+/, "").trim())
@@ -330,7 +335,8 @@ export function HomestayBooking({
     const wdP = r.days[3] ?? r.base; // T4 đại diện ngày thường (chỉ mục getUTCDay)
     const weP = r.days[6] ?? r.base; // T7 đại diện cuối tuần
     let status: string, tone: "ok" | "low" | "full" | "idle";
-    if (!nN) { status = "Chọn ngày"; tone = "idle"; }
+    if (contactOnly) { status = "Nhắn để hỏi"; tone = "idle"; }
+    else if (!nN) { status = "Chọn ngày"; tone = "idle"; }
     else if (!free) { status = "Hết phòng"; tone = "full"; }
     else { status = "Còn phòng"; tone = "ok"; }
     return { r, i, free, ib, stayPrice, wdP, weP, status, tone };
@@ -430,7 +436,8 @@ export function HomestayBooking({
           </section>
         )}
 
-        {/* Lịch chọn ngày */}
+        {/* Lịch chọn ngày (ẩn với homestay "chỉ liên hệ" — không quản lý lịch trên web) */}
+        {!contactOnly && (
         <section ref={calRef} className="flex flex-col gap-3">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
@@ -505,13 +512,16 @@ export function HomestayBooking({
             </div>
           </div>
         </section>
+        )}
 
         {/* Thẻ phòng */}
         <section className="flex flex-col gap-3">
           <div>
             <h2 className="text-xl font-bold text-ink">Các phòng</h2>
             <p className="mt-1 text-sm text-gray-500">
-              {nN ? `Giá & tình trạng cho ${nN} đêm · ${dname(ci!)} → ${dname(coEff!)}.` : "Chọn ngày để xem giá và phòng trống cho cả kỳ ở."}
+              {contactOnly
+                ? "Giá tham khảo từng phòng bên dưới — nhắn tin để nhận thông tin phòng trống & giữ phòng."
+                : nN ? `Giá & tình trạng cho ${nN} đêm · ${dname(ci!)} → ${dname(coEff!)}.` : "Chọn ngày để xem giá và phòng trống cho cả kỳ ở."}
             </p>
           </div>
           <div className="flex flex-col gap-3">
@@ -603,6 +613,16 @@ export function HomestayBooking({
                             {v.r.por || v.ib ? IB : nN ? fmt(v.stayPrice) : fmt(fromPrice(v.r))}
                           </div>
                         </div>
+                        {contactOnly ? (
+                          <a
+                            href={chatUrl}
+                            target={zalo ? "_blank" : undefined}
+                            rel={zalo ? "noopener noreferrer" : undefined}
+                            className="rounded-xl bg-sunset-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-sunset-600"
+                          >
+                            💬 Nhắn tin nhận thông tin
+                          </a>
+                        ) : (
                         <button
                           type="button"
                           disabled={!v.free}
@@ -623,6 +643,7 @@ export function HomestayBooking({
                         >
                           {!v.free ? "Hết phòng" : isSel ? "Đã chọn ✓" : "Chọn phòng"}
                         </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -736,7 +757,26 @@ export function HomestayBooking({
       {/* ===== Cột phải: panel đặt phòng dính ===== */}
       <aside ref={panelRef} className="lg:sticky lg:top-20">
         <div className="flex flex-col gap-3.5 rounded-2xl bg-white p-5 shadow-md ring-1 ring-black/5">
-          {result ? (
+          {contactOnly ? (
+            <div className="flex flex-col gap-3">
+              <div className="text-lg font-extrabold text-ink">Nhắn tin để nhận thông tin</div>
+              <p className="text-sm leading-relaxed text-gray-600">
+                Homestay này không hiển thị lịch trống trên web. Nhắn tin hoặc gọi cho Tà Xùa Booking
+                để kiểm tra phòng trống, nhận báo giá chính xác và giữ phòng — phản hồi nhanh trong giờ hành chính.
+              </p>
+              <a
+                href={chatUrl}
+                target={zalo ? "_blank" : undefined}
+                rel={zalo ? "noopener noreferrer" : undefined}
+                className="rounded-xl bg-sunset-500 px-4 py-3.5 text-center text-base font-bold text-white transition hover:bg-sunset-600"
+              >
+                💬 Nhắn tin nhận thông tin
+              </a>
+              <p className="text-center text-xs leading-relaxed text-gray-500">
+                Giá hiển thị là giá tham khảo theo bảng giá niêm yết của homestay.
+              </p>
+            </div>
+          ) : result ? (
             <div className="flex flex-col gap-2 rounded-xl bg-forest-50 p-4">
               <div className="text-[11px] font-bold uppercase tracking-wide text-forest-700">Đã gửi yêu cầu</div>
               <div className="text-2xl font-extrabold text-ink">Mã: {result.code}</div>
@@ -878,7 +918,22 @@ export function HomestayBooking({
       </aside>
 
       {/* Thanh đáy dính (mobile) */}
-      {!result && (
+      {contactOnly ? (
+        <div className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-between gap-3 border-t border-gray-200 bg-white px-4 py-3 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.2)] lg:hidden">
+          <div className="min-w-0">
+            <div className="truncate text-xs text-gray-500">Kiểm tra phòng trống & giữ phòng</div>
+            <div className="text-base font-extrabold text-ink">Nhắn tin nhận thông tin</div>
+          </div>
+          <a
+            href={chatUrl}
+            target={zalo ? "_blank" : undefined}
+            rel={zalo ? "noopener noreferrer" : undefined}
+            className="whitespace-nowrap rounded-xl bg-sunset-500 px-5 py-3 text-sm font-bold text-white"
+          >
+            💬 Nhắn tin
+          </a>
+        </div>
+      ) : !result && (
         <div className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-between gap-3 border-t border-gray-200 bg-white px-4 py-3 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.2)] lg:hidden">
           <div className="min-w-0">
             <div className="truncate text-xs text-gray-500">{nN ? `${nN} đêm${sel ? " · 1 phòng" : ""}` : "Chọn ngày ở"}</div>

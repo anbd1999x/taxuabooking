@@ -250,6 +250,9 @@ export async function createBooking(
     where: { id: input.serviceId, published: true },
   });
   if (!service) throw new Error("Dịch vụ không tồn tại.");
+  if (service.contactOnly) {
+    throw new Error("Cơ sở này không nhận đặt trực tiếp trên web — vui lòng nhắn tin/gọi để nhận thông tin và giữ phòng.");
+  }
 
   const kind = CATEGORIES[service.category].availabilityKind;
   const qty = input.quantity;

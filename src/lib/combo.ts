@@ -642,6 +642,7 @@ async function findRooms(
     where: {
       category: "HOMESTAY",
       published: true,
+      contactOnly: false, // không quản lý lịch trên web → không ghép combo
       ...(filters.easyRoad ? { easyRoad: true } : {}),
       ...(filters.pool ? { pool: true } : {}),
     },
@@ -762,7 +763,7 @@ export async function createComboBooking(
   const svc = roomList[0]?.roomType.service;
   if (
     roomList.length !== roomIds.length || !svc || svc.category !== "HOMESTAY" || !svc.published ||
-    roomList.some((r) => r.roomType.serviceId !== svc.id)
+    svc.contactOnly || roomList.some((r) => r.roomType.serviceId !== svc.id)
   ) {
     throw new Error("Phòng homestay không hợp lệ.");
   }

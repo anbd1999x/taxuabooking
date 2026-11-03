@@ -427,7 +427,8 @@ async function getHomestayCardsImpl(fromKey?: string | null, toKey?: string | nu
     let status: HomestayCardStatus = "none";
     let freeRooms = 0;
     if (hasDates) {
-      freeRooms = rooms.filter((r) => !occupied.has(r.id)).length;
+      // Homestay "chỉ liên hệ" (không quản lý lịch) → luôn hiện còn chỗ khi tìm kiếm.
+      freeRooms = s.contactOnly ? rooms.length : rooms.filter((r) => !occupied.has(r.id)).length;
       status = freeRooms === 0 ? "full" : freeRooms <= 2 ? "low" : "ok";
     }
 
@@ -516,7 +517,8 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
           price,
           priceOld: onSale && price === sale ? listP : null,
           cover: firstImageUrl(r.images) ?? firstImageUrl(rt.images) ?? (rt.imageUrl && !VIDEO_URL_RE.test(rt.imageUrl) ? rt.imageUrl : null) ?? s.images[0]?.url ?? null,
-          free: !occupied.has(r.id),
+          // Homestay "chỉ liên hệ" không quản lý lịch → coi như luôn trống khi tìm kiếm.
+          free: s.contactOnly || !occupied.has(r.id),
         };
       });
 

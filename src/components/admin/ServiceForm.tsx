@@ -29,6 +29,7 @@ interface Initial {
   published?: boolean;
   easyRoad?: boolean;
   pool?: boolean;
+  contactOnly?: boolean;
   ownerId?: string | null;
   ctvCommission?: number | null;
   weekendPolicy?: string | null;
@@ -226,6 +227,10 @@ export function ServiceForm({
         <label className="flex items-center gap-2">
           <input type="checkbox" name="pool" defaultChecked={initial.pool ?? false} className="accent-forest-600 h-4 w-4" />
           <span className="text-sm text-gray-700">🏊 Hồ bơi (lọc combo)</span>
+        </label>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" name="contactOnly" defaultChecked={initial.contactOnly ?? false} className="accent-forest-600 h-4 w-4" />
+          <span className="text-sm text-gray-700">💬 Không quản lý lịch — khách nhắn tin nhận thông tin (luôn hiện khi tìm kiếm)</span>
         </label>
       </div>
 

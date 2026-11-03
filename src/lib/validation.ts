@@ -105,6 +105,7 @@ export const serviceInputSchema = z.object({
   published: z.coerce.boolean().optional(),
   easyRoad: z.coerce.boolean().optional(),
   pool: z.coerce.boolean().optional(),
+  contactOnly: z.coerce.boolean().optional(),
   ownerId: z.string().optional().nullable(),
   ctvCommission: z.coerce.number().int().min(0).optional().nullable(),
   weekendPolicy: z.enum(["NONE", "FRI_SAT", "SAT_SUN", "FRI_SUN", "SAT_PAIRED"]).optional(),

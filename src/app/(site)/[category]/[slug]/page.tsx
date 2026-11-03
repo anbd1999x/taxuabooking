@@ -110,10 +110,13 @@ export default async function ServiceDetailPage({
     const windowEnd = addDays(start, NUM_DAYS - 1);
     const roomIds = stayRooms.map((x) => x.r.id);
     // Ngày bị chiếm (không bán) của từng phòng trong cửa sổ hiển thị.
-    const statuses = await prisma.roomDayStatus.findMany({
-      where: { roomId: { in: roomIds }, date: { gte: start, lte: windowEnd }, status: { not: "AVAILABLE" } },
-      select: { roomId: true, date: true },
-    });
+    // Homestay "chỉ liên hệ" không quản lý lịch → bỏ qua, mọi phòng coi như trống.
+    const statuses = service.contactOnly
+      ? []
+      : await prisma.roomDayStatus.findMany({
+          where: { roomId: { in: roomIds }, date: { gte: start, lte: windowEnd }, status: { not: "AVAILABLE" } },
+          select: { roomId: true, date: true },
+        });
     const occByRoom = new Map<string, string[]>();
     for (const st of statuses) {
       const arr = occByRoom.get(st.roomId) ?? [];
@@ -208,6 +211,7 @@ export default async function ServiceDetailPage({
 
         <HomestayBooking
           serviceId={service.id}
+          contactOnly={service.contactOnly}
           rooms={rooms}
           startKey={toDateKey(start)}
           numDays={NUM_DAYS}

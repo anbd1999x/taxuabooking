@@ -167,15 +167,36 @@ export default async function RoomDetailPage({
           </section>
         </div>
 
-        {/* Đặt phòng */}
+        {/* Đặt phòng (homestay "chỉ liên hệ" → nhắn tin để nhận thông tin) */}
         <div>
-          <BookingPanel
-            serviceId={svc.id}
-            category={svc.category}
-            kind={cat.availabilityKind}
-            phone={phone}
-            zalo={zalo}
-          />
+          {svc.contactOnly ? (
+            <div className="flex flex-col gap-3 rounded-2xl bg-white p-5 shadow-md ring-1 ring-black/5 lg:sticky lg:top-20">
+              <div className="text-lg font-extrabold text-ink">Nhắn tin để nhận thông tin</div>
+              <p className="text-sm leading-relaxed text-gray-600">
+                Homestay này không hiển thị lịch trống trên web. Nhắn tin hoặc gọi cho Tà Xùa Booking
+                để kiểm tra phòng trống, nhận báo giá chính xác và giữ phòng.
+              </p>
+              <a
+                href={zalo ? `https://zalo.me/${zalo}` : `tel:${phone.replace(/\s/g, "")}`}
+                target={zalo ? "_blank" : undefined}
+                rel={zalo ? "noopener noreferrer" : undefined}
+                className="rounded-xl bg-sunset-500 px-4 py-3.5 text-center text-base font-bold text-white transition hover:bg-sunset-600"
+              >
+                💬 Nhắn tin nhận thông tin
+              </a>
+              <a href={`tel:${phone.replace(/\s/g, "")}`} className="rounded-xl px-4 py-2.5 text-center text-sm font-bold text-forest-800 ring-1 ring-gray-200">
+                Gọi {phone}
+              </a>
+            </div>
+          ) : (
+            <BookingPanel
+              serviceId={svc.id}
+              category={svc.category}
+              kind={cat.availabilityKind}
+              phone={phone}
+              zalo={zalo}
+            />
+          )}
         </div>
       </div>
     </div>

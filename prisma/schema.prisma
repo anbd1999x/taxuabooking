@@ -132,6 +132,7 @@ model Service {
   published   Boolean         @default(true)
   easyRoad    Boolean         @default(false) // đường dễ đi (dùng cho combo homestay)
   pool        Boolean         @default(false) // có hồ bơi (tiện ích homestay)
+  contactOnly Boolean         @default(false) // không quản lý lịch trên web: luôn hiện "còn chỗ" khi tìm kiếm, khách nhắn tin để nhận thông tin (không đặt trực tiếp)
   // Đồng bộ lịch phòng từ Google Sheet công khai (mỗi homestay 1 link; bố trí cột tự dò).
   sheetUrl      String? // link Google Sheet (bất kỳ dạng /edit, /htmlview, #gid=...) chứa lịch phòng
   sheetSyncedAt DateTime? // lần đồng bộ gần nhất

@@ -166,7 +166,7 @@ export default async function EditServicePage({
                     summary: service.summary, description: service.description, area: service.area, distanceKm: service.distanceKm, mapUrl: service.mapUrl, policy: service.policy,
                     basePrice: toNumber(service.basePrice), originalPrice: toNumber(service.originalPrice), priceUnit: service.priceUnit,
                     contactName: service.contactName, contactPhone: service.contactPhone, contactZalo: service.contactZalo,
-                    featured: service.featured, published: service.published, easyRoad: service.easyRoad, pool: service.pool, ownerId: service.ownerId,
+                    featured: service.featured, published: service.published, easyRoad: service.easyRoad, pool: service.pool, contactOnly: service.contactOnly, ownerId: service.ownerId,
                     ctvCommission: toNumber(service.ctvCommission),
                     weekendPolicy: service.weekendPolicy,
                   }}
@@ -412,7 +412,7 @@ export default async function EditServicePage({
                     summary: service.summary, description: service.description, area: service.area, distanceKm: service.distanceKm, mapUrl: service.mapUrl, policy: service.policy,
                     basePrice: toNumber(service.basePrice), originalPrice: toNumber(service.originalPrice), priceUnit: service.priceUnit,
                     contactName: service.contactName, contactPhone: service.contactPhone, contactZalo: service.contactZalo,
-                    featured: service.featured, published: service.published, easyRoad: service.easyRoad, pool: service.pool, ownerId: service.ownerId,
+                    featured: service.featured, published: service.published, easyRoad: service.easyRoad, pool: service.pool, contactOnly: service.contactOnly, ownerId: service.ownerId,
                     ctvCommission: toNumber(service.ctvCommission),
                     weekendPolicy: service.weekendPolicy,
                   }}
@@ -797,7 +797,7 @@ export default async function EditServicePage({
             contactZalo: service.contactZalo,
             featured: service.featured,
             published: service.published,
-            easyRoad: service.easyRoad, pool: service.pool,
+            easyRoad: service.easyRoad, pool: service.pool, contactOnly: service.contactOnly,
             ownerId: service.ownerId,
             ctvCommission: toNumber(service.ctvCommission),
             weekendPolicy: service.weekendPolicy,
