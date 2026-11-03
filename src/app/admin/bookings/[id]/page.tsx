@@ -54,10 +54,12 @@ export default async function BookingDetailPage({
   if (!b) notFound();
 
   // Tham chiếu phòng / chuyến xe (scalar id, không có relation trong schema).
-  const [room, outTrip, retTrip, prevB, nextB, newerCount, total, pastCount] = await Promise.all([
-    b.roomId
-      ? prisma.room.findUnique({ where: { id: b.roomId }, include: { roomType: true } })
-      : null,
+  // Combo/đoàn đông có thể giữ NHIỀU phòng (roomIds) → nạp hết để hiện đủ.
+  const roomIdList = b.roomIds?.length ? b.roomIds : b.roomId ? [b.roomId] : [];
+  const [rooms, outTrip, retTrip, prevB, nextB, newerCount, total, pastCount] = await Promise.all([
+    roomIdList.length
+      ? prisma.room.findMany({ where: { id: { in: roomIdList } }, include: { roomType: true } })
+      : Promise.resolve([]),
     b.cabinTripId
       ? prisma.cabinTrip.findUnique({ where: { id: b.cabinTripId }, include: { service: { include: { owner: true } } } })
       : null,
@@ -160,11 +162,14 @@ export default async function BookingDetailPage({
       held: b.heldBus,
     });
   }
-  if (room || (b.category !== "CABIN" && b.category !== "COMBO") || (b.category === "COMBO" && b.serviceId)) {
-    const stay = room
-      ? `${b.service?.title ?? b.serviceTitle} · ${room.roomType.name} (${room.name})`
-      : b.serviceTitle;
+  if (rooms.length || (b.category !== "CABIN" && b.category !== "COMBO") || (b.category === "COMBO" && b.serviceId)) {
+    // Gộp phòng theo hạng để hiện đủ các căn đã giữ: "Phòng Đơn (Mây) + Phòng Đôi (Couple 1)".
+    const roomsLabel = rooms.length
+      ? rooms.map((r) => `${r.roomType.name} (${r.name})`).join(" + ")
+      : "";
+    const stay = roomsLabel ? `${b.service?.title ?? b.serviceTitle} · ${roomsLabel}` : b.serviceTitle;
     const isStay = b.nights != null && b.endDate != null;
+    const roomChips = rooms.length > 1 ? [`${rooms.length} phòng`] : [];
     parts.push({
       key: "room",
       ic: b.category === "COMBO" || b.category === "HOMESTAY" ? "HS" : cat.shortLabel.slice(0, 2).toUpperCase(),
@@ -172,8 +177,8 @@ export default async function BookingDetailPage({
       name: stay,
       detail: isStay
         ? `Nhận ${formatDate(b.useDate)} · Trả ${formatDate(b.endDate!)} · ${b.nights} đêm · ${b.quantity} người`
-        : `${formatDate(b.useDate)}${b.endDate ? ` → ${formatDate(b.endDate)}` : ""} · SL ${b.quantity}${b.selectionLabel && !room ? ` · ${b.selectionLabel}` : ""}`,
-      chips: isStay ? [`${b.nights} đêm`, `${b.quantity} người`] : [cat.shortLabel],
+        : `${formatDate(b.useDate)}${b.endDate ? ` → ${formatDate(b.endDate)}` : ""} · SL ${b.quantity}${b.selectionLabel && !rooms.length ? ` · ${b.selectionLabel}` : ""}`,
+      chips: isStay ? [...roomChips, `${b.nights} đêm`, `${b.quantity} người`] : [cat.shortLabel],
       price: b.category === "COMBO" ? toNumber(b.roomAmount) : outTrip ? null : price,
       heldSide: "room",
       held: b.heldRoom,
