@@ -567,6 +567,23 @@ export async function findComboMatches(input: {
   const homes: ComboHomeOption[] = [];
   for (const h of homeMap.values()) {
     let plans = buildStayPlans(h.rooms, people);
+    // KHÔNG gộp các căn giống nhau vào 1 thẻ: phương án 1 phòng mà nhóm còn nhiều căn
+    // trống → tách MỖI CĂN thành một phương án riêng (đúng ảnh/mô tả/tên từng căn).
+    // Phương án ghép nhiều phòng cho đoàn đông vẫn giữ dạng gộp.
+    plans = plans.flatMap((p) => {
+      const g = p.groups[0];
+      if (p.roomCount !== 1 || p.groups.length !== 1 || g.options.length <= 1) return [p];
+      return g.options.map((o) => {
+        const room = h.rooms.find((r) => r.roomId === o.roomId) ?? g.room;
+        return {
+          ...p,
+          id: `${h.serviceId}:${o.roomId}`,
+          label: room.roomName,
+          roomIds: [o.roomId],
+          groups: [{ room, roomIds: [o.roomId], count: 1, unitCost: g.unitCost, options: [o] }],
+        };
+      });
+    });
     // Lọc khoảng giá theo phương án rẻ nhất có thể (xe rẻ nhất): ngoài khoảng → ẩn.
     if ((priceMax != null || priceMin != null) && buses.length > 0) {
       plans = plans.filter((p) => inRange(planPricePerPerson(p.roomCost, p.communal, people, cheapestFare)));
