@@ -16,6 +16,7 @@ export function Header({ customerName = null }: { customerName?: string | null }
     { href: "/cafe", label: "Cafe Tà Xùa" },
     { href: "/huong-dan", label: "Hướng dẫn đặt dịch vụ" },
     { href: "/tra-cuu", label: "Tra cứu đơn hàng" },
+    { href: "/gop-y", label: "Góp ý" },
   ];
 
   return (

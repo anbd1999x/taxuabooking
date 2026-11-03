@@ -16,7 +16,15 @@ export function VisitTracker() {
     if (pathname === lastKey && now - lastAt < 5000) return;
     lastKey = pathname;
     lastAt = now;
-    fetch("/api/track", { method: "POST", keepalive: true }).catch(() => {});
+    fetch("/api/track", {
+      method: "POST",
+      keepalive: true,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        path: pathname,
+        referrer: typeof document !== "undefined" ? document.referrer : "",
+      }),
+    }).catch(() => {});
   }, [pathname]);
 
   return null;

@@ -19,8 +19,12 @@ export default async function AdminLayout({
   // Số đơn yêu cầu chưa xử lý (trạng thái NEW) để hiển thị badge trên menu.
   const badges: Record<string, number> = {};
   if (session.role === "ADMIN") {
-    const count = await prisma.bookingRequest.count({ where: { status: "NEW" } });
+    const [count, fbCount] = await Promise.all([
+      prisma.bookingRequest.count({ where: { status: "NEW" } }),
+      prisma.feedback.count({ where: { status: "NEW", hidden: false } }),
+    ]);
     if (count > 0) badges["/admin/bookings"] = count;
+    if (fbCount > 0) badges["/admin/feedback"] = fbCount;
   } else if (session.role === "PROVIDER") {
     const sub = session.sub;
     // Nhà xe cabin cũng thấy đơn COMBO đi qua chuyến của mình (như trang Đơn).

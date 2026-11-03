@@ -19,8 +19,10 @@ const ADMIN_NAV: NavItem[] = [
   { href: "/admin/articles", label: "Bài viết (SEO)" },
   { href: "/admin/places", label: "Nhà hàng & Cafe" },
   { href: "/admin/reviews", label: "Đánh giá" },
+  { href: "/admin/feedback", label: "Góp ý" },
   { href: "/admin/accounts", label: "Tài khoản (CTV / Chủ)" },
   { href: "/admin/reports", label: "Thống kê & thanh toán" },
+  { href: "/admin/visits", label: "Lượt truy cập" },
 ];
 const CTV_NAV: NavItem[] = [
   { href: "/admin/ctv", label: "Tổng quan", exact: true },

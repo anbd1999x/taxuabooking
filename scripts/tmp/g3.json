@@ -1,0 +1,8 @@
+[
+ {"name":"places_cafe","match":"PLACE CAFE","every":9,"limit":16},
+ {"name":"places_food","match":"PLACE RESTAURANT","every":5,"limit":16},
+ {"name":"moto","match":"MOTORBIKE","limit":8},
+ {"name":"chungchinh","match":"SVC HOMESTAY Chung Chinh","every":2,"limit":16},
+ {"name":"cola","match":"RT Cỏ Lạ|SVC HOMESTAY Cỏ Lạ","every":4,"limit":16},
+ {"name":"laoxan_banmay","match":"SVC HOMESTAY (Lao Xan|Mây Bản|A Phủ)|RT Mây Bản","every":4,"limit":16}
+]

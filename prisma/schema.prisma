@@ -641,6 +641,9 @@ model CustomerUser {
   providerId   String? // id từ nhà cung cấp OAuth
   createdAt    DateTime @default(now())
   reviews      Review[]
+  feedbacks        Feedback[]
+  feedbackVotes    FeedbackVote[]
+  feedbackComments FeedbackComment[]
 
   @@index([providerId])
 }
@@ -684,6 +687,37 @@ model Visitor {
   @@index([lastSeen])
 }
 
+/// Nhật ký từng lượt xem trang (lịch sử truy cập): trang nào, lúc nào, IP, khách
+/// đã đăng nhập là ai. Dùng cho trang quản trị "Lượt truy cập".
+model PageView {
+  id           String   @id @default(cuid())
+  visitorId    String // cookie tx_vid (không FK để tránh phụ thuộc thứ tự ghi)
+  path         String // đường dẫn trang (VD: /xe-cabin, /homestay/nha-may-si)
+  referrer     String? // nguồn vào (document.referrer) — chủ yếu cho lần đầu phiên
+  customerId   String? // nếu khách đã đăng nhập
+  customerName String? // tên khách lúc xem (tiện hiển thị, không cần join)
+  ip           String? // IP (lấy từ x-forwarded-for / x-real-ip)
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  @@index([visitorId, createdAt])
+  @@index([createdAt])
+  @@index([customerId])
+  @@index([ip])
+}
+
+/// Bộ nhớ đệm tra cứu khu vực theo IP (gọi dịch vụ geo-IP 1 lần / IP rồi lưu lại).
+model IpGeo {
+  ip          String   @id
+  country     String? // tên quốc gia (tiếng Việt)
+  countryCode String?
+  region      String? // tỉnh/thành
+  city        String?
+  isp         String? // nhà mạng
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 /// Trình duyệt đã đăng ký nhận Web Push (thông báo đơn mới) của tài khoản quản trị.
 model PushSubscription {
   id        String   @id @default(cuid())
@@ -694,4 +728,75 @@ model PushSubscription {
   role      String? // vai trò lúc đăng ký (ADMIN/PROVIDER/CTV)
   userAgent String?
   createdAt DateTime @default(now())
+}
+
+// ---- Góp ý của khách (trang /gop-y) ----
+enum FeedbackType {
+  IDEA // Đề xuất tính năng
+  BUG // Báo lỗi
+  SERVICE // Dịch vụ & chuyến đi
+  OTHER // Khác
+}
+
+enum FeedbackStatus {
+  NEW // Mới
+  REVIEW // Đang xem xét
+  PLAN // Đã lên kế hoạch
+  DONE // Đã làm
+}
+
+/// Một góp ý công khai: khách đăng nhập mới gửi được; hiện trên bảng công khai
+/// để mọi người bình chọn & bình luận. Admin đổi trạng thái + trả lời chính thức.
+model Feedback {
+  id         String         @id @default(cuid())
+  customerId String?
+  customer   CustomerUser?  @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  authorName String // tên hiển thị khi gửi (hoặc "Ẩn danh")
+  anon       Boolean        @default(false) // ẩn tên trên bảng công khai
+  type       FeedbackType   @default(IDEA)
+  mood       Int? // chấm trải nghiệm web 1..5 (null = không chấm)
+  areas      String[]       @default([]) // chip trang/tính năng liên quan
+  message    String
+  screenshot String? // url ảnh chụp màn hình (nếu báo lỗi)
+  status     FeedbackStatus @default(NEW)
+  reply      String? // trả lời chính thức của Tà Xùa Booking
+  pinned     Boolean        @default(false) // ghim lên đầu bảng
+  hidden     Boolean        @default(false) // admin ẩn khỏi bảng công khai
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  votes    FeedbackVote[]
+  comments FeedbackComment[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([hidden])
+}
+
+/// Một lượt bình chọn (1 khách / 1 góp ý).
+model FeedbackVote {
+  id         String       @id @default(cuid())
+  feedbackId String
+  feedback   Feedback     @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  customerId String
+  customer   CustomerUser @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  createdAt  DateTime     @default(now())
+
+  @@unique([feedbackId, customerId])
+  @@index([feedbackId])
+}
+
+/// Bình luận công khai dưới một góp ý.
+model FeedbackComment {
+  id         String        @id @default(cuid())
+  feedbackId String
+  feedback   Feedback      @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  customerId String?
+  customer   CustomerUser? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  authorName String
+  content    String
+  isAdmin    Boolean       @default(false) // bình luận từ Tà Xùa Booking
+  createdAt  DateTime      @default(now())
+
+  @@index([feedbackId])
 }

@@ -46,7 +46,7 @@ async function getSettingsImpl(): Promise<Record<string, string>> {
   const rows = await prisma.siteSetting.findMany();
   return Object.fromEntries(rows.map((r) => [r.key, r.value]));
 }
-export const getSettings = unstable_cache(getSettingsImpl, ["settings"], { revalidate: TTL });
+export const getSettings = unstable_cache(getSettingsImpl, ["settings"], { revalidate: TTL, tags: ["settings"] });
 
 export interface ServiceCard {
   id: string;
