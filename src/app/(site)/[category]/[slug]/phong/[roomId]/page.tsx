@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getRoomDetail, getSettings } from "@/lib/queries";
 import { CATEGORIES } from "@/lib/constants";
 import { formatPrice } from "@/lib/format";
-import { roomListPrice } from "@/lib/availability";
+import { roomListPrice, isRoomPriceOnRequest } from "@/lib/availability";
 import { SITE } from "@/lib/site";
 import { Gallery } from "@/components/Gallery";
 import { BookingPanel } from "@/components/BookingPanel";
@@ -43,6 +43,7 @@ export default async function RoomDetailPage({
   const zalo = settings.contactZalo || SITE.defaultZalo;
 
   const listStrike = roomListPrice(room);
+  const priceOnRequest = isRoomPriceOnRequest(room);
   const amenities = (room.amenities ?? "")
     .split(",")
     .map((a) => a.trim())
@@ -100,11 +101,17 @@ export default async function RoomDetailPage({
           <div className="mt-4 flex flex-wrap items-end gap-4 rounded-2xl bg-white p-4 ring-1 ring-black/5">
             <div>
               <p className="text-xs text-gray-500">Giá phòng</p>
-              <p className="text-2xl font-bold text-forest-700">
-                {formatPrice(room.salePrice ?? room.listPrice)}<span className="text-xs font-normal text-gray-500">/đêm</span>
-              </p>
-              {listStrike != null && (
-                <p className="text-sm text-gray-400 line-through">{formatPrice(listStrike)}</p>
+              {priceOnRequest ? (
+                <p className="text-xl font-bold text-forest-700">IB để biết giá</p>
+              ) : (
+                <>
+                  <p className="text-2xl font-bold text-forest-700">
+                    {formatPrice(room.salePrice ?? room.listPrice)}<span className="text-xs font-normal text-gray-500">/đêm</span>
+                  </p>
+                  {listStrike != null && (
+                    <p className="text-sm text-gray-400 line-through">{formatPrice(listStrike)}</p>
+                  )}
+                </>
               )}
             </div>
             <div>

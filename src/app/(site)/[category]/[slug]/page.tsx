@@ -8,7 +8,7 @@ import { CATEGORIES } from "@/lib/constants";
 import { formatPrice, toNumber } from "@/lib/format";
 import { SITE } from "@/lib/site";
 import { prisma } from "@/lib/prisma";
-import { roomPricing, roomListPrice } from "@/lib/availability";
+import { roomPricing, roomListPrice, isRoomPriceOnRequest } from "@/lib/availability";
 import { today, toDateKey, addDays } from "@/lib/dates";
 import { BookingPanel } from "@/components/BookingPanel";
 import { HomestayBooking, type HomestayRoom } from "@/components/HomestayBooking";
@@ -141,6 +141,7 @@ export default async function ServiceDetailPage({
         base: pricing.weekdayPrice,
         listPrice: toNumber(r.listPrice) ?? 0,
         hasSale: roomListPrice(r) != null,
+        por: isRoomPriceOnRequest(r),
         days: pricing.daysOfWeek ?? [null, null, null, null, null, null, null],
         occupied: occByRoom.get(r.id) ?? [],
       };
@@ -367,7 +368,7 @@ export default async function ServiceDetailPage({
                               <span className="text-gray-500">/đêm</span>
                             </>
                           ) : (
-                            <span className="text-gray-500">Liên hệ xác nhận giá</span>
+                            <span className="font-semibold text-forest-700">IB để biết giá</span>
                           )}
                         </p>
                       </div>
@@ -397,10 +398,16 @@ export default async function ServiceDetailPage({
                             className="rounded-lg bg-forest-50 px-3 py-1.5 text-sm font-medium text-forest-700 transition hover:bg-forest-100"
                           >
                             {room.name} ·{" "}
-                            {room.salePrice != null && toNumber(room.listPrice)! > toNumber(room.salePrice)! && (
-                              <span className="font-normal text-gray-400 line-through">{formatPrice(room.listPrice)} </span>
-                            )}
-                            {formatPrice(room.salePrice ?? room.listPrice)} →
+                            {isRoomPriceOnRequest(room) ? (
+                              <span className="font-semibold text-forest-700">IB để biết giá</span>
+                            ) : (
+                              <>
+                                {room.salePrice != null && toNumber(room.listPrice)! > toNumber(room.salePrice)! && (
+                                  <span className="font-normal text-gray-400 line-through">{formatPrice(room.listPrice)} </span>
+                                )}
+                                {formatPrice(room.salePrice ?? room.listPrice)}
+                              </>
+                            )} →
                           </Link>
                         ))}
                       </div>

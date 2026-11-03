@@ -418,7 +418,9 @@ async function getHomestayCardsImpl(fromKey?: string | null, toKey?: string | nu
       })
       .filter((p) => p.eff > 0);
     const cheapest = priced.length ? priced.reduce((a, b) => (b.eff < a.eff ? b : a)) : null;
-    const from = cheapest ? cheapest.eff : toNumber(s.basePrice) ?? 0;
+    // Có phòng nhưng không phòng nào công khai giá -> 0 để thẻ hiện "IB để biết giá"
+    // (không rơi về basePrice cũ). Không có phòng nào thì mới dùng basePrice.
+    const from = cheapest ? cheapest.eff : rooms.length ? 0 : toNumber(s.basePrice) ?? 0;
     const fromOld = cheapest?.onSale ? cheapest.list : null;
     const cat = /bungalow/i.test(`${s.title} ${s.area ?? ""}`) ? "Bungalow" : "Homestay";
 

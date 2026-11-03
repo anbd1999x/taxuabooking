@@ -157,6 +157,22 @@ export function roomCommissionForNights(r: RoomCommissionFields, nights: Date[])
   return total;
 }
 
+/** Nhãn hiển thị cho phòng KHÔNG công khai giá — khách nhắn tin (IB) để hỏi giá. */
+export const PRICE_ON_REQUEST_LABEL = "IB để biết giá";
+
+/**
+ * Phòng "giá liên hệ / IB": admin không đặt giá công khai.
+ * = giá thường (listPrice) & giá chiết khấu (salePrice) & MỌI giá theo thứ đều ≤ 0.
+ * Phòng kiểu này vẫn hiện trong tìm kiếm nhưng hiển thị "IB để biết giá" thay vì 0đ.
+ */
+export function isRoomPriceOnRequest(r: RoomPriceFields): boolean {
+  const list = toNumber(r.listPrice as never) ?? 0;
+  const sale = toNumber(r.salePrice as never) ?? 0;
+  if (list > 0 || sale > 0) return false;
+  const days = [r.priceMon, r.priceTue, r.priceWed, r.priceThu, r.priceFri, r.priceSat, r.priceSun];
+  return !days.some((d) => (toNumber(d as never) ?? 0) > 0);
+}
+
 /** Giá niêm yết (giá thường) để hiển thị gạch ngang; null nếu không có chiết khấu. */
 export function roomListPrice(r: { listPrice: unknown; salePrice: unknown }): number | null {
   const list = toNumber(r.listPrice as never);
@@ -215,9 +231,9 @@ export function aggregateStay(params: {
       continue;
     }
 
-    // Giá của ngày
+    // Giá của ngày. ≤ 0 = ngày "không công khai giá" (IB) → giá cả kỳ coi như chưa đủ.
     const price = priceForDay(day, pricing, rec.priceOverride);
-    if (price == null) priceComplete = false;
+    if (price == null || price <= 0) priceComplete = false;
     else total += price;
 
     minAvailableUnits = Math.min(minAvailableUnits, rec.availableUnits);

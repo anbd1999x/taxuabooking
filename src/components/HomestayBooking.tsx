@@ -25,6 +25,8 @@ export interface HomestayRoom {
   base: number; // giá hiệu lực (sale ?? list)
   listPrice: number; // giá niêm yết (để gạch ngang khi có giảm)
   hasSale: boolean;
+  /** Phòng không công khai giá → hiển thị "IB để biết giá" thay vì 0đ. */
+  por: boolean;
   /** Giá theo thứ, chỉ mục theo getUTCDay(): [CN,T2,T3,T4,T5,T6,T7]. null = dùng base. */
   days: (number | null)[];
   /** Các ngày (yyyy-mm-dd) phòng bị chiếm (không bán). */
@@ -44,6 +46,7 @@ export interface HomestaySuggestion {
 
 const WD = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 const MS = 86_400_000;
+const IB = "IB để biết giá"; // nhãn cho phòng không công khai giá
 
 function parseKey(k: string): Date {
   const [y, m, d] = k.split("-").map(Number);
@@ -188,9 +191,11 @@ export function HomestayBooking({
 
   const occ = useMemo(() => rooms.map((r) => new Set(r.occupied)), [rooms]);
   // r.days lập chỉ mục theo getUTCDay(): [CN, T2, T3, T4, T5, T6, T7].
-  const priceOf = (r: HomestayRoom, d: Date) => {
+  // Giá 1 đêm; trả null = ngày đó KHÔNG công khai giá (IB) — khi giá hiệu lực ≤ 0.
+  const nightPrice = (r: HomestayRoom, d: Date): number | null => {
     const o = r.days[d.getUTCDay()];
-    return o != null ? o : r.base;
+    const p = o != null ? o : r.base;
+    return p > 0 ? p : null;
   };
   // Giá "từ" để hiển thị khi chưa chọn ngày: nhỏ nhất trong các mức giá dương
   // (phòng có thể chỉ nhập giá theo thứ, để giá thường = 0).
@@ -287,8 +292,9 @@ export function HomestayBooking({
         rooms.forEach((r, i) => {
           if (!occ[i].has(k)) {
             free++;
-            const p = priceOf(r, date);
-            if (minP == null || p < minP) minP = p;
+            // Đêm không công khai giá (IB) không gộp vào giá "từ" của ngày.
+            const p = nightPrice(r, date);
+            if (p != null && (minP == null || p < minP)) minP = p;
           }
         });
       }
@@ -318,14 +324,16 @@ export function HomestayBooking({
   // ----- Thẻ phòng theo kỳ đã chọn -----
   const roomView = rooms.map((r, i) => {
     const free = nN > 0 && nights.every((d) => !occ[i].has(keyOf(d)));
-    const stayPrice = nights.reduce((a, d) => a + priceOf(r, d), 0);
+    // Kỳ có ít nhất 1 đêm không công khai giá (IB) → không tính tổng được.
+    const ib = nN > 0 && nights.some((d) => nightPrice(r, d) == null);
+    const stayPrice = nN > 0 && !ib ? nights.reduce((a, d) => a + (nightPrice(r, d) ?? 0), 0) : null;
     const wdP = r.days[3] ?? r.base; // T4 đại diện ngày thường (chỉ mục getUTCDay)
     const weP = r.days[6] ?? r.base; // T7 đại diện cuối tuần
     let status: string, tone: "ok" | "low" | "full" | "idle";
     if (!nN) { status = "Chọn ngày"; tone = "idle"; }
     else if (!free) { status = "Hết phòng"; tone = "full"; }
     else { status = "Còn phòng"; tone = "ok"; }
-    return { r, i, free, stayPrice, wdP, weP, status, tone };
+    return { r, i, free, ib, stayPrice, wdP, weP, status, tone };
   });
 
   const dateQS = ci && coEff ? `?from=${ci}&to=${coEff}` : "";
@@ -334,7 +342,8 @@ export function HomestayBooking({
   const selMax = sel ? Math.max(sel.r.capacity, sel.r.maxCapacity ?? sel.r.capacity) : 0;
   const extraGuests = sel ? Math.max(0, Math.min(guests, selMax) - sel.r.capacity) : 0;
   const extraCost = sel && extraGuests > 0 && sel.r.extraFee ? extraGuests * sel.r.extraFee * nN : 0;
-  const total = sel ? sel.stayPrice + extraCost : 0;
+  // Kỳ có đêm không công khai giá → không có tạm tính (hiển thị "IB để biết giá").
+  const total: number | null = sel ? (sel.ib ? null : (sel.stayPrice ?? 0) + extraCost) : 0;
   const over = sel ? guests > selMax : false;
   const phoneOk = /^0\d{9}$/.test(cphone.replace(/\s/g, ""));
   const ready = nN > 0 && Boolean(sel) && !over && !policyWarn;
@@ -488,7 +497,7 @@ export function HomestayBooking({
                       {c.inWindow && <span className={`h-1.5 w-1.5 rounded-full ${c.isEnd ? "bg-white" : dotColor}`} />}
                     </span>
                     <span className={`truncate text-[10px] font-semibold ${c.isEnd ? "text-forest-100" : c.status === "full" ? "text-gray-400" : "text-gray-500"}`}>
-                      {c.inWindow ? (c.status === "full" ? "Hết" : c.minP != null ? shortK(c.minP) : "") : ""}
+                      {c.inWindow ? (c.status === "full" ? "Hết" : c.minP != null ? shortK(c.minP) : c.free > 0 ? "IB" : "") : ""}
                     </span>
                   </button>
                 );
@@ -565,9 +574,15 @@ export function HomestayBooking({
                         </div>
                       )}
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-gray-500">
-                        <span>Ngày thường <b className="text-ink">{fmt(v.wdP)}</b></span>
-                        <span>Cuối tuần <b className="text-ink">{fmt(v.weP)}</b></span>
-                        {v.r.hasSale && <span className="text-gray-400 line-through">{fmt(v.r.listPrice)}</span>}
+                        {v.r.por ? (
+                          <span className="font-semibold text-forest-700">{IB}</span>
+                        ) : (
+                          <>
+                            <span>Ngày thường <b className="text-ink">{v.wdP > 0 ? fmt(v.wdP) : IB}</b></span>
+                            <span>Cuối tuần <b className="text-ink">{v.weP > 0 ? fmt(v.weP) : IB}</b></span>
+                            {v.r.hasSale && <span className="text-gray-400 line-through">{fmt(v.r.listPrice)}</span>}
+                          </>
+                        )}
                       </div>
                       {(v.r.extraFee || v.r.earlyFee || v.r.lateFee) && (
                         <div className="text-xs leading-relaxed text-gray-400">
@@ -583,8 +598,10 @@ export function HomestayBooking({
                       )}
                       <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-3">
                         <div>
-                          <div className="text-xs text-gray-500">{nN ? `${nN} đêm` : "Mỗi đêm từ"}</div>
-                          <div className="text-xl font-extrabold text-ink">{nN ? fmt(v.stayPrice) : fmt(fromPrice(v.r))}</div>
+                          <div className="text-xs text-gray-500">{v.r.por || v.ib ? "Giá phòng" : nN ? `${nN} đêm` : "Mỗi đêm từ"}</div>
+                          <div className={`font-extrabold text-ink ${v.r.por || v.ib ? "text-base text-forest-700" : "text-xl"}`}>
+                            {v.r.por || v.ib ? IB : nN ? fmt(v.stayPrice) : fmt(fromPrice(v.r))}
+                          </div>
                         </div>
                         <button
                           type="button"
@@ -702,8 +719,8 @@ export function HomestayBooking({
                     <div className="text-[15px] font-extrabold leading-snug text-ink">{g.name}</div>
                     <div className="text-xs text-gray-500">{g.area}</div>
                     <div className="mt-1 flex items-baseline justify-between gap-2">
-                      <span className="text-base font-extrabold text-sunset-600">
-                        {g.price > 0 ? fmt(g.price) : "Liên hệ"}
+                      <span className="font-extrabold text-sunset-600">
+                        {g.price > 0 ? <span className="text-base">{fmt(g.price)}</span> : <span className="text-sm">{IB}</span>}
                         {g.price > 0 && <span className="text-xs font-medium text-gray-400">/đêm</span>}
                       </span>
                       <span className="text-xs font-semibold text-gray-500">{g.cat}</span>
@@ -781,9 +798,9 @@ export function HomestayBooking({
                 <div className="flex flex-col gap-2 rounded-xl bg-forest-50/60 p-3.5">
                   <div className="flex justify-between gap-2 text-[13px]">
                     <span className="min-w-0 text-gray-600">{sel.r.typeName} · {sel.r.name} · {nN} đêm</span>
-                    <span className="whitespace-nowrap font-bold text-ink">{fmt(sel.stayPrice)}</span>
+                    <span className="whitespace-nowrap font-bold text-ink">{sel.ib ? IB : fmt(sel.stayPrice)}</span>
                   </div>
-                  {extraCost > 0 && (
+                  {!sel.ib && extraCost > 0 && (
                     <div className="flex justify-between gap-2 text-[13px]">
                       <span className="min-w-0 text-gray-600">Phụ thu {extraGuests} người thêm × {nN} đêm</span>
                       <span className="whitespace-nowrap font-bold text-ink">{fmt(extraCost)}</span>
@@ -804,7 +821,9 @@ export function HomestayBooking({
 
               <div className="flex items-baseline justify-between">
                 <span className="font-bold text-ink">Tạm tính</span>
-                <span className="text-2xl font-extrabold text-sunset-600">{fmt(total, "0đ")}</span>
+                <span className={`font-extrabold text-sunset-600 ${sel?.ib ? "text-lg" : "text-2xl"}`}>
+                  {sel?.ib ? IB : fmt(total, "0đ")}
+                </span>
               </div>
 
               {/* Form khách */}
@@ -863,7 +882,7 @@ export function HomestayBooking({
         <div className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-between gap-3 border-t border-gray-200 bg-white px-4 py-3 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.2)] lg:hidden">
           <div className="min-w-0">
             <div className="truncate text-xs text-gray-500">{nN ? `${nN} đêm${sel ? " · 1 phòng" : ""}` : "Chọn ngày ở"}</div>
-            <div className="text-lg font-extrabold text-ink">{fmt(total, "0đ")}</div>
+            <div className="text-lg font-extrabold text-ink">{sel?.ib ? IB : fmt(total, "0đ")}</div>
           </div>
           <button
             type="button"

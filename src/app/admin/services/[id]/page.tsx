@@ -599,6 +599,9 @@ export default async function EditServicePage({
                                       <L label="Sức chứa" cls="sm:col-span-2"><input name="capacity" type="number" min={1} defaultValue={room.capacity} className={inp} /></L>
                                       <L label="Giá thường" cls="sm:col-span-2"><MoneyInput name="listPrice" defaultValue={toNumber(room.listPrice) ?? 0} className={inp} /></L>
                                       <L label="Giá chiết khấu" cls="sm:col-span-2"><MoneyInput name="salePrice" defaultValue={toNumber(room.salePrice) ?? ""} placeholder="(nếu có)" className={inp} /></L>
+                                      <p className="text-[11px] leading-relaxed text-gray-500 sm:col-span-12">
+                                        💡 Để <b>0 / trống toàn bộ giá</b> (giá thường, chiết khấu & giá theo thứ) = <b>không công khai giá</b>: phòng vẫn hiện khi khách tìm, nhưng web hiển thị <b>“IB để biết giá”</b> thay vì số tiền.
+                                      </p>
                                       <L label="Tối đa (người)" cls="sm:col-span-3"><input name="maxCapacity" type="number" min={0} defaultValue={room.maxCapacity ?? ""} placeholder="= sức chứa" className={inp} /></L>
                                       <L label="Phụ thu người thêm (đ/đêm)" cls="sm:col-span-3"><MoneyInput name="extraPersonFee" defaultValue={toNumber(room.extraPersonFee) ?? ""} placeholder="—" className={inp} /></L>
                                       <L label="Phụ thu check-in sớm (đ)" cls="sm:col-span-3"><MoneyInput name="earlyCheckinFee" defaultValue={toNumber(room.earlyCheckinFee) ?? ""} placeholder="—" className={inp} /></L>
@@ -907,6 +910,9 @@ export default async function EditServicePage({
                         <L label="Sức chứa" cls="sm:col-span-2"><input name="capacity" type="number" min={1} defaultValue={room.capacity} className={inp} /></L>
                         <L label="Giá thường" cls="sm:col-span-2"><MoneyInput name="listPrice" defaultValue={toNumber(room.listPrice) ?? 0} className={inp} /></L>
                         <L label="Giá chiết khấu" cls="sm:col-span-2"><MoneyInput name="salePrice" defaultValue={toNumber(room.salePrice) ?? ""} placeholder="(nếu có)" className={inp} /></L>
+                        <p className="text-[11px] leading-relaxed text-gray-500 sm:col-span-12">
+                          💡 Để <b>0 / trống toàn bộ giá</b> (giá thường, chiết khấu & giá theo thứ) = <b>không công khai giá</b>: phòng vẫn hiện khi khách tìm, nhưng web hiển thị <b>“IB để biết giá”</b> thay vì số tiền.
+                        </p>
                         <L label="Tối đa (người)" cls="sm:col-span-3"><input name="maxCapacity" type="number" min={0} defaultValue={room.maxCapacity ?? ""} placeholder="= sức chứa" className={inp} /></L>
                         <L label="Phụ thu người thêm (đ/đêm)" cls="sm:col-span-3"><MoneyInput name="extraPersonFee" defaultValue={toNumber(room.extraPersonFee) ?? ""} placeholder="—" className={inp} /></L>
                         <L label="Phụ thu check-in sớm (đ)" cls="sm:col-span-3"><MoneyInput name="earlyCheckinFee" defaultValue={toNumber(room.earlyCheckinFee) ?? ""} placeholder="—" className={inp} /></L>
@@ -1234,6 +1240,9 @@ function RoomConDayPrices({ room }: { room?: RoomDayPrices }) {
           </L>
         ))}
       </div>
+      <p className="mt-1.5 text-[11px] leading-relaxed text-gray-500">
+        💡 Nhập <b>0</b> cho một thứ = <b>ngày đó không công khai giá</b>: khách chọn trúng ngày đó sẽ thấy <b>“IB để biết giá”</b> (các ngày khác vẫn hiện giá bình thường).
+      </p>
     </details>
   );
 }
