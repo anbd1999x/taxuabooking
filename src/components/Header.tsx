@@ -23,7 +23,7 @@ export function Header({ customerName = null }: { customerName?: string | null }
     <header className="sticky top-0 z-40 border-b border-black/5 bg-white/95 backdrop-blur">
       <div className="container-page flex h-11 items-center justify-between gap-4 sm:h-16">
         <Link href="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
-          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-forest-600 text-[10px] font-bold text-white sm:h-9 sm:w-9 sm:rounded-xl sm:text-base">TX</span>
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-forest-600 text-[10px] font-bold text-white sm:h-9 sm:w-9 sm:text-base">TX</span>
           <span className="whitespace-nowrap text-[15px] font-extrabold tracking-tight text-forest-800 sm:text-lg">
             Tà Xùa <span className="text-sunset-500">Booking</span>
           </span>

@@ -62,7 +62,7 @@ export function AdminShell({
         )}
       >
         <div className="flex h-16 items-center gap-2 px-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white font-bold text-forest-800">TX</span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-forest-500 font-bold text-white ring-2 ring-white/80">TX</span>
           <span className="font-bold text-white">Tà Xùa · {roleLabel}</span>
         </div>
         <nav className="mt-2 space-y-1 px-3">
