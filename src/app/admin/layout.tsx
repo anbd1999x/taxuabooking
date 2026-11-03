@@ -47,7 +47,12 @@ export default async function AdminLayout({
   }
 
   return (
-    <AdminShell adminName={session.name} role={session.role} badges={badges}>
+    <AdminShell
+      adminName={session.name}
+      role={session.role}
+      badges={badges}
+      vapidKey={process.env.VAPID_PUBLIC_KEY ?? ""}
+    >
       {children}
     </AdminShell>
   );

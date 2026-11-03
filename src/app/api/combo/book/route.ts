@@ -5,6 +5,7 @@ import { createComboBooking } from "@/lib/combo";
 import { getSession } from "@/lib/auth";
 import { attachPhoneIfMissing } from "@/lib/customer";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
+import { notifyNewBooking } from "@/lib/push";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ export async function POST(request: Request) {
     const ctvId = session?.role === "CTV" ? session.sub : null;
     const result = await createComboBooking(input, ctvId);
     await attachPhoneIfMissing(input.phone).catch(() => {});
+    void notifyNewBooking({ code: result.code, customerName: input.customerName, phone: input.phone, summary: "Combo xe + phòng" });
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
     if (err instanceof ZodError) {

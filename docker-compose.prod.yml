@@ -48,6 +48,10 @@ services:
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
       # Khoá bảo vệ endpoint cron /api/cron/sheet-sync (crontab trên host gọi kèm ?key=).
       CRON_SECRET: ${CRON_SECRET:-}
+      # Web Push (thông báo đơn mới lên điện thoại admin) — sinh bằng `npx web-push generate-vapid-keys`.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-https://taxuabooking.com}
       # Mã xác minh Google Search Console (meta tag) — giá trị công khai, hiện trong HTML.
       GOOGLE_SITE_VERIFICATION: ${GOOGLE_SITE_VERIFICATION:-LVH4byx13WP50Glg7dAX1E3YkrBhytrzyoqxqsMKuhg}
       # Đăng nhập mạng xã hội (OAuth) — lấy từ .env, để trống nếu chưa cấu hình.

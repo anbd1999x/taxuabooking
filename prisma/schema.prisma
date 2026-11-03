@@ -683,3 +683,15 @@ model Visitor {
 
   @@index([lastSeen])
 }
+
+/// Trình duyệt đã đăng ký nhận Web Push (thông báo đơn mới) của tài khoản quản trị.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userId    String? // AdminUser.id đã bật thông báo (không FK — xoá tài khoản không cần dọn)
+  role      String? // vai trò lúc đăng ký (ADMIN/PROVIDER/CTV)
+  userAgent String?
+  createdAt DateTime @default(now())
+}

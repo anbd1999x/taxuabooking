@@ -6,6 +6,7 @@ import { useState } from "react";
 import { logoutAction } from "@/app/admin/actions";
 import { cn } from "@/lib/utils";
 import { ToastHost } from "./Toast";
+import { PushToggle } from "./PushToggle";
 
 type NavItem = { href: string; label: string; exact?: boolean };
 
@@ -38,11 +39,14 @@ export function AdminShell({
   adminName,
   role = "ADMIN",
   badges,
+  vapidKey = "",
   children,
 }: {
   adminName: string;
   role?: "ADMIN" | "CTV" | "PROVIDER";
   badges?: Record<string, number>;
+  /** VAPID public key — có thì hiện nút bật Web Push thông báo đơn mới (ADMIN). */
+  vapidKey?: string;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -122,8 +126,11 @@ export function AdminShell({
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12h18M3 6h18M3 18h18" /></svg>
           </button>
-          <div className="ml-auto text-sm text-gray-600">
-            Xin chào, <span className="font-semibold text-forest-700">{adminName}</span>
+          <div className="ml-auto flex items-center gap-3">
+            {role === "ADMIN" && <PushToggle vapidKey={vapidKey} />}
+            <div className="text-sm text-gray-600">
+              Xin chào, <span className="font-semibold text-forest-700">{adminName}</span>
+            </div>
           </div>
         </header>
         <main className="flex-1 p-4 lg:p-6">{children}</main>
