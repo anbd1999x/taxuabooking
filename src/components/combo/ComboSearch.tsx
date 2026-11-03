@@ -35,7 +35,7 @@ const PRICE_OPTIONS: [string, string][] = [
   ["lt1200000", "Dưới 1.200k"],
   ["lt1500000", "Dưới 1.500k"],
   ["lt2000000", "Dưới 2.000k"],
-  ["gt2000000", "Trên 2 triệu"],
+  ["gt2000000", "Trên 2.000k"],
 ];
 
 export function ComboSearch({
