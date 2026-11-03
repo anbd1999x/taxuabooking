@@ -11,11 +11,11 @@ export function Header({ customerName = null }: { customerName?: string | null }
   const firstName = customerName ? customerName.trim().split(/\s+/).slice(-1)[0] : "";
 
   const GUIDE_LINKS = [
-    { href: "/kinh-nghiem", label: "⛰️ Kinh nghiệm Tà Xùa" },
-    { href: "/nha-hang", label: "🍲 Nhà hàng Tà Xùa" },
-    { href: "/cafe", label: "☕ Cafe Tà Xùa" },
-    { href: "/huong-dan", label: "📖 Hướng dẫn đặt dịch vụ" },
-    { href: "/tra-cuu", label: "🧾 Tra cứu đơn hàng" },
+    { href: "/kinh-nghiem", label: "Kinh nghiệm Tà Xùa" },
+    { href: "/nha-hang", label: "Nhà hàng Tà Xùa" },
+    { href: "/cafe", label: "Cafe Tà Xùa" },
+    { href: "/huong-dan", label: "Hướng dẫn đặt dịch vụ" },
+    { href: "/tra-cuu", label: "Tra cứu đơn hàng" },
   ];
 
   return (
@@ -72,7 +72,7 @@ export function Header({ customerName = null }: { customerName?: string | null }
             href="/tai-khoan"
             className="hidden whitespace-nowrap rounded-xl px-2.5 py-2 text-sm font-semibold text-forest-700 transition hover:bg-forest-50 lg:inline-flex"
           >
-            {customerName ? `👤 ${firstName}` : "Đăng nhập"}
+            {customerName ? firstName : "Đăng nhập"}
           </Link>
           <button
             type="button"
@@ -127,12 +127,10 @@ export function Header({ customerName = null }: { customerName?: string | null }
               </Link>
             ))}
             <div className="my-1 border-t border-black/5" />
-            <Link href="/kinh-nghiem" onClick={() => setOpen(false)} className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700">⛰️ Kinh nghiệm Tà Xùa</Link>
-            <Link href="/nha-hang" onClick={() => setOpen(false)} className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700">🍲 Nhà hàng Tà Xùa</Link>
-            <Link href="/cafe" onClick={() => setOpen(false)} className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700">☕ Cafe Tà Xùa</Link>
-            <Link href="/huong-dan" onClick={() => setOpen(false)} className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700">📖 Hướng dẫn đặt dịch vụ</Link>
-            <Link href="/tra-cuu" onClick={() => setOpen(false)} className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700">🧾 Tra cứu đơn hàng</Link>
-            <Link href="/tai-khoan" onClick={() => setOpen(false)} className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700">{customerName ? `👤 ${customerName}` : "👤 Đăng nhập / Đăng ký"}</Link>
+            {GUIDE_LINKS.map((l) => (
+              <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700">{l.label}</Link>
+            ))}
+            <Link href="/tai-khoan" onClick={() => setOpen(false)} className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700">{customerName ? customerName : "Đăng nhập / Đăng ký"}</Link>
           </nav>
         </div>
       </div>
