@@ -251,8 +251,23 @@ function ComboPlanCard({
   const [busId, setBusId] = useState(buses[0]?.serviceId ?? "");
   const bus = useMemo(() => buses.find((b) => b.serviceId === busId) ?? buses[0], [buses, busId]);
 
+  // Khách chọn ĐÚNG CĂN trong nhóm phòng giống nhau (nhóm cần 1 phòng mà còn nhiều căn trống).
+  const [pick, setPick] = useState<Record<number, string>>({});
+  const chosenRoomIds = useMemo(
+    () =>
+      plan.groups.flatMap((g, i) =>
+        g.count === 1 && g.options.length > 1 ? [pick[i] ?? g.roomIds[0]] : g.roomIds,
+      ),
+    [plan, pick],
+  );
+
   const single = plan.roomCount === 1 ? plan.groups[0] : null;
-  const title = single ? single.room.roomName : plan.label;
+  // Nhóm còn nhiều căn → tiêu đề thẻ đổi theo CĂN ĐANG CHỌN (không ghi cứng căn đại diện).
+  const singleSel =
+    single && single.options.length > 1
+      ? single.options.find((o) => o.roomId === (pick[0] ?? single.roomIds[0])) ?? null
+      : null;
+  const title = single ? (singleSel ? `${single.room.typeName} · ${singleSel.roomName}` : single.room.roomName) : plan.label;
   const cover = plan.groups[0]?.room.cover ?? home.cover;
 
   // Tiện ích chung của các phòng trong phương án (hiện chip).
@@ -270,16 +285,6 @@ function ComboPlanCard({
   const pricePerPerson = Math.max(0, roomShare + (bus?.farePerPerson ?? 0) - (plan.communal ? 0 : COMBO_DISCOUNT));
   const total = pricePerPerson * people;
   const diff = budget != null ? pricePerPerson - budget : null;
-
-  // Khách chọn ĐÚNG CĂN trong nhóm phòng giống nhau (nhóm cần 1 phòng mà còn nhiều căn trống).
-  const [pick, setPick] = useState<Record<number, string>>({});
-  const chosenRoomIds = useMemo(
-    () =>
-      plan.groups.flatMap((g, i) =>
-        g.count === 1 && g.options.length > 1 ? [pick[i] ?? g.roomIds[0]] : g.roomIds,
-      ),
-    [plan, pick],
-  );
 
   // Xem nhanh phòng (theo nhóm) / xe ngay trong trang (không rời phễu đặt combo).
   const [preview, setPreview] = useState<{ kind: "room"; group: ComboPlanGroup } | { kind: "bus" } | null>(null);
@@ -391,17 +396,41 @@ function ComboPlanCard({
                 </button>
               ))}
             </div>
-            {/* Nhóm còn NHIỀU căn giống nhau trống → liệt kê để khách biết (chọn đúng căn khi đặt) */}
+            {/* Nhóm còn NHIỀU căn giống nhau trống → chip bấm chọn đúng căn ngay trên thẻ */}
             {plan.groups.some((g) => g.options.length > g.count) && (
-              <div className="mt-1.5 flex flex-col gap-0.5 text-xs text-gray-500">
-                {plan.groups
-                  .filter((g) => g.options.length > g.count)
-                  .map((g, i) => (
-                    <div key={i}>
+              <div className="mt-2 flex flex-col gap-1.5">
+                {plan.groups.map((g, i) =>
+                  g.options.length <= g.count ? null : g.count === 1 ? (
+                    <div key={i} className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-xs font-semibold text-gray-500">
+                        Còn {g.options.length} căn — chọn căn bạn muốn:
+                      </span>
+                      {g.options.map((o) => {
+                        const on = (pick[i] ?? g.roomIds[0]) === o.roomId;
+                        return (
+                          <button
+                            key={o.roomId}
+                            type="button"
+                            onClick={() => setPick({ ...pick, [i]: o.roomId })}
+                            className="rounded-full px-2.5 py-1 text-xs font-bold transition"
+                            style={
+                              on
+                                ? { background: "oklch(0.29 0.055 160)", color: "white" }
+                                : { background: "white", color: "oklch(0.35 0.02 160)", boxShadow: "inset 0 0 0 1px oklch(0.88 0.01 200)" }
+                            }
+                          >
+                            {o.roomName}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div key={i} className="text-xs text-gray-500">
                       Còn <b className="text-forest-700">{g.options.length} căn</b> {g.room.typeName.toLowerCase()} trống:{" "}
                       {g.options.map((o) => o.roomName).join(" · ")}
                     </div>
-                  ))}
+                  ),
+                )}
               </div>
             )}
             {amenities.length > 0 && (
