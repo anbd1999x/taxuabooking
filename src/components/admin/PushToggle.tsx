@@ -97,14 +97,19 @@ export function PushToggle({ vapidKey }: { vapidKey: string }) {
           🔔 Nhận thông báo
         </button>
         {showHint && (
-          <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-gray-100 bg-white p-3.5 text-[13px] leading-relaxed text-gray-600 shadow-xl">
-            <b className="text-ink">Để nhận thông báo đơn mới trên iPhone:</b>
-            <ol className="mt-1.5 list-decimal space-y-1 pl-4">
-              <li>Mở trang này bằng <b>Safari</b></li>
-              <li>Bấm nút <b>Chia sẻ</b> → <b>Thêm vào MH chính</b></li>
-              <li>Mở app <b>Tà Xùa</b> từ màn hình chính → đăng nhập → bấm lại nút này</li>
-            </ol>
-          </div>
+          <>
+            {/* Bấm ra ngoài để đóng */}
+            <div className="fixed inset-0 z-40" onClick={() => setShowHint(false)} />
+            {/* Mobile: hộp bám theo màn hình (nút nằm giữa header → neo theo nút sẽ tràn mép trái) */}
+            <div className="fixed inset-x-4 top-[72px] z-50 rounded-xl border border-gray-100 bg-white p-3.5 text-[13px] leading-relaxed text-gray-600 shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:mt-2 sm:w-72">
+              <b className="text-ink">Để nhận thông báo đơn mới trên iPhone:</b>
+              <ol className="mt-1.5 list-decimal space-y-1 pl-4">
+                <li>Mở trang này bằng <b>Safari</b></li>
+                <li>Bấm nút <b>Chia sẻ</b> → <b>Thêm vào MH chính</b></li>
+                <li>Mở app <b>Tà Xùa</b> từ màn hình chính → đăng nhập → bấm lại nút này</li>
+              </ol>
+            </div>
+          </>
         )}
       </div>
     );
