@@ -28,7 +28,9 @@ interface RoomEntry {
 }
 
 export function ComboResults({ result }: { result: ComboSearchResult }) {
-  const { homes, buses, people, nights, budget, checkIn, checkOut, fromKey, toKey } = result;
+  const { homes, buses, people, nights, budget, priceMax, priceMin, checkIn, checkOut, fromKey, toKey } = result;
+  // Chọn KHOẢNG giá (dropdown) → badge chênh lệch so với 1 con số không còn ý nghĩa.
+  const exactBudget = priceMax == null && priceMin == null ? budget : null;
 
   // Bộ lọc khu vực + tiêu chí sắp xếp sau khi có kết quả.
   const [zone, setZone] = useState("all");
@@ -93,11 +95,19 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
           <span className="font-bold text-ink">{rooms.length}</span> phòng · {buses.length} nhà xe · {people} người ·{" "}
           {nights} đêm ({checkIn} → {checkOut})
         </p>
-        {budget != null && (
+        {priceMax != null ? (
+          <p className="text-sm text-gray-500">
+            Mức giá <span className="font-semibold text-forest-700">dưới {vnd(priceMax)}</span>/khách
+          </p>
+        ) : priceMin != null ? (
+          <p className="text-sm text-gray-500">
+            Mức giá <span className="font-semibold text-forest-700">trên {vnd(priceMin)}</span>/khách
+          </p>
+        ) : budget != null ? (
           <p className="text-sm text-gray-500">
             Khớp giá mong muốn <span className="font-semibold text-forest-700">{vnd(budget)}</span>/khách
           </p>
-        )}
+        ) : null}
       </div>
 
       {/* Lọc khu vực + sắp xếp kết quả */}
@@ -142,7 +152,7 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
             buses={buses}
             people={people}
             nights={nights}
-            budget={budget}
+            budget={exactBudget}
             best={e.room.roomId === bestRoomId}
             checkIn={checkIn}
             checkOut={checkOut}

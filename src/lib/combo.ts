@@ -158,6 +158,9 @@ export interface ComboSearchResult {
   nights: number;
   people: number;
   budget: number | null;
+  /** Khoảng giá đã chọn ở dropdown ("Dưới 900k" → priceMax; "Trên 2tr" → priceMin). */
+  priceMax: number | null;
+  priceMin: number | null;
   busCount: number;
   roomCount: number;
   buses: ComboBusOption[];
@@ -184,6 +187,9 @@ export async function findComboMatches(input: {
   toKey: string;
   people: number;
   budget: number | null;
+  /** Mức giá trần/sàn mỗi khách từ dropdown (null = không lọc). */
+  priceMax?: number | null;
+  priceMin?: number | null;
   filters: ComboFilters;
   roomKind?: ComboRoomKind;
   limit?: number;
@@ -191,7 +197,11 @@ export async function findComboMatches(input: {
   const { fromKey, toKey, filters } = input;
   const roomKind = input.roomKind ?? "all";
   const people = Math.max(1, Math.floor(input.people) || 1);
-  const budget = input.budget && input.budget > 0 ? input.budget : null;
+  const priceMax = input.priceMax && input.priceMax > 0 ? input.priceMax : null;
+  const priceMin = input.priceMin && input.priceMin > 0 ? input.priceMin : null;
+  // Chọn khoảng giá → neo sắp xếp vào mép khoảng (ưu tiên combo sát mức đã chọn).
+  const budget = input.budget && input.budget > 0 ? input.budget : priceMax ?? priceMin;
+  const inRange = (p: number) => (priceMax == null || p <= priceMax) && (priceMin == null || p >= priceMin);
 
   const from = parseDateOnly(fromKey); // ngày đi (chiều đi)
   const to = parseDateOnly(toKey); // ngày về (chiều về) = check-out
@@ -208,6 +218,8 @@ export async function findComboMatches(input: {
     nights: nights.length,
     people,
     budget,
+    priceMax,
+    priceMin,
   };
 
   const [allBuses, rooms] = await Promise.all([
@@ -222,7 +234,7 @@ export async function findComboMatches(input: {
     for (const room of rooms) {
       const roomSharePerPerson = room.communal ? room.roomCost : Math.round(room.roomCost / people);
       const pricePerPerson = comboPricePerPerson(room.roomCost, room.communal, people, bus.farePerPerson);
-      if (pricePerPerson <= 0) continue;
+      if (pricePerPerson <= 0 || !inRange(pricePerPerson)) continue;
       const distance = budget != null ? Math.abs(pricePerPerson - budget) : pricePerPerson;
       matches.push({
         id: `${bus.serviceId}:${room.roomTypeId}:${room.roomId}`,
@@ -248,6 +260,9 @@ export async function findComboMatches(input: {
   ];
   const homeMap = new Map<string, ComboHomeOption>();
   for (const r of rooms) {
+    // Lọc khoảng giá theo phương án rẻ nhất (xe rẻ nhất): ngoài khoảng → ẩn phòng.
+    if ((priceMax != null || priceMin != null) && buses.length > 0 &&
+        !inRange(comboPricePerPerson(r.roomCost, r.communal, people, cheapestFare))) continue;
     let h = homeMap.get(r.serviceId);
     if (!h) {
       h = { serviceId: r.serviceId, slug: r.slug, title: r.title, area: r.area, distanceKm: r.distanceKm, cover: r.cover, amenities: [], rooms: [], bestPricePerPerson: 0 };
@@ -278,7 +293,7 @@ export async function findComboMatches(input: {
   return {
     ...base,
     busCount: buses.length,
-    roomCount: rooms.length,
+    roomCount: [...homeMap.values()].reduce((n, h) => n + h.rooms.length, 0),
     buses,
     homes,
     bestHomeId,

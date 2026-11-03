@@ -70,7 +70,12 @@ export default async function CategoryPage({
     const from = str(sp.from);
     const to = str(sp.to);
     const people = Math.max(1, Number(str(sp.people)) || 2);
-    const budget = str(sp.budget) ? Number(str(sp.budget)) : null;
+    // Khoảng giá từ dropdown: "lt900000" = dưới 900k, "gt2000000" = trên 2tr.
+    const priceKey = str(sp.price) ?? "";
+    const pm = priceKey.match(/^(lt|gt)(\d+)$/);
+    const priceMax = pm && pm[1] === "lt" ? Number(pm[2]) : null;
+    const priceMin = pm && pm[1] === "gt" ? Number(pm[2]) : null;
+    const budget = str(sp.budget) ? Number(str(sp.budget)) : null; // link cũ (?budget=) vẫn chạy
     const comboFilters = parseComboFilters(str(sp.f));
     const activeFilters = Object.entries(comboFilters)
       .filter(([, v]) => v)
@@ -83,7 +88,7 @@ export default async function CategoryPage({
       | "dorm";
     const result =
       from && to
-        ? await findComboMatches({ fromKey: from, toKey: to, people, budget, filters: comboFilters, roomKind })
+        ? await findComboMatches({ fromKey: from, toKey: to, people, budget, priceMax, priceMin, filters: comboFilters, roomKind })
         : null;
 
     return (
@@ -94,7 +99,7 @@ export default async function CategoryPage({
           initialFrom={from ?? ""}
           initialTo={to ?? ""}
           initialPeople={people}
-          initialBudget={budget != null ? String(budget) : ""}
+          initialPrice={pm ? priceKey : ""}
           initialFilters={activeFilters}
           initialKind={roomKind}
         />

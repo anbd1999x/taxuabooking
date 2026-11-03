@@ -25,18 +25,31 @@ const ROOM_KIND_OPTIONS: { key: string; label: string }[] = [
   { key: "dorm", label: "Phòng tập thể" },
 ];
 
+/** Mức giá mỗi khách: "ltX" = dưới X, "gtX" = trên X; "" = không lọc. */
+const PRICE_OPTIONS: [string, string][] = [
+  ["", "Mọi mức giá"],
+  ["lt800000", "Dưới 800k"],
+  ["lt900000", "Dưới 900k"],
+  ["lt1000000", "Dưới 1.000k"],
+  ["lt1100000", "Dưới 1.100k"],
+  ["lt1200000", "Dưới 1.200k"],
+  ["lt1500000", "Dưới 1.500k"],
+  ["lt2000000", "Dưới 2.000k"],
+  ["gt2000000", "Trên 2 triệu"],
+];
+
 export function ComboSearch({
   initialFrom = "",
   initialTo = "",
   initialPeople = 2,
-  initialBudget = "",
+  initialPrice = "",
   initialFilters = [],
   initialKind = "all",
 }: {
   initialFrom?: string;
   initialTo?: string;
   initialPeople?: number;
-  initialBudget?: string;
+  initialPrice?: string;
   initialFilters?: string[];
   initialKind?: string;
 }) {
@@ -44,7 +57,7 @@ export function ComboSearch({
   const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState(initialTo);
   const [people, setPeople] = useState(initialPeople);
-  const [budget, setBudget] = useState(initialBudget);
+  const [price, setPrice] = useState(initialPrice);
   const [filters, setFilters] = useState<Set<string>>(new Set(initialFilters));
   const [kind, setKind] = useState(initialKind);
 
@@ -62,7 +75,7 @@ export function ComboSearch({
     p.set("from", from || todayKey());
     p.set("to", to || "");
     p.set("people", String(Math.max(1, people)));
-    if (budget) p.set("budget", budget.replace(/[^\d]/g, ""));
+    if (price) p.set("price", price);
     if (filters.size) p.set("f", [...filters].join(","));
     if (kind && kind !== "all") p.set("kind", kind);
     router.push(`/combo?${p.toString()}`, { scroll: false });
@@ -89,13 +102,11 @@ export function ComboSearch({
         </label>
         <label className={cell}>
           <span className="text-xs font-medium text-gray-500">Giá mong muốn / khách</span>
-          <input
-            inputMode="numeric"
-            value={budget}
-            onChange={(e) => setBudget(e.target.value.replace(/[^\d]/g, ""))}
-            placeholder="VD: 900000"
-            className={inp}
-          />
+          <select value={price} onChange={(e) => setPrice(e.target.value)} className={inp}>
+            {PRICE_OPTIONS.map(([v, n]) => (
+              <option key={v} value={v}>{n}</option>
+            ))}
+          </select>
         </label>
       </div>
 
