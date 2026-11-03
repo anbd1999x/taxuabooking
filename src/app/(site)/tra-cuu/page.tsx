@@ -98,7 +98,8 @@ export default async function LookupPage({
     const plusAt = comboLabel?.indexOf(" + ") ?? -1;
     if (b.category === "COMBO" && comboLabel && plusAt > 0) {
       parts.push(
-        { k: "XE", name: comboLabel.slice(0, plusAt).trim(), d: null, price: busAmount },
+        // selectionLabel ghi "Combo: xe Nhà xe X (…)" → bỏ chữ "xe " thừa trước tên nhà xe.
+        { k: "XE", name: comboLabel.slice(0, plusAt).trim().replace(/^xe\s+/i, ""), d: null, price: busAmount },
         { k: "HS", name: comboLabel.slice(plusAt + 3).trim(), d: null, price: roomAmount },
       );
     } else {
