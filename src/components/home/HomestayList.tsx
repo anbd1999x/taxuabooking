@@ -265,7 +265,7 @@ export function HomestayList({
       el.style.opacity = "1";
       el.style.transform = "none";
     });
-  }, [q, ci, co, guests, price, type, zone, sort, amen, all]);
+  }, [q, ci, co, guests, price, type, zone, home, sort, amen, all]);
 
   // Mở trang với sẵn ngày (từ trang chủ) → cuộn xuống danh sách để thấy kết quả
   // ngay trên mobile. Không chạy khi đang gõ lọc trực tiếp.
@@ -505,17 +505,6 @@ export function HomestayList({
               <span className="text-xs font-semibold text-gray-500">Tìm kiếm</span>
               <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submitSearch(); }} placeholder="Tên homestay, khu vực…" className={inp} />
             </label>
-            {homeNames.length > 1 && (
-              <label className={cell}>
-                <span className="text-xs font-semibold text-gray-500">Homestay</span>
-                <select value={home} onChange={(e) => setHome(e.target.value)} className={inp}>
-                  <option value="all">Tất cả homestay</option>
-                  {homeNames.map((n) => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
-              </label>
-            )}
             <label className={cell}>
               <span className="text-xs font-semibold text-gray-500">Nhận phòng</span>
               <DateField value={ci} onChange={setCi} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Nhận phòng" />
@@ -600,6 +589,30 @@ export function HomestayList({
 
       {/* LIST */}
       <main ref={listRef} className="container-page pb-24 pt-9">
+        {/* Lọc nhanh theo TÊN homestay — dãy chữ nhỏ ngay trên kết quả, bấm để xem riêng từng nhà */}
+        {homeNames.length > 1 && (
+          <div className="mb-5 flex flex-wrap items-baseline gap-x-4 gap-y-1.5 text-[13px] font-semibold leading-relaxed">
+            <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Xem theo nhà</span>
+            {([["all", "Tất cả"] as const, ...homeNames.map((n) => [n, n] as const)]).map(([k, n]) => {
+              const on = home === k;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setHome(k)}
+                  className="transition hover:opacity-80"
+                  style={
+                    on
+                      ? { color: TH.G, fontWeight: 800, textDecoration: "underline", textUnderlineOffset: "5px", textDecorationThickness: "2px" }
+                      : { color: "oklch(0.5 0.02 160)" }
+                  }
+                >
+                  {n}
+                </button>
+              );
+            })}
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] sm:gap-[22px]">
           {items.map((s, i) => (
             <Link

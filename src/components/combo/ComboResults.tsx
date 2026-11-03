@@ -142,39 +142,46 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
               </button>
             ))}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {homeNames.length > 1 && (
-            <label className="flex items-center gap-2 text-[13px] font-semibold text-gray-500">
-              Homestay
-              <select
-                value={homeName}
-                onChange={(e) => setHomeName(e.target.value)}
-                className="max-w-[220px] rounded-full bg-white px-3 py-2 text-[13px] font-bold text-ink outline-none"
-                style={{ boxShadow: "inset 0 0 0 1px oklch(0.9 0.01 200)" }}
-              >
-                <option value="all">Tất cả homestay</option>
-                {homeNames.map((n) => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </select>
-            </label>
-          )}
-          <label className="flex items-center gap-2 text-[13px] font-semibold text-gray-500">
-            Sắp xếp
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
-              className="rounded-full bg-white px-3 py-2 text-[13px] font-bold text-ink outline-none"
-              style={{ boxShadow: "inset 0 0 0 1px oklch(0.9 0.01 200)" }}
-            >
-              <option value="match">{budget != null ? "Tối ưu (khớp giá · tiện ích · vị trí)" : "Tối ưu (giá · tiện ích · vị trí)"}</option>
-              <option value="priceAsc">Giá thấp → cao</option>
-              <option value="priceDesc">Giá cao → thấp</option>
-              <option value="near">Gần trung tâm nhất</option>
-            </select>
-          </label>
-        </div>
+        <label className="flex items-center gap-2 text-[13px] font-semibold text-gray-500">
+          Sắp xếp
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            className="rounded-full bg-white px-3 py-2 text-[13px] font-bold text-ink outline-none"
+            style={{ boxShadow: "inset 0 0 0 1px oklch(0.9 0.01 200)" }}
+          >
+            <option value="match">{budget != null ? "Tối ưu (khớp giá · tiện ích · vị trí)" : "Tối ưu (giá · tiện ích · vị trí)"}</option>
+            <option value="priceAsc">Giá thấp → cao</option>
+            <option value="priceDesc">Giá cao → thấp</option>
+            <option value="near">Gần trung tâm nhất</option>
+          </select>
+        </label>
       </div>
+
+      {/* Lọc nhanh theo TÊN homestay — dãy chữ nhỏ ngay trên kết quả, bấm để xem riêng từng nhà */}
+      {homeNames.length > 1 && (
+        <div className="mb-4 flex flex-wrap items-baseline gap-x-4 gap-y-1.5 text-[13px] font-semibold leading-relaxed">
+          <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Xem theo nhà</span>
+          {([["all", "Tất cả"] as const, ...homeNames.map((n) => [n, n] as const)]).map(([k, n]) => {
+            const on = homeName === k;
+            return (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setHomeName(k)}
+                className="transition hover:opacity-80"
+                style={
+                  on
+                    ? { color: "oklch(0.29 0.055 160)", fontWeight: 800, textDecoration: "underline", textUnderlineOffset: "5px", textDecorationThickness: "2px" }
+                    : { color: "oklch(0.5 0.02 160)" }
+                }
+              >
+                {n}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <div className="flex flex-col gap-[18px]">
         {entries.slice(0, visible).map((e) => (
