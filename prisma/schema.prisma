@@ -478,14 +478,33 @@ model BookingRequest {
 
   status          BookingStatus @default(NEW)
   adminNote       String?
+  cancelReason    String? // lý do huỷ (để thống kê)
+  heldRoom        Boolean       @default(false) // nhà cung cấp phòng/dịch vụ đã xác nhận giữ chỗ
+  heldBus         Boolean       @default(false) // nhà xe đã xác nhận giữ chỗ (cabin / combo)
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
+
+  logs BookingLog[]
 
   @@index([status])
   @@index([createdAt])
   @@index([serviceId])
   @@index([ctvId])
   @@index([paymentStatus])
+}
+
+/// Nhật ký xử lý một đơn đặt: đổi trạng thái, thu tiền, ghi chú nội bộ…
+model BookingLog {
+  id        String   @id @default(cuid())
+  bookingId String
+  booking   BookingRequest @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  kind      String // STATUS | PAYMENT | NOTE | SUPPLIER | SYSTEM
+  title     String
+  body      String?
+  by        String? // tên người thao tác
+  createdAt DateTime @default(now())
+
+  @@index([bookingId, createdAt])
 }
 
 /// Bài viết kinh nghiệm du lịch Tà Xùa.
