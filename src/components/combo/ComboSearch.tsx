@@ -9,6 +9,23 @@ function todayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
+const KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
+/** Cộng n ngày vào key yyyy-mm-dd. */
+function addD(key: string, n: number): string {
+  const [y, m, d] = key.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + n));
+  return dt.toISOString().slice(0, 10);
+}
+/** "2026-12-14" → "14/12" cho dễ đọc. */
+function fmtD(key: string): string {
+  const [, m, d] = key.split("-");
+  return `${d}/${m}`;
+}
+/** Số đêm giữa 2 key (b − a). */
+function diffDays(a: string, b: string): number {
+  return Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000);
+}
+
 export const COMBO_FILTER_OPTIONS: { key: string; label: string; icon: string }[] = [
   { key: "cloudView", label: "View săn mây", icon: "⛅" },
   { key: "bathtub", label: "Bồn tắm", icon: "🛁" },
@@ -93,6 +110,16 @@ export function ComboSearch({
   const cell = "flex flex-col gap-1 rounded-2xl bg-[oklch(0.965_0.01_150)] px-4 py-3";
   const inp = "mt-0.5 w-full bg-transparent text-[15px] font-bold text-ink outline-none";
 
+  // ----- Ghi chú ngày cho dễ hiểu: xe chạy ĐÊM ngày đi → sáng hôm sau nhận phòng -----
+  // VD khách muốn nhận phòng 15, trả 16 thì phải chọn Ngày đi 14, Ngày về 16.
+  const bothDates = KEY_RE.test(from) && KEY_RE.test(to);
+  const checkIn = KEY_RE.test(from) ? addD(from, 1) : "";
+  const nights = bothDates ? diffDays(checkIn, to) : null; // số đêm ở homestay
+  // Gợi ý sửa khi chọn sai (thường do khách chọn ngày đi = ngày muốn nhận phòng).
+  const suggFrom = KEY_RE.test(from) ? addD(from, -1) : "";
+  const suggTo = bothDates && to > from ? to : KEY_RE.test(from) ? addD(from, 1) : "";
+  const canQuickFix = suggFrom >= todayKey();
+
   return (
     <div className="rounded-[22px] bg-white p-3 shadow-[0_20px_50px_-24px_rgba(30,70,45,0.4)] ring-1 ring-black/[0.05]">
       <div className={`grid gap-1.5 sm:grid-cols-2 ${origins.length > 0 ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
@@ -129,6 +156,35 @@ export function ComboSearch({
           </select>
         </label>
       </div>
+
+      {/* Ghi chú ngày: xe chạy đêm → nhận phòng hôm sau (giải thích + ví dụ + sửa nhanh) */}
+      {nights != null && nights <= 0 ? (
+        <div className="mt-2 rounded-xl bg-red-50 px-3.5 py-2.5 text-[13px] leading-relaxed text-red-700 ring-1 ring-red-100">
+          ⚠️ Chọn ngày như vậy bạn <b>chưa có đêm nghỉ nào ở homestay</b>: xe chạy <b>đêm {fmtD(from)}</b>, sáng{" "}
+          <b>{fmtD(checkIn)}</b> mới tới nơi nhận phòng.
+          {" "}Nếu bạn muốn <b>nhận phòng {fmtD(from)}</b> và <b>trả phòng {fmtD(to > from ? to : suggTo)}</b> thì chọn{" "}
+          <b>Ngày đi {fmtD(suggFrom)}</b> · <b>Ngày về {fmtD(suggTo)}</b>.
+          {canQuickFix && (
+            <button
+              type="button"
+              onClick={() => { setFrom(suggFrom); setTo(suggTo); }}
+              className="ml-2 inline-flex rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white hover:bg-red-700"
+            >
+              Sửa giúp tôi →
+            </button>
+          )}
+        </div>
+      ) : nights != null ? (
+        <div className="mt-2 rounded-xl bg-sky-50 px-3.5 py-2.5 text-[13px] leading-relaxed text-sky-900 ring-1 ring-sky-100">
+          🚌 Lên xe <b>tối {fmtD(from)}</b> → 🏠 nhận phòng <b>sáng {fmtD(checkIn)}</b> → trả phòng &amp; xe chạy về{" "}
+          <b>ngày {fmtD(to)}</b> · <b>{nights} đêm homestay</b>.
+        </div>
+      ) : (
+        <div className="mt-2 rounded-xl bg-sky-50 px-3.5 py-2.5 text-[13px] leading-relaxed text-sky-900 ring-1 ring-sky-100">
+          💡 <b>Ngày đi là đêm bạn lên xe</b> — xe chạy xuyên đêm, <b>sáng hôm sau</b> mới tới Tà Xùa nhận phòng.
+          {" "}Ví dụ: muốn <b>nhận phòng ngày 15</b> và <b>trả phòng ngày 16</b> → chọn <b>Ngày đi 14</b> · <b>Ngày về 16</b>.
+        </div>
+      )}
 
       <div className="mt-2.5 flex flex-wrap items-center gap-2">
         <span className="text-xs font-semibold text-gray-500">Loại phòng:</span>

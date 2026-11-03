@@ -16,6 +16,7 @@ import { ComboHero } from "@/components/combo/ComboHero";
 import { FilterBar } from "@/components/FilterBar";
 import { ScrollToResults } from "@/components/ScrollToResults";
 import { SITE } from "@/lib/site";
+import { addDays, parseDateOnly, toDateKey, today, isValidDateKey } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 
@@ -121,10 +122,48 @@ export default async function CategoryPage({
               Chọn ngày đi và ngày về để tìm combo.
             </p>
           ) : result == null ? (
-            <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-14 text-center">
-              <p className="text-lg font-medium text-gray-700">Ngày về cần sau ngày nhận phòng ít nhất 1 đêm</p>
-              <p className="mt-1 text-sm text-gray-500">Ngày đi là đêm lên xe, hôm sau mới nhận phòng. Hãy chọn lại ngày.</p>
-            </div>
+            (() => {
+              // Khách thường chọn "Ngày đi" = ngày muốn NHẬN PHÒNG → gợi ý lùi 1 ngày kèm link tìm lại.
+              const fmtD = (k: string) => `${k.slice(8, 10)}/${k.slice(5, 7)}`;
+              const valid = isValidDateKey(from!) && isValidDateKey(to!);
+              let fixFrom = "", fixTo = "", fixUrl = "";
+              if (valid) {
+                fixFrom = toDateKey(addDays(parseDateOnly(from!), -1));
+                fixTo = to! > from! ? to! : toDateKey(addDays(parseDateOnly(from!), 1));
+                if (fixFrom >= toDateKey(today())) {
+                  const q = new URLSearchParams({ from: fixFrom, to: fixTo, people: String(people) });
+                  if (origin) q.set("origin", origin);
+                  if (pm) q.set("price", priceKey);
+                  if (activeFilters.length) q.set("f", activeFilters.join(","));
+                  if (roomKind !== "all") q.set("kind", roomKind);
+                  fixUrl = `/combo?${q.toString()}`;
+                }
+              }
+              return (
+                <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center">
+                  <p className="text-lg font-medium text-gray-700">Khoảng ngày này chưa có đêm nghỉ nào ở homestay</p>
+                  <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-gray-500">
+                    <b>Ngày đi là đêm bạn lên xe</b> — xe chạy xuyên đêm, sáng hôm sau mới tới Tà Xùa nhận phòng.
+                    {valid ? (
+                      <>
+                        {" "}Nếu bạn muốn <b>nhận phòng ngày {fmtD(from!)}</b> và <b>trả phòng ngày {fmtD(fixTo)}</b>,
+                        hãy tìm với <b>Ngày đi {fmtD(fixFrom)}</b> · <b>Ngày về {fmtD(fixTo)}</b>.
+                      </>
+                    ) : (
+                      <> Ví dụ: muốn nhận phòng ngày 15 và trả ngày 16 → chọn Ngày đi 14, Ngày về 16.</>
+                    )}
+                  </p>
+                  {fixUrl && (
+                    <a
+                      href={fixUrl}
+                      className="mt-4 inline-flex items-center gap-2 rounded-xl bg-sunset-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-sunset-600"
+                    >
+                      Tìm lại: đi {fmtD(fixFrom)} → về {fmtD(fixTo)} →
+                    </a>
+                  )}
+                </div>
+              );
+            })()
           ) : result.planCount === 0 || result.busCount === 0 ? (
             <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-14 text-center">
               <p className="text-lg font-medium text-gray-700">Chưa ghép được combo phù hợp</p>
