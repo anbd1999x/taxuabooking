@@ -48,7 +48,7 @@ export function CustomerAuthForms({
         <form action={register} className="flex flex-col gap-3">
           <input type="hidden" name="next" value={next} />
           <input name="name" placeholder="Họ và tên" className={field} autoComplete="name" />
-          <input name="phone" inputMode="tel" placeholder="Số điện thoại (VD: 0397943155)" className={field} autoComplete="tel" />
+          <input name="phone" inputMode="tel" placeholder="Số điện thoại (VD: 0357452952)" className={field} autoComplete="tel" />
           <input name="password" type="password" placeholder="Mật khẩu (tối thiểu 6 ký tự)" className={field} autoComplete="new-password" />
           {regState.error && <p className="text-sm font-semibold text-red-600">{regState.error}</p>}
           <button disabled={rp} className="rounded-xl bg-forest-600 py-3 text-[15px] font-bold text-white hover:bg-forest-700 disabled:opacity-60">

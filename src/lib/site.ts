@@ -7,6 +7,6 @@ export const SITE = {
   url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
   description:
     "Đặt xe cabin, homestay, bungalow, thuê xe máy, taxi và combo du lịch Tà Xùa. Xem giá và tình trạng còn chỗ theo ngày, gửi yêu cầu đặt nhanh chóng.",
-  defaultPhone: "0397 943 155",
-  defaultZalo: "0397943155",
+  defaultPhone: "0357452952",
+  defaultZalo: "0357452952",
 } as const;

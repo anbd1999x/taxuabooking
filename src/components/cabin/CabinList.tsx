@@ -418,7 +418,7 @@ export function CabinList({
         {operators.length === 0 ? (
           <div className="rounded-[22px] border border-dashed border-[oklch(0.85_0.02_200)] bg-white py-14 text-center">
             <div className="text-[19px] font-extrabold text-ink">{searched ? "Không có nhà xe phù hợp" : "Chưa có nhà xe cabin"}</div>
-            <div className="mt-1 text-[15px] text-gray-500">{searched ? "Thử đổi ngày, hoặc gọi 0397 943 155 để được hỗ trợ." : "Vui lòng quay lại sau."}</div>
+            <div className="mt-1 text-[15px] text-gray-500">{searched ? "Thử đổi ngày, hoặc gọi 0357452952 để được hỗ trợ." : "Vui lòng quay lại sau."}</div>
           </div>
         ) : (
           // Thẻ nhà xe chứa sơ đồ tuyến + nút đặt → mobile để 1 cột (2 cột bị vỡ chữ).

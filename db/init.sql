@@ -586,6 +586,6 @@ ON CONFLICT ("username") DO NOTHING;
 
 -- Thông tin liên hệ hiển thị trên website (sửa trong admin hoặc tại đây)
 INSERT INTO "SiteSetting" ("key", "value", "updatedAt") VALUES
-  ('contactPhone', '0397 943 155', CURRENT_TIMESTAMP),
-  ('contactZalo',  '0397943155',   CURRENT_TIMESTAMP)
+  ('contactPhone', '0357452952', CURRENT_TIMESTAMP),
+  ('contactZalo',  '0357452952', CURRENT_TIMESTAMP)
 ON CONFLICT ("key") DO NOTHING;

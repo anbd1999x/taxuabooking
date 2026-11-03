@@ -25,8 +25,8 @@ export default async function HomePage() {
   ]);
 
   const heroTitle = settings.heroTitle || "Lên Tà Xùa săn mây, mọi thứ có ở đây.";
-  const phone = settings.contactPhone || "0397 943 155";
-  const zalo = settings.contactZalo || "0397943155";
+  const phone = settings.contactPhone || "0357452952";
+  const zalo = settings.contactZalo || "0357452952";
 
   const combo = {
     title: settings.cabinComboTitle || "Xe cabin + home view kính trung tâm",

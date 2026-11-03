@@ -578,7 +578,7 @@ export function CafeList({ cafes }: { cafes: CafeCard[] }) {
 
         {items.length === 0 && (
           <div className="rounded-[22px] border-[1.5px] border-dashed border-[oklch(0.85_0.02_200)] bg-white px-6 py-12 text-center text-[15px]" style={{ color: "oklch(0.45 0.02 160)" }}>
-            Chưa có quán phù hợp. Thử đổi khung giờ hoặc khu vực, hoặc gọi 0397 943 155 để được gợi ý.
+            Chưa có quán phù hợp. Thử đổi khung giờ hoặc khu vực, hoặc gọi 0357452952 để được gợi ý.
           </div>
         )}
 

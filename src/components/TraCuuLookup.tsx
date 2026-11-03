@@ -166,7 +166,7 @@ export function TraCuuLookup({
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") doSearch(); }}
-                placeholder="0397 943 155 hoặc TX-BCLL5B"
+                placeholder="0357452952 hoặc TX-BCLL5B"
                 inputMode="search"
                 className="min-w-0 flex-1 border-0 bg-transparent py-2 text-[17px] font-bold tracking-[0.01em] text-ink outline-none sm:text-lg"
               />

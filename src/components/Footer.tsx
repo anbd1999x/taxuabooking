@@ -4,8 +4,9 @@ import { SITE } from "@/lib/site";
 
 export function Footer({ settings }: { settings: Record<string, string> }) {
   const phone = settings.contactPhone || SITE.defaultPhone;
-  const email = settings.contactEmail || "";
-  const facebook = settings.contactFacebook || "";
+  const phone2 = "0397943155";
+  const email = "lienhe@taxuabooking.com";
+  const facebook = "https://www.facebook.com/tanglinhvxhg";
   const address = settings.contactAddress || "Tà Xùa, Bắc Yên, Sơn La";
 
   return (
@@ -38,6 +39,7 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
           <h4 className="font-semibold text-white">Liên hệ</h4>
           <ul className="mt-3 space-y-2 text-sm text-forest-200">
             <li>📞 {phone}</li>
+            <li>📞 {phone2}</li>
             {email && <li>✉️ {email}</li>}
             {facebook && (
               <li>

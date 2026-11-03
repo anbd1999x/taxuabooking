@@ -184,7 +184,7 @@ export default function BookingsListClient({ rows: all, totalInDb }: { rows: Boo
   }
 
   const dx = drawerId ? all.find((r) => r.id === drawerId) : null;
-  const gridCols = "lg:grid-cols-[32px_minmax(0,1.25fr)_minmax(0,1.8fr)_110px_110px_120px_135px_125px]";
+  const gridCols = "lg:grid-cols-[32px_minmax(0,1fr)_minmax(0,1.9fr)_115px_110px_125px_130px_118px]";
 
   const tiles: { k: string; v: number; key: "urgent" | BookingStatus; dot: string; sub?: string; subC?: string }[] = [
     { k: "Cần gấp", v: nUrg, key: "urgent", dot: "bg-sunset-500", sub: nUrg ? "xử lý ngay" : "", subC: "text-sunset-600" },
@@ -373,9 +373,9 @@ export default function BookingsListClient({ rows: all, totalInDb }: { rows: Boo
                 onChange={() => setSel({ ...sel, [r.id]: !sel[r.id] })}
                 className="h-4 w-4 accent-forest-700"
               />
-              <Link href={`/admin/bookings/${r.id}`} className="min-w-0">
+              <Link href={`/admin/bookings/${r.id}`} className="min-w-0 overflow-hidden">
                 <span className="flex flex-wrap items-center gap-1.5">
-                  <span className="font-mono text-sm font-extrabold tracking-tight text-ink">{r.code}</span>
+                  <span className="font-mono text-[13px] font-extrabold tracking-tight text-ink">{r.code}</span>
                   <span
                     title={r.ctvName ? `Đặt qua cộng tác viên ${r.ctvName}` : "Khách tự đặt trên website"}
                     className={`whitespace-nowrap rounded-md px-1.5 py-0.5 text-[10px] font-extrabold ${
@@ -392,33 +392,33 @@ export default function BookingsListClient({ rows: all, totalInDb }: { rows: Boo
                   Gửi {agoText(m)}
                 </span>
               </Link>
-              <Link href={`/admin/bookings/${r.id}`} className="hidden min-w-0 lg:block">
-                <span className="flex min-w-0 items-center gap-1.5">
-                  <span className={`flex-none rounded-md px-1.5 py-0.5 text-[10px] font-extrabold ${catTone}`}>{catK}</span>
-                  <span className="truncate text-sm font-bold text-ink">{r.title}</span>
+              <Link href={`/admin/bookings/${r.id}`} className="hidden min-w-0 overflow-hidden lg:block">
+                <span className="flex min-w-0 items-start gap-1.5">
+                  <span className={`mt-0.5 flex-none rounded-md px-1.5 py-0.5 text-[10px] font-extrabold ${catTone}`}>{catK}</span>
+                  <span className="line-clamp-2 min-w-0 break-words text-sm font-bold leading-snug text-ink">{r.title}</span>
                 </span>
                 {r.chips.length > 0 && (
                   <span className="mt-1 flex flex-wrap gap-1">
                     {r.chips.slice(0, 3).map((c, i) => (
-                      <span key={i} className="whitespace-nowrap rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600">{c}</span>
+                      <span key={i} className="max-w-full truncate rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-600">{c}</span>
                     ))}
                   </span>
                 )}
               </Link>
-              <div className="hidden min-w-0 lg:block">
-                <div className="whitespace-nowrap text-sm font-bold text-ink">
+              <div className="hidden min-w-0 overflow-hidden lg:block">
+                <div className="text-[13px] font-bold leading-snug text-ink">
                   {r.endDate && r.endDate !== r.useDate ? `${fmtDM(r.useDate)} → ${fmtDM(r.endDate)}` : `${fmtDM(r.useDate)}/${r.useDate.slice(0, 4)}`}
                 </div>
-                <div className={`mt-0.5 whitespace-nowrap text-xs ${soonHot ? "font-semibold text-sunset-600" : "text-gray-500"}`} suppressHydrationWarning>{soon}</div>
+                <div className={`mt-0.5 text-xs ${soonHot ? "font-semibold text-sunset-600" : "text-gray-500"}`} suppressHydrationWarning>{soon}</div>
               </div>
-              <div className="hidden text-right lg:block">
-                <div className="whitespace-nowrap text-[15px] font-extrabold text-ink">{r.price != null ? K(r.price) : "—"}</div>
-                <div className="whitespace-nowrap text-[11px] text-gray-500">{r.paxLabel}</div>
+              <div className="hidden min-w-0 overflow-hidden text-right lg:block">
+                <div className="text-sm font-extrabold leading-snug text-ink">{r.price != null ? K(r.price) : "—"}</div>
+                <div className="text-[11px] text-gray-500">{r.paxLabel}</div>
               </div>
-              <div className="hidden min-w-0 lg:block">
-                <div className={`flex items-center gap-1.5 whitespace-nowrap text-xs font-bold ${payTone.split(" ")[0]}`}>
-                  <span className={`h-[7px] w-[7px] rounded-full ${payTone.split(" ")[1]}`} />
-                  {payText}
+              <div className="hidden min-w-0 overflow-hidden lg:block">
+                <div className={`flex items-start gap-1.5 text-xs font-bold leading-snug ${payTone.split(" ")[0]}`}>
+                  <span className={`mt-1 h-[7px] w-[7px] flex-none rounded-full ${payTone.split(" ")[1]}`} />
+                  <span className="min-w-0 break-words">{payText}</span>
                 </div>
                 <div className="mt-1.5 h-1 max-w-[110px] overflow-hidden rounded-full bg-gray-100">
                   <div className="h-full rounded-full bg-forest-500" style={{ width: `${payPct}%` }} />

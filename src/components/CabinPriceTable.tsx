@@ -44,7 +44,7 @@ export function CabinPriceTable({
   const bikeFrom = Number(settings.cabinBikeFrom || "150000");
   const footnote = settings.cabinFareFootnote || "Giá có thể thay đổi theo thời điểm. Vui lòng liên hệ trước để giữ chỗ.";
   const tagline = settings.cabinTagline || "Đi xa không chỉ là khoảng cách, mà là những trải nghiệm đáng nhớ!";
-  const phone = settings.contactPhone || "0397 943 155";
+  const phone = settings.contactPhone || "0357452952";
 
   const cream = "#f4f1e4";
 

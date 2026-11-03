@@ -107,8 +107,8 @@ async function main() {
   // ---- Site settings ----
   await prisma.siteSetting.createMany({
     data: [
-      { key: "contactPhone", value: "0397 943 155" },
-      { key: "contactZalo", value: "0397943155" },
+      { key: "contactPhone", value: "0357452952" },
+      { key: "contactZalo", value: "0357452952" },
       { key: "contactEmail", value: "anbd.dev@gmail.com" },
       { key: "contactFacebook", value: "https://www.facebook.com/an.danh.bui.2025/" },
       { key: "contactAddress", value: "Tà Xùa, Bắc Yên, Sơn La" },

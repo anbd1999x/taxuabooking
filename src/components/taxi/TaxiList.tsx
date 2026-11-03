@@ -454,7 +454,7 @@ export function TaxiList({ routes }: { routes: TaxiRouteCard[] }) {
 
         {items.length === 0 ? (
           <div className="rounded-[22px] border border-dashed border-[oklch(0.85_0.02_200)] bg-white py-14 text-center text-[15px] text-gray-500">
-            Chưa có tuyến này. Gọi 0397 943 155, tụi mình báo giá xe cho bạn.
+            Chưa có tuyến này. Gọi 0357452952, tụi mình báo giá xe cho bạn.
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] sm:gap-[22px]">
@@ -540,7 +540,7 @@ export function TaxiList({ routes }: { routes: TaxiRouteCard[] }) {
 
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-[oklch(0.92_0.01_200)] bg-white px-[18px] py-4">
           <div className="max-w-[640px] text-sm leading-[1.5] text-gray-600">Giá theo chuyến, đã gồm cầu đường. Sau khi bạn gửi yêu cầu, tụi mình gọi lại xác nhận xe, tài xế và giờ đón.</div>
-          <a href="https://zalo.me/0397943155" target="_blank" rel="noopener noreferrer" className="whitespace-nowrap rounded-full px-4 py-2.5 text-sm font-bold text-white" style={{ background: "oklch(0.68 0.18 45)" }}>Hỏi nhanh qua Zalo</a>
+          <a href="https://zalo.me/0357452952" target="_blank" rel="noopener noreferrer" className="whitespace-nowrap rounded-full px-4 py-2.5 text-sm font-bold text-white" style={{ background: "oklch(0.68 0.18 45)" }}>Hỏi nhanh qua Zalo</a>
         </div>
 
         <div className="mt-6 flex flex-col gap-3 border-t border-[oklch(0.91_0.01_200)] pt-6">
