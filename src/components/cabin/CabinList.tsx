@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DateField } from "@/components/DateField";
-import { useSearchNav, SearchSpinner } from "@/components/useSearchNav";
+import { useSearchNav } from "@/components/useSearchNav";
 
 interface TripAvail {
   id: string;
@@ -397,7 +397,7 @@ export function CabinList({
                 <button type="button" onClick={() => setPax((p) => Math.min(20, p + 1))} className="flex h-7 w-7 items-center justify-center rounded-lg bg-white font-bold">+</button>
               </div>
             </div>
-            <button type="button" onClick={search} disabled={searching} className="flex items-center justify-center gap-2 whitespace-nowrap rounded-[14px] px-6 py-3.5 text-base font-extrabold text-white transition hover:bg-sunset-500 disabled:cursor-wait disabled:opacity-80" style={{ background: "oklch(0.68 0.18 45)" }}>{searching ? <><SearchSpinner /> Đang tìm…</> : "Tìm vé →"}</button>
+            <button type="button" onClick={search} disabled={searching} className="flex items-center justify-center gap-2 whitespace-nowrap rounded-[14px] px-6 py-3.5 text-base font-extrabold text-white transition hover:bg-sunset-500 disabled:cursor-wait disabled:opacity-80" style={{ background: "oklch(0.68 0.18 45)" }}>Tìm vé →</button>
           </div>
           {dateErr && <div className="px-1.5 pb-1 text-[13px] font-semibold text-red-600">{dateErr}</div>}
         </div>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CATEGORY_LIST } from "@/lib/constants";
-import { useSearchNav, SearchSpinner } from "@/components/useSearchNav";
+import { useSearchNav } from "@/components/useSearchNav";
 import { DateField } from "@/components/DateField";
 import { QtyInput } from "@/components/QtyInput";
 
@@ -65,13 +65,7 @@ export function SearchBar() {
         disabled={pending}
         className="m-1 flex items-center justify-center gap-2 rounded-xl bg-sunset-500 px-7 py-3 text-[15px] font-bold text-white transition hover:bg-sunset-600 disabled:cursor-wait disabled:opacity-80"
       >
-        {pending ? (
-          <>
-            <SearchSpinner /> Đang tìm…
-          </>
-        ) : (
-          "Xem chỗ trống"
-        )}
+        Xem chỗ trống
       </button>
     </form>
   );

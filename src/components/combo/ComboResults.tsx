@@ -6,8 +6,8 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type {
   ComboBusOption,
   ComboHomeOption,
-  ComboPlanGroup,
   ComboRoomFeatures,
+  ComboRoomOption,
   ComboStayPlan,
   ComboSearchResult,
 } from "@/lib/combo";
@@ -15,7 +15,10 @@ import type {
 // Phải khớp COMBO_DISCOUNT trong src/lib/combo.ts (server tính lại giá khi đặt).
 const COMBO_DISCOUNT = 25000;
 
-/** Style select trong thanh lọc kết quả (theo thiết kế Combo v2). */
+const G = "oklch(0.29 0.055 160)"; // xanh rừng
+const O = "oklch(0.68 0.18 45)"; // cam điểm nhấn
+
+/** Style select trong thanh lọc kết quả. */
 const SEL = "min-w-0 flex-1 rounded-xl border-[1.5px] border-[oklch(0.88_0.015_180)] bg-white px-3 py-2 text-sm font-bold text-ink outline-none";
 
 const FEAT: [keyof ComboRoomFeatures, string][] = [
@@ -45,12 +48,10 @@ interface PlanEntry {
 
 export function ComboResults({ result }: { result: ComboSearchResult }) {
   const { homes, buses, people, nights, origin, budget, priceMax, priceMin, checkIn, checkOut, fromKey, toKey } = result;
-  // Chọn KHOẢNG giá (dropdown) → badge chênh lệch so với 1 con số không còn ý nghĩa.
   const exactBudget = priceMax == null && priceMin == null ? budget : null;
 
-  // Bộ lọc khu vực + homestay + tiêu chí sắp xếp sau khi có kết quả.
   const [zone, setZone] = useState("all");
-  const [homeName, setHomeName] = useState("all"); // lọc theo TÊN homestay (xem riêng từng nhà)
+  const [homeName, setHomeName] = useState("all");
   const [sort, setSort] = useState("match"); // match | priceAsc | priceDesc | near
   const zones = useMemo(() => [...new Set(homes.map((h) => h.area).filter((a): a is string => Boolean(a)))], [homes]);
   const homeNames = useMemo(
@@ -58,9 +59,6 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
     [homes],
   );
 
-  // Mỗi thẻ = 1 phương án ghép phòng (VD 10 người: "5× Phòng đơn" / "4× Phòng đôi
-  // + 2× Phòng đơn" / dorm). Mặc định sắp theo ĐIỂM TỔNG HỢP: giá (khớp giá mong
-  // muốn nếu có), view/tiện ích, khoảng cách tới trung tâm.
   const entries = useMemo<PlanEntry[]>(() => {
     const distOf = (h: ComboHomeOption) =>
       h.distanceKm ?? (/trung tâm/i.test(h.area ?? "") ? 0 : Number.POSITIVE_INFINITY);
@@ -76,7 +74,6 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
     }
     if (arr.length === 0) return arr;
 
-    // Điểm tổng hợp (0..1, thấp = tốt): 55% giá, 25% view/tiện ích, 20% vị trí.
     const priceOf = (e: PlanEntry) => (budget != null ? Math.abs(e.bestPrice - budget) : e.bestPrice);
     const pVals = arr.map(priceOf);
     const pMin = Math.min(...pVals);
@@ -84,7 +81,7 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
     for (const e of arr) {
       const sPrice = pMax > pMin ? (priceOf(e) - pMin) / (pMax - pMin) : 0;
       const d = distOf(e.home);
-      const sDist = Number.isFinite(d) ? Math.min(d, 15) / 15 : 0.6; // thiếu số km → coi như hơi xa
+      const sDist = Number.isFinite(d) ? Math.min(d, 15) / 15 : 0.6;
       const sAmen = 1 - e.plan.amenityScore;
       e.score = 0.55 * sPrice + 0.25 * sAmen + 0.2 * sDist;
     }
@@ -109,7 +106,7 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
 
   return (
     <div>
-      {/* Tiêu đề danh sách (theo thiết kế Combo v2) */}
+      {/* Tiêu đề danh sách */}
       <div className="mb-3">
         <div className="text-[clamp(22px,2.6vw,28px)] font-extrabold tracking-[-0.02em] text-ink">
           {entries.length} phương án combo
@@ -127,7 +124,7 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
         </div>
       </div>
 
-      {/* Thanh lọc kết quả (theo thiết kế Combo v2): Xem theo nhà · Khu vực · Sắp xếp */}
+      {/* Thanh lọc kết quả: Xem theo nhà · Khu vực · Sắp xếp */}
       <div
         className="mb-4 grid gap-2 rounded-2xl border border-[oklch(0.92_0.01_200)] bg-white p-2"
         style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,230px),1fr))" }}
@@ -165,7 +162,7 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
         </label>
       </div>
 
-      <div className="flex flex-col gap-[18px]">
+      <div className="flex flex-col gap-4">
         {entries.slice(0, visible).map((e) => (
           <ComboPlanCard
             key={e.plan.id}
@@ -187,7 +184,6 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
 
       {visible < entries.length && <p className="mt-4 text-center text-sm text-gray-400">Đang hiện thêm…</p>}
 
-      {/* Bộ lọc khu vực/homestay loại hết phương án → gợi ý xoá lọc thay vì trang trống */}
       {homes.length > 0 && entries.length === 0 && (
         <div className="flex flex-col items-center gap-2.5 rounded-[22px] border border-dashed border-[oklch(0.85_0.02_230)] bg-white px-6 py-12 text-center">
           <div className="text-[17px] font-extrabold text-ink">Không có phương án khớp bộ lọc</div>
@@ -235,33 +231,31 @@ function ComboPlanCard({
   const [busId, setBusId] = useState(buses[0]?.serviceId ?? "");
   const bus = useMemo(() => buses.find((b) => b.serviceId === busId) ?? buses[0], [buses, busId]);
 
-  // Khách chọn ĐÚNG CĂN trong nhóm phòng giống nhau (nhóm cần 1 phòng mà còn nhiều căn trống).
-  const [pick, setPick] = useState<Record<number, string>>({});
+  // Khách chọn ĐÚNG CĂN cho từng nhóm (nhóm còn nhiều căn hơn số cần). pick[gi] = mảng roomId đã chọn.
+  const [pick, setPick] = useState<Record<number, string[]>>({});
+  const pickedFor = (gi: number, g: ComboStayPlan["groups"][number]) =>
+    g.options.length <= g.count ? g.roomIds : pick[gi] ?? g.roomIds.slice(0, g.count);
+  function toggleUnit(gi: number, g: ComboStayPlan["groups"][number], roomId: string) {
+    setPick((prev) => {
+      const cur = prev[gi] ?? g.roomIds.slice(0, g.count);
+      let nx = cur.includes(roomId) ? cur.filter((x) => x !== roomId) : [...cur, roomId];
+      if (nx.length > g.count) nx = nx.slice(nx.length - g.count); // giữ đúng số căn cần
+      return { ...prev, [gi]: nx };
+    });
+  }
   const chosenRoomIds = useMemo(
-    () =>
-      plan.groups.flatMap((g, i) =>
-        g.count === 1 && g.options.length > 1 ? [pick[i] ?? g.roomIds[0]] : g.roomIds,
-      ),
+    () => plan.groups.flatMap((g, i) => pickedFor(i, g)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [plan, pick],
   );
+  // Thiếu căn ở nhóm nào (chọn chưa đủ) → chặn đặt, nhắc chọn.
+  const missing = plan.groups.some((g, i) => g.options.length > g.count && pickedFor(i, g).length !== g.count);
 
-  const single = plan.roomCount === 1 ? plan.groups[0] : null;
-  // Nhóm còn nhiều căn: CHƯA chọn → tiêu đề "còn N căn" (không ghi cứng căn đại diện,
-  // tránh hiểu lầm chỉ còn 1 căn); chọn chip nào → hiện tên căn đó.
-  const singleSel =
-    single && single.options.length > 1 && pick[0]
-      ? single.options.find((o) => o.roomId === pick[0]) ?? null
-      : null;
-  const title = single
-    ? single.options.length > 1
-      ? singleSel
-        ? `${single.room.typeName} · ${singleSel.roomName}`
-        : `${single.room.typeName} — còn ${single.options.length} căn`
-      : single.room.roomName
-    : plan.label;
+  // Tiêu đề = gộp theo hạng ("2× Phòng đôi + 1× Phòng đơn"); cover = ảnh phòng đại diện.
+  const title = plan.groups.map((g) => `${g.count}× ${g.room.typeName}`).join(" + ");
   const cover = plan.groups[0]?.room.cover ?? home.cover;
+  const totalPics = plan.groups.reduce((n, g) => n + (g.room.images.length || (g.room.cover ? 1 : 0)), 0);
 
-  // Tiện ích chung của các phòng trong phương án (hiện chip).
   const amenities = useMemo(() => {
     const out: string[] = [];
     for (const [k, label] of FEAT) if (plan.groups.some((g) => g.room.features[k])) out.push(label);
@@ -271,14 +265,19 @@ function ComboPlanCard({
     return out;
   }, [plan]);
 
-  // roomCost của phương án = TỔNG tiền phòng cả đoàn (dorm đã nhân số người).
   const roomShare = Math.round(plan.roomCost / people);
   const pricePerPerson = Math.max(0, roomShare + (bus?.farePerPerson ?? 0) - (plan.communal ? 0 : COMBO_DISCOUNT));
   const total = pricePerPerson * people;
   const diff = budget != null ? pricePerPerson - budget : null;
 
-  // Xem nhanh phòng (theo nhóm) / xe ngay trong trang (không rời phễu đặt combo).
-  const [preview, setPreview] = useState<{ kind: "room"; group: ComboPlanGroup } | { kind: "bus" } | null>(null);
+  // Modal xem ảnh: giữ NHÓM đang mở + CĂN đang xem (ảnh/mô tả theo đúng căn đó).
+  const [preview, setPreview] = useState<{ gi: number; roomId: string } | "bus" | null>(null);
+  function openRoom(gi: number) {
+    const g = plan.groups[gi];
+    const first = pickedFor(gi, g)[0] ?? g.options[0]?.roomId ?? g.roomIds[0];
+    setPreview({ gi, roomId: first });
+  }
+
   const [openForm, setOpenForm] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -295,6 +294,16 @@ function ComboPlanCard({
     }
     setPanelIn(false);
   }, [openForm]);
+
+  function tryOpenForm() {
+    if (missing) { openRoomFirstMissing(); return; }
+    setErr("");
+    setOpenForm(true);
+  }
+  function openRoomFirstMissing() {
+    const gi = plan.groups.findIndex((g, i) => g.options.length > g.count && pickedFor(i, g).length !== g.count);
+    if (gi >= 0) openRoom(gi);
+  }
 
   async function book() {
     setErr("");
@@ -329,19 +338,19 @@ function ComboPlanCard({
   }
 
   return (
-    <article className={`overflow-hidden rounded-[22px] bg-white ring-1 ${best ? "ring-2 ring-sunset-400" : "ring-black/[0.07]"}`}>
+    <article className={`overflow-hidden rounded-[22px] bg-white ${best ? "ring-2 ring-sunset-400" : "ring-1 ring-black/[0.07]"}`}>
       {best && (
         <div className="bg-sunset-500 px-4 py-1.5 text-[13px] font-bold tracking-wide text-white">
           {budget != null ? "Khớp giá nhất với mong muốn của bạn" : "Phương án tối ưu nhất (giá · tiện ích · vị trí)"}
         </div>
       )}
-      <div className="grid gap-0 lg:grid-cols-[210px_minmax(0,1fr)_268px]">
-        {/* Ảnh phòng (thiếu thì ảnh hạng phòng / homestay) */}
-        <div className="relative min-h-[180px]">
+      <div className="grid gap-0 lg:grid-cols-[260px_minmax(0,1fr)_280px]">
+        {/* Ảnh — bấm mở gallery nhóm đầu */}
+        <button type="button" onClick={() => openRoom(0)} className="group relative block min-h-[200px] cursor-zoom-in text-left">
           {cover ? (
-            <Image src={cover} alt={title} fill sizes="220px" className="object-cover" />
+            <Image src={cover} alt={title} fill sizes="280px" className="object-cover" />
           ) : (
-            <div className="flex h-full min-h-[180px] items-center justify-center bg-gray-100 text-4xl">🛏️</div>
+            <div className="flex h-full min-h-[200px] items-center justify-center bg-gray-100 text-4xl">🛏️</div>
           )}
           {home.area && (
             <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[oklch(0.3_0.04_160)]">
@@ -349,97 +358,98 @@ function ComboPlanCard({
               {home.distanceKm != null && (home.distanceKm === 0 ? " · trung tâm" : ` · ${home.distanceKm.toLocaleString("vi-VN")}km`)}
             </span>
           )}
-          {plan.roomCount > 1 && (
-            <span className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-forest-600 px-2.5 py-1 text-xs font-bold text-white">
-              Ghép {plan.roomCount} phòng · đủ {plan.capacity} chỗ
+          <div className="pointer-events-none absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2">
+            <span className="rounded-full bg-forest-700 px-2.5 py-1 text-xs font-bold text-white">
+              {plan.roomCount > 1 ? `Ghép ${plan.roomCount} ${plan.communal ? "giường" : "phòng"}` : "1 phòng"} · đủ {plan.capacity} chỗ
             </span>
-          )}
-        </div>
+            {totalPics > 0 && (
+              <span className="rounded-full bg-black/55 px-2.5 py-1 text-xs font-bold text-white">{totalPics} ảnh</span>
+            )}
+          </div>
+        </button>
 
-        {/* Thông tin phương án + chọn xe */}
+        {/* Thân: thông tin + chọn căn + chọn xe */}
         <div className="flex min-w-0 flex-col gap-3.5 p-5">
           <div>
             <div className="text-[13px] font-semibold text-gray-500">{home.title}</div>
-            <div className="text-[19px] font-extrabold tracking-[-0.015em] text-ink">{title}</div>
-            <div className="mt-0.5 text-[13px] text-gray-500">
-              {plan.communal ? (
-                <>Giường cộng đồng cho {people} khách · {nights} đêm · <span className="font-bold text-ink">{vnd(plan.roomCost)}</span> cả kỳ</>
-              ) : (
-                <>
-                  Đủ chỗ {plan.capacity} khách · {nights} đêm · tiền phòng <span className="font-bold text-ink">{vnd(plan.roomCost)}</span> cả kỳ
-                  {plan.extraGuests > 0 && (
-                    <> · <span className="font-semibold text-sunset-600">{plan.extraGuests} khách ở ghép, đã gồm phụ thu {vnd(plan.extraCost)}</span></>
-                  )}
-                </>
+            <div className="text-[clamp(18px,2vw,21px)] font-extrabold leading-snug tracking-[-0.015em] text-ink">{title}</div>
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-gray-500">
+              <span>
+                {plan.communal
+                  ? <>Giường cộng đồng cho {people} khách · {nights} đêm</>
+                  : <>Đủ chỗ {plan.capacity} khách · {nights} đêm · tiền phòng <b className="text-ink">{vnd(plan.roomCost)}</b> cả kỳ</>}
+              </span>
+              {plan.extraGuests > 0 && (
+                <span className="rounded-full bg-[oklch(0.95_0.06_70)] px-2.5 py-0.5 text-xs font-bold text-[oklch(0.48_0.15_50)]">
+                  +{plan.extraGuests} khách ở ghép · phụ thu {vnd(plan.extraCost)}
+                </span>
               )}
             </div>
-            {/* Chi tiết từng nhóm phòng của phương án — bấm để xem ảnh/mô tả */}
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {plan.groups.map((g, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => setPreview({ kind: "room", group: g })}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-forest-200 bg-white px-2.5 py-1 text-xs font-semibold text-forest-700 transition hover:bg-forest-50"
-                >
-                  {g.count}× {g.room.typeName}
-                  <span className="text-gray-400">· {vnd(g.unitCost)}{plan.communal ? "/người" : "/phòng"}</span>
-                </button>
-              ))}
-            </div>
-            {/* Nhóm còn NHIỀU căn giống nhau trống → chip bấm chọn đúng căn ngay trên thẻ */}
-            {plan.groups.some((g) => g.options.length > g.count) && (
-              <div className="mt-2 flex flex-col gap-1.5">
-                {plan.groups.map((g, i) =>
-                  g.options.length <= g.count ? null : g.count === 1 ? (
-                    <div key={i} className="flex flex-wrap items-center gap-1.5">
-                      <span className="text-xs font-semibold text-gray-500">
-                        Còn {g.options.length} căn — chọn căn bạn muốn:
+          </div>
+
+          {/* Từng hạng phòng trong phương án: tên + info + xem phòng + chip chọn căn */}
+          <div className="flex flex-col gap-2">
+            {plan.groups.map((g, gi) => {
+              const sel = pickedFor(gi, g);
+              const hasChoice = g.options.length > g.count;
+              return (
+                <div key={gi} className="flex flex-col gap-2.5 rounded-[14px] border border-[oklch(0.93_0.01_160)] bg-[oklch(0.975_0.008_160)] px-3.5 py-3">
+                  <div className="flex items-start justify-between gap-2.5">
+                    <div className="flex min-w-0 items-start gap-2.5">
+                      <span className="flex-none rounded-lg bg-forest-700 px-2 py-0.5 text-[13px] font-extrabold text-white">{g.count}×</span>
+                      <div className="min-w-0">
+                        <div className="text-[15px] font-bold leading-snug text-ink">{g.room.typeName}</div>
+                        <div className="mt-0.5 text-xs text-gray-500">
+                          {vnd(g.unitCost)}/{plan.communal ? "người" : "phòng"} · tối đa {g.room.capacity} người
+                          {hasChoice ? ` · còn ${g.options.length} căn` : ""}
+                        </div>
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => openRoom(gi)} className="flex-none text-[13px] font-bold text-forest-700 underline underline-offset-[3px] hover:text-sunset-600">
+                      Xem phòng
+                    </button>
+                  </div>
+                  {hasChoice && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="mr-0.5 whitespace-nowrap text-xs font-bold" style={{ color: sel.length === g.count ? "oklch(0.45 0.1 155)" : O }}>
+                        Chọn căn {sel.length}/{g.count}:
                       </span>
                       {g.options.map((o) => {
-                        const on = (pick[i] ?? g.roomIds[0]) === o.roomId;
+                        const on = sel.includes(o.roomId);
                         return (
                           <button
                             key={o.roomId}
                             type="button"
-                            onClick={() => setPick({ ...pick, [i]: o.roomId })}
-                            className="rounded-full px-2.5 py-1 text-xs font-bold transition"
-                            style={
-                              on
-                                ? { background: "oklch(0.29 0.055 160)", color: "white" }
-                                : { background: "white", color: "oklch(0.35 0.02 160)", boxShadow: "inset 0 0 0 1px oklch(0.88 0.01 200)" }
-                            }
+                            onClick={() => toggleUnit(gi, g, o.roomId)}
+                            className="rounded-full border-[1.5px] px-2.5 py-1 text-xs font-bold transition"
+                            style={on ? { borderColor: G, background: G, color: "white" } : { borderColor: "oklch(0.88 0.015 160)", background: "white", color: "oklch(0.3 0.03 160)" }}
                           >
                             {o.roomName}
                           </button>
                         );
                       })}
                     </div>
-                  ) : (
-                    <div key={i} className="text-xs text-gray-500">
-                      Còn <b className="text-forest-700">{g.options.length} căn</b> {g.room.typeName.toLowerCase()} trống:{" "}
-                      {g.options.map((o) => o.roomName).join(" · ")}
-                    </div>
-                  ),
-                )}
-              </div>
-            )}
-            {amenities.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {amenities.map((a, i) => (
-                  <span key={i} className="rounded-full bg-[oklch(0.95_0.025_155)] px-2.5 py-1 text-xs font-semibold text-[oklch(0.36_0.08_155)]">{a}</span>
-                ))}
-              </div>
-            )}
+                  )}
+                </div>
+              );
+            })}
           </div>
+
+          {amenities.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {amenities.map((a, i) => (
+                <span key={i} className="rounded-full bg-[oklch(0.95_0.025_155)] px-2.5 py-1 text-xs font-semibold text-[oklch(0.36_0.08_155)]">{a}</span>
+              ))}
+            </div>
+          )}
 
           {/* Chọn xe */}
           <div className="flex flex-col gap-2">
-            <div className="text-xs font-extrabold tracking-wide text-sunset-600">CHỌN XE CABIN KHỨ HỒI</div>
+            <div className="text-xs font-extrabold uppercase tracking-wide text-gray-500">Xe cabin khứ hồi</div>
             {buses.length === 0 ? (
               <div className="rounded-xl bg-gray-50 px-3 py-2 text-sm text-gray-500">Chưa có nhà xe mở cả 2 chiều cho ngày này.</div>
             ) : (
-              <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%,190px), 1fr))" }}>
+              <div className="flex flex-wrap gap-2">
                 {buses.map((b) => {
                   const on = b.serviceId === bus?.serviceId;
                   const low = b.seatsAvailable <= 5;
@@ -448,15 +458,20 @@ function ComboPlanCard({
                       key={b.serviceId}
                       type="button"
                       onClick={() => setBusId(b.serviceId)}
-                      className="flex flex-col gap-0.5 rounded-xl border-2 p-2.5 text-left transition"
-                      style={{ borderColor: on ? "oklch(0.29 0.055 160)" : "oklch(0.92 0.01 200)", background: on ? "oklch(0.97 0.02 155)" : "white" }}
+                      className="flex min-w-0 flex-1 items-center gap-3 rounded-[14px] border-[1.5px] p-2.5 text-left transition"
+                      style={{ borderColor: on ? G : "oklch(0.88 0.015 160)", background: on ? "oklch(0.96 0.025 155)" : "white", flexBasis: "240px", maxWidth: "360px" }}
                     >
-                      <div className="flex items-baseline justify-between gap-1.5">
-                        <span className="truncate text-sm font-extrabold text-ink">{b.title}</span>
-                        <span className="whitespace-nowrap text-xs font-bold" style={{ color: low ? "oklch(0.52 0.15 50)" : "oklch(0.38 0.1 155)" }}>{low ? `Còn ${b.seatsAvailable}` : "Còn chỗ"}</span>
-                      </div>
-                      <div className="text-xs text-gray-500">Đi {b.outboundTime} · Về {b.returnTime}</div>
-                      <div className="text-[13px] font-bold text-[oklch(0.35_0.03_160)]">{vnd(b.farePerPerson)}/khách</div>
+                      <span className="flex h-[18px] w-[18px] flex-none items-center justify-center rounded-full border-2" style={{ borderColor: on ? G : "oklch(0.8 0.01 160)" }}>
+                        <span className="h-2 w-2 rounded-full" style={{ background: on ? G : "transparent" }} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-extrabold text-ink">{b.title}</span>
+                        <span className="block text-xs text-gray-500">Đi {b.outboundTime} · Về {b.returnTime}</span>
+                      </span>
+                      <span className="flex-none text-right">
+                        <span className="block text-sm font-extrabold text-ink">{vnd(b.farePerPerson)}</span>
+                        <span className="block text-[11px] font-bold" style={{ color: low ? "oklch(0.52 0.15 50)" : "oklch(0.45 0.1 155)" }}>{low ? `Còn ${b.seatsAvailable}` : "Còn chỗ"}</span>
+                      </span>
                     </button>
                   );
                 })}
@@ -466,7 +481,7 @@ function ComboPlanCard({
         </div>
 
         {/* Giá + đặt */}
-        <div className="flex flex-col gap-2.5 border-t border-gray-100 bg-[oklch(0.975_0.008_150)] p-5 lg:border-l lg:border-t-0">
+        <div className="flex flex-col gap-2.5 border-t border-gray-100 bg-[oklch(0.98_0.008_70)] p-5 lg:border-l lg:border-t-0">
           {diff != null && (
             <span className="self-start rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: Math.abs(diff) <= 50000 ? "oklch(0.95 0.05 155)" : "oklch(0.95 0.03 250)", color: Math.abs(diff) <= 50000 ? "oklch(0.38 0.1 155)" : "oklch(0.42 0.1 250)" }}>
               {diff === 0 ? "Đúng giá mong muốn" : diff > 0 ? `Cao hơn ${vnd(diff)}` : `Thấp hơn ${vnd(-diff)}`}
@@ -474,12 +489,12 @@ function ComboPlanCard({
           )}
           <div>
             <div className="text-xs text-gray-500">Trọn gói / khách</div>
-            <div className="text-[28px] font-extrabold leading-tight tracking-[-0.02em] text-sunset-600">{vnd(pricePerPerson)}</div>
+            <div className="text-[30px] font-extrabold leading-tight tracking-[-0.03em] text-sunset-600">{vnd(pricePerPerson)}</div>
             <div className="mt-0.5 text-[13px] font-semibold text-gray-500">≈ {vnd(total)} cho {people} người</div>
           </div>
-          <div className="flex flex-col gap-1 text-xs leading-relaxed text-gray-500">
+          <div className="flex flex-col gap-1.5 border-t border-dashed border-[oklch(0.88_0.02_70)] pt-2.5 text-xs leading-relaxed text-gray-500">
             <div className="flex justify-between gap-2">
-              <span>{plan.communal ? "Giường cộng đồng / khách" : plan.roomCount > 1 ? `${plan.roomCount} phòng ÷ ${people} khách` : `Phòng ÷ ${people}`}</span>
+              <span>{plan.communal ? "Giường cộng đồng / khách" : `Tiền phòng ÷ ${people} khách`}</span>
               <span className="font-bold text-ink">{vnd(roomShare)}</span>
             </div>
             <div className="flex justify-between gap-2"><span>Vé khứ hồi{bus?.fareOrigin ? ` từ ${bus.fareOrigin}` : ""} / khách</span><span className="font-bold text-ink">{vnd(bus?.farePerPerson ?? 0)}</span></div>
@@ -488,30 +503,33 @@ function ComboPlanCard({
             )}
           </div>
           <div className="flex-1" />
+          {missing && <div className="text-xs font-bold text-sunset-600">Chọn đủ căn phòng để đặt</div>}
 
           <button
             type="button"
-            onClick={() => { setErr(""); setOpenForm(true); }}
+            onClick={tryOpenForm}
             disabled={!bus}
-            className="rounded-full bg-forest-600 py-3 text-center text-sm font-bold text-white transition hover:bg-sunset-500 disabled:opacity-50"
+            className="rounded-full py-3 text-center text-sm font-extrabold text-white transition hover:bg-sunset-500 disabled:opacity-50"
+            style={{ background: G }}
           >
             Đặt combo này →
           </button>
-
-          <div className="flex gap-2">
-            <button type="button" onClick={() => setPreview({ kind: "room", group: plan.groups[0] })} className="flex-1 rounded-full border border-forest-200 py-2 text-center text-[13px] font-bold text-forest-700 hover:bg-forest-50">Xem phòng</button>
-            {bus && (
-              <button type="button" onClick={() => setPreview({ kind: "bus" })} className="flex-1 rounded-full border border-forest-200 py-2 text-center text-[13px] font-bold text-forest-700 hover:bg-forest-50">Xem xe</button>
-            )}
-          </div>
+          <button type="button" onClick={() => openRoom(0)} className="text-center text-[13px] font-bold text-forest-700 hover:text-sunset-600">
+            Xem ảnh & chi tiết phòng
+          </button>
+          {bus && (
+            <button type="button" onClick={() => setPreview("bus")} className="text-center text-[13px] font-semibold text-gray-400 hover:text-forest-700">
+              Xem lộ trình xe
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Panel đặt combo (trượt ra bên phải ở desktop) */}
+      {/* Panel đặt combo (trượt phải desktop / full mobile) */}
       {openForm && (
         <div
           onClick={() => !submitting && setOpenForm(false)}
-          className="fixed inset-0 z-50 flex justify-end bg-black/50 transition-opacity duration-300"
+          className="fixed inset-0 z-[60] flex justify-end bg-black/50 transition-opacity duration-300"
           style={{ opacity: panelIn ? 1 : 0 }}
         >
           <div
@@ -535,40 +553,29 @@ function ComboPlanCard({
               </div>
             ) : (
               <div className="flex flex-col gap-3 p-5">
-                {/* Tóm tắt combo đã chọn */}
                 <div className="flex flex-col gap-1.5 rounded-xl bg-[oklch(0.975_0.008_150)] p-3.5 text-[13px]">
                   <div className="flex justify-between gap-2"><span className="text-gray-500">Homestay</span><span className="font-bold text-ink">{home.title}</span></div>
-                  {plan.groups.map((g, i) => (
-                    <div key={i} className="flex items-center justify-between gap-2">
-                      <span className="text-gray-500">{i === 0 ? (plan.roomCount > 1 ? "Phòng (ghép)" : "Phòng") : ""}</span>
-                      {g.count === 1 && g.options.length > 1 ? (
-                        // Còn nhiều căn giống nhau → khách chọn đúng căn muốn ở.
-                        <span className="flex items-center gap-1.5 font-bold text-ink">
-                          {g.room.typeName} ·
-                          <select
-                            value={pick[i] ?? g.roomIds[0]}
-                            onChange={(e) => setPick({ ...pick, [i]: e.target.value })}
-                            className="rounded-lg border border-forest-200 bg-white px-2 py-1 text-[13px] font-bold text-forest-700 outline-none"
-                          >
-                            {g.options.map((o) => (
-                              <option key={o.roomId} value={o.roomId}>{o.roomName}</option>
-                            ))}
-                          </select>
-                        </span>
-                      ) : (
-                        <span className="font-bold text-ink">{g.count}× {g.room.typeName}{g.count === 1 && plan.roomCount === 1 ? ` · ${g.room.roomName}` : ""}</span>
-                      )}
-                    </div>
-                  ))}
+                  {plan.groups.map((g, gi) => {
+                    const names = pickedFor(gi, g)
+                      .map((id) => g.options.find((o) => o.roomId === id)?.roomName)
+                      .filter(Boolean)
+                      .join(", ");
+                    return (
+                      <div key={gi} className="flex justify-between gap-2">
+                        <span className="text-gray-500">{gi === 0 ? "Phòng" : ""}</span>
+                        <span className="text-right font-bold text-ink">{g.count}× {g.room.typeName}{names ? ` · ${names}` : ""}</span>
+                      </div>
+                    );
+                  })}
                   {plan.extraGuests > 0 && (
                     <div className="flex justify-between gap-2"><span className="text-gray-500">Ở ghép</span><span className="font-bold text-sunset-600">+{plan.extraGuests} khách · phụ thu {vnd(plan.extraCost)}</span></div>
                   )}
-                  <div className="flex justify-between gap-2"><span className="text-gray-500">Xe cabin</span><span className="font-bold text-ink">{bus?.title} · đi {bus?.outboundTime} / về {bus?.returnTime}</span></div>
+                  <div className="flex justify-between gap-2"><span className="text-gray-500">Xe cabin</span><span className="text-right font-bold text-ink">{bus?.title} · đi {bus?.outboundTime} / về {bus?.returnTime}</span></div>
                   {origin && (
                     <div className="flex justify-between gap-2"><span className="text-gray-500">Điểm đón</span><span className="font-bold text-ink">{origin}</span></div>
                   )}
                   <div className="flex justify-between gap-2"><span className="text-gray-500">Ngày</span><span className="font-bold text-ink">{checkIn} → {checkOut} · {nights} đêm</span></div>
-                  <div className="mt-1 flex justify-between gap-2 border-t border-gray-200 pt-1.5"><span className="text-gray-500">Trọn gói</span><span className="font-extrabold text-sunset-600">{vnd(pricePerPerson)}/khách · {vnd(total)} / {people} người</span></div>
+                  <div className="mt-1 flex justify-between gap-2 border-t border-gray-200 pt-1.5"><span className="text-gray-500">Trọn gói</span><span className="text-right font-extrabold text-sunset-600">{vnd(pricePerPerson)}/khách · {vnd(total)} / {people} người</span></div>
                 </div>
                 <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Họ và tên *" className="rounded-xl border border-gray-200 px-3.5 py-3 text-sm outline-none focus:border-forest-500" />
                 <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="Số điện thoại *" className="rounded-xl border border-gray-200 px-3.5 py-3 text-sm outline-none focus:border-forest-500" />
@@ -584,164 +591,201 @@ function ComboPlanCard({
         </div>
       )}
 
-      {/* Xem nhanh PHÒNG (theo nhóm trong phương án) — ở lại trang combo */}
-      {preview?.kind === "room" && preview.group && (
-        <QuickView
-          title={`${home.title} · ${preview.group.count}× ${preview.group.room.typeName}`}
-          onClose={() => setPreview(null)}
-        >
-          <MiniGallery
-            images={preview.group.room.images.length ? preview.group.room.images : preview.group.room.cover ? [preview.group.room.cover] : []}
-            alt={preview.group.room.roomName}
-          />
-          <div className="flex flex-col gap-3 p-5">
-            <div className="text-sm text-gray-600">
-              Tiêu chuẩn <b>{preview.group.room.capacity} người</b>/phòng · {nights} đêm ({checkIn} → {checkOut}) ·{" "}
-              <b className="text-ink">{vnd(preview.group.unitCost)}</b>/{plan.communal ? "người" : "phòng"} cả kỳ
-              {preview.group.count > 1 && <> · phương án dùng <b>{preview.group.count} phòng</b> hạng này</>}
+      {/* Modal xem ảnh PHÒNG — theo đúng CĂN đang chọn (chuyển căn để xem ảnh/mô tả căn khác) */}
+      {preview && preview !== "bus" && (() => {
+        const g = plan.groups[preview.gi];
+        const opt = g.options.find((o) => o.roomId === preview.roomId) ?? g.options[0];
+        const room: ComboRoomOption = opt?.room ?? g.room;
+        const imgs = room.images.length ? room.images : room.cover ? [room.cover] : [];
+        const sel = pickedFor(preview.gi, g);
+        const picked = sel.includes(room.roomId);
+        return (
+          <RoomPreview
+            title={`${g.room.typeName}${opt ? ` · ${opt.roomName}` : ""}`}
+            home={home.title}
+            images={imgs}
+            onClose={() => setPreview(null)}
+          >
+            {/* Chuyển giữa các căn còn trống trong nhóm — xem đúng ảnh từng căn */}
+            {g.options.length > 1 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="mr-0.5 text-xs font-bold text-gray-500">Căn:</span>
+                {g.options.map((o) => {
+                  const on = o.roomId === room.roomId;
+                  return (
+                    <button
+                      key={o.roomId}
+                      type="button"
+                      onClick={() => setPreview({ gi: preview.gi, roomId: o.roomId })}
+                      className="rounded-full border-[1.5px] px-2.5 py-1 text-xs font-bold transition"
+                      style={on ? { borderColor: G, background: G, color: "white" } : { borderColor: "oklch(0.88 0.015 160)", background: "white", color: "oklch(0.3 0.03 160)" }}
+                    >
+                      {o.roomName}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <div className="grid grid-cols-3 gap-2">
+              {[["Tiêu chuẩn", `${room.capacity} người/${plan.communal ? "giường" : "phòng"}`], ["Giá cả kỳ", vnd(g.unitCost)], ["Thời gian", `${nights} đêm · ${fmtDayKey(checkIn)}→${fmtDayKey(checkOut)}`]].map(([k, v]) => (
+                <div key={k} className="rounded-xl bg-[oklch(0.97_0.008_160)] p-2.5">
+                  <div className="text-[11px] font-semibold text-gray-500">{k}</div>
+                  <div className="mt-0.5 text-sm font-extrabold text-ink">{v}</div>
+                </div>
+              ))}
             </div>
-            {(amenities.length > 0 || preview.group.room.amenityList.length > 0) && (
+            {(amenities.length > 0 || room.amenityList.length > 0) && (
               <div className="flex flex-wrap gap-1.5">
-                {[...amenities, ...preview.group.room.amenityList.filter((a) => !amenities.some((x) => x.includes(a)))].map((a, i) => (
+                {[...amenities, ...room.amenityList.filter((a) => !amenities.some((x) => x.includes(a)))].map((a, i) => (
                   <span key={i} className="rounded-full bg-[oklch(0.95_0.025_155)] px-2.5 py-1 text-xs font-semibold text-[oklch(0.36_0.08_155)]">{a}</span>
                 ))}
               </div>
             )}
-            {preview.group.room.description && (
-              <p className="whitespace-pre-line text-sm leading-relaxed text-gray-600">{preview.group.room.description}</p>
-            )}
-            <div className="rounded-xl bg-[oklch(0.975_0.008_150)] p-3.5 text-sm">
-              Phương án {plan.label} với xe {bus?.title ?? "cabin"}: <b className="text-sunset-600">{vnd(pricePerPerson)}/khách</b> · ≈ {vnd(total)} cho {people} người
+            {room.description && <p className="whitespace-pre-line text-sm leading-relaxed text-gray-600">{room.description}</p>}
+            <div className="rounded-xl bg-[oklch(0.98_0.008_70)] p-3.5 text-sm leading-relaxed text-gray-600">
+              Phương án <b>{title}</b> · xe {bus?.title ?? "cabin"}: <b className="text-sunset-600">{vnd(pricePerPerson)}/khách</b> (≈ {vnd(total)} cho {people} người)
             </div>
-          </div>
-          <div className="flex items-center gap-3 border-t border-gray-100 p-4">
-            <button
-              type="button"
-              onClick={() => { setPreview(null); setErr(""); setOpenForm(true); }}
-              className="flex-1 rounded-full bg-sunset-500 py-3 text-center text-sm font-bold text-white hover:bg-sunset-600"
-            >
-              Đặt combo với phương án này →
-            </button>
-            <Link
-              href={`/homestay/${home.slug}?from=${encodeURIComponent(checkIn)}&to=${encodeURIComponent(checkOut)}`}
-              target="_blank"
-              className="whitespace-nowrap text-xs font-semibold text-gray-400 underline-offset-2 hover:text-forest-700 hover:underline"
-            >
-              Trang chi tiết ↗
-            </Link>
-          </div>
-        </QuickView>
-      )}
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  // Chọn luôn căn đang xem (nếu nhóm còn phải chọn) rồi mở form đặt.
+                  if (g.options.length > g.count && !picked) toggleUnit(preview.gi, g, room.roomId);
+                  setPreview(null);
+                  setErr("");
+                  setOpenForm(true);
+                }}
+                className="flex-1 rounded-full bg-sunset-500 py-3 text-center text-sm font-bold text-white hover:bg-sunset-600"
+              >
+                {g.options.length > g.count && !picked ? "Chọn căn này & đặt combo →" : "Đặt combo với phương án này →"}
+              </button>
+              <Link
+                href={`/homestay/${home.slug}?from=${encodeURIComponent(checkIn)}&to=${encodeURIComponent(checkOut)}`}
+                target="_blank"
+                className="whitespace-nowrap text-xs font-semibold text-gray-400 underline-offset-2 hover:text-forest-700 hover:underline"
+              >
+                Trang chi tiết ↗
+              </Link>
+            </div>
+          </RoomPreview>
+        );
+      })()}
 
-      {/* Xem nhanh XE — giờ chạy + lộ trình đón trả của xe đang chọn */}
-      {preview?.kind === "bus" && bus && (
-        <QuickView title={`${bus.title} · xe cabin khứ hồi`} onClose={() => setPreview(null)}>
-          <MiniGallery images={bus.images.length ? bus.images : bus.cover ? [bus.cover] : []} alt={bus.title} />
-          <div className="flex flex-col gap-3 p-5">
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="rounded-xl bg-[oklch(0.975_0.008_150)] p-3">
-                <div className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Chiều đi</div>
-                <div className="mt-0.5 font-bold text-ink">{fmtDayKey(fromKey)} · {bus.outboundTime}</div>
-              </div>
-              <div className="rounded-xl bg-[oklch(0.975_0.008_150)] p-3">
-                <div className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Chiều về</div>
-                <div className="mt-0.5 font-bold text-ink">{fmtDayKey(toKey)} · {bus.returnTime}</div>
-              </div>
+      {/* Modal xem lộ trình XE */}
+      {preview === "bus" && bus && (
+        <RoomPreview title={`${bus.title} · xe cabin khứ hồi`} home="" images={bus.images.length ? bus.images : bus.cover ? [bus.cover] : []} onClose={() => setPreview(null)}>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="rounded-xl bg-[oklch(0.975_0.008_150)] p-3">
+              <div className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Chiều đi</div>
+              <div className="mt-0.5 font-bold text-ink">{fmtDayKey(fromKey)} · {bus.outboundTime}</div>
             </div>
-            <div className="text-sm text-gray-600">
-              Vé khứ hồi{bus.fareOrigin ? ` từ ${bus.fareOrigin}` : ""} <b className="text-ink">{vnd(bus.farePerPerson)}/khách</b> ·{" "}
-              <b className="text-[oklch(0.38_0.1_155)]">{bus.seatsAvailable <= 5 ? `Còn ${bus.seatsAvailable} chỗ` : "Còn chỗ"}</b>
+            <div className="rounded-xl bg-[oklch(0.975_0.008_150)] p-3">
+              <div className="text-[11px] font-bold uppercase tracking-wide text-gray-400">Chiều về</div>
+              <div className="mt-0.5 font-bold text-ink">{fmtDayKey(toKey)} · {bus.returnTime}</div>
             </div>
-            {[["Lộ trình chiều đi", bus.outboundStops] as const, ["Lộ trình chiều về", bus.returnStops] as const].map(
-              ([label, stops]) =>
-                stops.length > 0 && (
-                  <div key={label}>
-                    <div className="text-xs font-extrabold tracking-wide text-sunset-600">{label.toUpperCase()}</div>
-                    <ul className="mt-1.5 flex flex-col gap-1">
-                      {stops.map((st, i) => (
-                        <li key={i} className="flex items-baseline gap-2.5 text-sm">
-                          <span className="w-12 shrink-0 font-bold text-ink">{st.time}</span>
-                          <span className="text-gray-600">{st.place}{st.tag ? <span className="ml-1.5 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">{st.tag}</span> : null}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ),
-            )}
           </div>
-          <div className="flex items-center gap-3 border-t border-gray-100 p-4">
-            <button
-              type="button"
-              onClick={() => setPreview(null)}
-              className="flex-1 rounded-full bg-forest-600 py-3 text-center text-sm font-bold text-white hover:bg-forest-700"
-            >
-              Dùng xe này cho combo ✓
-            </button>
-            <Link
-              href={`/xe-cabin/${bus.slug}?from=${encodeURIComponent(fromKey)}&to=${encodeURIComponent(toKey)}`}
-              target="_blank"
-              className="whitespace-nowrap text-xs font-semibold text-gray-400 underline-offset-2 hover:text-forest-700 hover:underline"
-            >
-              Trang nhà xe ↗
-            </Link>
+          <div className="text-sm text-gray-600">
+            Vé khứ hồi{bus.fareOrigin ? ` từ ${bus.fareOrigin}` : ""} <b className="text-ink">{vnd(bus.farePerPerson)}/khách</b> ·{" "}
+            <b className="text-[oklch(0.38_0.1_155)]">{bus.seatsAvailable <= 5 ? `Còn ${bus.seatsAvailable} chỗ` : "Còn chỗ"}</b>
           </div>
-        </QuickView>
+          {[["Lộ trình chiều đi", bus.outboundStops] as const, ["Lộ trình chiều về", bus.returnStops] as const].map(
+            ([label, stops]) =>
+              stops.length > 0 && (
+                <div key={label}>
+                  <div className="text-xs font-extrabold tracking-wide text-sunset-600">{label.toUpperCase()}</div>
+                  <ul className="mt-1.5 flex flex-col gap-1">
+                    {stops.map((st, i) => (
+                      <li key={i} className="flex items-baseline gap-2.5 text-sm">
+                        <span className="w-12 shrink-0 font-bold text-ink">{st.time}</span>
+                        <span className="text-gray-600">{st.place}{st.tag ? <span className="ml-1.5 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">{st.tag}</span> : null}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ),
+          )}
+          <Link
+            href={`/xe-cabin/${bus.slug}?from=${encodeURIComponent(fromKey)}&to=${encodeURIComponent(toKey)}`}
+            target="_blank"
+            className="self-start text-xs font-semibold text-gray-400 underline-offset-2 hover:text-forest-700 hover:underline"
+          >
+            Trang nhà xe ↗
+          </Link>
+        </RoomPreview>
       )}
     </article>
   );
 }
 
 function fmtDayKey(key: string): string {
-  const [y, m, d] = key.split("-");
-  return `${d}/${m}/${y}`;
+  const [, m, d] = key.split("-");
+  return `${d}/${m}`;
 }
 
-/** Hộp xem nhanh: bottom sheet trên mobile, hộp giữa màn hình trên desktop. */
-function QuickView({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+/** Modal ảnh + nội dung: bottom sheet mobile, hộp giữa desktop (theo thiết kế Combo Kết quả). */
+function RoomPreview({ title, home, images, onClose, children }: { title: string; home: string; images: string[]; onClose: () => void; children: ReactNode }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/55 sm:items-center sm:p-6" onClick={onClose}>
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/55 backdrop-blur-[2px] sm:items-center sm:p-6" onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[88vh] w-full flex-col overflow-hidden rounded-t-[22px] bg-white shadow-2xl sm:max-w-[640px] sm:rounded-[22px]"
+        className="flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-[22px] bg-white shadow-2xl sm:max-w-[760px] sm:rounded-[22px]"
       >
         <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-3.5">
-          <div className="min-w-0 truncate text-base font-extrabold text-ink">{title}</div>
-          <button type="button" onClick={onClose} aria-label="Đóng" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xl text-gray-400 hover:bg-gray-100">×</button>
+          <div className="min-w-0">
+            {home && <div className="text-[12px] font-semibold text-gray-500">{home}</div>}
+            <div className="truncate text-[17px] font-extrabold text-ink">{title}</div>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Đóng" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[oklch(0.95_0.005_160)] text-xl text-gray-500 hover:bg-gray-200">×</button>
         </div>
-        <div className="overflow-y-auto">{children}</div>
+        <div className="overflow-y-auto">
+          <div className="p-4 pb-0">
+            <Gallery images={images} alt={title} />
+          </div>
+          <div className="flex flex-col gap-3 p-5">{children}</div>
+        </div>
       </div>
     </div>
   );
 }
 
-/** Ảnh lớn + dải thumbnail bấm chuyển (dùng trong hộp xem nhanh). */
-function MiniGallery({ images, alt }: { images: string[]; alt: string }) {
+/** Ảnh lớn 16:9 + nút ‹ › + dải thumbnail (reset khi đổi bộ ảnh / đổi căn). */
+function Gallery({ images, alt }: { images: string[]; alt: string }) {
   const [idx, setIdx] = useState(0);
+  const key = images[0] ?? "";
+  useEffect(() => { setIdx(0); }, [key]);
   if (images.length === 0) {
-    return <div className="flex aspect-[16/9] items-center justify-center bg-gray-100 text-5xl">🛏️</div>;
+    return <div className="flex aspect-[16/9] items-center justify-center rounded-2xl bg-gray-100 text-5xl">🛏️</div>;
   }
   const cur = images[Math.min(idx, images.length - 1)];
+  const go = (d: number) => setIdx((i) => (i + d + images.length) % images.length);
   return (
     <div>
-      <div className="relative aspect-[16/9] bg-gray-100">
-        <Image src={cur} alt={alt} fill sizes="640px" className="object-cover" />
+      <div className="relative aspect-[16/9] overflow-hidden rounded-2xl bg-gray-100">
+        <Image src={cur} alt={alt} fill sizes="760px" className="object-cover" />
+        {images.length > 1 && (
+          <>
+            <button type="button" onClick={() => go(-1)} aria-label="Ảnh trước" className="absolute left-2.5 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-xl font-bold text-ink hover:bg-white">‹</button>
+            <button type="button" onClick={() => go(1)} aria-label="Ảnh sau" className="absolute right-2.5 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-xl font-bold text-ink hover:bg-white">›</button>
+            <span className="absolute bottom-2.5 right-2.5 rounded-full bg-black/55 px-2.5 py-1 text-xs font-bold text-white">{idx + 1} / {images.length}</span>
+          </>
+        )}
       </div>
       {images.length > 1 && (
-        <div className="flex gap-1.5 overflow-x-auto px-3 py-2">
+        <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
           {images.map((u, i) => (
             <button
               key={i}
               type="button"
               onClick={() => setIdx(i)}
-              className="relative h-[52px] w-[72px] shrink-0 overflow-hidden rounded-lg"
-              style={i === idx ? { boxShadow: "0 0 0 2px oklch(0.29 0.055 160)" } : { opacity: 0.75 }}
+              className="relative h-[56px] w-[80px] shrink-0 overflow-hidden rounded-lg"
+              style={i === idx ? { boxShadow: `0 0 0 2px ${O}` } : { opacity: 0.7 }}
             >
-              <Image src={u} alt="" fill sizes="72px" className="object-cover" />
+              <Image src={u} alt="" fill sizes="80px" className="object-cover" />
             </button>
           ))}
         </div>

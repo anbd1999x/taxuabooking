@@ -222,8 +222,12 @@ export interface ComboPlanGroup {
   count: number;
   /** Tiền 1 phòng cả kỳ (phòng cộng đồng: giá 1 NGƯỜI cả kỳ). */
   unitCost: number;
-  /** MỌI phòng giống nhau còn trống trong nhóm — để hiện "còn N phòng" + cho khách chọn đúng căn. */
-  options: { roomId: string; roomName: string }[];
+  /**
+   * MỌI phòng giống nhau còn trống trong nhóm — để hiện "còn N phòng", cho khách
+   * chọn đúng căn VÀ xem đúng ảnh/mô tả của căn đang chọn. `roomName` là tên gọn
+   * (bỏ tiền tố hạng); `room` giữ đầy đủ ảnh/mô tả/sức chứa của chính căn đó.
+   */
+  options: { roomId: string; roomName: string; room: ComboRoomOption }[];
 }
 
 /**
@@ -372,13 +376,13 @@ export function buildStayPlans(rooms: ComboRoomOption[], people: number): ComboS
     r.roomName.startsWith(`${r.typeName} · `) ? r.roomName.slice(r.typeName.length + 3) : r.roomName;
 
   // --- Phòng thường: nhóm phòng giống nhau (cùng hạng + giá + sức chứa + phụ thu) ---
-  interface G { rep: ComboRoomOption; ids: string[]; names: string[]; cap: number; capMax: number; extraStay: number; cost: number }
+  interface G { rep: ComboRoomOption; ids: string[]; names: string[]; rooms: ComboRoomOption[]; cap: number; capMax: number; extraStay: number; cost: number }
   const gm = new Map<string, G>();
   for (const r of normal) {
     const k = `${r.roomTypeId}|${r.roomCost}|${r.capacity}|${r.maxCapacity}|${r.extraFeeStay}`;
     const g = gm.get(k);
-    if (g) { g.ids.push(r.roomId); g.names.push(plainName(r)); }
-    else gm.set(k, { rep: r, ids: [r.roomId], names: [plainName(r)], cap: r.capacity, capMax: r.maxCapacity, extraStay: r.extraFeeStay, cost: r.roomCost });
+    if (g) { g.ids.push(r.roomId); g.names.push(plainName(r)); g.rooms.push(r); }
+    else gm.set(k, { rep: r, ids: [r.roomId], names: [plainName(r)], rooms: [r], cap: r.capacity, capMax: r.maxCapacity, extraStay: r.extraFeeStay, cost: r.roomCost });
   }
   // Nhóm rẻ nhất TÍNH TRÊN MỖI CHỖ đứng trước để DFS tìm phương án tốt sớm.
   const groups = [...gm.values()].sort((a, b) => a.cost / a.cap - b.cost / b.cap);
@@ -449,7 +453,7 @@ export function buildStayPlans(rooms: ComboRoomOption[], people: number): ComboS
         roomIds: g.ids.slice(0, f.counts[j]),
         count: f.counts[j],
         unitCost: g.cost,
-        options: g.ids.map((id, x) => ({ roomId: id, roomName: g.names[x] })),
+        options: g.ids.map((id, x) => ({ roomId: id, roomName: g.names[x], room: g.rooms[x] })),
       });
     }
     const plan = makePlan(serviceId, pgs, f.cost, f.capStd + extraGuests, false, extraGuests, extraCost);
@@ -473,8 +477,8 @@ export function buildStayPlans(rooms: ComboRoomOption[], people: number): ComboS
       remaining -= take;
       const k = `${r.roomTypeId}|${r.roomCost}`;
       const g = pgm.get(k);
-      if (g) { g.roomIds.push(r.roomId); g.count += 1; g.options.push({ roomId: r.roomId, roomName: plainName(r) }); }
-      else pgm.set(k, { room: r, roomIds: [r.roomId], count: 1, unitCost: r.roomCost, options: [{ roomId: r.roomId, roomName: plainName(r) }] });
+      if (g) { g.roomIds.push(r.roomId); g.count += 1; g.options.push({ roomId: r.roomId, roomName: plainName(r), room: r }); }
+      else pgm.set(k, { room: r, roomIds: [r.roomId], count: 1, unitCost: r.roomCost, options: [{ roomId: r.roomId, roomName: plainName(r), room: r }] });
     }
     if (remaining <= 0) plans.push(makePlan(serviceId, [...pgm.values()], total, cap, true));
   }
@@ -567,23 +571,6 @@ export async function findComboMatches(input: {
   const homes: ComboHomeOption[] = [];
   for (const h of homeMap.values()) {
     let plans = buildStayPlans(h.rooms, people);
-    // KHÔNG gộp các căn giống nhau vào 1 thẻ: phương án 1 phòng mà nhóm còn nhiều căn
-    // trống → tách MỖI CĂN thành một phương án riêng (đúng ảnh/mô tả/tên từng căn).
-    // Phương án ghép nhiều phòng cho đoàn đông vẫn giữ dạng gộp.
-    plans = plans.flatMap((p) => {
-      const g = p.groups[0];
-      if (p.roomCount !== 1 || p.groups.length !== 1 || g.options.length <= 1) return [p];
-      return g.options.map((o) => {
-        const room = h.rooms.find((r) => r.roomId === o.roomId) ?? g.room;
-        return {
-          ...p,
-          id: `${h.serviceId}:${o.roomId}`,
-          label: room.roomName,
-          roomIds: [o.roomId],
-          groups: [{ room, roomIds: [o.roomId], count: 1, unitCost: g.unitCost, options: [o] }],
-        };
-      });
-    });
     // Lọc khoảng giá theo phương án rẻ nhất có thể (xe rẻ nhất): ngoài khoảng → ẩn.
     if ((priceMax != null || priceMin != null) && buses.length > 0) {
       plans = plans.filter((p) => inRange(planPricePerPerson(p.roomCost, p.communal, people, cheapestFare)));

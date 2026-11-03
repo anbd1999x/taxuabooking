@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DateField } from "@/components/DateField";
-import { useSearchNav, SearchSpinner } from "@/components/useSearchNav";
+import { useSearchNav } from "@/components/useSearchNav";
 
 export interface RentalBike {
   id: string;
@@ -405,7 +405,7 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
                 <button type="button" onClick={() => setQty((q) => Math.min(10, q + 1))} className="flex h-7 w-7 items-center justify-center rounded-lg bg-white font-bold">+</button>
               </div>
             </div>
-            <button type="button" onClick={search} disabled={searching} className="flex items-center justify-center gap-2 whitespace-nowrap rounded-[14px] px-6 py-3.5 text-base font-extrabold text-white transition hover:bg-sunset-500 disabled:cursor-wait disabled:opacity-80" style={{ background: "oklch(0.68 0.18 45)" }}>{searching ? <><SearchSpinner /> Đang tìm…</> : "Tìm xe →"}</button>
+            <button type="button" onClick={search} disabled={searching} className="flex items-center justify-center gap-2 whitespace-nowrap rounded-[14px] px-6 py-3.5 text-base font-extrabold text-white transition hover:bg-sunset-500 disabled:cursor-wait disabled:opacity-80" style={{ background: "oklch(0.68 0.18 45)" }}>Tìm xe →</button>
           </div>
           {dateErr && <div className="px-1.5 pb-1 text-[13px] font-semibold text-red-600">{dateErr}</div>}
         </div>

@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import type { AvailabilityKind } from "@/lib/constants";
 import { DateField } from "@/components/DateField";
-import { useSearchNav, SearchSpinner } from "@/components/useSearchNav";
+import { useSearchNav } from "@/components/useSearchNav";
 
 const PRICE_RANGES = [
   { label: "Mọi mức giá", min: "", max: "" },
@@ -119,13 +119,7 @@ export function FilterBar({
           disabled={pending}
           className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-forest-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-forest-700 disabled:cursor-wait disabled:opacity-80"
         >
-          {pending ? (
-            <>
-              <SearchSpinner /> Đang lọc…
-            </>
-          ) : (
-            "Lọc"
-          )}
+          Lọc
         </button>
         <button
           type="button"

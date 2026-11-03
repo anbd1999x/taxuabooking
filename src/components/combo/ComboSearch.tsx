@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { DateField } from "@/components/DateField";
 import { QtyInput } from "@/components/QtyInput";
-import { useSearchNav, SearchSpinner } from "@/components/useSearchNav";
+import { useSearchNav } from "@/components/useSearchNav";
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -249,15 +249,7 @@ export function ComboSearch({
         disabled={pending}
         className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-sunset-500 px-6 py-3.5 text-base font-extrabold text-white transition hover:bg-sunset-600 active:scale-[0.99] disabled:cursor-wait disabled:opacity-80"
       >
-        {pending ? (
-          <>
-            <SearchSpinner /> Đang tìm combo…
-          </>
-        ) : (
-          <>
-            Tìm combo khớp giá <span>→</span>
-          </>
-        )}
+        Tìm combo khớp giá <span>→</span>
       </button>
     </div>
   );

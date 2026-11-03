@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { DateField } from "@/components/DateField";
-import { useSearchNav, SearchSpinner } from "@/components/useSearchNav";
+import { useSearchNav } from "@/components/useSearchNav";
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -61,15 +61,7 @@ export function CabinSearch({
           disabled={pending}
           className="flex items-center justify-center gap-2 rounded-2xl bg-sunset-500 px-6 py-4 text-base font-bold text-white transition hover:bg-sunset-600 active:scale-[0.98] disabled:cursor-wait disabled:opacity-80"
         >
-          {pending ? (
-            <>
-              <SearchSpinner /> Đang tìm…
-            </>
-          ) : (
-            <>
-              Tìm vé <span>→</span>
-            </>
-          )}
+          Tìm vé <span>→</span>
         </button>
       </div>
     </div>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DateField } from "@/components/DateField";
-import { useSearchNav, SearchSpinner } from "@/components/useSearchNav";
+import { useSearchNav } from "@/components/useSearchNav";
 
 /**
  * Mỗi thẻ = một LOẠI phòng cụ thể: các phòng giống hệt nhau (cùng hạng + giá +
@@ -539,15 +539,11 @@ export function HomestayList({
               className="flex items-center justify-center gap-2 rounded-[14px] px-5 py-2.5 text-[15px] font-bold text-white transition hover:brightness-110 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
               style={{ background: TH.G }}
             >
-              {searching ? (
-                <SearchSpinner />
-              ) : (
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-                  <circle cx="11" cy="11" r="7" />
-                  <path d="m20.5 20.5-4.2-4.2" />
-                </svg>
-              )}
-              {searching ? "Đang tìm…" : "Tìm kiếm"}
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20.5 20.5-4.2-4.2" />
+              </svg>
+              Tìm kiếm
             </button>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 px-1 py-0.5">
