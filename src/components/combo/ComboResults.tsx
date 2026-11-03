@@ -134,7 +134,7 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
       >
         {homeNames.length > 1 && (
           <label className="flex min-w-0 items-center gap-2 pl-1.5">
-            <span className="whitespace-nowrap text-[13px] font-semibold text-gray-500">Xem theo nhà</span>
+            <span className="w-[106px] flex-none whitespace-nowrap text-[13px] font-semibold text-gray-500">Xem theo nhà</span>
             <select value={homeName} onChange={(e) => setHomeName(e.target.value)} className={SEL}>
               <option value="all">Tất cả homestay</option>
               {homeNames.map((n) => (
@@ -145,7 +145,7 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
         )}
         {zones.length > 1 && (
           <label className="flex min-w-0 items-center gap-2 pl-1.5">
-            <span className="whitespace-nowrap text-[13px] font-semibold text-gray-500">Khu vực</span>
+            <span className="w-[106px] flex-none whitespace-nowrap text-[13px] font-semibold text-gray-500">Khu vực</span>
             <select value={zone} onChange={(e) => setZone(e.target.value)} className={SEL}>
               <option value="all">Mọi khu vực</option>
               {zones.map((z) => (
@@ -155,7 +155,7 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
           </label>
         )}
         <label className="flex min-w-0 items-center gap-2 pl-1.5">
-          <span className="whitespace-nowrap text-[13px] font-semibold text-gray-500">Sắp xếp</span>
+          <span className="w-[106px] flex-none whitespace-nowrap text-[13px] font-semibold text-gray-500">Sắp xếp</span>
           <select value={sort} onChange={(e) => setSort(e.target.value)} className={SEL}>
             <option value="match">{budget != null ? "Tối ưu (khớp giá · tiện ích · vị trí)" : "Tối ưu (giá · tiện ích · vị trí)"}</option>
             <option value="priceAsc">Giá thấp → cao</option>
