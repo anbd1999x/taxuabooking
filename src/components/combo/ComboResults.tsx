@@ -11,6 +11,8 @@ import type {
   ComboStayPlan,
   ComboSearchResult,
 } from "@/lib/combo";
+import { ensureSheetFresh } from "@/components/ensureSheet";
+import { showGlobalLoading } from "@/components/useSearchNav";
 
 // Phải khớp COMBO_DISCOUNT trong src/lib/combo.ts (server tính lại giá khi đặt).
 const COMBO_DISCOUNT = 25000;
@@ -295,9 +297,12 @@ function ComboPlanCard({
     setPanelIn(false);
   }, [openForm]);
 
-  function tryOpenForm() {
+  async function tryOpenForm() {
     if (missing) { openRoomFirstMissing(); return; }
     setErr("");
+    // Làm tươi tình trạng phòng ngay trước khi đặt (server bỏ qua nếu vừa đồng bộ <60s).
+    showGlobalLoading(true, "Đang cập nhật tình trạng phòng mới nhất…");
+    try { await ensureSheetFresh(home.serviceId); } finally { showGlobalLoading(false); }
     setOpenForm(true);
   }
   function openRoomFirstMissing() {

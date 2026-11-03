@@ -7,6 +7,7 @@ import { useEffect, useId, useSyncExternalStore, useTransition } from "react";
 const activeIds = new Set<string>();
 const subs = new Set<() => void>();
 let snapshot = false;
+let labelText = ""; // nhãn hiển thị trên overlay (rỗng = nhãn mặc định)
 function recompute() {
   const v = activeIds.size > 0;
   if (v !== snapshot) {
@@ -14,10 +15,20 @@ function recompute() {
     subs.forEach((f) => f());
   }
 }
-function setBusy(id: string, busy: boolean) {
-  if (busy) activeIds.add(id);
-  else activeIds.delete(id);
+function setBusy(id: string, busy: boolean, label?: string) {
+  if (busy) {
+    activeIds.add(id);
+    if (label) labelText = label;
+  } else {
+    activeIds.delete(id);
+    if (activeIds.size === 0) labelText = "";
+  }
   recompute();
+}
+
+/** Bật/tắt overlay loading toàn màn hình thủ công (vd lúc đồng bộ phòng trước khi đặt). */
+export function showGlobalLoading(busy: boolean, label?: string) {
+  setBusy("__manual__", busy, label);
 }
 
 /**
@@ -89,7 +100,7 @@ export function SearchLoadingOverlay() {
         <div className="text-[15px] font-extrabold tracking-tight text-[oklch(0.3_0.05_160)]">
           Tà Xùa <span style={{ color: "oklch(0.68 0.18 45)" }}>Booking</span>
         </div>
-        <div className="text-[13px] font-semibold text-gray-500">Đang tìm chỗ phù hợp…</div>
+        <div className="text-[13px] font-semibold text-gray-500">{labelText || "Đang tìm chỗ phù hợp…"}</div>
       </div>
     </div>
   );

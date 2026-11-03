@@ -35,7 +35,7 @@ export interface SheetSyncResult {
 }
 
 /** Nguồn kích hoạt đồng bộ — ghi vào nhật ký SheetSyncLog. */
-export type SheetSyncSource = "MANUAL" | "CRON";
+export type SheetSyncSource = "MANUAL" | "CRON" | "BOOKING";
 
 export interface SheetTab {
   name: string;
@@ -1123,10 +1123,10 @@ async function fail(
   await prisma.service
     .update({ where: { id: serviceId }, data: { sheetSyncedAt: new Date(), sheetSyncResult: `Lỗi: ${msg}` } })
     .catch(() => {});
-  // Nhật ký lỗi: cron lỗi LẶP LẠI giống hệt lần ghi gần nhất thì bỏ qua (tránh 288 dòng/ngày).
+  // Nhật ký lỗi: cron/booking lỗi LẶP LẠI giống hệt lần ghi gần nhất thì bỏ qua (tránh spam).
   try {
     const summary = `Lỗi: ${msg}`;
-    if (source === "CRON") {
+    if (source !== "MANUAL") {
       const last = await prisma.sheetSyncLog.findFirst({
         where: { serviceId },
         orderBy: { createdAt: "desc" },
@@ -1142,6 +1142,27 @@ async function fail(
 }
 
 /** Đồng bộ TẤT CẢ homestay có link sheet (dùng cho cron). */
+/**
+ * Đồng bộ MỘT homestay NGAY TRƯỚC KHI đặt (cho chắc ăn), nhưng BỎ QUA nếu vừa
+ * đồng bộ xong trong `maxAgeMs` gần đây (mặc định 60s) để không cào Google liên
+ * tục. Lỗi sync không chặn việc đặt — chỉ cố làm tươi tình trạng phòng.
+ */
+export async function ensureServiceSheetFresh(
+  serviceId: string,
+  maxAgeMs = 60_000,
+): Promise<{ synced: boolean; skipped: boolean; reason?: string; changes?: number }> {
+  const svc = await prisma.service.findUnique({
+    where: { id: serviceId },
+    select: { sheetUrl: true, sheetSyncedAt: true, contactOnly: true },
+  });
+  if (!svc || !svc.sheetUrl || svc.contactOnly) return { synced: false, skipped: true, reason: "no-sheet" };
+  if (svc.sheetSyncedAt && Date.now() - svc.sheetSyncedAt.getTime() < maxAgeMs) {
+    return { synced: false, skipped: true, reason: "fresh" };
+  }
+  const res = await syncServiceSheet(serviceId, "BOOKING");
+  return { synced: true, skipped: false, changes: res.changes };
+}
+
 export async function syncAllSheets(source: SheetSyncSource = "CRON"): Promise<SheetSyncResult[]> {
   const services = await prisma.service.findMany({
     where: { sheetUrl: { not: null }, category: { in: ["HOMESTAY", "BUNGALOW"] } },

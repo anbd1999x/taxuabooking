@@ -7,6 +7,8 @@ import { QtyInput } from "@/components/QtyInput";
 import { AVAILABILITY_META } from "@/lib/constants";
 import type { AvailabilityKind } from "@/lib/constants";
 import { Badge } from "./ui/Badge";
+import { ensureSheetFresh } from "@/components/ensureSheet";
+import { showGlobalLoading } from "@/components/useSearchNav";
 
 function formatVnd(n: number | null | undefined, fallback = "Liên hệ") {
   if (n == null) return fallback;
@@ -97,6 +99,12 @@ export function BookingPanel({
       return;
     }
     setChecking(true);
+    // Homestay: làm tươi lịch phòng từ Google Sheet trước khi hiện tình trạng
+    // (server bỏ qua nếu vừa đồng bộ <60s) — hiện overlay loading trong lúc chờ.
+    if (category === "HOMESTAY" || category === "BUNGALOW") {
+      showGlobalLoading(true, "Đang cập nhật tình trạng phòng mới nhất…");
+      try { await ensureSheetFresh(serviceId); } finally { showGlobalLoading(false); }
+    }
     try {
       const params = new URLSearchParams({ serviceId, from, quantity: String(quantity) });
       if (needsRange && to) params.set("to", to);
