@@ -10,7 +10,7 @@ function todayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
-// Các tỉnh đón khách đi Tà Xùa (khớp trang xe cabin).
+// Các tỉnh đón khách đi Tà Xùa (fallback khi chưa khai bảng giá chặng — khớp trang xe cabin).
 const FROMS = ["Hà Nội", "Bắc Ninh", "Bắc Giang", "Thái Nguyên", "Vĩnh Phúc", "Hưng Yên", "Hải Dương", "Hải Phòng", "Nam Định", "Ninh Bình", "Hà Nam", "Phú Thọ"];
 
 export function HeroSearch({
@@ -26,6 +26,11 @@ export function HeroSearch({
   const [qty, setQty] = useState(2);
   const [pickup, setPickup] = useState("Hà Nội");
   const [origin, setOrigin] = useState("");
+
+  // Điểm đón xe cabin: theo bảng giá chặng (chọn đâu cũng có giá đúng); chưa khai → FROMS.
+  const pickupOpts = comboOrigins.length
+    ? (comboOrigins.includes("Hà Nội") ? comboOrigins : ["Hà Nội", ...comboOrigins])
+    : FROMS;
 
   const cat = CATEGORY_LIST.find((c) => c.slug === slug)!;
   const kind = cat.availabilityKind;
@@ -76,7 +81,7 @@ export function HeroSearch({
           <label className={cell}>
             <span className="block text-xs font-medium text-gray-500">Điểm đón</span>
             <select value={pickup} onChange={(e) => setPickup(e.target.value)} className="mt-0.5 w-full bg-transparent text-[15px] font-bold text-ink outline-none">
-              {FROMS.map((f) => <option key={f} value={f}>{f}</option>)}
+              {pickupOpts.map((f) => <option key={f} value={f}>{f}</option>)}
             </select>
           </label>
         )}

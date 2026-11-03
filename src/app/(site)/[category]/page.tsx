@@ -60,9 +60,14 @@ export default async function CategoryPage({
   if (cat.key === "CABIN") {
     const from = str(sp.from);
     const to = str(sp.to);
+    const pickup = str(sp.pickup)?.trim() || null;
     // Mặc định (chưa chọn ngày) vẫn hiện tất cả nhà xe; chọn ngày để lọc theo chỗ trống.
-    const operators = await getCabinOperators(from ?? null, to ?? null);
-    return <CabinList operators={operators} from={from ?? ""} to={to ?? ""} pickup={str(sp.pickup) ?? ""} />;
+    // Chọn điểm đón → giá lấy theo bảng giá chặng; danh sách điểm đón cũng lấy từ bảng giá.
+    const [operators, pickups] = await Promise.all([
+      getCabinOperators(from ?? null, to ?? null, pickup),
+      getComboOrigins(),
+    ]);
+    return <CabinList operators={operators} from={from ?? ""} to={to ?? ""} pickup={pickup ?? ""} pickups={pickups} />;
   }
 
   // ----- Combo: tìm xe + phòng khớp giá mong muốn -----

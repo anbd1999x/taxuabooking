@@ -6,10 +6,13 @@ import { parseDateOnly, toDateKey, addDays, today } from "./dates";
 import { toNumber } from "./format";
 import { generateBookingCode } from "./utils";
 import { resolveCommission } from "./commission";
+import { hasOriginFare, legFareFor, roundTripFareFor, type FareRow } from "./combo";
 import type { CabinBookingInput } from "./validation";
 
 const WD = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
 const LOW_THRESHOLD = 5;
+/** Điểm đón mặc định khi khách không chọn (khớp mặc định của ô tìm kiếm). */
+const DEFAULT_PICKUP = "Hà Nội";
 
 export type DayState = "ok" | "low" | "full" | "unk";
 
@@ -139,13 +142,20 @@ export interface CabinOperatorCard {
  * - Chỉ ngày đi  → nhà xe có chuyến CHIỀU ĐI ngày đó.
  * - Chỉ ngày về  → nhà xe có chuyến CHIỀU VỀ ngày đó.
  * - Cả hai       → nhà xe có cả chiều đi (ngày đi) lẫn chiều về (ngày về).
+ * `pickup` = điểm đón của khách: giá "từ" lấy theo bảng giá chặng (`CabinPriceRow`,
+ * bảng riêng của nhà xe, thiếu thì bảng chung — như combo); nhà xe có bảng giá
+ * nhưng không khai chặng đó bị ẩn. Không chọn (Hà Nội mặc định) → giá chuyến.
  */
 async function getCabinOperatorsImpl(
   fromKey: string | null,
   toKey: string | null,
+  pickup: string | null = null,
 ): Promise<CabinOperatorCard[]> {
   const from = fromKey ? parseDateOnly(fromKey) : null;
   const to = toKey ? parseDateOnly(toKey) : null;
+  const origin = pickup?.trim() || null;
+  // Bảng giá chung (serviceId=null) cho nhà xe chưa có bảng giá riêng.
+  const generalRows: FareRow[] = await prisma.cabinPriceRow.findMany({ where: { serviceId: null } });
 
   // Mặc định (chưa chọn ngày): hiện TẤT CẢ nhà xe cabin. Giá "từ" = vé đơn rẻ nhất
   // trong các chuyến sắp tới; chọn ngày để xem giờ chạy & chỗ trống chính xác.
@@ -156,19 +166,30 @@ async function getCabinOperatorsImpl(
       include: {
         images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 1 },
         cabinTrips: { where: { direction: "OUTBOUND", departureDate: { gte: today() } }, orderBy: { price: "asc" }, take: 1 },
+        cabinPriceRows: true,
       },
     });
-    return svcs.map((s): CabinOperatorCard => ({
-      id: s.id,
-      slug: s.slug,
-      title: s.title,
-      area: s.area,
-      coverImage: s.images[0]?.url ?? null,
-      outbound: null,
-      ret: null,
-      fromPrice: s.cabinTrips[0] ? toNumber(s.cabinTrips[0].price) : null,
-      state: "unk",
-    }));
+    return svcs.flatMap((s): CabinOperatorCard[] => {
+      let fromPrice = s.cabinTrips[0] ? toNumber(s.cabinTrips[0].price) : null;
+      if (origin) {
+        const rows: FareRow[] = s.cabinPriceRows.length ? s.cabinPriceRows : generalRows;
+        if (rows.length) {
+          if (!hasOriginFare(rows, origin)) return []; // bảng giá không khai điểm đón này
+          fromPrice = legFareFor(rows, origin, "OUTBOUND");
+        }
+      }
+      return [{
+        id: s.id,
+        slug: s.slug,
+        title: s.title,
+        area: s.area,
+        coverImage: s.images[0]?.url ?? null,
+        outbound: null,
+        ret: null,
+        fromPrice,
+        state: "unk",
+      }];
+    });
   }
 
   const or: Prisma.CabinTripWhereInput[] = [];
@@ -181,20 +202,49 @@ async function getCabinOperatorsImpl(
     include: {
       images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 1 },
       cabinTrips: { where: { OR: or } },
+      cabinPriceRows: true,
     },
   });
 
-  const cards = services.map((s): CabinOperatorCard => {
+  const cards: CabinOperatorCard[] = [];
+  for (const s of services) {
     const outTrip = from ? s.cabinTrips.find((t) => t.direction === "OUTBOUND") ?? null : null;
     const retTrip = to ? s.cabinTrips.find((t) => t.direction === "RETURN") ?? null : null;
+    // Chỉ giữ nhà xe có đủ (các) chiều đang tìm.
+    if (from && !outTrip) continue;
+    if (to && !retTrip) continue;
     const outbound = outTrip ? tripToAvail(outTrip) : null;
     const ret = retTrip ? tripToAvail(retTrip) : null;
-    const prices = [outbound?.priceSingle, ret?.priceSingle].filter(
-      (x): x is number => typeof x === "number" && x > 0,
-    );
+
+    // Giá "từ"/khách cho hành trình đang tìm: khứ hồi = đi + về, một chiều = chiều đó.
+    let fromPrice: number | null = null;
+    const rows: FareRow[] = s.cabinPriceRows.length ? s.cabinPriceRows : generalRows;
+    if (origin && rows.length) {
+      if (!hasOriginFare(rows, origin)) continue; // nhà xe không đón ở điểm này
+      fromPrice =
+        outbound && ret
+          ? roundTripFareFor(rows, origin)
+          : legFareFor(rows, origin, outbound ? "OUTBOUND" : "RETURN");
+      // null = có đón nhưng bảng chưa khai giá cho (các) chiều này → thẻ hiện "Liên hệ xác nhận giá".
+    } else {
+      // Không chọn điểm đón (Hà Nội mặc định): ưu tiên bảng giá chặng dòng Hà Nội
+      // (giá khứ hồi niêm yết thường rẻ hơn cộng 2 chiều); thiếu thì giá chuyến.
+      const legs = [outbound?.priceSingle, ret?.priceSingle].filter(
+        (x): x is number => typeof x === "number" && x > 0,
+      );
+      const need = (outbound ? 1 : 0) + (ret ? 1 : 0);
+      const tripFare = need > 0 && legs.length === need ? legs.reduce((a, b) => a + b, 0) : null;
+      const tableFare = rows.length
+        ? outbound && ret
+          ? roundTripFareFor(rows, DEFAULT_PICKUP)
+          : legFareFor(rows, DEFAULT_PICKUP, outbound ? "OUTBOUND" : "RETURN")
+        : null;
+      fromPrice = tableFare ?? tripFare;
+    }
+
     // Chiều "chính" để xếp hạng còn chỗ: ưu tiên chiều đi, nếu chỉ tìm chiều về thì theo chiều về.
     const primary = outbound ?? ret;
-    return {
+    cards.push({
       id: s.id,
       slug: s.slug,
       title: s.title,
@@ -202,21 +252,14 @@ async function getCabinOperatorsImpl(
       coverImage: s.images[0]?.url ?? null,
       outbound,
       ret,
-      fromPrice: prices.length ? Math.min(...prices) : null,
+      fromPrice,
       state: dayState(primary),
-    };
-  });
-
-  // Chỉ giữ nhà xe có đủ (các) chiều đang tìm.
-  const matched = cards.filter((c) => {
-    if (from && !c.outbound) return false;
-    if (to && !c.ret) return false;
-    return true;
-  });
+    });
+  }
 
   // Sắp xếp: còn chỗ trước, chưa cập nhật/hết chỗ sau.
   const rank: Record<DayState, number> = { ok: 0, low: 1, unk: 2, full: 3 };
-  return matched.sort((a, b) => rank[a.state] - rank[b.state]);
+  return cards.sort((a, b) => rank[a.state] - rank[b.state]);
 }
 /** Cache 30s theo cặp ngày tìm — giảm tải khi nhiều khách tìm cùng ngày. */
 export const getCabinOperators = unstable_cache(getCabinOperatorsImpl, ["cabin-operators"], { revalidate: 30 });

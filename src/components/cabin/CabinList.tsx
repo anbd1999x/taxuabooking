@@ -45,7 +45,7 @@ const ST: Record<CabinOperator["state"], { bg: string; fg: string; text: string 
   unk: { bg: "oklch(0.95 0.03 250)", fg: "oklch(0.42 0.1 250)", text: "Chưa cập nhật" },
 };
 
-// Các tỉnh có thể đón khách đi Tà Xùa.
+// Các tỉnh có thể đón khách đi Tà Xùa (fallback khi chưa khai bảng giá chặng).
 const FROMS = ["Hà Nội", "Bắc Ninh", "Bắc Giang", "Thái Nguyên", "Vĩnh Phúc", "Hưng Yên", "Hải Dương", "Hải Phòng", "Nam Định", "Ninh Bình", "Hà Nam", "Phú Thọ"];
 
 function vnd(n: number) {
@@ -67,16 +67,21 @@ export function CabinList({
   from,
   to,
   pickup: initialPickup = "",
+  pickups = [],
 }: {
   operators: CabinOperator[];
   from: string;
   to: string;
   pickup?: string;
+  /** Điểm đón đã khai trong bảng giá chặng (server truyền xuống); rỗng → dùng FROMS. */
+  pickups?: string[];
 }) {
   const router = useRouter();
   const [w, setW] = useState(1280);
   const [trip, setTrip] = useState<"one" | "round">(to ? "round" : "one");
-  const [pickup, setPickup] = useState(initialPickup && FROMS.includes(initialPickup) ? initialPickup : "Hà Nội");
+  // Danh sách điểm đón: theo bảng giá chặng để chọn đâu cũng có giá đúng; luôn có Hà Nội.
+  const fromOpts = pickups.length ? (pickups.includes("Hà Nội") ? pickups : ["Hà Nội", ...pickups]) : FROMS;
+  const [pickup, setPickup] = useState(initialPickup && fromOpts.includes(initialPickup) ? initialPickup : "Hà Nội");
   const [di, setDi] = useState(from);
   const [ve, setVe] = useState(to);
   const [pax, setPax] = useState(2);
@@ -372,7 +377,7 @@ export function CabinList({
             <label className={cell}>
               <span className="text-xs font-semibold text-gray-500">Điểm đón</span>
               <select value={pickup} onChange={(e) => setPickup(e.target.value)} className={inp}>
-                {FROMS.map((f) => <option key={f} value={f}>{f}</option>)}
+                {fromOpts.map((f) => <option key={f} value={f}>{f}</option>)}
               </select>
             </label>
             <label className={cell}>

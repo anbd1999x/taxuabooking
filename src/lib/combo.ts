@@ -101,10 +101,36 @@ function normPlace(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-interface FareRow {
+export interface FareRow {
   pickupPoint: string;
+  /** Điểm đến của dòng giá (dòng "Chiều về" thường là Tà Xùa → tỉnh của khách). */
+  destination?: string | null;
   ticketType: "ROUND_TRIP" | "OUTBOUND" | "RETURN";
   price: Parameters<typeof toNumber>[0];
+}
+
+/** Dòng giá thuộc về điểm xuất phát `origin` của khách không (xét cả 2 kiểu nhập chiều về). */
+function rowMatchesOrigin(r: FareRow, o: string): boolean {
+  if (normPlace(r.pickupPoint) === o) return true;
+  // Dòng "Chiều về" có thể nhập là "Tà Xùa → <tỉnh>" — khi đó tỉnh của khách nằm ở destination.
+  return r.ticketType === "RETURN" && !!r.destination && normPlace(r.destination) === o;
+}
+
+/** Bảng giá chặng có khai điểm đón này không (dòng bất kỳ). */
+export function hasOriginFare(rows: FareRow[], origin: string): boolean {
+  const o = normPlace(origin);
+  return rows.some((r) => rowMatchesOrigin(r, o));
+}
+
+/**
+ * Giá vé MỘT CHIỀU cho 1 người theo điểm đón, từ bảng giá chặng.
+ * Trả null nếu bảng không khai dòng đúng chiều cho chặng này.
+ */
+export function legFareFor(rows: FareRow[], origin: string, dir: "OUTBOUND" | "RETURN"): number | null {
+  const o = normPlace(origin);
+  const row = rows.find((r) => r.ticketType === dir && rowMatchesOrigin(r, o));
+  const p = row ? toNumber(row.price) : null;
+  return p && p > 0 ? p : null;
 }
 
 /**
@@ -112,21 +138,16 @@ interface FareRow {
  * ưu tiên dòng "Khứ hồi"; không có thì cộng dòng "Chiều đi" + "Chiều về".
  * Trả null nếu bảng giá không khai chặng này.
  */
-function roundTripFareFor(rows: FareRow[], origin: string): number | null {
+export function roundTripFareFor(rows: FareRow[], origin: string): number | null {
   const o = normPlace(origin);
-  const match = rows.filter((r) => normPlace(r.pickupPoint) === o);
-  if (match.length === 0) return null;
-  const round = match.find((r) => r.ticketType === "ROUND_TRIP");
+  const round = rows.find((r) => r.ticketType === "ROUND_TRIP" && normPlace(r.pickupPoint) === o);
   if (round) {
     const p = toNumber(round.price);
-    return p && p > 0 ? p : null;
+    if (p && p > 0) return p;
   }
-  const out = match.find((r) => r.ticketType === "OUTBOUND");
-  const ret = match.find((r) => r.ticketType === "RETURN");
-  if (out && ret) {
-    const p = (toNumber(out.price) ?? 0) + (toNumber(ret.price) ?? 0);
-    return p > 0 ? p : null;
-  }
+  const out = legFareFor(rows, origin, "OUTBOUND");
+  const ret = legFareFor(rows, origin, "RETURN");
+  if (out != null && ret != null) return out + ret;
   return null;
 }
 
@@ -138,15 +159,20 @@ export async function getComboOrigins(): Promise<string[]> {
   const rows = await prisma.cabinPriceRow.findMany({
     where: { OR: [{ serviceId: null }, { service: { category: "CABIN", published: true } }] },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-    select: { pickupPoint: true },
+    select: { pickupPoint: true, destination: true, ticketType: true },
   });
   const seen = new Set<string>();
   const out: string[] = [];
   for (const r of rows) {
-    const key = normPlace(r.pickupPoint);
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    out.push(r.pickupPoint.trim());
+    // Điểm xuất phát CỦA KHÁCH: dòng "Chiều về" có thể nhập "Tà Xùa → <tỉnh>"
+    // (tỉnh nằm ở destination). "Tà Xùa" không bao giờ là điểm xuất phát.
+    const candidates = r.ticketType === "RETURN" ? [r.destination, r.pickupPoint] : [r.pickupPoint];
+    for (const place of candidates) {
+      const key = normPlace(place ?? "");
+      if (!key || key === "tà xùa" || seen.has(key)) continue;
+      seen.add(key);
+      out.push(place!.trim());
+    }
   }
   return out;
 }
