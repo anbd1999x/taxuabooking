@@ -553,10 +553,6 @@ export function HomestayList({
               {[["all", "Tất cả"], ["Homestay", "Homestay"], ["Bungalow", "Bungalow"]].map(([k, n]) => (
                 <button key={k} type="button" onClick={() => setType(k)} className="rounded-full px-3.5 py-2 text-sm font-bold transition" style={{ background: type === k ? TH.G : "oklch(0.95 0.01 230)", color: type === k ? "white" : "oklch(0.35 0.02 160)" }}>{n}</button>
               ))}
-              {zones.length > 1 && <span className="mx-1 h-5 w-px bg-[oklch(0.9_0.01_230)]" />}
-              {zones.length > 1 && [["all", "Mọi khu vực"], ...zones.map((z) => [z, z.replace(/^Trung tâm Tà Xùa$/i, "Trung tâm")])].map(([k, n]) => (
-                <button key={k} type="button" onClick={() => setZone(k)} className="rounded-full px-3.5 py-2 text-sm font-bold transition" style={{ background: zone === k ? "oklch(0.52 0.12 50)" : "oklch(0.95 0.01 230)", color: zone === k ? "white" : "oklch(0.35 0.02 160)" }}>{n}</button>
-              ))}
             </div>
             <div className="flex items-center gap-2">
               {hasFilter && <button type="button" onClick={clearAll} className="px-3 py-2 text-sm font-bold text-gray-500">Xoá lọc</button>}
@@ -589,22 +585,42 @@ export function HomestayList({
 
       {/* LIST */}
       <main ref={listRef} className="container-page pb-24 pt-9">
-        {/* Lọc nhanh theo TÊN homestay — dropdown chữ nhỏ ngay trên kết quả, chọn để xem riêng từng nhà */}
-        {homeNames.length > 1 && (
-          <label className="mb-5 flex items-center gap-2 text-[13px] font-semibold text-gray-500">
-            Xem theo nhà
-            <select
-              value={home}
-              onChange={(e) => setHome(e.target.value)}
-              className="max-w-[260px] cursor-pointer border-0 bg-transparent p-0 text-[13px] font-extrabold outline-none"
-              style={{ color: TH.G }}
-            >
-              <option value="all">Tất cả homestay</option>
-              {homeNames.map((n) => (
-                <option key={n} value={n}>{n}</option>
-              ))}
-            </select>
-          </label>
+        {/* Lọc nhanh ngay trên kết quả — dropdown chữ nhỏ: theo TÊN homestay & theo KHU VỰC */}
+        {(homeNames.length > 1 || zones.length > 1) && (
+          <div className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-2">
+            {homeNames.length > 1 && (
+              <label className="flex items-center gap-2 text-[13px] font-semibold text-gray-500">
+                Xem theo nhà
+                <select
+                  value={home}
+                  onChange={(e) => setHome(e.target.value)}
+                  className="max-w-[260px] cursor-pointer border-0 bg-transparent p-0 text-[13px] font-extrabold outline-none"
+                  style={{ color: TH.G }}
+                >
+                  <option value="all">Tất cả homestay</option>
+                  {homeNames.map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {zones.length > 1 && (
+              <label className="flex items-center gap-2 text-[13px] font-semibold text-gray-500">
+                Khu vực
+                <select
+                  value={zone}
+                  onChange={(e) => setZone(e.target.value)}
+                  className="max-w-[220px] cursor-pointer border-0 bg-transparent p-0 text-[13px] font-extrabold outline-none"
+                  style={{ color: "oklch(0.52 0.12 50)" }}
+                >
+                  <option value="all">Mọi khu vực</option>
+                  {zones.map((z) => (
+                    <option key={z} value={z}>{z.replace(/^Trung tâm Tà Xùa$/i, "Trung tâm")}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+          </div>
         )}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] sm:gap-[22px]">
           {items.map((s, i) => (

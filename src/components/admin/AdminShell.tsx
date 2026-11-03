@@ -37,10 +37,12 @@ const PROVIDER_NAV: NavItem[] = [
 export function AdminShell({
   adminName,
   role = "ADMIN",
+  badges,
   children,
 }: {
   adminName: string;
   role?: "ADMIN" | "CTV" | "PROVIDER";
+  badges?: Record<string, number>;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -66,21 +68,32 @@ export function AdminShell({
           <span className="font-bold text-white">Tà Xùa · {roleLabel}</span>
         </div>
         <nav className="mt-2 space-y-1 px-3">
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setOpen(false)}
-              className={cn(
-                "block rounded-lg px-3 py-2.5 text-sm font-medium transition",
-                isActive(item)
-                  ? "bg-white/15 text-white"
-                  : "text-forest-200 hover:bg-white/10 hover:text-white",
-              )}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {NAV.map((item) => {
+            const badge = badges?.[item.href] ?? 0;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOpen(false)}
+                className={cn(
+                  "flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm font-medium transition",
+                  isActive(item)
+                    ? "bg-white/15 text-white"
+                    : "text-forest-200 hover:bg-white/10 hover:text-white",
+                )}
+              >
+                <span>{item.label}</span>
+                {badge > 0 && (
+                  <span
+                    className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1.5 text-xs font-bold text-white"
+                    title={`${badge} đơn chưa xử lý`}
+                  >
+                    {badge > 99 ? "99+" : badge}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
         </nav>
         <div className="absolute bottom-0 w-full border-t border-white/10 p-3">
           <Link href="/" target="_blank" className="block rounded-lg px-3 py-2 text-sm text-forest-200 hover:bg-white/10 hover:text-white">
