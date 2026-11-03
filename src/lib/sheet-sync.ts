@@ -11,6 +11,9 @@ import type { RoomStatus } from "@prisma/client";
  * parser tự dò: tìm hàng chứa nhiều "ngày" nhất làm hàng tiêu đề ngày, rồi so
  * khớp tên phòng (ô chữ bên trái vùng ngày) với các Room đã tạo trong app. Hàng
  * không khớp phòng nào (THỨ, tiêu đề thừa...) tự bị bỏ qua. Ô trống = còn trống.
+ * Đọc dữ liệu qua bảng HTML của từng tab để giữ Ô GỘP: khách đặt nhiều phòng /
+ * nhiều đêm được chủ sheet gộp thành 1 ô "Đã đặt" → trải ra khoá đủ mọi phòng,
+ * mọi đêm trong vùng gộp (CSV chỉ giữ giá trị ở ô đầu nên trước đây khoá sót).
  *
  * Nguồn này gắn note = "SHEET": không đè đơn đặt thật trong app (có bookingId),
  * không đè khoá của nguồn khác (OTA#...) hay khoá thủ công của admin; khi ô trống
@@ -286,10 +289,11 @@ function extractGid(url: string): string {
 }
 
 /**
- * Các link CSV cho một tab (gid), thử theo thứ tự. Dùng /export trước vì nó trả
- * đúng giá trị hiển thị của từng ô; gviz chỉ là dự phòng — gviz tự đoán KIỂU của
- * cả cột và trả rỗng những ô lệch kiểu (vd ô ngày thật giữa cột chữ → mất ngày),
- * đồng thời tự nối các ô gộp vào tiêu đề.
+ * Các link CSV cho một tab (gid), thử theo thứ tự — chỉ còn là DỰ PHÒNG khi
+ * không đọc được bảng HTML (xem fetchTabGrid): CSV mất thông tin Ô GỘP (giá trị
+ * chỉ nằm ở ô góc trên-trái, phần còn lại rỗng → app tưởng còn trống). Dùng
+ * /export trước vì nó trả đúng giá trị hiển thị của từng ô; gviz tự đoán KIỂU
+ * của cả cột và trả rỗng những ô lệch kiểu (vd ô ngày thật giữa cột chữ).
  */
 function csvUrlsFor(id: string, gid: string): string[] {
   return [
@@ -599,21 +603,25 @@ function detectMonthBlocks(rows: string[][], ref: Date): DateBlock[] {
 
 /**
  * Dò hướng bảng: thử kiểu ngày-ngang trước, rồi bố cục khối-tháng, thất bại thì
- * xoay bảng rồi dò lại theo cùng thứ tự.
+ * xoay bảng rồi dò lại theo cùng thứ tự. DÒ trên lưới raw (ô gộp để trống như
+ * CSV — giữ nguyên hành vi fillMissingDateCols/khớp tên phòng); trả kèm lưới
+ * `data` (expanded, cùng hướng) để ĐỌC trạng thái ô.
  */
 function detectLayout(
-  rows: string[][],
+  grids: SheetGrids,
   ref: Date,
-): { rows: string[][]; blocks: DateBlock[] } | null {
-  const direct = detectDateBlocks(rows, ref);
-  if (direct.length > 0) return { rows, blocks: direct };
-  const monthly = detectMonthBlocks(rows, ref);
-  if (monthly.length > 0) return { rows, blocks: monthly };
-  const flipped = transpose(rows);
+): { rows: string[][]; data: string[][]; blocks: DateBlock[] } | null {
+  const sameGrid = grids.raw === grids.expanded; // fallback CSV: khỏi transpose 2 lần
+  const direct = detectDateBlocks(grids.raw, ref);
+  if (direct.length > 0) return { rows: grids.raw, data: grids.expanded, blocks: direct };
+  const monthly = detectMonthBlocks(grids.raw, ref);
+  if (monthly.length > 0) return { rows: grids.raw, data: grids.expanded, blocks: monthly };
+  const flipped = transpose(grids.raw);
+  const flippedData = sameGrid ? flipped : transpose(grids.expanded);
   const viaTranspose = detectDateBlocks(flipped, ref);
-  if (viaTranspose.length > 0) return { rows: flipped, blocks: viaTranspose };
+  if (viaTranspose.length > 0) return { rows: flipped, data: flippedData, blocks: viaTranspose };
   const monthlyT = detectMonthBlocks(flipped, ref);
-  return monthlyT.length > 0 ? { rows: flipped, blocks: monthlyT } : null;
+  return monthlyT.length > 0 ? { rows: flipped, data: flippedData, blocks: monthlyT } : null;
 }
 
 type RoomRef = { id: string; name: string; roomTypeId: string };
@@ -716,6 +724,149 @@ async function fetchTabCsv(id: string, gid: string): Promise<string[][] | null> 
 }
 
 /**
+ * Lưới ô của một tab, 2 phiên bản:
+ * - raw: ô gộp chỉ giữ giá trị ở ô góc trên-trái (giống CSV) — dùng để DÒ BỐ CỤC
+ *   (hàng tiêu đề ngày, tên phòng), giữ nguyên hành vi cũ như fillMissingDateCols.
+ * - expanded: giá trị ô gộp được TRẢI RA toàn vùng gộp — dùng để ĐỌC TRẠNG THÁI,
+ *   vì chủ sheet hay gộp ô "Đã đặt" ngang nhiều phòng (1 khách đặt nhiều phòng)
+ *   hoặc dọc nhiều đêm; CSV làm mất thông tin này nên trước đây chỉ khoá 1 phòng.
+ */
+interface SheetGrids {
+  raw: string[][];
+  expanded: string[][];
+}
+
+/** Giải mã entity HTML thường gặp trong trang htmlview. */
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#(\d+);/g, (_, n: string) => String.fromCodePoint(+n))
+    .replace(/&#x([0-9a-f]+);/gi, (_, n: string) => String.fromCodePoint(parseInt(n, 16)))
+    .replace(/&amp;/g, "&");
+}
+
+/** Nội dung text của một ô HTML: bỏ thẻ con (softmerge/div/a...), gộp khoảng trắng. */
+function cellText(inner: string): string {
+  return decodeEntities(
+    inner.replace(/<br[^>]*>/gi, " ").replace(/<[^>]+>/g, ""),
+  )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Parse bảng HTML của MỘT tab (trang htmlview/sheet) thành lưới ô, trải ô gộp
+ * theo đúng thuật toán bảng HTML: colspan chiếm cột kế bên, rowspan "gánh" xuống
+ * các hàng dưới. Ô <th> (số thứ tự hàng/chữ cái cột) và ô freezebar bị bỏ qua.
+ * Lưu ý: ô chữ-tràn-sang-ô-trống (class "softmerge") KHÔNG có colspan nên không
+ * bị trải nhầm — chỉ ô gộp thật mới có colspan/rowspan.
+ */
+function parseHtmlGrid(html: string): SheetGrids | null {
+  const tStart = html.indexOf("<table");
+  if (tStart < 0) return null;
+  const tEnd = html.indexOf("</table>", tStart);
+  const table = (tEnd > tStart ? html.slice(tStart, tEnd) : html.slice(tStart))
+    .replace(/<thead[\s\S]*?<\/thead>/i, "");
+
+  const rawRows: string[][] = [];
+  const expRows: string[][] = [];
+  // carry[c] = ô gộp dọc từ hàng trên còn phủ xuống `left` hàng nữa tại cột c.
+  const carry: ({ left: number; value: string } | null)[] = [];
+
+  const trRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  let tr: RegExpExecArray | null;
+  while ((tr = trRe.exec(table))) {
+    const cellRe = /<(td|th)\b([^>]*)>([\s\S]*?)<\/\1>/gi;
+    const tds: { attrs: string; text: string }[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = cellRe.exec(tr[1]))) {
+      if (m[1].toLowerCase() !== "td") continue; // th = tiêu đề hàng/cột của trang
+      const cls = m[2].match(/class="([^"]*)"/i)?.[1] ?? "";
+      if (cls.includes("freezebar")) continue; // vạch cố định hàng/cột, không phải ô dữ liệu
+      tds.push({ attrs: m[2], text: cellText(m[3]) });
+    }
+    const hasCarry = carry.some((c) => c && c.left > 0);
+    if (tds.length === 0 && !hasCarry) continue; // hàng toàn <th> (tiêu đề cột) / hàng rỗng
+
+    const raw: string[] = [];
+    const exp: string[] = [];
+    let col = 0;
+    const takeCarry = () => {
+      while (carry[col] && carry[col]!.left > 0) {
+        raw[col] = "";
+        exp[col] = carry[col]!.value;
+        carry[col]!.left -= 1;
+        col++;
+      }
+    };
+    for (const cell of tds) {
+      takeCarry();
+      const cs = Math.max(1, +(cell.attrs.match(/colspan="?(\d+)/i)?.[1] ?? 1));
+      const rs = Math.max(1, +(cell.attrs.match(/rowspan="?(\d+)/i)?.[1] ?? 1));
+      for (let k = 0; k < cs; k++) {
+        raw[col] = k === 0 ? cell.text : "";
+        exp[col] = cell.text;
+        carry[col] = rs > 1 ? { left: rs - 1, value: cell.text } : null;
+        col++;
+      }
+    }
+    // Ô gộp dọc còn "gánh" ở các cột sau ô cuối của hàng này.
+    for (let c = col; c < carry.length; c++) {
+      const cy = carry[c];
+      if (cy && cy.left > 0) {
+        raw[c] = "";
+        exp[c] = cy.value;
+        cy.left -= 1;
+      }
+    }
+    rawRows.push(raw);
+    expRows.push(exp);
+  }
+  if (rawRows.length === 0) return null;
+
+  // Chuẩn hoá: lấp lỗ (cột hàng ngắn / sau ô gộp) thành "" cho cả 2 lưới.
+  const width = Math.max(0, ...rawRows.map((r) => r.length), ...expRows.map((r) => r.length));
+  for (const rows of [rawRows, expRows])
+    for (const r of rows) for (let c = 0; c < width; c++) r[c] ??= "";
+  return { raw: rawRows, expanded: expRows };
+}
+
+/** Tải bảng HTML của một tab (có thông tin ô gộp). Trả null nếu không đọc được. */
+async function fetchTabHtml(id: string, gid: string): Promise<SheetGrids | null> {
+  const url = `https://docs.google.com/spreadsheets/d/${id}/htmlview/sheet?headers=true&gid=${gid}`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 20000);
+  try {
+    const res = await fetch(url, {
+      redirect: "follow",
+      signal: ctrl.signal,
+      headers: { "User-Agent": "Mozilla/5.0 TaXuaBooking sheet sync" },
+      cache: "no-store",
+    });
+    if (!res.ok) return null;
+    return parseHtmlGrid(await res.text());
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * Lưới ô của một tab: ưu tiên bảng HTML (giữ được ô gộp), hỏng thì rơi về CSV
+ * (ô gộp thành ô trống — ít nhất không tệ hơn hành vi cũ).
+ */
+async function fetchTabGrid(id: string, gid: string): Promise<SheetGrids | null> {
+  const viaHtml = await fetchTabHtml(id, gid);
+  if (viaHtml) return viaHtml;
+  const csv = await fetchTabCsv(id, gid);
+  return csv ? { raw: csv, expanded: csv } : null;
+}
+
+/**
  * Đồng bộ MỘT homestay từ sheet đã lưu ở Service.sheetUrl. Tự liệt kê MỌI tab
  * (mỗi tab 1 tháng) từ 1 link và đồng bộ lần lượt; tab không phải lịch hoặc đã
  * qua sẽ bị bỏ qua.
@@ -773,15 +924,15 @@ export async function syncServiceSheet(
     let anyCalendarTab = false; // có ít nhất 1 tab nhận diện được là lịch
 
     // 2) Tải song song rồi duyệt từng tab (kết quả giữ đúng thứ tự tab).
-    const tabRows = await Promise.all(tabs.map((t) => fetchTabCsv(id, t.gid)));
+    const tabGrids = await Promise.all(tabs.map((t) => fetchTabGrid(id, t.gid)));
     for (let ti = 0; ti < tabs.length; ti++) {
       const tab = tabs[ti];
-      const detected = tabRows[ti] ? detectLayout(tabRows[ti]!, ref) : null;
+      const detected = tabGrids[ti] ? detectLayout(tabGrids[ti]!, ref) : null;
       if (!detected) {
         skippedTabs.push(tab.name);
         continue;
       }
-      const { rows, blocks } = detected;
+      const { rows, data, blocks } = detected;
       anyCalendarTab = true;
 
       // Bố cục 1 khối: quét MỌI hàng của tab (như cũ). Bố cục nhiều khối (lịch
@@ -800,7 +951,8 @@ export async function syncServiceSheet(
         const seenInBlock = new Set<string>();
         for (let r = rStart; r < rEnd; r++) {
           if (r === block.headerRow) continue;
-          const row = rows[r];
+          const row = rows[r]; // nhãn/tên phòng đọc từ lưới raw (ô gộp = ô đầu, như cũ)
+          const dataRow = data[r]; // trạng thái đọc từ lưới expanded (ô gộp trải toàn vùng)
           // Ứng viên tên phòng = MỌI ô chữ bên trái vùng ngày, duyệt từ phải sang
           // trái (tên phòng thường nằm sát vùng ngày; bên trái có thể là tên
           // homestay / nhãn nhóm do ô gộp tách ra nhiều ô).
@@ -821,12 +973,12 @@ export async function syncServiceSheet(
             // Hàng thống kê của chủ nhà: nhãn kiểu "SL/Tổng/Tỉ lệ..." hoặc mọi ô
             // trong vùng ngày chỉ chứa số/%/tỉ số ("12", "85%", "5/14") → bỏ qua êm.
             if (candidates.some((c) => STATS_LABEL_RE.test(norm(c)))) continue;
-            const cells = dateCols.map((dc) => (row[dc.col] ?? "").trim()).filter(Boolean);
+            const cells = dateCols.map((dc) => (dataRow[dc.col] ?? "").trim()).filter(Boolean);
             if (cells.length > 0 && cells.every((v) => NUMERIC_CELL_RE.test(v))) continue;
             // Chỉ cảnh báo khi hàng có booking từ HÔM NAY trở đi — phòng chỉ còn
             // trong tab tháng đã qua (đã ngừng bán) không ảnh hưởng gì.
             const hasBooking = dateCols.some(
-              (dc) => dc.date >= ref && cellStatus(row[dc.col] ?? "") !== "AVAILABLE",
+              (dc) => dc.date >= ref && cellStatus(dataRow[dc.col] ?? "") !== "AVAILABLE",
             );
             if (hasBooking) unmatched.add(candidates[0]);
             continue;
@@ -836,7 +988,7 @@ export async function syncServiceSheet(
           seenInTab.add(room.id);
           matchedRoomIds.add(room.id);
           for (const dc of dateCols) {
-            entries.push({ room, date: dc.date, status: cellStatus(row[dc.col] ?? "") });
+            entries.push({ room, date: dc.date, status: cellStatus(dataRow[dc.col] ?? "") });
           }
         }
       }
