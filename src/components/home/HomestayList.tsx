@@ -88,6 +88,8 @@ export function HomestayList({
   const router = useRouter();
   const [w, setW] = useState(1280);
   const [q, setQ] = useState(initialQ);
+  // ci/co = ngày đang CHỌN (nháp). Tình trạng còn phòng trong `items` do server
+  // tính theo ngày TRÊN URL (initialFrom/initialTo) — chỉ đổi khi bấm "Tìm kiếm".
   const [ci, setCi] = useState(initialFrom); // nhận phòng = from
   const [co, setCo] = useState(initialTo); // trả phòng = to
   const [price, setPrice] = useState("all");
@@ -297,8 +299,12 @@ export function HomestayList({
   // ---- filtering ----
   const norm = (t: string) => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   const dateErr = ci && co && co <= ci ? "Ngày trả phòng phải sau ngày nhận phòng." : "";
-  const hasDates = Boolean(ci && co && !dateErr);
-  const nights = hasDates ? Math.max(1, Math.round((+new Date(co) - +new Date(ci)) / 864e5)) : 0;
+  // hasDates/nights theo ngày ĐÃ ÁP DỤNG (trên URL) — khớp với tình trạng server
+  // đã tính trong items; ngày nháp chưa bấm Tìm kiếm không đổi hiển thị.
+  const hasDates = Boolean(initialFrom && initialTo && initialTo > initialFrom);
+  const nights = hasDates ? Math.max(1, Math.round((+new Date(initialTo) - +new Date(initialFrom)) / 864e5)) : 0;
+  const draftReady = Boolean(ci && co && !dateErr); // ngày nháp hợp lệ để bấm Tìm kiếm
+  const draftDirty = ci !== initialFrom || co !== initialTo; // đổi ngày nhưng chưa tìm
   const qn = norm(q.trim());
   const inPrice = (p: number) =>
     price === "all" ||
@@ -313,24 +319,25 @@ export function HomestayList({
   // Khoảng cách tới trung tâm để sắp "gần trung tâm": thiếu số km nhưng khu vực là
   // "Trung tâm..." thì coi như 0; thiếu hẳn thì xếp cuối.
   const distOf = (x: HomestayCard) => x.distanceKm ?? (norm(x.area).includes("trung tam") ? 0 : Number.POSITIVE_INFINITY);
-  const items = all
-    .filter(
-      (x) =>
-        (type === "all" || x.cat === type) &&
-        (zone === "all" || x.area === zone) &&
-        inPrice(x.price) &&
-        [...amen].every((k) => x.amen?.[k]) &&
-        (!qn || norm(`${x.name} ${x.homeName} ${x.area}`).includes(qn)),
-    )
+  const preFiltered = all.filter(
+    (x) =>
+      (type === "all" || x.cat === type) &&
+      (zone === "all" || x.area === zone) &&
+      inPrice(x.price) &&
+      [...amen].every((k) => x.amen?.[k]) &&
+      (!qn || norm(`${x.name} ${x.homeName} ${x.area}`).includes(qn)),
+  );
+  // Đã tìm theo ngày → ẨN HẲN phòng hết chỗ trong kỳ (chỉ hiện phòng còn trống).
+  const hiddenFull = hasDates ? preFiltered.filter((x) => x.status === "full").length : 0;
+  const items = preFiltered
+    .filter((x) => !hasDates || x.status !== "full")
     // Sắp theo tiêu chí đã chọn (sort ổn định — "rec" giữ thứ tự nổi bật từ server).
     .sort((a, b) => {
       if (sort === "priceAsc") return (a.price > 0 ? a.price : Infinity) - (b.price > 0 ? b.price : Infinity);
       if (sort === "priceDesc") return b.price - a.price;
       if (sort === "near") return distOf(a) - distOf(b);
       return 0;
-    })
-    // Có ngày → đẩy phòng đã kín xuống cuối (sort ổn định, giữ thứ tự nổi bật).
-    .sort((a, b) => (a.status === "full" ? 1 : 0) - (b.status === "full" ? 1 : 0));
+    });
   const hasFilter = Boolean(q || ci || co || price !== "all" || type !== "all" || zone !== "all" || sort !== "rec" || amen.size > 0);
   const toggleAmen = (k: AmenKey) =>
     setAmen((prev) => {
@@ -341,16 +348,25 @@ export function HomestayList({
     });
   const wide = w >= 980;
   const heroH = w < 640 ? 500 : 560;
-  const dateQS = (() => { const p = new URLSearchParams(); if (hasDates) { p.set("from", ci); p.set("to", co); } const s = p.toString(); return s ? `?${s}` : ""; })();
+  const dateQS = (() => { const p = new URLSearchParams(); if (hasDates) { p.set("from", initialFrom); p.set("to", initialTo); } const s = p.toString(); return s ? `?${s}` : ""; })();
 
-  // Đổi ngày → cập nhật URL để server tính lại tình trạng còn phòng theo kỳ.
-  function syncDates(nci: string, nco: string) {
+  // Bấm "Tìm kiếm" → đẩy ngày lên URL để server tính lại tình trạng còn phòng.
+  function submitSearch() {
+    if (dateErr) return;
     const p = new URLSearchParams();
-    if (nci) p.set("from", nci);
-    if (nco && nco > nci) p.set("to", nco);
+    if (ci && co && co > ci) { p.set("from", ci); p.set("to", co); }
     if (q) p.set("q", q);
     router.replace(`/homestay${p.toString() ? `?${p}` : ""}`, { scroll: false });
     router.refresh(); // ép lấy dữ liệu mới, tránh client router cache trả kết quả cũ
+    const el = listRef.current;
+    if (el) window.setTimeout(() => window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 12, behavior: "smooth" }), 120);
+  }
+
+  // Xoá lọc: về trạng thái không ngày (server trả "Chọn ngày để xem").
+  function clearAll() {
+    setQ(""); setCi(""); setCo(""); setPrice("all"); setType("all"); setZone("all"); setSort("rec"); setAmen(new Set());
+    router.replace("/homestay", { scroll: false });
+    router.refresh();
   }
 
   const cell = "flex min-w-0 flex-col gap-0.5 rounded-[14px] bg-[oklch(0.965_0.01_230)] px-3.5 py-2.5";
@@ -472,15 +488,15 @@ export function HomestayList({
           <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,170px),1fr))" }}>
             <label className={cell} style={{ gridColumn: wide ? "span 1" : "1 / -1" }}>
               <span className="text-xs font-semibold text-gray-500">Tìm kiếm</span>
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tên homestay, khu vực…" className={inp} />
+              <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submitSearch(); }} placeholder="Tên homestay, khu vực…" className={inp} />
             </label>
             <label className={cell}>
               <span className="text-xs font-semibold text-gray-500">Nhận phòng</span>
-              <DateField value={ci} onChange={(v) => { setCi(v); syncDates(v, co); }} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Nhận phòng" />
+              <DateField value={ci} onChange={setCi} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Nhận phòng" />
             </label>
             <label className={cell}>
               <span className="text-xs font-semibold text-gray-500">Trả phòng</span>
-              <DateField value={co} min={ci || undefined} onChange={(v) => { setCo(v); syncDates(ci, v); }} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Trả phòng" />
+              <DateField value={co} min={ci || undefined} onChange={setCo} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Trả phòng" />
             </label>
             <label className={cell}>
               <span className="text-xs font-semibold text-gray-500">Khoảng giá</span>
@@ -494,6 +510,15 @@ export function HomestayList({
                 {[["rec", "Phù hợp nhất"], ["priceAsc", "Giá thấp → cao"], ["priceDesc", "Giá cao → thấp"], ["near", "Gần trung tâm nhất"]].map(([v, n]) => <option key={v} value={v}>{n}</option>)}
               </select>
             </label>
+            <button
+              type="button"
+              onClick={submitSearch}
+              disabled={Boolean(dateErr)}
+              className="flex items-center justify-center gap-2 rounded-[14px] px-4 py-2.5 text-[15px] font-extrabold text-white transition hover:brightness-110 disabled:opacity-50"
+              style={{ background: draftDirty && draftReady ? "oklch(0.52 0.12 50)" : TH.G }}
+            >
+              🔍 Tìm kiếm{draftDirty && draftReady ? " ngay" : ""}
+            </button>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 px-1 py-0.5">
             <div className="flex flex-wrap items-center gap-1.5">
@@ -506,8 +531,11 @@ export function HomestayList({
               ))}
             </div>
             <div className="flex items-center gap-2">
-              {hasFilter && <button type="button" onClick={() => { setQ(""); setCi(""); setCo(""); setPrice("all"); setType("all"); setZone("all"); setSort("rec"); setAmen(new Set()); }} className="px-3 py-2 text-sm font-bold text-gray-500">Xoá lọc</button>}
-              <span className="text-sm font-semibold text-gray-500">{items.length} loại phòng{hasDates ? ` · ${nights} đêm` : ""}</span>
+              {hasFilter && <button type="button" onClick={clearAll} className="px-3 py-2 text-sm font-bold text-gray-500">Xoá lọc</button>}
+              <span className="text-sm font-semibold text-gray-500">
+                {items.length} loại phòng{hasDates ? ` · ${nights} đêm` : ""}
+                {hiddenFull > 0 && <span className="text-gray-400"> · đã ẩn {hiddenFull} loại hết phòng</span>}
+              </span>
             </div>
           </div>
           {/* Tiện ích phòng (chọn nhiều — phòng phải có đủ các tiện ích đã chọn) */}
@@ -585,7 +613,7 @@ export function HomestayList({
                           <span className="text-[17px] font-extrabold tracking-[-0.02em] sm:text-[21px]" style={{ color: TH.G }}>{vnd(hasDates ? s.price * nights : s.price)}</span>{!hasDates && <span className="text-[12px] text-gray-500 sm:text-[13px]">/đêm</span>}
                         </>
                       ) : (
-                        <span className="text-[17px] font-extrabold tracking-[-0.02em] sm:text-[21px]" style={{ color: TH.G }}>Liên hệ</span>
+                        <span className="text-[15px] font-extrabold tracking-[-0.02em] sm:text-[18px]" style={{ color: TH.G }}>IB để biết giá</span>
                       )}
                     </div>
                   </div>
@@ -599,7 +627,7 @@ export function HomestayList({
           <div className="flex flex-col items-center gap-2.5 rounded-[22px] border border-dashed border-[oklch(0.85_0.02_230)] bg-white px-6 py-14 text-center">
             <div className="text-[19px] font-extrabold text-ink">Không có phòng phù hợp</div>
             <div className="max-w-[420px] text-[15px] text-gray-500">Thử đổi ngày hoặc khoảng giá. Hoặc gọi 0397 943 155, tụi mình tìm chỗ giúp.</div>
-            <button type="button" onClick={() => { setQ(""); setCi(""); setCo(""); setPrice("all"); setType("all"); setZone("all"); setSort("rec"); setAmen(new Set()); }} className="mt-1.5 rounded-full px-5 py-2.5 text-sm font-bold text-white" style={{ background: TH.G }}>Xoá bộ lọc</button>
+            <button type="button" onClick={clearAll} className="mt-1.5 rounded-full px-5 py-2.5 text-sm font-bold text-white" style={{ background: TH.G }}>Xoá bộ lọc</button>
           </div>
         )}
       </main>
