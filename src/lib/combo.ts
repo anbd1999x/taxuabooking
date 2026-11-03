@@ -9,7 +9,7 @@ import { checkWeekendPolicy } from "./weekend-policy";
 import type { ComboBookingInput } from "./validation";
 
 /** Giảm giá cố định cho mỗi combo (mỗi khách). */
-export const COMBO_DISCOUNT = 50000;
+export const COMBO_DISCOUNT = 25000;
 
 /** File video không dùng được làm ảnh thẻ (next/image sẽ lỗi). */
 const VIDEO_URL_RE = /\.(mp4|webm|mov|m4v|ogg)(\?|$)/i;
@@ -489,9 +489,9 @@ export function buildStayPlans(rooms: ComboRoomOption[], people: number): ComboS
  * Ngày: ngày đi = đêm lên xe (chiều đi) → check-in = ngày đi + 1; ngày về = ngày
  * xe chạy chiều về = ngày check-out. Số đêm = check-out − check-in.
  *
- * Giá combo / khách = (tiền phòng cả kỳ ÷ số người) + vé khứ hồi 1 người − 50k.
+ * Giá combo / khách = (tiền phòng cả kỳ ÷ số người) + vé khứ hồi 1 người − 25k.
  * Riêng PHÒNG CỘNG ĐỒNG (giá phòng = giá mỗi người): combo / khách = giá phòng
- * cộng đồng + vé khứ hồi (không chia theo đoàn, không trừ 50k).
+ * cộng đồng + vé khứ hồi (không chia theo đoàn, không trừ 25k).
  * Kết quả sắp xếp theo mức gần giá mong muốn nhất (không nhập giá → rẻ trước).
  */
 export async function findComboMatches(input: {

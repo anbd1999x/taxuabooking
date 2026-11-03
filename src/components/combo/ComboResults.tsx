@@ -12,7 +12,8 @@ import type {
   ComboSearchResult,
 } from "@/lib/combo";
 
-const COMBO_DISCOUNT = 50000;
+// Phải khớp COMBO_DISCOUNT trong src/lib/combo.ts (server tính lại giá khi đặt).
+const COMBO_DISCOUNT = 25000;
 
 const FEAT: [keyof ComboRoomFeatures, string][] = [
   ["cloudView", "⛅ View mây"],
