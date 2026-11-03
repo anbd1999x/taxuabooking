@@ -15,6 +15,9 @@ import type {
 // Phải khớp COMBO_DISCOUNT trong src/lib/combo.ts (server tính lại giá khi đặt).
 const COMBO_DISCOUNT = 25000;
 
+/** Style select trong thanh lọc kết quả (theo thiết kế Combo v2). */
+const SEL = "min-w-0 flex-1 rounded-xl border-[1.5px] border-[oklch(0.88_0.015_180)] bg-white px-3 py-2 text-sm font-bold text-ink outline-none";
+
 const FEAT: [keyof ComboRoomFeatures, string][] = [
   ["cloudView", "⛅ View mây"],
   ["hasBathtub", "🛁 Bồn tắm"],
@@ -106,37 +109,54 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
 
   return (
     <div>
-      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <p className="text-sm text-gray-600">
-          <span className="font-bold text-ink">{entries.length}</span> phương án · {buses.length} nhà xe · {people} người ·{" "}
-          {nights} đêm ({checkIn} → {checkOut})
+      {/* Tiêu đề danh sách (theo thiết kế Combo v2) */}
+      <div className="mb-3">
+        <div className="text-[clamp(22px,2.6vw,28px)] font-extrabold tracking-[-0.02em] text-ink">
+          {entries.length} phương án combo
+        </div>
+        <div className="mt-1 text-sm text-gray-500">
+          {buses.length} nhà xe · {people} người · {nights} đêm ({checkIn} → {checkOut})
           {origin && <> · đón tại <span className="font-bold text-ink">{origin}</span></>}
-        </p>
-        {priceMax != null ? (
-          <p className="text-sm text-gray-500">
-            Mức giá <span className="font-semibold text-forest-700">dưới {vnd(priceMax)}</span>/khách
-          </p>
-        ) : priceMin != null ? (
-          <p className="text-sm text-gray-500">
-            Mức giá <span className="font-semibold text-forest-700">trên {vnd(priceMin)}</span>/khách
-          </p>
-        ) : budget != null ? (
-          <p className="text-sm text-gray-500">
-            Khớp giá mong muốn <span className="font-semibold text-forest-700">{vnd(budget)}</span>/khách
-          </p>
-        ) : null}
+          {priceMax != null ? (
+            <> · mức giá <span className="font-semibold text-forest-700">dưới {vnd(priceMax)}</span>/khách</>
+          ) : priceMin != null ? (
+            <> · mức giá <span className="font-semibold text-forest-700">trên {vnd(priceMin)}</span>/khách</>
+          ) : budget != null ? (
+            <> · khớp giá mong muốn <span className="font-semibold text-forest-700">{vnd(budget)}</span>/khách</>
+          ) : null}
+        </div>
       </div>
 
-      {/* Sắp xếp kết quả */}
-      <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
-        <label className="flex items-center gap-2 text-[13px] font-semibold text-gray-500">
-          Sắp xếp
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-            className="rounded-full bg-white px-3 py-2 text-[13px] font-bold text-ink outline-none"
-            style={{ boxShadow: "inset 0 0 0 1px oklch(0.9 0.01 200)" }}
-          >
+      {/* Thanh lọc kết quả (theo thiết kế Combo v2): Xem theo nhà · Khu vực · Sắp xếp */}
+      <div
+        className="mb-4 grid gap-2 rounded-2xl border border-[oklch(0.92_0.01_200)] bg-white p-2"
+        style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,230px),1fr))" }}
+      >
+        {homeNames.length > 1 && (
+          <label className="flex min-w-0 items-center gap-2 pl-1.5">
+            <span className="whitespace-nowrap text-[13px] font-semibold text-gray-500">Xem theo nhà</span>
+            <select value={homeName} onChange={(e) => setHomeName(e.target.value)} className={SEL}>
+              <option value="all">Tất cả homestay</option>
+              {homeNames.map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          </label>
+        )}
+        {zones.length > 1 && (
+          <label className="flex min-w-0 items-center gap-2 pl-1.5">
+            <span className="whitespace-nowrap text-[13px] font-semibold text-gray-500">Khu vực</span>
+            <select value={zone} onChange={(e) => setZone(e.target.value)} className={SEL}>
+              <option value="all">Mọi khu vực</option>
+              {zones.map((z) => (
+                <option key={z} value={z}>{z.replace(/^Trung tâm Tà Xùa$/i, "Trung tâm")}</option>
+              ))}
+            </select>
+          </label>
+        )}
+        <label className="flex min-w-0 items-center gap-2 pl-1.5">
+          <span className="whitespace-nowrap text-[13px] font-semibold text-gray-500">Sắp xếp</span>
+          <select value={sort} onChange={(e) => setSort(e.target.value)} className={SEL}>
             <option value="match">{budget != null ? "Tối ưu (khớp giá · tiện ích · vị trí)" : "Tối ưu (giá · tiện ích · vị trí)"}</option>
             <option value="priceAsc">Giá thấp → cao</option>
             <option value="priceDesc">Giá cao → thấp</option>
@@ -144,43 +164,6 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
           </select>
         </label>
       </div>
-
-      {/* Lọc nhanh ngay trên kết quả — dropdown chữ nhỏ: theo TÊN homestay & theo KHU VỰC */}
-      {(homeNames.length > 1 || zones.length > 1) && (
-        <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2">
-          {homeNames.length > 1 && (
-            <label className="flex items-center gap-2 text-[13px] font-semibold text-gray-500">
-              Xem theo nhà
-              <select
-                value={homeName}
-                onChange={(e) => setHomeName(e.target.value)}
-                className="max-w-[260px] cursor-pointer border-0 bg-transparent p-0 text-[13px] font-extrabold text-forest-700 outline-none"
-              >
-                <option value="all">Tất cả homestay</option>
-                {homeNames.map((n) => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </select>
-            </label>
-          )}
-          {zones.length > 1 && (
-            <label className="flex items-center gap-2 text-[13px] font-semibold text-gray-500">
-              Khu vực
-              <select
-                value={zone}
-                onChange={(e) => setZone(e.target.value)}
-                className="max-w-[220px] cursor-pointer border-0 bg-transparent p-0 text-[13px] font-extrabold outline-none"
-                style={{ color: "oklch(0.29 0.055 160)" }}
-              >
-                <option value="all">Mọi khu vực</option>
-                {zones.map((z) => (
-                  <option key={z} value={z}>{z.replace(/^Trung tâm Tà Xùa$/i, "Trung tâm")}</option>
-                ))}
-              </select>
-            </label>
-          )}
-        </div>
-      )}
 
       <div className="flex flex-col gap-[18px]">
         {entries.slice(0, visible).map((e) => (

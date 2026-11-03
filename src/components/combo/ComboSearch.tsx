@@ -107,8 +107,14 @@ export function ComboSearch({
     router.refresh();
   }
 
-  const cell = "flex flex-col gap-1 rounded-2xl bg-[oklch(0.965_0.01_150)] px-4 py-3";
-  const inp = "mt-0.5 w-full bg-transparent text-[15px] font-bold text-ink outline-none";
+  // Theo thiết kế Combo v2: ô nhập nền xám nhạt bo 14px, nhãn 12px.
+  const cell = "flex min-w-0 flex-col gap-0.5 rounded-[14px] bg-[oklch(0.965_0.01_200)] px-3.5 py-2.5";
+  const lab = "whitespace-nowrap text-xs font-semibold text-[oklch(0.48_0.02_160)]";
+  const inp = "w-full min-w-0 border-0 bg-transparent p-0 pt-0.5 text-[15px] font-bold text-ink outline-none";
+  const chip = (on: boolean) =>
+    `whitespace-nowrap rounded-full border px-[13px] py-[7px] text-[13px] font-semibold transition ${
+      on ? "border-forest-600 bg-forest-50 text-forest-700" : "border-gray-200 bg-white text-gray-500 hover:border-forest-300"
+    }`;
 
   // ----- Ghi chú ngày cho dễ hiểu: xe chạy ĐÊM ngày đi → sáng hôm sau nhận phòng -----
   // VD khách muốn nhận phòng 15, trả 16 thì phải chọn Ngày đi 14, Ngày về 16.
@@ -119,13 +125,17 @@ export function ComboSearch({
   const suggFrom = KEY_RE.test(from) ? addD(from, -1) : "";
   const suggTo = bothDates && to > from ? to : KEY_RE.test(from) ? addD(from, 1) : "";
   const canQuickFix = suggFrom >= todayKey();
+  const dateErr = nights != null && nights <= 0;
 
   return (
-    <div className="rounded-[22px] bg-white p-3 shadow-[0_20px_50px_-24px_rgba(30,70,45,0.4)] ring-1 ring-black/[0.05]">
-      <div className={`grid gap-1.5 sm:grid-cols-2 ${origins.length > 0 ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
+    <div
+      className="flex flex-col gap-3 rounded-[22px] border border-white/80 p-3 shadow-[0_24px_60px_-24px_oklch(0.25_0.06_220_/.45)]"
+      style={{ background: "oklch(1 0 0 / .92)", backdropFilter: "blur(14px)" }}
+    >
+      <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,170px),1fr))" }}>
         {origins.length > 0 && (
           <label className={cell}>
-            <span className="text-xs font-medium text-gray-500">Điểm xuất phát</span>
+            <span className={lab}>Điểm xuất phát</span>
             <select value={origin} onChange={(e) => setOrigin(e.target.value)} className={inp}>
               <option value="">Chọn điểm đón</option>
               {origins.map((o) => (
@@ -136,19 +146,44 @@ export function ComboSearch({
           </label>
         )}
         <label className={cell}>
-          <span className="text-xs font-medium text-gray-500">Ngày đi (lên xe)</span>
+          <span className={lab}>Ngày đi (lên xe)</span>
           <DateField value={from} min={todayKey()} onChange={setFrom} className={inp} displayClassName="text-[15px] font-bold text-ink" ariaLabel="Ngày đi" />
         </label>
         <label className={cell}>
-          <span className="text-xs font-medium text-gray-500">Ngày về (xe chạy về)</span>
+          <span className={lab}>Ngày về (xe chạy về)</span>
           <DateField value={to} min={from || todayKey()} onChange={setTo} className={inp} displayClassName="text-[15px] font-bold text-ink" ariaLabel="Ngày về" />
         </label>
+        <div className={cell}>
+          <span className={lab}>Số người</span>
+          <div className="flex items-center gap-2.5 pt-0.5">
+            <button
+              type="button"
+              aria-label="Giảm số người"
+              onClick={() => setPeople(Math.max(1, people - 1))}
+              className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-lg bg-white font-bold text-ink shadow-sm transition hover:bg-forest-50"
+            >
+              −
+            </button>
+            <QtyInput
+              min={1}
+              max={20}
+              value={people}
+              onChange={setPeople}
+              className="w-10 border-0 bg-transparent p-0 text-center text-[15px] font-extrabold text-ink outline-none"
+              ariaLabel="Số người"
+            />
+            <button
+              type="button"
+              aria-label="Tăng số người"
+              onClick={() => setPeople(Math.min(20, people + 1))}
+              className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-lg bg-white font-bold text-ink shadow-sm transition hover:bg-forest-50"
+            >
+              +
+            </button>
+          </div>
+        </div>
         <label className={cell}>
-          <span className="text-xs font-medium text-gray-500">Số người</span>
-          <QtyInput min={1} max={20} value={people} onChange={setPeople} className={inp} ariaLabel="Số người" />
-        </label>
-        <label className={cell}>
-          <span className="text-xs font-medium text-gray-500">Giá mong muốn / khách</span>
+          <span className={lab}>Giá mong muốn / khách</span>
           <select value={price} onChange={(e) => setPrice(e.target.value)} className={inp}>
             {PRICE_OPTIONS.map(([v, n]) => (
               <option key={v} value={v}>{n}</option>
@@ -157,77 +192,62 @@ export function ComboSearch({
         </label>
       </div>
 
-      {/* Ghi chú ngày: xe chạy đêm → nhận phòng hôm sau (giải thích + ví dụ + sửa nhanh) */}
-      {nights != null && nights <= 0 ? (
-        <div className="mt-2 rounded-xl bg-red-50 px-3.5 py-2.5 text-[13px] leading-relaxed text-red-700 ring-1 ring-red-100">
-          ⚠️ Chọn ngày như vậy bạn <b>chưa có đêm nghỉ nào ở homestay</b>: xe chạy <b>đêm {fmtD(from)}</b>, sáng{" "}
-          <b>{fmtD(checkIn)}</b> mới tới nơi nhận phòng.
-          {" "}Nếu bạn muốn <b>nhận phòng {fmtD(from)}</b> và <b>trả phòng {fmtD(to > from ? to : suggTo)}</b> thì chọn{" "}
-          <b>Ngày đi {fmtD(suggFrom)}</b> · <b>Ngày về {fmtD(suggTo)}</b>.
-          {canQuickFix && (
-            <button
-              type="button"
-              onClick={() => { setFrom(suggFrom); setTo(suggTo); }}
-              className="ml-2 inline-flex rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white hover:bg-red-700"
-            >
-              Sửa giúp tôi →
-            </button>
-          )}
-        </div>
-      ) : nights != null ? (
-        <div className="mt-2 rounded-xl bg-sky-50 px-3.5 py-2.5 text-[13px] leading-relaxed text-sky-900 ring-1 ring-sky-100">
-          🚌 Lên xe <b>tối {fmtD(from)}</b> → 🏠 nhận phòng <b>sáng {fmtD(checkIn)}</b> → trả phòng &amp; xe chạy về{" "}
-          <b>ngày {fmtD(to)}</b> · <b>{nights} đêm homestay</b>.
-        </div>
-      ) : (
-        <div className="mt-2 rounded-xl bg-sky-50 px-3.5 py-2.5 text-[13px] leading-relaxed text-sky-900 ring-1 ring-sky-100">
-          💡 <b>Ngày đi là đêm bạn lên xe</b> — xe chạy xuyên đêm, <b>sáng hôm sau</b> mới tới Tà Xùa nhận phòng.
-          {" "}Ví dụ: muốn <b>nhận phòng ngày 15</b> và <b>trả phòng ngày 16</b> → chọn <b>Ngày đi 14</b> · <b>Ngày về 16</b>.
-        </div>
-      )}
-
-      <div className="mt-2.5 flex flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold text-gray-500">Loại phòng:</span>
-        {ROOM_KIND_OPTIONS.map((o) => {
-          const on = kind === o.key;
-          return (
-            <button
-              key={o.key}
-              type="button"
-              onClick={() => setKind(o.key)}
-              className={`rounded-full border px-3 py-1.5 text-[13px] font-semibold transition ${
-                on ? "border-forest-600 bg-forest-50 text-forest-700" : "border-gray-200 bg-white text-gray-500 hover:border-forest-300"
-              }`}
-            >
-              {o.label}
-            </button>
-          );
-        })}
+      {/* Dòng lịch trình gọn (chấm cam) — lỗi ngày hiện đỏ kèm nút sửa nhanh */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-1.5 text-[13px] leading-relaxed text-[oklch(0.42_0.03_220)]">
+        <span className="h-1.5 w-1.5 flex-none rounded-full bg-sunset-500" />
+        {nights != null && !dateErr ? (
+          <span>
+            Lên xe <b className="text-ink">tối {fmtD(from)}</b> → nhận phòng <b className="text-ink">sáng {fmtD(checkIn)}</b> → trả phòng
+            &amp; xe chạy về <b className="text-ink">ngày {fmtD(to)}</b> · <b className="text-ink">{nights} đêm homestay</b>
+          </span>
+        ) : (
+          <span>
+            <b className="text-ink">Ngày đi là đêm bạn lên xe</b> — xe chạy xuyên đêm, sáng hôm sau mới tới Tà Xùa nhận phòng.
+            VD: nhận phòng ngày 15, trả ngày 16 → chọn Ngày đi 14 · Ngày về 16
+          </span>
+        )}
+        {dateErr && (
+          <span className="font-bold text-[oklch(0.55_0.19_28)]">
+            · Chọn vậy chưa có đêm nghỉ nào — muốn nhận phòng {fmtD(from)} hãy chọn Ngày đi {fmtD(suggFrom)} · Ngày về {fmtD(suggTo)}
+          </span>
+        )}
+        {dateErr && canQuickFix && (
+          <button
+            type="button"
+            onClick={() => { setFrom(suggFrom); setTo(suggTo); }}
+            className="rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white hover:bg-red-700"
+          >
+            Sửa giúp tôi →
+          </button>
+        )}
       </div>
 
-      <div className="mt-2.5 flex flex-wrap gap-2">
-        {COMBO_FILTER_OPTIONS.map((o) => {
-          const on = filters.has(o.key);
-          return (
-            <button
-              key={o.key}
-              type="button"
-              onClick={() => toggle(o.key)}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition ${
-                on ? "border-forest-600 bg-forest-50 text-forest-700" : "border-gray-200 bg-white text-gray-500 hover:border-forest-300"
-              }`}
-            >
-              <span>{o.icon}</span>
+      <div className="mx-1 h-px bg-[oklch(0.92_0.01_200)]" />
+
+      {/* Bộ lọc: nhãn trái + chip phải (theo thiết kế) */}
+      <div className="grid items-center gap-x-4 gap-y-2.5 px-1.5" style={{ gridTemplateColumns: "auto minmax(0,1fr)" }}>
+        <span className="whitespace-nowrap text-[13px] font-bold text-[oklch(0.45_0.02_160)]">Loại phòng</span>
+        <div className="flex flex-wrap gap-1.5">
+          {ROOM_KIND_OPTIONS.map((o) => (
+            <button key={o.key} type="button" onClick={() => setKind(o.key)} className={chip(kind === o.key)}>
               {o.label}
             </button>
-          );
-        })}
+          ))}
+        </div>
+        <span className="whitespace-nowrap text-[13px] font-bold text-[oklch(0.45_0.02_160)]">Tiện ích</span>
+        <div className="flex flex-wrap gap-1.5">
+          {COMBO_FILTER_OPTIONS.map((o) => (
+            <button key={o.key} type="button" onClick={() => toggle(o.key)} className={chip(filters.has(o.key))}>
+              {o.icon} {o.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <button
         type="button"
         onClick={submit}
-        className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-sunset-500 px-6 py-3.5 text-base font-bold text-white transition hover:bg-sunset-600 active:scale-[0.99]"
+        className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-sunset-500 px-6 py-3.5 text-base font-extrabold text-white transition hover:bg-sunset-600 active:scale-[0.99]"
       >
         Tìm combo khớp giá <span>→</span>
       </button>
