@@ -3,8 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { DateField } from "@/components/DateField";
+import { useSearchNav, SearchSpinner } from "@/components/useSearchNav";
 
 interface TripAvail {
   id: string;
@@ -76,7 +76,7 @@ export function CabinList({
   /** Điểm đón đã khai trong bảng giá chặng (server truyền xuống); rỗng → dùng FROMS. */
   pickups?: string[];
 }) {
-  const router = useRouter();
+  const { pending: searching, go } = useSearchNav();
   const [w, setW] = useState(1280);
   const [trip, setTrip] = useState<"one" | "round">(to ? "round" : "one");
   // Danh sách điểm đón: theo bảng giá chặng để chọn đâu cũng có giá đúng; luôn có Hà Nội.
@@ -262,8 +262,7 @@ export function CabinList({
     if (pickup && pickup !== "Hà Nội") p.set("pickup", pickup);
     // Điều hướng mềm (SPA, không tải lại trang) + refresh để lấy dữ liệu mới;
     // staleTimes:0 trong next.config giúp không dùng lại cache cũ.
-    router.push(`/xe-cabin${p.toString() ? `?${p.toString()}` : ""}`, { scroll: false });
-    router.refresh();
+    go(`/xe-cabin${p.toString() ? `?${p.toString()}` : ""}`);
   }
 
   const sorted = useMemo(() => {
@@ -398,7 +397,7 @@ export function CabinList({
                 <button type="button" onClick={() => setPax((p) => Math.min(20, p + 1))} className="flex h-7 w-7 items-center justify-center rounded-lg bg-white font-bold">+</button>
               </div>
             </div>
-            <button type="button" onClick={search} className="flex items-center justify-center gap-2 whitespace-nowrap rounded-[14px] px-6 py-3.5 text-base font-extrabold text-white transition hover:bg-sunset-500" style={{ background: "oklch(0.68 0.18 45)" }}>Tìm vé →</button>
+            <button type="button" onClick={search} disabled={searching} className="flex items-center justify-center gap-2 whitespace-nowrap rounded-[14px] px-6 py-3.5 text-base font-extrabold text-white transition hover:bg-sunset-500 disabled:cursor-wait disabled:opacity-80" style={{ background: "oklch(0.68 0.18 45)" }}>{searching ? <><SearchSpinner /> Đang tìm…</> : "Tìm vé →"}</button>
           </div>
           {dateErr && <div className="px-1.5 pb-1 text-[13px] font-semibold text-red-600">{dateErr}</div>}
         </div>

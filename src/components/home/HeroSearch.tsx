@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { CATEGORY_LIST } from "@/lib/constants";
 import { DateField } from "@/components/DateField";
 import { QtyInput } from "@/components/QtyInput";
+import { useSearchNav, SearchSpinner } from "@/components/useSearchNav";
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -19,7 +19,7 @@ export function HeroSearch({
   /** Điểm xuất phát đã khai trong bảng giá chặng (server truyền xuống, cho tab Combo). */
   comboOrigins?: string[];
 }) {
-  const router = useRouter();
+  const { pending, go } = useSearchNav();
   const [slug, setSlug] = useState(CATEGORY_LIST[0].slug);
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -51,8 +51,7 @@ export function HeroSearch({
     if (isCombo && origin) params.set("origin", origin);
     if (cat.key === "HOMESTAY") params.set("people", String(qty)); // lọc phòng đủ chỗ cho đoàn
     const qs = params.toString();
-    router.push(`/${slug}${qs ? `?${qs}` : ""}`, { scroll: false });
-    router.refresh();
+    go(`/${slug}${qs ? `?${qs}` : ""}`);
   }
 
   const cell = "rounded-2xl bg-[oklch(0.965_0.01_150)] px-4 py-3 transition hover:bg-[oklch(0.94_0.02_150)]";
@@ -113,9 +112,18 @@ export function HeroSearch({
         <button
           type="button"
           onClick={submit}
-          className="flex items-center justify-center gap-2 rounded-2xl bg-sunset-500 px-5 py-4 text-base font-bold text-white transition hover:bg-sunset-600 active:scale-[0.98]"
+          disabled={pending}
+          className="flex items-center justify-center gap-2 rounded-2xl bg-sunset-500 px-5 py-4 text-base font-bold text-white transition hover:bg-sunset-600 active:scale-[0.98] disabled:cursor-wait disabled:opacity-80"
         >
-          Xem chỗ trống <span>→</span>
+          {pending ? (
+            <>
+              <SearchSpinner /> Đang tìm…
+            </>
+          ) : (
+            <>
+              Xem chỗ trống <span>→</span>
+            </>
+          )}
         </button>
       </div>
     </div>

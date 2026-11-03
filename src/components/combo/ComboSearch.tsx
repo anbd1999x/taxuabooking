@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { DateField } from "@/components/DateField";
 import { QtyInput } from "@/components/QtyInput";
+import { useSearchNav, SearchSpinner } from "@/components/useSearchNav";
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -76,7 +76,7 @@ export function ComboSearch({
   /** Điểm xuất phát đã khai trong bảng giá chặng (server truyền xuống). */
   origins?: string[];
 }) {
-  const router = useRouter();
+  const { pending, go } = useSearchNav();
   const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState(initialTo);
   const [origin, setOrigin] = useState(initialOrigin);
@@ -103,8 +103,7 @@ export function ComboSearch({
     if (price) p.set("price", price);
     if (filters.size) p.set("f", [...filters].join(","));
     if (kind && kind !== "all") p.set("kind", kind);
-    router.push(`/combo?${p.toString()}`, { scroll: false });
-    router.refresh();
+    go(`/combo?${p.toString()}`);
   }
 
   // Theo thiết kế Combo v2: ô nhập nền xám nhạt bo 14px, nhãn 12px.
@@ -247,9 +246,18 @@ export function ComboSearch({
       <button
         type="button"
         onClick={submit}
-        className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-sunset-500 px-6 py-3.5 text-base font-extrabold text-white transition hover:bg-sunset-600 active:scale-[0.99]"
+        disabled={pending}
+        className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-sunset-500 px-6 py-3.5 text-base font-extrabold text-white transition hover:bg-sunset-600 active:scale-[0.99] disabled:cursor-wait disabled:opacity-80"
       >
-        Tìm combo khớp giá <span>→</span>
+        {pending ? (
+          <>
+            <SearchSpinner /> Đang tìm combo…
+          </>
+        ) : (
+          <>
+            Tìm combo khớp giá <span>→</span>
+          </>
+        )}
       </button>
     </div>
   );

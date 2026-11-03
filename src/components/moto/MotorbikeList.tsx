@@ -3,8 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { DateField } from "@/components/DateField";
+import { useSearchNav, SearchSpinner } from "@/components/useSearchNav";
 
 export interface RentalBike {
   id: string;
@@ -58,7 +58,7 @@ function fmtD(ds: string) {
 }
 
 export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: string; to: string }) {
-  const router = useRouter();
+  const { pending: searching, go } = useSearchNav();
   const [w, setW] = useState(1280);
   const [type, setType] = useState<"all" | RentalBike["kind"]>("all");
   const [mode, setMode] = useState<"shop" | "ship">("shop");
@@ -267,8 +267,7 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
     const p = new URLSearchParams();
     if (ci) p.set("from", ci);
     if (co && co !== ci) p.set("to", co);
-    router.push(`/thue-xe-may${p.toString() ? `?${p.toString()}` : ""}`, { scroll: false });
-    router.refresh();
+    go(`/thue-xe-may${p.toString() ? `?${p.toString()}` : ""}`);
   }
 
   const items = useMemo(() => {
@@ -406,7 +405,7 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
                 <button type="button" onClick={() => setQty((q) => Math.min(10, q + 1))} className="flex h-7 w-7 items-center justify-center rounded-lg bg-white font-bold">+</button>
               </div>
             </div>
-            <button type="button" onClick={search} className="flex items-center justify-center gap-2 whitespace-nowrap rounded-[14px] px-6 py-3.5 text-base font-extrabold text-white transition hover:bg-sunset-500" style={{ background: "oklch(0.68 0.18 45)" }}>Tìm xe →</button>
+            <button type="button" onClick={search} disabled={searching} className="flex items-center justify-center gap-2 whitespace-nowrap rounded-[14px] px-6 py-3.5 text-base font-extrabold text-white transition hover:bg-sunset-500 disabled:cursor-wait disabled:opacity-80" style={{ background: "oklch(0.68 0.18 45)" }}>{searching ? <><SearchSpinner /> Đang tìm…</> : "Tìm xe →"}</button>
           </div>
           {dateErr && <div className="px-1.5 pb-1 text-[13px] font-semibold text-red-600">{dateErr}</div>}
         </div>

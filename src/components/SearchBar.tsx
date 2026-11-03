@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { CATEGORY_LIST } from "@/lib/constants";
+import { useSearchNav, SearchSpinner } from "@/components/useSearchNav";
 import { DateField } from "@/components/DateField";
 import { QtyInput } from "@/components/QtyInput";
 
@@ -11,7 +11,7 @@ function todayKey() {
 }
 
 export function SearchBar() {
-  const router = useRouter();
+  const { pending, go } = useSearchNav();
   const [categorySlug, setCategorySlug] = useState("homestay");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -23,8 +23,7 @@ export function SearchBar() {
     if (from) params.set("from", from);
     if (to) params.set("to", to);
     const qs = params.toString();
-    router.push(`/${categorySlug}${qs ? `?${qs}` : ""}`, { scroll: false });
-    router.refresh();
+    go(`/${categorySlug}${qs ? `?${qs}` : ""}`);
   }
 
   const cell = "flex flex-col gap-0.5 px-4 py-2.5";
@@ -63,9 +62,16 @@ export function SearchBar() {
 
       <button
         type="submit"
-        className="m-1 rounded-xl bg-sunset-500 px-7 text-[15px] font-bold text-white transition hover:bg-sunset-600"
+        disabled={pending}
+        className="m-1 flex items-center justify-center gap-2 rounded-xl bg-sunset-500 px-7 py-3 text-[15px] font-bold text-white transition hover:bg-sunset-600 disabled:cursor-wait disabled:opacity-80"
       >
-        Xem chỗ trống
+        {pending ? (
+          <>
+            <SearchSpinner /> Đang tìm…
+          </>
+        ) : (
+          "Xem chỗ trống"
+        )}
       </button>
     </form>
   );

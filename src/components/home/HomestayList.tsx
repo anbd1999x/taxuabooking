@@ -3,8 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { DateField } from "@/components/DateField";
+import { useSearchNav, SearchSpinner } from "@/components/useSearchNav";
 
 /**
  * Mỗi thẻ = một LOẠI phòng cụ thể: các phòng giống hệt nhau (cùng hạng + giá +
@@ -88,7 +88,7 @@ export function HomestayList({
   /** Số người trong đoàn (?people= từ trang chủ); 0 = không lọc. */
   initialPeople?: number;
 }) {
-  const router = useRouter();
+  const { pending: searching, go } = useSearchNav();
   const [w, setW] = useState(1280);
   const [q, setQ] = useState(initialQ);
   // ci/co = ngày đang CHỌN (nháp). Tình trạng còn phòng trong `items` do server
@@ -371,8 +371,7 @@ export function HomestayList({
     if (ci && co && co > ci) { p.set("from", ci); p.set("to", co); }
     if (q) p.set("q", q);
     if (guests > 0) p.set("people", String(guests));
-    router.replace(`/homestay${p.toString() ? `?${p}` : ""}`, { scroll: false });
-    router.refresh(); // ép lấy dữ liệu mới, tránh client router cache trả kết quả cũ
+    go(`/homestay${p.toString() ? `?${p}` : ""}`, { replace: true }); // kèm refresh — tránh cache cũ
     const el = listRef.current;
     if (el) window.setTimeout(() => window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 12, behavior: "smooth" }), 120);
   }
@@ -380,8 +379,7 @@ export function HomestayList({
   // Xoá lọc: về trạng thái không ngày (server trả "Chọn ngày để xem").
   function clearAll() {
     setQ(""); setCi(""); setCo(""); setGuests(0); setPrice("all"); setType("all"); setZone("all"); setHome("all"); setSort("rec"); setAmen(new Set());
-    router.replace("/homestay", { scroll: false });
-    router.refresh();
+    go("/homestay", { replace: true });
   }
 
   const cell = "flex min-w-0 flex-col gap-0.5 rounded-[14px] bg-[oklch(0.965_0.01_230)] px-3.5 py-2.5";
@@ -537,15 +535,19 @@ export function HomestayList({
             <button
               type="button"
               onClick={submitSearch}
-              disabled={Boolean(dateErr)}
+              disabled={Boolean(dateErr) || searching}
               className="flex items-center justify-center gap-2 rounded-[14px] px-5 py-2.5 text-[15px] font-bold text-white transition hover:brightness-110 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
               style={{ background: TH.G }}
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-                <circle cx="11" cy="11" r="7" />
-                <path d="m20.5 20.5-4.2-4.2" />
-              </svg>
-              Tìm kiếm
+              {searching ? (
+                <SearchSpinner />
+              ) : (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m20.5 20.5-4.2-4.2" />
+                </svg>
+              )}
+              {searching ? "Đang tìm…" : "Tìm kiếm"}
             </button>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 px-1 py-0.5">

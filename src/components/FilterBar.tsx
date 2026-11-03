@@ -1,9 +1,10 @@
 "use client";
 
-import { useRouter, usePathname } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import type { AvailabilityKind } from "@/lib/constants";
 import { DateField } from "@/components/DateField";
+import { useSearchNav, SearchSpinner } from "@/components/useSearchNav";
 
 const PRICE_RANGES = [
   { label: "Mọi mức giá", min: "", max: "" },
@@ -24,7 +25,7 @@ export function FilterBar({
   kind: AvailabilityKind;
   initial: { q?: string; from?: string; to?: string; priceMin?: string; priceMax?: string };
 }) {
-  const router = useRouter();
+  const { pending, go } = useSearchNav();
   const pathname = usePathname();
   const [q, setQ] = useState(initial.q ?? "");
   const [from, setFrom] = useState(initial.from ?? "");
@@ -48,14 +49,12 @@ export function FilterBar({
     if (range.min) params.set("priceMin", range.min);
     if (range.max) params.set("priceMax", range.max);
     const qs = params.toString();
-    router.push(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
-    router.refresh();
+    go(`${pathname}${qs ? `?${qs}` : ""}`);
   }
 
   function reset() {
     setQ(""); setFrom(""); setTo(""); setPriceIdx(0);
-    router.push(pathname, { scroll: false });
-    router.refresh();
+    go(pathname);
   }
 
   return (
@@ -117,14 +116,22 @@ export function FilterBar({
       <div className={`flex items-end gap-2 ${needsRange ? "" : "lg:col-span-2"}`}>
         <button
           type="submit"
-          className="flex-1 rounded-xl bg-forest-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-forest-700"
+          disabled={pending}
+          className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-forest-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-forest-700 disabled:cursor-wait disabled:opacity-80"
         >
-          Lọc
+          {pending ? (
+            <>
+              <SearchSpinner /> Đang lọc…
+            </>
+          ) : (
+            "Lọc"
+          )}
         </button>
         <button
           type="button"
           onClick={reset}
-          className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50"
+          disabled={pending}
+          className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-60"
         >
           Xoá
         </button>

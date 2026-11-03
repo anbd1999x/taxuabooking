@@ -1,8 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { DateField } from "@/components/DateField";
+import { useSearchNav, SearchSpinner } from "@/components/useSearchNav";
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -15,7 +15,7 @@ export function CabinSearch({
   initialFrom?: string;
   initialTo?: string;
 }) {
-  const router = useRouter();
+  const { pending, go } = useSearchNav();
   const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState(initialTo);
 
@@ -25,7 +25,7 @@ export function CabinSearch({
     if (to) params.set("to", to);
     // Không chọn gì → mặc định tìm chiều đi hôm nay.
     if (!from && !to) params.set("from", todayKey());
-    router.push(`/xe-cabin?${params.toString()}`);
+    go(`/xe-cabin?${params.toString()}`, { refresh: false });
   }
 
   const cell = "flex flex-col gap-1 rounded-2xl bg-[oklch(0.965_0.01_150)] px-4 py-3";
@@ -58,9 +58,18 @@ export function CabinSearch({
         <button
           type="button"
           onClick={submit}
-          className="flex items-center justify-center gap-2 rounded-2xl bg-sunset-500 px-6 py-4 text-base font-bold text-white transition hover:bg-sunset-600 active:scale-[0.98]"
+          disabled={pending}
+          className="flex items-center justify-center gap-2 rounded-2xl bg-sunset-500 px-6 py-4 text-base font-bold text-white transition hover:bg-sunset-600 active:scale-[0.98] disabled:cursor-wait disabled:opacity-80"
         >
-          Tìm vé <span>→</span>
+          {pending ? (
+            <>
+              <SearchSpinner /> Đang tìm…
+            </>
+          ) : (
+            <>
+              Tìm vé <span>→</span>
+            </>
+          )}
         </button>
       </div>
     </div>
