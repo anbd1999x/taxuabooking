@@ -262,12 +262,19 @@ function ComboPlanCard({
   );
 
   const single = plan.roomCount === 1 ? plan.groups[0] : null;
-  // Nhóm còn nhiều căn → tiêu đề thẻ đổi theo CĂN ĐANG CHỌN (không ghi cứng căn đại diện).
+  // Nhóm còn nhiều căn: CHƯA chọn → tiêu đề "còn N căn" (không ghi cứng căn đại diện,
+  // tránh hiểu lầm chỉ còn 1 căn); chọn chip nào → hiện tên căn đó.
   const singleSel =
-    single && single.options.length > 1
-      ? single.options.find((o) => o.roomId === (pick[0] ?? single.roomIds[0])) ?? null
+    single && single.options.length > 1 && pick[0]
+      ? single.options.find((o) => o.roomId === pick[0]) ?? null
       : null;
-  const title = single ? (singleSel ? `${single.room.typeName} · ${singleSel.roomName}` : single.room.roomName) : plan.label;
+  const title = single
+    ? single.options.length > 1
+      ? singleSel
+        ? `${single.room.typeName} · ${singleSel.roomName}`
+        : `${single.room.typeName} — còn ${single.options.length} căn`
+      : single.room.roomName
+    : plan.label;
   const cover = plan.groups[0]?.room.cover ?? home.cover;
 
   // Tiện ích chung của các phòng trong phương án (hiện chip).
