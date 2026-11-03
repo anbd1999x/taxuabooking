@@ -2,6 +2,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { BOOKING_STATUS_META } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
+import { getVisitStats } from "@/lib/visits";
+import { VisitStatsCards } from "@/components/admin/VisitStatsCards";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +15,7 @@ export default async function AdminDashboard() {
     newBookings,
     processingBookings,
     recentBookings,
+    visitStats,
   ] = await Promise.all([
     prisma.service.count(),
     prisma.service.count({ where: { published: true } }),
@@ -20,6 +23,7 @@ export default async function AdminDashboard() {
     prisma.bookingRequest.count({ where: { status: "NEW" } }),
     prisma.bookingRequest.count({ where: { status: "CONTACTING" } }),
     prisma.bookingRequest.findMany({ orderBy: { createdAt: "desc" }, take: 6 }),
+    getVisitStats(),
   ]);
 
   const stats = [
@@ -34,7 +38,11 @@ export default async function AdminDashboard() {
     <div>
       <h1 className="text-2xl font-bold text-ink">Tổng quan</h1>
 
-      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="mt-5">
+        <VisitStatsCards initial={visitStats} />
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {stats.map((s) => (
           <Link
             key={s.label}

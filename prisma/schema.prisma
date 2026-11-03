@@ -664,3 +664,20 @@ model Review {
   @@index([serviceId])
   @@index([status])
 }
+
+/// Bộ đếm truy cập website (1 dòng duy nhất id="main"): tổng lượt xem trang từ trước tới giờ.
+model SiteCounter {
+  id         String   @id @default("main")
+  totalViews Int      @default(0)
+  updatedAt  DateTime @updatedAt
+}
+
+/// Khách truy cập website (định danh bằng cookie ẩn danh) — đếm khách duy nhất & số người đang online (lastSeen gần đây).
+model Visitor {
+  id        String   @id // uuid trong cookie tx_vid
+  views     Int      @default(1) // số trang đã xem
+  firstSeen DateTime @default(now())
+  lastSeen  DateTime @default(now())
+
+  @@index([lastSeen])
+}
