@@ -606,21 +606,30 @@ function ComboPlanCard({
             images={imgs}
             onClose={() => setPreview(null)}
           >
-            {/* Chuyển giữa các căn còn trống trong nhóm — xem đúng ảnh từng căn */}
+            {/* Chuyển giữa các căn trong nhóm — xem đúng ảnh từng căn (căn đang đặt có dấu ✓) */}
             {g.options.length > 1 && (
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="mr-0.5 text-xs font-bold text-gray-500">Căn:</span>
+                <span className="mr-0.5 text-xs font-bold text-gray-500">
+                  {g.count > 1 ? `Xem ảnh ${g.options.length} căn (đặt ${g.count} căn):` : "Xem ảnh căn:"}
+                </span>
                 {g.options.map((o) => {
-                  const on = o.roomId === room.roomId;
+                  const viewing = o.roomId === room.roomId;
+                  const booked = sel.includes(o.roomId);
                   return (
                     <button
                       key={o.roomId}
                       type="button"
                       onClick={() => setPreview({ gi: preview.gi, roomId: o.roomId })}
                       className="rounded-full border-[1.5px] px-2.5 py-1 text-xs font-bold transition"
-                      style={on ? { borderColor: G, background: G, color: "white" } : { borderColor: "oklch(0.88 0.015 160)", background: "white", color: "oklch(0.3 0.03 160)" }}
+                      style={
+                        viewing
+                          ? { borderColor: G, background: G, color: "white" }
+                          : booked
+                            ? { borderColor: G, background: "oklch(0.96 0.025 155)", color: "oklch(0.3 0.06 160)" }
+                            : { borderColor: "oklch(0.88 0.015 160)", background: "white", color: "oklch(0.3 0.03 160)" }
+                      }
                     >
-                      {o.roomName}
+                      {booked && !viewing ? "✓ " : ""}{o.roomName}
                     </button>
                   );
                 })}
