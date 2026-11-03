@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { BookingStatus } from "@prisma/client";
 import { showToast } from "./Toast";
 import { PaymentRecordForm, NoteForm } from "./BookingDetailClient";
-import { bulkUpdateBookingStatus } from "@/app/admin/bookings/actions";
+import { bulkDeleteBookings, bulkUpdateBookingStatus } from "@/app/admin/bookings/actions";
 
 /** Một dòng đơn đã được server dựng sẵn (chỉ dữ liệu thuần, không Decimal/Date). */
 export interface BookingRow {
@@ -112,6 +112,21 @@ export default function BookingsListClient({ rows: all, totalInDb }: { rows: Boo
       if (res.ok) {
         showToast(res.message || "Đã cập nhật", "ok");
         if (clearSelection) setSel({});
+      } else showToast(res.error || "Có lỗi xảy ra", "error");
+    });
+  }
+
+  function deleteRows(ids: string[]) {
+    const label = ids.length > 1 ? `${ids.length} đơn đã chọn` : "đơn này";
+    if (!confirm(`Xoá hẳn ${label}? Không thể hoàn tác — đơn biến mất khỏi mọi báo cáo; tồn kho đang giữ sẽ được trả lại. (Đơn khách huỷ thì nên chuyển "Đã huỷ" thay vì xoá.)`)) return;
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("ids", JSON.stringify(ids));
+      const res = await bulkDeleteBookings({}, fd);
+      if (res.ok) {
+        showToast(res.message || "Đã xoá", "ok");
+        setSel({});
+        setDrawerId(null);
       } else showToast(res.error || "Có lỗi xảy ra", "error");
     });
   }
@@ -330,6 +345,7 @@ export default function BookingsListClient({ rows: all, totalInDb }: { rows: Boo
           <button type="button" onClick={() => setStatus(selIds, "CONFIRMED", true)} className="rounded-full bg-white/15 px-3 py-1.5 hover:bg-white/25">→ Đã xác nhận</button>
           <button type="button" onClick={() => setStatus(selIds, "COMPLETED", true)} className="rounded-full bg-white/15 px-3 py-1.5 hover:bg-white/25">→ Hoàn thành</button>
           <button type="button" onClick={() => setStatus(selIds, "CANCELLED", true)} className="rounded-full bg-red-600 px-3 py-1.5 hover:bg-red-700">Huỷ</button>
+          <button type="button" onClick={() => deleteRows(selIds)} title="Xoá hẳn khỏi hệ thống (không thể hoàn tác)" className="rounded-full bg-white/15 px-3 py-1.5 text-red-200 hover:bg-red-700 hover:text-white">Xoá hẳn</button>
           <button type="button" onClick={() => setSel({})} className="px-2 py-1.5 opacity-80 hover:opacity-100">Bỏ chọn</button>
         </div>
       )}
@@ -565,6 +581,20 @@ export default function BookingsListClient({ rows: all, totalInDb }: { rows: Boo
                 <div className="text-xs font-bold text-gray-500">Ghi chú nội bộ</div>
                 <NoteForm id={dx.id} />
                 <p className="text-[11px] text-gray-400">Ghi chú lưu vào nhật ký xử lý — xem đầy đủ ở trang chi tiết đơn.</p>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 rounded-2xl border border-red-100 bg-red-50/60 px-4 py-3.5">
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-red-600">Xoá hẳn đơn</div>
+                  <p className="mt-0.5 text-[11px] leading-snug text-gray-500">Dành cho đơn rác/trùng/test. Khách huỷ thì chuyển “Đã huỷ” để còn thống kê.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => deleteRows([dx.id])}
+                  className="whitespace-nowrap rounded-full border-[1.5px] border-red-300 bg-white px-3.5 py-2 text-[13px] font-bold text-red-600 hover:bg-red-600 hover:text-white"
+                >
+                  Xoá đơn {dx.code}
+                </button>
               </div>
             </div>
           </div>

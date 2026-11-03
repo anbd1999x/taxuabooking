@@ -441,6 +441,47 @@ export async function deleteBooking(formData: FormData): Promise<void> {
   redirect("/admin/bookings");
 }
 
+/**
+ * XOÁ HẲN nhiều yêu cầu từ danh sách (chỉ ADMIN): trả tồn kho đơn nào đang giữ
+ * rồi xoá; nhật ký đơn xoá theo (cascade). Dùng cho đơn rác/trùng/test.
+ */
+export async function bulkDeleteBookings(
+  _prev: BookingActionState,
+  formData: FormData,
+): Promise<BookingActionState> {
+  const session = await getSession();
+  if (session?.role !== "ADMIN") return { error: "Chỉ quản trị viên được xoá yêu cầu." };
+  let ids: string[] = [];
+  try {
+    ids = JSON.parse(String(formData.get("ids") ?? "[]"));
+  } catch {
+    /* ids hỏng ⇒ coi như rỗng */
+  }
+  if (!Array.isArray(ids) || ids.length === 0) return { error: "Dữ liệu không hợp lệ." };
+
+  let done = 0;
+  for (const id of ids.slice(0, 100).map(String)) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        const booking = await tx.bookingRequest.findUnique({ where: { id } });
+        if (!booking) return;
+        if (booking.inventoryApplied) {
+          if (booking.roomTypeId) await assignRoomsForBooking(tx, booking, false);
+          if (booking.cabinTripId || booking.rentalVehicleId) await adjustInventory(tx, booking, +1);
+        }
+        await tx.bookingRequest.delete({ where: { id } });
+        done++;
+      });
+    } catch {
+      /* đơn lỗi ⇒ bỏ qua, đếm theo done */
+    }
+  }
+
+  if (done === 0) return { error: "Không xoá được đơn nào." };
+  for (const p of REVALIDATE) revalidatePath(p);
+  return { ok: true, message: done === 1 ? "Đã xoá 1 đơn" : `Đã xoá ${done} đơn` };
+}
+
 export async function updateBookingStatus(
   _prev: BookingActionState,
   formData: FormData,

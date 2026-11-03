@@ -44,10 +44,15 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
   // Chọn KHOẢNG giá (dropdown) → badge chênh lệch so với 1 con số không còn ý nghĩa.
   const exactBudget = priceMax == null && priceMin == null ? budget : null;
 
-  // Bộ lọc khu vực + tiêu chí sắp xếp sau khi có kết quả.
+  // Bộ lọc khu vực + homestay + tiêu chí sắp xếp sau khi có kết quả.
   const [zone, setZone] = useState("all");
+  const [homeName, setHomeName] = useState("all"); // lọc theo TÊN homestay (xem riêng từng nhà)
   const [sort, setSort] = useState("match"); // match | priceAsc | priceDesc | near
   const zones = useMemo(() => [...new Set(homes.map((h) => h.area).filter((a): a is string => Boolean(a)))], [homes]);
+  const homeNames = useMemo(
+    () => [...new Set(homes.map((h) => h.title))].sort((a, b) => a.localeCompare(b, "vi")),
+    [homes],
+  );
 
   // Mỗi thẻ = 1 phương án ghép phòng (VD 10 người: "5× Phòng đơn" / "4× Phòng đôi
   // + 2× Phòng đơn" / dorm). Mặc định sắp theo ĐIỂM TỔNG HỢP: giá (khớp giá mong
@@ -60,6 +65,7 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
     const arr: PlanEntry[] = [];
     for (const home of homes) {
       if (zone !== "all" && home.area !== zone) continue;
+      if (homeName !== "all" && home.title !== homeName) continue;
       for (const plan of home.plans) {
         arr.push({ home, plan, bestPrice: planPP(plan, people, cheapestFare), score: 0 });
       }
@@ -86,7 +92,7 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
       return a.score - b.score || a.bestPrice - b.bestPrice;
     });
     return arr;
-  }, [homes, buses, people, budget, zone, sort]);
+  }, [homes, buses, people, budget, zone, homeName, sort]);
 
   const bestPlanId = buses.length > 0 && entries.length > 0 ? entries[0].plan.id : null;
 
@@ -136,20 +142,38 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
               </button>
             ))}
         </div>
-        <label className="flex items-center gap-2 text-[13px] font-semibold text-gray-500">
-          Sắp xếp
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-            className="rounded-full bg-white px-3 py-2 text-[13px] font-bold text-ink outline-none"
-            style={{ boxShadow: "inset 0 0 0 1px oklch(0.9 0.01 200)" }}
-          >
-            <option value="match">{budget != null ? "Tối ưu (khớp giá · tiện ích · vị trí)" : "Tối ưu (giá · tiện ích · vị trí)"}</option>
-            <option value="priceAsc">Giá thấp → cao</option>
-            <option value="priceDesc">Giá cao → thấp</option>
-            <option value="near">Gần trung tâm nhất</option>
-          </select>
-        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          {homeNames.length > 1 && (
+            <label className="flex items-center gap-2 text-[13px] font-semibold text-gray-500">
+              Homestay
+              <select
+                value={homeName}
+                onChange={(e) => setHomeName(e.target.value)}
+                className="max-w-[220px] rounded-full bg-white px-3 py-2 text-[13px] font-bold text-ink outline-none"
+                style={{ boxShadow: "inset 0 0 0 1px oklch(0.9 0.01 200)" }}
+              >
+                <option value="all">Tất cả homestay</option>
+                {homeNames.map((n) => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label className="flex items-center gap-2 text-[13px] font-semibold text-gray-500">
+            Sắp xếp
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+              className="rounded-full bg-white px-3 py-2 text-[13px] font-bold text-ink outline-none"
+              style={{ boxShadow: "inset 0 0 0 1px oklch(0.9 0.01 200)" }}
+            >
+              <option value="match">{budget != null ? "Tối ưu (khớp giá · tiện ích · vị trí)" : "Tối ưu (giá · tiện ích · vị trí)"}</option>
+              <option value="priceAsc">Giá thấp → cao</option>
+              <option value="priceDesc">Giá cao → thấp</option>
+              <option value="near">Gần trung tâm nhất</option>
+            </select>
+          </label>
+        </div>
       </div>
 
       <div className="flex flex-col gap-[18px]">
@@ -173,6 +197,21 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
       </div>
 
       {visible < entries.length && <p className="mt-4 text-center text-sm text-gray-400">Đang hiện thêm…</p>}
+
+      {/* Bộ lọc khu vực/homestay loại hết phương án → gợi ý xoá lọc thay vì trang trống */}
+      {homes.length > 0 && entries.length === 0 && (
+        <div className="flex flex-col items-center gap-2.5 rounded-[22px] border border-dashed border-[oklch(0.85_0.02_230)] bg-white px-6 py-12 text-center">
+          <div className="text-[17px] font-extrabold text-ink">Không có phương án khớp bộ lọc</div>
+          <div className="max-w-[420px] text-sm text-gray-500">Thử chọn khu vực hoặc homestay khác cho ngày này.</div>
+          <button
+            type="button"
+            onClick={() => { setZone("all"); setHomeName("all"); }}
+            className="mt-1 rounded-full bg-forest-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-forest-700"
+          >
+            Xoá bộ lọc
+          </button>
+        </div>
+      )}
     </div>
   );
 }
