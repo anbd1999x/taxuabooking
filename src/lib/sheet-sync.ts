@@ -1141,7 +1141,6 @@ async function fail(
   return { ...base, error: msg };
 }
 
-/** Đồng bộ TẤT CẢ homestay có link sheet (dùng cho cron). */
 /**
  * Đồng bộ MỘT homestay NGAY TRƯỚC KHI đặt (cho chắc ăn), nhưng BỎ QUA nếu vừa
  * đồng bộ xong trong `maxAgeMs` gần đây (mặc định 60s) để không cào Google liên
@@ -1163,6 +1162,7 @@ export async function ensureServiceSheetFresh(
   return { synced: true, skipped: false, changes: res.changes };
 }
 
+/** Đồng bộ TẤT CẢ homestay có link sheet (dùng cho cron). */
 export async function syncAllSheets(source: SheetSyncSource = "CRON"): Promise<SheetSyncResult[]> {
   const services = await prisma.service.findMany({
     where: { sheetUrl: { not: null }, category: { in: ["HOMESTAY", "BUNGALOW"] } },
