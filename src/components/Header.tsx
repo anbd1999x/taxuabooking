@@ -5,7 +5,7 @@ import Link from "next/link";
 import { CATEGORY_LIST } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
-export function Header({ phone, customerName = null }: { phone: string; customerName?: string | null }) {
+export function Header({ customerName = null }: { customerName?: string | null }) {
   const [open, setOpen] = useState(false);
   const [dd, setDd] = useState(false); // dropdown "Cẩm nang" (desktop)
   const firstName = customerName ? customerName.trim().split(/\s+/).slice(-1)[0] : "";
@@ -74,12 +74,6 @@ export function Header({ phone, customerName = null }: { phone: string; customer
           >
             {customerName ? `👤 ${firstName}` : "Đăng nhập"}
           </Link>
-          <a
-            href={`tel:${phone.replace(/\s/g, "")}`}
-            className="hidden whitespace-nowrap rounded-xl bg-sunset-500 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-sunset-600 sm:inline-flex"
-          >
-            📞 {phone}
-          </a>
           <button
             type="button"
             aria-label="Mở menu"
@@ -140,14 +134,6 @@ export function Header({ phone, customerName = null }: { phone: string; customer
             <Link href="/tra-cuu" onClick={() => setOpen(false)} className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700">🧾 Tra cứu đơn hàng</Link>
             <Link href="/tai-khoan" onClick={() => setOpen(false)} className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700">{customerName ? `👤 ${customerName}` : "👤 Đăng nhập / Đăng ký"}</Link>
           </nav>
-          <div className="border-t border-black/5 p-3">
-            <a
-              href={`tel:${phone.replace(/\s/g, "")}`}
-              className="block rounded-xl bg-sunset-500 px-4 py-3 text-center text-sm font-bold text-white"
-            >
-              📞 Gọi {phone}
-            </a>
-          </div>
         </div>
       </div>
     </>
