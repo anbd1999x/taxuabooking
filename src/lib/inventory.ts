@@ -129,7 +129,15 @@ export async function assignRoomsForBooking(
     const uniqueDates = Array.from(
       new Map(rows.map((r) => [toDateKey(r.date), r.date])).values(),
     );
-    for (const date of uniqueDates) await syncRoomTypeAvailability(roomTypeId, date, tx);
+    // Đơn ghép nhiều phòng có thể trải trên NHIỀU hạng phòng → tính lại từng hạng.
+    const releasedRooms = await tx.room.findMany({
+      where: { id: { in: [...new Set(rows.map((r) => r.roomId))] } },
+      select: { roomTypeId: true },
+    });
+    const typeIds = new Set<string>([roomTypeId, ...releasedRooms.map((r) => r.roomTypeId)]);
+    for (const tid of typeIds) {
+      for (const date of uniqueDates) await syncRoomTypeAvailability(tid, date, tx);
+    }
     return;
   }
 
@@ -138,11 +146,13 @@ export async function assignRoomsForBooking(
   const nights = enumerateNights(booking.useDate, checkout);
   if (nights.length === 0) return;
 
-  // Nếu đơn chỉ định phòng cụ thể → gán đúng phòng đó; ngược lại chọn phòng trống theo hạng.
-  const rooms = booking.roomId
-    ? await tx.room.findMany({ where: { id: booking.roomId } })
+  // Đơn chỉ định phòng cụ thể (1 phòng qua roomId, hoặc NHIỀU phòng qua roomIds
+  // — combo ghép phòng) → gán đúng các phòng đó; ngược lại chọn phòng trống theo hạng.
+  const pinnedIds = booking.roomIds.length > 0 ? booking.roomIds : booking.roomId ? [booking.roomId] : null;
+  const rooms = pinnedIds
+    ? await tx.room.findMany({ where: { id: { in: pinnedIds } } })
     : await tx.room.findMany({ where: { roomTypeId }, orderBy: { sortOrder: "asc" } });
-  const need = booking.roomId ? 1 : booking.quantity;
+  const need = pinnedIds ? pinnedIds.length : booking.quantity;
   const assigned: string[] = [];
   for (const room of rooms) {
     if (assigned.length >= need) break;
@@ -154,8 +164,8 @@ export async function assignRoomsForBooking(
   // Không đủ phòng trống → báo lỗi để rollback, tránh "xác nhận" mà không giữ phòng nào.
   if (assigned.length < need) {
     throw new Error(
-      booking.roomId
-        ? "Phòng khách chọn đã kín trong khoảng ngày này — kiểm tra lịch phòng trước khi xác nhận."
+      pinnedIds
+        ? `Phòng khách chọn đã kín trong khoảng ngày này (giữ được ${assigned.length}/${need} phòng) — kiểm tra lịch phòng trước khi xác nhận.`
         : `Chỉ còn ${assigned.length}/${need} phòng trống trong khoảng ngày này — không thể giữ chỗ.`,
     );
   }
@@ -169,5 +179,9 @@ export async function assignRoomsForBooking(
       });
     }
   }
-  for (const date of nights) await syncRoomTypeAvailability(roomTypeId, date, tx);
+  // Đơn ghép có thể gồm phòng của nhiều hạng → tính lại tồn cho từng hạng liên quan.
+  const typeIds = new Set<string>([roomTypeId, ...rooms.map((r) => r.roomTypeId)]);
+  for (const tid of typeIds) {
+    for (const date of nights) await syncRoomTypeAvailability(tid, date, tx);
+  }
 }

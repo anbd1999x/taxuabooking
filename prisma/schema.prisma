@@ -451,6 +451,7 @@ model BookingRequest {
   // Tham chiếu tùy loại dịch vụ (ghi nhận lựa chọn cụ thể của khách).
   roomTypeId      String?
   roomId          String? // phòng cụ thể được đặt (homestay)
+  roomIds         String[] @default([]) // combo ghép NHIỀU phòng: toàn bộ phòng cần giữ (roomId = phòng đầu)
   cabinTripId     String? // chuyến đi (cabin)
   cabinReturnTripId String? // chuyến về (cabin khứ hồi)
   seatsSingle     Int? // số vé cabin đơn (mỗi chiều)

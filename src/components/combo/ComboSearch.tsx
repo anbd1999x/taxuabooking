@@ -45,6 +45,8 @@ export function ComboSearch({
   initialPrice = "",
   initialFilters = [],
   initialKind = "all",
+  initialOrigin = "",
+  origins = [],
 }: {
   initialFrom?: string;
   initialTo?: string;
@@ -52,10 +54,14 @@ export function ComboSearch({
   initialPrice?: string;
   initialFilters?: string[];
   initialKind?: string;
+  initialOrigin?: string;
+  /** Điểm xuất phát đã khai trong bảng giá chặng (server truyền xuống). */
+  origins?: string[];
 }) {
   const router = useRouter();
   const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState(initialTo);
+  const [origin, setOrigin] = useState(initialOrigin);
   const [people, setPeople] = useState(initialPeople);
   const [price, setPrice] = useState(initialPrice);
   const [filters, setFilters] = useState<Set<string>>(new Set(initialFilters));
@@ -75,6 +81,7 @@ export function ComboSearch({
     p.set("from", from || todayKey());
     p.set("to", to || "");
     p.set("people", String(Math.max(1, people)));
+    if (origin) p.set("origin", origin);
     if (price) p.set("price", price);
     if (filters.size) p.set("f", [...filters].join(","));
     if (kind && kind !== "all") p.set("kind", kind);
@@ -87,7 +94,19 @@ export function ComboSearch({
 
   return (
     <div className="rounded-[22px] bg-white p-3 shadow-[0_20px_50px_-24px_rgba(30,70,45,0.4)] ring-1 ring-black/[0.05]">
-      <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className={`grid gap-1.5 sm:grid-cols-2 ${origins.length > 0 ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
+        {origins.length > 0 && (
+          <label className={cell}>
+            <span className="text-xs font-medium text-gray-500">Điểm xuất phát</span>
+            <select value={origin} onChange={(e) => setOrigin(e.target.value)} className={inp}>
+              <option value="">Chọn điểm đón</option>
+              {origins.map((o) => (
+                <option key={o} value={o}>{o}</option>
+              ))}
+              {origin && !origins.includes(origin) && <option value={origin}>{origin}</option>}
+            </select>
+          </label>
+        )}
         <label className={cell}>
           <span className="text-xs font-medium text-gray-500">Ngày đi (lên xe)</span>
           <DateField value={from} min={todayKey()} onChange={setFrom} className={inp} displayClassName="text-[15px] font-bold text-ink" ariaLabel="Ngày đi" />

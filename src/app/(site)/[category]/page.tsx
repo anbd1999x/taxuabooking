@@ -7,7 +7,7 @@ import { HomestayList } from "@/components/home/HomestayList";
 import { MotorbikeList } from "@/components/moto/MotorbikeList";
 import { XeomList } from "@/components/xeom/XeomList";
 import { TaxiList } from "@/components/taxi/TaxiList";
-import { findComboMatches, parseComboFilters } from "@/lib/combo";
+import { findComboMatches, getComboOrigins, parseComboFilters } from "@/lib/combo";
 import { ServiceCard } from "@/components/ServiceCard";
 import { CabinList } from "@/components/cabin/CabinList";
 import { ComboSearch } from "@/components/combo/ComboSearch";
@@ -69,6 +69,7 @@ export default async function CategoryPage({
   if (cat.key === "COMBO") {
     const from = str(sp.from);
     const to = str(sp.to);
+    const origin = str(sp.origin)?.trim() || "";
     const people = Math.max(1, Number(str(sp.people)) || 2);
     // Khoảng giá từ dropdown: "lt900000" = dưới 900k, "gt2000000" = trên 2tr.
     const priceKey = str(sp.price) ?? "";
@@ -86,10 +87,12 @@ export default async function CategoryPage({
       | "single"
       | "double"
       | "dorm";
-    const result =
+    const [origins, result] = await Promise.all([
+      getComboOrigins(),
       from && to
-        ? await findComboMatches({ fromKey: from, toKey: to, people, budget, priceMax, priceMin, filters: comboFilters, roomKind })
-        : null;
+        ? findComboMatches({ fromKey: from, toKey: to, people, origin: origin || null, budget, priceMax, priceMin, filters: comboFilters, roomKind })
+        : Promise.resolve(null),
+    ]);
 
     return (
       <div style={{ background: "oklch(0.975 0.01 150)" }}>
@@ -102,6 +105,8 @@ export default async function CategoryPage({
           initialPrice={pm ? priceKey : ""}
           initialFilters={activeFilters}
           initialKind={roomKind}
+          initialOrigin={origin}
+          origins={origins}
         />
 
         <ScrollToResults token={`${from ?? ""}|${to ?? ""}`} enabled={Boolean(from && to)} offset={12}>
@@ -115,14 +120,16 @@ export default async function CategoryPage({
               <p className="text-lg font-medium text-gray-700">Ngày về cần sau ngày nhận phòng ít nhất 1 đêm</p>
               <p className="mt-1 text-sm text-gray-500">Ngày đi là đêm lên xe, hôm sau mới nhận phòng. Hãy chọn lại ngày.</p>
             </div>
-          ) : result.matches.length === 0 ? (
+          ) : result.planCount === 0 || result.busCount === 0 ? (
             <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-14 text-center">
               <p className="text-lg font-medium text-gray-700">Chưa ghép được combo phù hợp</p>
               <p className="mt-1 text-sm text-gray-500">
                 {result.busCount === 0
-                  ? "Chưa có nhà xe mở cả chuyến đi lẫn về cho ngày này."
-                  : result.roomCount === 0
-                    ? "Chưa có phòng trống khớp tiêu chí cho kỳ lưu trú này."
+                  ? result.origin
+                    ? `Chưa có nhà xe nhận đón tại ${result.origin} (mở cả chuyến đi lẫn về) cho ngày này.`
+                    : "Chưa có nhà xe mở cả chuyến đi lẫn về cho ngày này."
+                  : result.planCount === 0
+                    ? "Chưa ghép được đủ chỗ cho cả đoàn từ các phòng trống khớp tiêu chí — thử nới tiêu chí, giảm số người hoặc đổi ngày."
                     : "Thử nới tiêu chí hoặc đổi ngày."}{" "}
                 Hoặc liên hệ {SITE.defaultPhone}.
               </p>

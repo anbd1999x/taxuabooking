@@ -63,17 +63,25 @@ export const cabinBookingSchema = z
 export type CabinBookingInput = z.infer<typeof cabinBookingSchema>;
 
 /** Schema đặt combo (xe cabin khứ hồi + phòng homestay). */
-export const comboBookingSchema = z.object({
-  fromKey: z.string().regex(dateKeyRegex, "Ngày đi không hợp lệ."),
-  toKey: z.string().regex(dateKeyRegex, "Ngày về không hợp lệ."),
-  roomId: z.string().min(1, "Thiếu phòng."),
-  outboundTripId: z.string().min(1, "Thiếu chuyến đi."),
-  returnTripId: z.string().min(1, "Thiếu chuyến về."),
-  people: z.coerce.number().int().min(1).max(30),
-  customerName: z.string().trim().min(2, "Vui lòng nhập họ tên.").max(120),
-  phone: z.string().trim().regex(phoneRegex, "Số điện thoại không hợp lệ."),
-  note: z.string().trim().max(1000).optional().nullable(),
-});
+export const comboBookingSchema = z
+  .object({
+    fromKey: z.string().regex(dateKeyRegex, "Ngày đi không hợp lệ."),
+    toKey: z.string().regex(dateKeyRegex, "Ngày về không hợp lệ."),
+    // Phương án ghép NHIỀU phòng gửi roomIds; client cũ gửi roomId đơn.
+    roomId: z.string().min(1).optional().nullable(),
+    roomIds: z.array(z.string().min(1)).max(10).optional().nullable(),
+    outboundTripId: z.string().min(1, "Thiếu chuyến đi."),
+    returnTripId: z.string().min(1, "Thiếu chuyến về."),
+    origin: z.string().trim().max(120).optional().nullable(),
+    people: z.coerce.number().int().min(1).max(30),
+    customerName: z.string().trim().min(2, "Vui lòng nhập họ tên.").max(120),
+    phone: z.string().trim().regex(phoneRegex, "Số điện thoại không hợp lệ."),
+    note: z.string().trim().max(1000).optional().nullable(),
+  })
+  .refine((d) => (d.roomIds?.length ?? 0) > 0 || Boolean(d.roomId), {
+    message: "Thiếu phòng.",
+    path: ["roomIds"],
+  });
 export type ComboBookingInput = z.infer<typeof comboBookingSchema>;
 
 /** Schema tạo/sửa bài đăng dịch vụ (admin). */

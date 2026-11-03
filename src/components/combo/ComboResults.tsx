@@ -3,7 +3,14 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import type { ComboBusOption, ComboHomeOption, ComboRoomFeatures, ComboRoomOption, ComboSearchResult } from "@/lib/combo";
+import type {
+  ComboBusOption,
+  ComboHomeOption,
+  ComboPlanGroup,
+  ComboRoomFeatures,
+  ComboStayPlan,
+  ComboSearchResult,
+} from "@/lib/combo";
 
 const COMBO_DISCOUNT = 50000;
 
@@ -19,16 +26,21 @@ function vnd(n: number): string {
   return new Intl.NumberFormat("vi-VN").format(Math.round(n)) + "đ";
 }
 
-/** Một thẻ kết quả = một LOẠI phòng (các phòng giống hệt nhau gom làm 1, count = số phòng còn). */
-interface RoomEntry {
+/** Giá combo/khách của một phương án (roomCost = TỔNG tiền phòng cả đoàn). */
+function planPP(plan: ComboStayPlan, people: number, fare: number): number {
+  return Math.max(0, Math.round(plan.roomCost / people) + fare - (plan.communal ? 0 : COMBO_DISCOUNT));
+}
+
+/** Một thẻ kết quả = một PHƯƠNG ÁN ghép phòng của một homestay. */
+interface PlanEntry {
   home: ComboHomeOption;
-  room: ComboRoomOption; // phòng đại diện của nhóm
-  count: number; // số phòng giống nhau còn trống
-  bestPrice: number; // giá/khách với xe rẻ nhất (để sắp xếp)
+  plan: ComboStayPlan;
+  bestPrice: number; // giá/khách với xe rẻ nhất (để sắp xếp/lọc)
+  score: number; // điểm tổng hợp giá + tiện ích + vị trí (thấp = tốt)
 }
 
 export function ComboResults({ result }: { result: ComboSearchResult }) {
-  const { homes, buses, people, nights, budget, priceMax, priceMin, checkIn, checkOut, fromKey, toKey } = result;
+  const { homes, buses, people, nights, origin, budget, priceMax, priceMin, checkIn, checkOut, fromKey, toKey } = result;
   // Chọn KHOẢNG giá (dropdown) → badge chênh lệch so với 1 con số không còn ý nghĩa.
   const exactBudget = priceMax == null && priceMin == null ? budget : null;
 
@@ -37,63 +49,61 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
   const [sort, setSort] = useState("match"); // match | priceAsc | priceDesc | near
   const zones = useMemo(() => [...new Set(homes.map((h) => h.area).filter((a): a is string => Boolean(a)))], [homes]);
 
-  // Hiện đúng từng căn phòng phù hợp (không gom theo homestay); các phòng
-  // GIỐNG NHAU (cùng hạng + giá + ảnh) gom làm 1 thẻ. Mặc định sắp theo mức
-  // gần giá mong muốn nhất (không nhập giá → rẻ trước).
-  const rooms = useMemo<RoomEntry[]>(() => {
-    // Cách trung tâm: thiếu số km nhưng khu vực là "Trung tâm..." thì coi như 0; thiếu hẳn xếp cuối.
+  // Mỗi thẻ = 1 phương án ghép phòng (VD 10 người: "5× Phòng đơn" / "4× Phòng đôi
+  // + 2× Phòng đơn" / dorm). Mặc định sắp theo ĐIỂM TỔNG HỢP: giá (khớp giá mong
+  // muốn nếu có), view/tiện ích, khoảng cách tới trung tâm.
+  const entries = useMemo<PlanEntry[]>(() => {
     const distOf = (h: ComboHomeOption) =>
       h.distanceKm ?? (/trung tâm/i.test(h.area ?? "") ? 0 : Number.POSITIVE_INFINITY);
     const cheapestFare = buses.length ? Math.min(...buses.map((b) => b.farePerPerson)) : 0;
-    const groups = new Map<string, RoomEntry>();
+
+    const arr: PlanEntry[] = [];
     for (const home of homes) {
       if (zone !== "all" && home.area !== zone) continue;
-      for (const room of home.rooms) {
-        const key = `${home.serviceId}|${room.roomTypeId}|${room.roomCost}|${room.capacity}|${room.cover ?? ""}`;
-        const g = groups.get(key);
-        if (g) g.count += 1;
-        else
-          groups.set(key, {
-            home,
-            room,
-            count: 1,
-            // Phòng cộng đồng: roomCost = giá mỗi người → không chia, không giảm combo.
-            bestPrice: Math.max(
-              0,
-              room.communal
-                ? room.roomCost + cheapestFare
-                : Math.round(room.roomCost / people) + cheapestFare - COMBO_DISCOUNT,
-            ),
-          });
+      for (const plan of home.plans) {
+        arr.push({ home, plan, bestPrice: planPP(plan, people, cheapestFare), score: 0 });
       }
     }
-    const arr = [...groups.values()];
+    if (arr.length === 0) return arr;
+
+    // Điểm tổng hợp (0..1, thấp = tốt): 55% giá, 25% view/tiện ích, 20% vị trí.
+    const priceOf = (e: PlanEntry) => (budget != null ? Math.abs(e.bestPrice - budget) : e.bestPrice);
+    const pVals = arr.map(priceOf);
+    const pMin = Math.min(...pVals);
+    const pMax = Math.max(...pVals);
+    for (const e of arr) {
+      const sPrice = pMax > pMin ? (priceOf(e) - pMin) / (pMax - pMin) : 0;
+      const d = distOf(e.home);
+      const sDist = Number.isFinite(d) ? Math.min(d, 15) / 15 : 0.6; // thiếu số km → coi như hơi xa
+      const sAmen = 1 - e.plan.amenityScore;
+      e.score = 0.55 * sPrice + 0.25 * sAmen + 0.2 * sDist;
+    }
+
     arr.sort((a, b) => {
       if (sort === "priceAsc") return a.bestPrice - b.bestPrice;
       if (sort === "priceDesc") return b.bestPrice - a.bestPrice;
       if (sort === "near") return distOf(a.home) - distOf(b.home) || a.bestPrice - b.bestPrice;
-      const da = budget != null ? Math.abs(a.bestPrice - budget) : a.bestPrice;
-      const db = budget != null ? Math.abs(b.bestPrice - budget) : b.bestPrice;
-      return da - db || a.bestPrice - b.bestPrice;
+      return a.score - b.score || a.bestPrice - b.bestPrice;
     });
     return arr;
   }, [homes, buses, people, budget, zone, sort]);
 
-  const bestRoomId = buses.length > 0 && rooms.length > 0 ? rooms[0].room.roomId : null;
+  const bestPlanId = buses.length > 0 && entries.length > 0 ? entries[0].plan.id : null;
 
-  const [visible, setVisible] = useState(Math.min(3, rooms.length));
+  const [visible, setVisible] = useState(Math.min(3, entries.length));
   useEffect(() => {
-    if (visible >= rooms.length) return;
-    const t = setTimeout(() => setVisible((v) => Math.min(rooms.length, v + 1)), 140);
+    if (visible >= entries.length) return;
+    const t = setTimeout(() => setVisible((v) => Math.min(entries.length, v + 1)), 140);
     return () => clearTimeout(t);
-  }, [visible, rooms.length]);
+  }, [visible, entries.length]);
 
   return (
     <div>
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-sm text-gray-600">
-          <span className="font-bold text-ink">{rooms.length}</span> phòng · {buses.length} nhà xe · {people} người ·{" "}
+          <span className="font-bold text-ink">{entries.length}</span> phương án · {buses.length} nhà xe · {people} người ·{" "}
           {nights} đêm ({checkIn} → {checkOut})
+          {origin && <> · đón tại <span className="font-bold text-ink">{origin}</span></>}
         </p>
         {priceMax != null ? (
           <p className="text-sm text-gray-500">
@@ -134,7 +144,7 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
             className="rounded-full bg-white px-3 py-2 text-[13px] font-bold text-ink outline-none"
             style={{ boxShadow: "inset 0 0 0 1px oklch(0.9 0.01 200)" }}
           >
-            <option value="match">{budget != null ? "Khớp giá mong muốn" : "Rẻ nhất trước"}</option>
+            <option value="match">{budget != null ? "Tối ưu (khớp giá · tiện ích · vị trí)" : "Tối ưu (giá · tiện ích · vị trí)"}</option>
             <option value="priceAsc">Giá thấp → cao</option>
             <option value="priceDesc">Giá cao → thấp</option>
             <option value="near">Gần trung tâm nhất</option>
@@ -143,34 +153,33 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
       </div>
 
       <div className="flex flex-col gap-[18px]">
-        {rooms.slice(0, visible).map((e) => (
-          <ComboRoomCard
-            key={e.room.roomId}
+        {entries.slice(0, visible).map((e) => (
+          <ComboPlanCard
+            key={e.plan.id}
             home={e.home}
-            room={e.room}
-            count={e.count}
+            plan={e.plan}
             buses={buses}
             people={people}
             nights={nights}
             budget={exactBudget}
-            best={e.room.roomId === bestRoomId}
+            best={e.plan.id === bestPlanId}
             checkIn={checkIn}
             checkOut={checkOut}
             fromKey={fromKey}
             toKey={toKey}
+            origin={origin}
           />
         ))}
       </div>
 
-      {visible < rooms.length && <p className="mt-4 text-center text-sm text-gray-400">Đang hiện thêm…</p>}
+      {visible < entries.length && <p className="mt-4 text-center text-sm text-gray-400">Đang hiện thêm…</p>}
     </div>
   );
 }
 
-function ComboRoomCard({
+function ComboPlanCard({
   home,
-  room,
-  count,
+  plan,
   buses,
   people,
   nights,
@@ -180,10 +189,10 @@ function ComboRoomCard({
   checkOut,
   fromKey,
   toKey,
+  origin,
 }: {
   home: ComboHomeOption;
-  room: ComboRoomOption;
-  count: number;
+  plan: ComboStayPlan;
   buses: ComboBusOption[];
   people: number;
   nights: number;
@@ -193,25 +202,33 @@ function ComboRoomCard({
   checkOut: string;
   fromKey: string;
   toKey: string;
+  origin: string | null;
 }) {
   const [busId, setBusId] = useState(buses[0]?.serviceId ?? "");
   const bus = useMemo(() => buses.find((b) => b.serviceId === busId) ?? buses[0], [buses, busId]);
 
-  const amenities = useMemo(() => {
-    const out = FEAT.filter(([k]) => room.features[k]).map(([, label]) => label);
-    if (room.pool) out.push("🏊 Hồ bơi");
-    if (room.easyRoad) out.push("🛣️ Đường dễ đi");
-    return out;
-  }, [room]);
+  const single = plan.roomCount === 1 ? plan.groups[0] : null;
+  const title = single ? single.room.roomName : plan.label;
+  const cover = plan.groups[0]?.room.cover ?? home.cover;
 
-  // Phòng cộng đồng: giá phòng là giá MỖI NGƯỜI → không chia theo đoàn, không trừ giảm combo.
-  const roomShare = room.communal ? room.roomCost : Math.round(room.roomCost / people);
-  const pricePerPerson = Math.max(0, roomShare + (bus?.farePerPerson ?? 0) - (room.communal ? 0 : COMBO_DISCOUNT));
+  // Tiện ích chung của các phòng trong phương án (hiện chip).
+  const amenities = useMemo(() => {
+    const out: string[] = [];
+    for (const [k, label] of FEAT) if (plan.groups.some((g) => g.room.features[k])) out.push(label);
+    const r0 = plan.groups[0]?.room;
+    if (r0?.pool) out.push("🏊 Hồ bơi");
+    if (r0?.easyRoad) out.push("🛣️ Đường dễ đi");
+    return out;
+  }, [plan]);
+
+  // roomCost của phương án = TỔNG tiền phòng cả đoàn (dorm đã nhân số người).
+  const roomShare = Math.round(plan.roomCost / people);
+  const pricePerPerson = Math.max(0, roomShare + (bus?.farePerPerson ?? 0) - (plan.communal ? 0 : COMBO_DISCOUNT));
   const total = pricePerPerson * people;
   const diff = budget != null ? pricePerPerson - budget : null;
 
-  // Xem nhanh phòng / xe ngay trong trang (không rời phễu đặt combo).
-  const [preview, setPreview] = useState<"room" | "bus" | null>(null);
+  // Xem nhanh phòng (theo nhóm) / xe ngay trong trang (không rời phễu đặt combo).
+  const [preview, setPreview] = useState<{ kind: "room"; group: ComboPlanGroup } | { kind: "bus" } | null>(null);
   const [openForm, setOpenForm] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -241,9 +258,10 @@ function ComboRoomCard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fromKey, toKey,
-          roomId: room.roomId,
+          roomIds: plan.roomIds,
           outboundTripId: bus.outboundTripId,
           returnTripId: bus.returnTripId,
+          origin: origin || null,
           people,
           customerName: name.trim(),
           phone: phone.trim(),
@@ -264,14 +282,14 @@ function ComboRoomCard({
     <article className={`overflow-hidden rounded-[22px] bg-white ring-1 ${best ? "ring-2 ring-sunset-400" : "ring-black/[0.07]"}`}>
       {best && (
         <div className="bg-sunset-500 px-4 py-1.5 text-[13px] font-bold tracking-wide text-white">
-          Khớp giá nhất với mong muốn của bạn
+          {budget != null ? "Khớp giá nhất với mong muốn của bạn" : "Phương án tối ưu nhất (giá · tiện ích · vị trí)"}
         </div>
       )}
       <div className="grid gap-0 lg:grid-cols-[210px_minmax(0,1fr)_268px]">
         {/* Ảnh phòng (thiếu thì ảnh hạng phòng / homestay) */}
         <div className="relative min-h-[180px]">
-          {room.cover ? (
-            <Image src={room.cover} alt={room.roomName} fill sizes="220px" className="object-cover" />
+          {cover ? (
+            <Image src={cover} alt={title} fill sizes="220px" className="object-cover" />
           ) : (
             <div className="flex h-full min-h-[180px] items-center justify-center bg-gray-100 text-4xl">🛏️</div>
           )}
@@ -281,16 +299,43 @@ function ComboRoomCard({
               {home.distanceKm != null && (home.distanceKm === 0 ? " · trung tâm" : ` · ${home.distanceKm.toLocaleString("vi-VN")}km`)}
             </span>
           )}
+          {plan.roomCount > 1 && (
+            <span className="pointer-events-none absolute bottom-3 left-3 rounded-full bg-forest-600 px-2.5 py-1 text-xs font-bold text-white">
+              Ghép {plan.roomCount} phòng · đủ {plan.capacity} chỗ
+            </span>
+          )}
         </div>
 
-        {/* Thông tin phòng + chọn xe */}
+        {/* Thông tin phương án + chọn xe */}
         <div className="flex min-w-0 flex-col gap-3.5 p-5">
           <div>
             <div className="text-[13px] font-semibold text-gray-500">{home.title}</div>
-            <div className="text-[19px] font-extrabold tracking-[-0.015em] text-ink">{count > 1 ? room.typeName : room.roomName}</div>
+            <div className="text-[19px] font-extrabold tracking-[-0.015em] text-ink">{title}</div>
             <div className="mt-0.5 text-[13px] text-gray-500">
-              Tối đa {room.capacity} người · {nights} đêm · <span className="font-bold text-ink">{vnd(room.roomCost)}</span>/{room.communal ? "người" : "phòng"} cả kỳ ·{" "}
-              <span className="font-bold text-[oklch(0.38_0.1_155)]">{count > 1 ? `Còn ${count} phòng` : "Còn phòng"}</span>
+              {plan.communal ? (
+                <>Giường cộng đồng cho {people} khách · {nights} đêm · <span className="font-bold text-ink">{vnd(plan.roomCost)}</span> cả kỳ</>
+              ) : (
+                <>
+                  Đủ chỗ {plan.capacity} khách · {nights} đêm · tiền phòng <span className="font-bold text-ink">{vnd(plan.roomCost)}</span> cả kỳ
+                  {plan.extraGuests > 0 && (
+                    <> · <span className="font-semibold text-sunset-600">{plan.extraGuests} khách ở ghép, đã gồm phụ thu {vnd(plan.extraCost)}</span></>
+                  )}
+                </>
+              )}
+            </div>
+            {/* Chi tiết từng nhóm phòng của phương án — bấm để xem ảnh/mô tả */}
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {plan.groups.map((g, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setPreview({ kind: "room", group: g })}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-forest-200 bg-white px-2.5 py-1 text-xs font-semibold text-forest-700 transition hover:bg-forest-50"
+                >
+                  {g.count}× {g.room.typeName}
+                  <span className="text-gray-400">· {vnd(g.unitCost)}{plan.communal ? "/người" : "/phòng"}</span>
+                </button>
+              ))}
             </div>
             {amenities.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-1.5">
@@ -346,9 +391,12 @@ function ComboRoomCard({
             <div className="mt-0.5 text-[13px] font-semibold text-gray-500">≈ {vnd(total)} cho {people} người</div>
           </div>
           <div className="flex flex-col gap-1 text-xs leading-relaxed text-gray-500">
-            <div className="flex justify-between gap-2"><span>{room.communal ? "Giường cộng đồng / khách" : `Phòng ÷ ${people}`}</span><span className="font-bold text-ink">{vnd(roomShare)}</span></div>
-            <div className="flex justify-between gap-2"><span>Vé khứ hồi / khách</span><span className="font-bold text-ink">{vnd(bus?.farePerPerson ?? 0)}</span></div>
-            {!room.communal && (
+            <div className="flex justify-between gap-2">
+              <span>{plan.communal ? "Giường cộng đồng / khách" : plan.roomCount > 1 ? `${plan.roomCount} phòng ÷ ${people} khách` : `Phòng ÷ ${people}`}</span>
+              <span className="font-bold text-ink">{vnd(roomShare)}</span>
+            </div>
+            <div className="flex justify-between gap-2"><span>Vé khứ hồi{bus?.fareOrigin ? ` từ ${bus.fareOrigin}` : ""} / khách</span><span className="font-bold text-ink">{vnd(bus?.farePerPerson ?? 0)}</span></div>
+            {!plan.communal && (
               <div className="flex justify-between gap-2"><span>Khuyến mãi combo</span><span className="font-bold text-forest-700">− {vnd(COMBO_DISCOUNT)}</span></div>
             )}
           </div>
@@ -364,9 +412,9 @@ function ComboRoomCard({
           </button>
 
           <div className="flex gap-2">
-            <button type="button" onClick={() => setPreview("room")} className="flex-1 rounded-full border border-forest-200 py-2 text-center text-[13px] font-bold text-forest-700 hover:bg-forest-50">Xem phòng</button>
+            <button type="button" onClick={() => setPreview({ kind: "room", group: plan.groups[0] })} className="flex-1 rounded-full border border-forest-200 py-2 text-center text-[13px] font-bold text-forest-700 hover:bg-forest-50">Xem phòng</button>
             {bus && (
-              <button type="button" onClick={() => setPreview("bus")} className="flex-1 rounded-full border border-forest-200 py-2 text-center text-[13px] font-bold text-forest-700 hover:bg-forest-50">Xem xe</button>
+              <button type="button" onClick={() => setPreview({ kind: "bus" })} className="flex-1 rounded-full border border-forest-200 py-2 text-center text-[13px] font-bold text-forest-700 hover:bg-forest-50">Xem xe</button>
             )}
           </div>
         </div>
@@ -403,8 +451,19 @@ function ComboRoomCard({
                 {/* Tóm tắt combo đã chọn */}
                 <div className="flex flex-col gap-1.5 rounded-xl bg-[oklch(0.975_0.008_150)] p-3.5 text-[13px]">
                   <div className="flex justify-between gap-2"><span className="text-gray-500">Homestay</span><span className="font-bold text-ink">{home.title}</span></div>
-                  <div className="flex justify-between gap-2"><span className="text-gray-500">Phòng</span><span className="font-bold text-ink">{count > 1 ? room.typeName : room.roomName}</span></div>
+                  {plan.groups.map((g, i) => (
+                    <div key={i} className="flex justify-between gap-2">
+                      <span className="text-gray-500">{i === 0 ? (plan.roomCount > 1 ? "Phòng (ghép)" : "Phòng") : ""}</span>
+                      <span className="font-bold text-ink">{g.count}× {g.room.typeName}{g.count === 1 && plan.roomCount === 1 ? ` · ${g.room.roomName}` : ""}</span>
+                    </div>
+                  ))}
+                  {plan.extraGuests > 0 && (
+                    <div className="flex justify-between gap-2"><span className="text-gray-500">Ở ghép</span><span className="font-bold text-sunset-600">+{plan.extraGuests} khách · phụ thu {vnd(plan.extraCost)}</span></div>
+                  )}
                   <div className="flex justify-between gap-2"><span className="text-gray-500">Xe cabin</span><span className="font-bold text-ink">{bus?.title} · đi {bus?.outboundTime} / về {bus?.returnTime}</span></div>
+                  {origin && (
+                    <div className="flex justify-between gap-2"><span className="text-gray-500">Điểm đón</span><span className="font-bold text-ink">{origin}</span></div>
+                  )}
                   <div className="flex justify-between gap-2"><span className="text-gray-500">Ngày</span><span className="font-bold text-ink">{checkIn} → {checkOut} · {nights} đêm</span></div>
                   <div className="mt-1 flex justify-between gap-2 border-t border-gray-200 pt-1.5"><span className="text-gray-500">Trọn gói</span><span className="font-extrabold text-sunset-600">{vnd(pricePerPerson)}/khách · {vnd(total)} / {people} người</span></div>
                 </div>
@@ -422,27 +481,34 @@ function ComboRoomCard({
         </div>
       )}
 
-      {/* Xem nhanh PHÒNG — ở lại trang combo, CTA chính vẫn là đặt combo */}
-      {preview === "room" && (
-        <QuickView title={`${home.title} · ${count > 1 ? room.typeName : room.roomName}`} onClose={() => setPreview(null)}>
-          <MiniGallery images={room.images.length ? room.images : room.cover ? [room.cover] : []} alt={room.roomName} />
+      {/* Xem nhanh PHÒNG (theo nhóm trong phương án) — ở lại trang combo */}
+      {preview?.kind === "room" && preview.group && (
+        <QuickView
+          title={`${home.title} · ${preview.group.count}× ${preview.group.room.typeName}`}
+          onClose={() => setPreview(null)}
+        >
+          <MiniGallery
+            images={preview.group.room.images.length ? preview.group.room.images : preview.group.room.cover ? [preview.group.room.cover] : []}
+            alt={preview.group.room.roomName}
+          />
           <div className="flex flex-col gap-3 p-5">
             <div className="text-sm text-gray-600">
-              Tiêu chuẩn <b>{room.capacity} người</b> · {nights} đêm ({checkIn} → {checkOut}) ·{" "}
-              <b className="text-ink">{vnd(room.roomCost)}</b>/{room.communal ? "người" : "phòng"} cả kỳ
+              Tiêu chuẩn <b>{preview.group.room.capacity} người</b>/phòng · {nights} đêm ({checkIn} → {checkOut}) ·{" "}
+              <b className="text-ink">{vnd(preview.group.unitCost)}</b>/{plan.communal ? "người" : "phòng"} cả kỳ
+              {preview.group.count > 1 && <> · phương án dùng <b>{preview.group.count} phòng</b> hạng này</>}
             </div>
-            {(amenities.length > 0 || room.amenityList.length > 0) && (
+            {(amenities.length > 0 || preview.group.room.amenityList.length > 0) && (
               <div className="flex flex-wrap gap-1.5">
-                {[...amenities, ...room.amenityList.filter((a) => !amenities.some((x) => x.includes(a)))].map((a, i) => (
+                {[...amenities, ...preview.group.room.amenityList.filter((a) => !amenities.some((x) => x.includes(a)))].map((a, i) => (
                   <span key={i} className="rounded-full bg-[oklch(0.95_0.025_155)] px-2.5 py-1 text-xs font-semibold text-[oklch(0.36_0.08_155)]">{a}</span>
                 ))}
               </div>
             )}
-            {room.description && (
-              <p className="whitespace-pre-line text-sm leading-relaxed text-gray-600">{room.description}</p>
+            {preview.group.room.description && (
+              <p className="whitespace-pre-line text-sm leading-relaxed text-gray-600">{preview.group.room.description}</p>
             )}
             <div className="rounded-xl bg-[oklch(0.975_0.008_150)] p-3.5 text-sm">
-              Combo với xe {bus?.title ?? "cabin"}: <b className="text-sunset-600">{vnd(pricePerPerson)}/khách</b> · ≈ {vnd(total)} cho {people} người
+              Phương án {plan.label} với xe {bus?.title ?? "cabin"}: <b className="text-sunset-600">{vnd(pricePerPerson)}/khách</b> · ≈ {vnd(total)} cho {people} người
             </div>
           </div>
           <div className="flex items-center gap-3 border-t border-gray-100 p-4">
@@ -451,7 +517,7 @@ function ComboRoomCard({
               onClick={() => { setPreview(null); setErr(""); setOpenForm(true); }}
               className="flex-1 rounded-full bg-sunset-500 py-3 text-center text-sm font-bold text-white hover:bg-sunset-600"
             >
-              Đặt combo với phòng này →
+              Đặt combo với phương án này →
             </button>
             <Link
               href={`/homestay/${home.slug}?from=${encodeURIComponent(checkIn)}&to=${encodeURIComponent(checkOut)}`}
@@ -465,7 +531,7 @@ function ComboRoomCard({
       )}
 
       {/* Xem nhanh XE — giờ chạy + lộ trình đón trả của xe đang chọn */}
-      {preview === "bus" && bus && (
+      {preview?.kind === "bus" && bus && (
         <QuickView title={`${bus.title} · xe cabin khứ hồi`} onClose={() => setPreview(null)}>
           <MiniGallery images={bus.images.length ? bus.images : bus.cover ? [bus.cover] : []} alt={bus.title} />
           <div className="flex flex-col gap-3 p-5">
@@ -480,7 +546,7 @@ function ComboRoomCard({
               </div>
             </div>
             <div className="text-sm text-gray-600">
-              Vé khứ hồi <b className="text-ink">{vnd(bus.farePerPerson)}/khách</b> ·{" "}
+              Vé khứ hồi{bus.fareOrigin ? ` từ ${bus.fareOrigin}` : ""} <b className="text-ink">{vnd(bus.farePerPerson)}/khách</b> ·{" "}
               <b className="text-[oklch(0.38_0.1_155)]">{bus.seatsAvailable <= 5 ? `Còn ${bus.seatsAvailable} chỗ` : "Còn chỗ"}</b>
             </div>
             {[["Lộ trình chiều đi", bus.outboundStops] as const, ["Lộ trình chiều về", bus.returnStops] as const].map(

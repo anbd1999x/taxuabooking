@@ -27,6 +27,7 @@ import {
   setCover,
   upsertRoomType,
   deleteRoomType,
+  applyRoomTypePrices,
   upsertRoom,
   deleteRoom,
   duplicateRoom,
@@ -561,6 +562,7 @@ export default async function EditServicePage({
                               <MiniMove action={moveRoomTypeDown} id={rt.id} serviceId={service.id} label="↓" title="Chuyển hạng phòng xuống dưới" />
                             </span>
                           </div>
+                          {rt.rooms.length > 1 && <TypeBulkPriceForm rt={rt} serviceId={service.id} />}
                           <div className="divide-y divide-gray-100">
                             {rt.rooms.map((room) => {
                               const list = toNumber(room.listPrice) ?? 0;
@@ -1197,6 +1199,52 @@ const DAY_FIELDS = [
 interface RoomDayPrices {
   priceMon: unknown; priceTue: unknown; priceWed: unknown; priceThu: unknown;
   priceFri: unknown; priceSat: unknown; priceSun: unknown;
+}
+
+/**
+ * Sửa giá CẢ HẠNG một lần: áp giá thường / chiết khấu / giá theo thứ cho MỌI
+ * phòng con trong hạng (form lấy sẵn giá của phòng đầu tiên làm mẫu).
+ */
+function TypeBulkPriceForm({
+  rt,
+  serviceId,
+}: {
+  rt: { id: string; name: string; rooms: (RoomDayPrices & { listPrice: unknown; salePrice: unknown })[] };
+  serviceId: string;
+}) {
+  const first = rt.rooms[0];
+  if (!first) return null;
+  return (
+    <details className="border-b border-gray-200 bg-forest-50/60">
+      <summary className="cursor-pointer select-none list-none px-3 py-2 text-[12px] font-bold text-forest-700 hover:text-forest-800">
+        ⚡ Sửa giá cả hạng “{rt.name}” — áp cho {rt.rooms.length} phòng cùng lúc ▾
+      </summary>
+      <ActionForm action={applyRoomTypePrices} className="grid grid-cols-2 gap-2 px-3 pb-3 sm:grid-cols-12 sm:items-end">
+        <input type="hidden" name="roomTypeId" value={rt.id} />
+        <input type="hidden" name="serviceId" value={serviceId} />
+        <L label="Giá thường" cls="sm:col-span-3">
+          <MoneyInput name="listPrice" defaultValue={toNumber(first.listPrice as never) ?? 0} className={inp} />
+        </L>
+        <L label="Giá chiết khấu" cls="sm:col-span-3">
+          <MoneyInput name="salePrice" defaultValue={toNumber(first.salePrice as never) ?? ""} placeholder="(nếu có)" className={inp} />
+        </L>
+        <div className="col-span-2 grid grid-cols-4 gap-2 sm:col-span-12 sm:grid-cols-7">
+          {DAY_FIELDS.map((d) => (
+            <L key={d.name} label={`Giá ${d.label}`}>
+              <MoneyInput name={d.name} defaultValue={toNumber(first[d.name] as never) ?? ""} placeholder="—" className={inp} />
+            </L>
+          ))}
+        </div>
+        <p className="col-span-2 text-[11px] leading-relaxed text-gray-500 sm:col-span-9">
+          ⚠️ Giá theo thứ (T2–CN) <b>ĐÈ</b> giá chiết khấu & giá thường — muốn web dùng giá thường/chiết khấu thì
+          <b> xoá trống các ô thứ</b>. Bấm Áp giá sẽ ghi đè giá của <b>tất cả {rt.rooms.length} phòng</b> trong hạng này.
+        </p>
+        <button className="col-span-2 rounded-lg bg-forest-600 px-3 py-2 text-sm font-bold text-white hover:bg-forest-700 sm:col-span-3">
+          Áp giá cho {rt.rooms.length} phòng
+        </button>
+      </ActionForm>
+    </details>
+  );
 }
 
 const ROOM_FEATURES = [

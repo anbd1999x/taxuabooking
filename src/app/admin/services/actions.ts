@@ -604,6 +604,38 @@ export async function upsertRoomType(_prev: ActionState, formData: FormData): Pr
   return { ok: true, message: id ? "Đã lưu loại phòng" : "Đã thêm loại phòng" };
 }
 
+/**
+ * Áp GIÁ CHO CẢ HẠNG PHÒNG: ghi đè giá thường / giá chiết khấu / giá theo thứ
+ * cho MỌI phòng con thuộc hạng (đỡ phải sửa từng phòng một).
+ * Giá trị trong form được áp nguyên trạng: ô thứ bỏ trống = xoá ghi đè ngày đó.
+ */
+export async function applyRoomTypePrices(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const roomTypeId = s(formData.get("roomTypeId"));
+  const serviceId = s(formData.get("serviceId"));
+  if (!roomTypeId) return { error: "Thiếu hạng phòng." };
+  const data = {
+    listPrice: num(formData.get("listPrice")) ?? 0,
+    // 0/trống = không giảm giá → lưu null (giống upsertRoom).
+    salePrice: (num(formData.get("salePrice")) || null) as number | null,
+    priceMon: num(formData.get("priceMon")) ?? null,
+    priceTue: num(formData.get("priceTue")) ?? null,
+    priceWed: num(formData.get("priceWed")) ?? null,
+    priceThu: num(formData.get("priceThu")) ?? null,
+    priceFri: num(formData.get("priceFri")) ?? null,
+    priceSat: num(formData.get("priceSat")) ?? null,
+    priceSun: num(formData.get("priceSun")) ?? null,
+  };
+  try {
+    const r = await prisma.room.updateMany({ where: { roomTypeId }, data });
+    if (r.count === 0) return { error: "Hạng này chưa có phòng nào — thêm phòng trước." };
+    if (serviceId) revalidatePath(`/admin/services/${serviceId}`);
+    revalidatePath("/admin/availability");
+    return { ok: true, message: `Đã áp giá cho ${r.count} phòng trong hạng` };
+  } catch {
+    return { error: "Áp giá thất bại." };
+  }
+}
+
 export async function deleteRoomType(formData: FormData): Promise<void> {
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
