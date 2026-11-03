@@ -158,29 +158,21 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
         </label>
       </div>
 
-      {/* Lọc nhanh theo TÊN homestay — dãy chữ nhỏ ngay trên kết quả, bấm để xem riêng từng nhà */}
+      {/* Lọc nhanh theo TÊN homestay — dropdown chữ nhỏ ngay trên kết quả, chọn để xem riêng từng nhà */}
       {homeNames.length > 1 && (
-        <div className="mb-4 flex flex-wrap items-baseline gap-x-4 gap-y-1.5 text-[13px] font-semibold leading-relaxed">
-          <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Xem theo nhà</span>
-          {([["all", "Tất cả"] as const, ...homeNames.map((n) => [n, n] as const)]).map(([k, n]) => {
-            const on = homeName === k;
-            return (
-              <button
-                key={k}
-                type="button"
-                onClick={() => setHomeName(k)}
-                className="transition hover:opacity-80"
-                style={
-                  on
-                    ? { color: "oklch(0.29 0.055 160)", fontWeight: 800, textDecoration: "underline", textUnderlineOffset: "5px", textDecorationThickness: "2px" }
-                    : { color: "oklch(0.5 0.02 160)" }
-                }
-              >
-                {n}
-              </button>
-            );
-          })}
-        </div>
+        <label className="mb-4 flex items-center gap-2 text-[13px] font-semibold text-gray-500">
+          Xem theo nhà
+          <select
+            value={homeName}
+            onChange={(e) => setHomeName(e.target.value)}
+            className="max-w-[260px] cursor-pointer border-0 bg-transparent p-0 text-[13px] font-extrabold text-forest-700 outline-none"
+          >
+            <option value="all">Tất cả homestay</option>
+            {homeNames.map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+        </label>
       )}
 
       <div className="flex flex-col gap-[18px]">

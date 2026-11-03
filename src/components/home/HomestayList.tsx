@@ -589,29 +589,22 @@ export function HomestayList({
 
       {/* LIST */}
       <main ref={listRef} className="container-page pb-24 pt-9">
-        {/* Lọc nhanh theo TÊN homestay — dãy chữ nhỏ ngay trên kết quả, bấm để xem riêng từng nhà */}
+        {/* Lọc nhanh theo TÊN homestay — dropdown chữ nhỏ ngay trên kết quả, chọn để xem riêng từng nhà */}
         {homeNames.length > 1 && (
-          <div className="mb-5 flex flex-wrap items-baseline gap-x-4 gap-y-1.5 text-[13px] font-semibold leading-relaxed">
-            <span className="text-xs font-bold uppercase tracking-wide text-gray-400">Xem theo nhà</span>
-            {([["all", "Tất cả"] as const, ...homeNames.map((n) => [n, n] as const)]).map(([k, n]) => {
-              const on = home === k;
-              return (
-                <button
-                  key={k}
-                  type="button"
-                  onClick={() => setHome(k)}
-                  className="transition hover:opacity-80"
-                  style={
-                    on
-                      ? { color: TH.G, fontWeight: 800, textDecoration: "underline", textUnderlineOffset: "5px", textDecorationThickness: "2px" }
-                      : { color: "oklch(0.5 0.02 160)" }
-                  }
-                >
-                  {n}
-                </button>
-              );
-            })}
-          </div>
+          <label className="mb-5 flex items-center gap-2 text-[13px] font-semibold text-gray-500">
+            Xem theo nhà
+            <select
+              value={home}
+              onChange={(e) => setHome(e.target.value)}
+              className="max-w-[260px] cursor-pointer border-0 bg-transparent p-0 text-[13px] font-extrabold outline-none"
+              style={{ color: TH.G }}
+            >
+              <option value="all">Tất cả homestay</option>
+              {homeNames.map((n) => (
+                <option key={n} value={n}>{n}</option>
+              ))}
+            </select>
+          </label>
         )}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] sm:gap-[22px]">
           {items.map((s, i) => (
