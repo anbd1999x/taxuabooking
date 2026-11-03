@@ -7,6 +7,7 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
   const phone2 = "0397943155";
   const email = "lienhe@taxuabooking.com";
   const facebook = "https://www.facebook.com/tanglinhvxhg";
+  const facebook2 = "https://www.facebook.com/an.danh.bui.2025";
   const address = settings.contactAddress || "Tà Xùa, Bắc Yên, Sơn La";
 
   return (
@@ -45,6 +46,13 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
               <li>
                 <a href={facebook} target="_blank" rel="noopener noreferrer" className="hover:text-white">
                   📘 Facebook
+                </a>
+              </li>
+            )}
+            {facebook2 && (
+              <li>
+                <a href={facebook2} target="_blank" rel="noopener noreferrer" className="hover:text-white">
+                  📘 Facebook 2
                 </a>
               </li>
             )}
