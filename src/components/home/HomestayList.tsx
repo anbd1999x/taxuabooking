@@ -99,6 +99,7 @@ export function HomestayList({
   const [price, setPrice] = useState("all");
   const [type, setType] = useState("all");
   const [zone, setZone] = useState("all"); // lọc theo khu vực (Trung tâm, Khe Cải, Đỉnh Gió...)
+  const [home, setHome] = useState("all"); // lọc theo TÊN homestay (sau khi tìm xong, xem riêng từng nhà)
   const [sort, setSort] = useState("rec"); // rec | priceAsc | priceDesc | near
   const [amen, setAmen] = useState<Set<AmenKey>>(new Set()); // tiện ích phải có (chọn nhiều)
 
@@ -319,6 +320,11 @@ export function HomestayList({
         (price === "gt1500" && p > 1500000)));
   // Khu vực có trong dữ liệu (để dựng dãy chip lọc).
   const zones = useMemo(() => [...new Set(all.map((x) => x.area).filter(Boolean))], [all]);
+  // Tên các homestay có trong dữ liệu (dropdown lọc theo từng nhà).
+  const homeNames = useMemo(
+    () => [...new Set(all.map((x) => x.homeName).filter(Boolean))].sort((a, b) => a.localeCompare(b, "vi")),
+    [all],
+  );
   // Khoảng cách tới trung tâm để sắp "gần trung tâm": thiếu số km nhưng khu vực là
   // "Trung tâm..." thì coi như 0; thiếu hẳn thì xếp cuối.
   const distOf = (x: HomestayCard) => x.distanceKm ?? (norm(x.area).includes("trung tam") ? 0 : Number.POSITIVE_INFINITY);
@@ -329,6 +335,7 @@ export function HomestayList({
     (x) =>
       (type === "all" || x.cat === type) &&
       (zone === "all" || x.area === zone) &&
+      (home === "all" || x.homeName === home) &&
       inPrice(x.price) &&
       fitsGuests(x) &&
       [...amen].every((k) => x.amen?.[k]) &&
@@ -345,7 +352,7 @@ export function HomestayList({
       if (sort === "near") return distOf(a) - distOf(b);
       return 0;
     });
-  const hasFilter = Boolean(q || ci || co || guests > 0 || price !== "all" || type !== "all" || zone !== "all" || sort !== "rec" || amen.size > 0);
+  const hasFilter = Boolean(q || ci || co || guests > 0 || price !== "all" || type !== "all" || zone !== "all" || home !== "all" || sort !== "rec" || amen.size > 0);
   const toggleAmen = (k: AmenKey) =>
     setAmen((prev) => {
       const next = new Set(prev);
@@ -372,7 +379,7 @@ export function HomestayList({
 
   // Xoá lọc: về trạng thái không ngày (server trả "Chọn ngày để xem").
   function clearAll() {
-    setQ(""); setCi(""); setCo(""); setGuests(0); setPrice("all"); setType("all"); setZone("all"); setSort("rec"); setAmen(new Set());
+    setQ(""); setCi(""); setCo(""); setGuests(0); setPrice("all"); setType("all"); setZone("all"); setHome("all"); setSort("rec"); setAmen(new Set());
     router.replace("/homestay", { scroll: false });
     router.refresh();
   }
@@ -498,6 +505,17 @@ export function HomestayList({
               <span className="text-xs font-semibold text-gray-500">Tìm kiếm</span>
               <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submitSearch(); }} placeholder="Tên homestay, khu vực…" className={inp} />
             </label>
+            {homeNames.length > 1 && (
+              <label className={cell}>
+                <span className="text-xs font-semibold text-gray-500">Homestay</span>
+                <select value={home} onChange={(e) => setHome(e.target.value)} className={inp}>
+                  <option value="all">Tất cả homestay</option>
+                  {homeNames.map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
+              </label>
+            )}
             <label className={cell}>
               <span className="text-xs font-semibold text-gray-500">Nhận phòng</span>
               <DateField value={ci} onChange={setCi} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Nhận phòng" />
