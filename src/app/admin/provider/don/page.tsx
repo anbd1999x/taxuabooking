@@ -57,17 +57,18 @@ export default async function ProviderOrdersPage() {
       (b.nights ? ` · ${b.nights} đêm` : "") +
       ` · ${b.quantity} người`;
 
-    let gross: number, discount: number, mainTag: "PH" | "XE", room: string, moneyLabel: string, showBusLine: boolean, viewOnly: boolean, busLabel: string, busPrice: number, collected: number;
+    let gross: number, discount: number, mainTag: "PH" | "XE", room: string, moneyLabel: string, showBusLine: boolean, canStatus: boolean, canPay: boolean, busLabel: string, busPrice: number, collected: number;
 
     if (isCombo && !homeSide) {
-      // Phía nhà xe: chỉ phần tiền vé, chỉ xem.
+      // Phía nhà xe: chỉ phần tiền vé, thuần xem (phòng & trạng thái do chủ homestay/sàn lo).
       gross = toNumber(b.busAmount) ?? 0;
       discount = 0;
       mainTag = "XE";
       room = "Vé xe cabin (combo)";
       moneyLabel = "Tiền vé của bạn";
       showBusLine = false;
-      viewOnly = true;
+      canStatus = false;
+      canPay = false;
       busLabel = "";
       busPrice = 0;
       const net0 = gross;
@@ -81,7 +82,9 @@ export default async function ProviderOrdersPage() {
       room = info?.label || b.selectionLabel || b.service?.title || b.serviceTitle;
       moneyLabel = isCombo ? "Tiền phòng của bạn" : "Tiền của bạn";
       showBusLine = isCombo;
-      viewOnly = isCombo;
+      // Chủ homestay: luôn được giữ phòng/huỷ. Combo: khoá thu tiền (sàn thu), còn lại được.
+      canStatus = true;
+      canPay = !isCombo;
       busLabel = isCombo ? b.selectionLabel ?? "Xe cabin trong combo" : "";
       busPrice = isCombo ? toNumber(b.busAmount) ?? 0 : 0;
       const net0 = Math.max(0, gross - discount);
@@ -97,7 +100,8 @@ export default async function ProviderOrdersPage() {
       st: mapStatus(b.status, b.paymentStatus),
       src: b.ctvId ? "ctv" : "web",
       combo: isCombo,
-      viewOnly,
+      canStatus,
+      canPay,
       name: b.customerName,
       phone: b.phone,
       ciKey: toDateKey(ci),

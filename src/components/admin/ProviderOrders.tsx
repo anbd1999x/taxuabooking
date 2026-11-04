@@ -19,7 +19,8 @@ export interface ProviderOrderVM {
   st: POStatus;
   src: "web" | "ctv";
   combo: boolean;
-  viewOnly: boolean; // combo: chỉ xem (sàn điều phối)
+  canStatus: boolean; // được đổi trạng thái (giữ phòng/huỷ/khôi phục) — chủ phần dịch vụ
+  canPay: boolean; // được ghi nhận thu tiền — khoá với combo (sàn thu)
   name: string;
   phone: string;
   ciKey: string; // yyyy-mm-dd ngày nhận phòng (lọc/sắp xếp)
@@ -156,9 +157,17 @@ export function ProviderOrders({
     setAmt(pay && o.st === "held" ? String(Math.round((o.net * 0.3) / 10000) * 10000) : pay ? String(Math.max(0, o.net - o.collected)) : "");
   }
 
-  function doNext(o: ProviderOrderVM) {
+  // Nút bước kế tiếp hợp lệ theo quyền: 'held' cần quyền đổi trạng thái, 'pay' cần quyền thu tiền.
+  function nextOf(o: ProviderOrderVM): [string, "held" | "pay", string] | undefined {
     const n = NEXT[o.st];
-    if (!n || o.viewOnly) return;
+    if (!n) return undefined;
+    if (n[1] === "held") return o.canStatus ? n : undefined;
+    return o.canPay ? n : undefined;
+  }
+
+  function doNext(o: ProviderOrderVM) {
+    const n = nextOf(o);
+    if (!n) return;
     if (n[1] === "held") run(advanceBookingStatus, { id: o.id, status: "CONFIRMED" }, "Đã xác nhận giữ phòng " + o.code);
     else openOrder(o, true);
   }
@@ -266,7 +275,7 @@ export function ProviderOrders({
           const dueC = o.st === "cancel" ? "oklch(0.5 0 0)" : rem === 0 ? "oklch(0.4 0.1 155)" : "oklch(0.55 0.17 40)";
           const srcBg = o.src === "ctv" ? "oklch(0.96 0.04 80)" : "oklch(0.96 0.01 160)";
           const srcFg = o.src === "ctv" ? "oklch(0.48 0.12 60)" : "oklch(0.42 0.03 160)";
-          const n = o.viewOnly ? undefined : NEXT[o.st];
+          const n = nextOf(o);
           return (
             <article key={o.id} style={{ background: "white", borderRadius: 20, border: `1.5px solid ${o.st === "new" ? "oklch(0.85 0.08 60)" : "oklch(0.92 0.01 160)"}`, overflow: "hidden" }}>
               <div className="po-row" style={{ display: "grid", gap: 16, padding: "16px 18px", alignItems: "center" }}>
@@ -318,10 +327,10 @@ export function ProviderOrders({
                   )}
                   <div style={{ display: "flex", gap: 6 }}>
                     <div onClick={() => openOrder(o)} style={{ flex: 1, cursor: "pointer", textAlign: "center", fontSize: 13, fontWeight: 700, padding: "8px 12px", borderRadius: 12, border: "1.5px solid oklch(0.9 0.01 160)", whiteSpace: "nowrap" }}>Chi tiết</div>
-                    {!o.viewOnly && o.st === "cancel" && (
+                    {o.canStatus && o.st === "cancel" && (
                       <div onClick={() => run(advanceBookingStatus, { id: o.id, status: "NEW" }, "Đã khôi phục " + o.code)} style={{ cursor: "pointer", textAlign: "center", fontSize: 13, fontWeight: 700, padding: "8px 12px", borderRadius: 12, border: "1.5px solid oklch(0.9 0.01 160)", whiteSpace: "nowrap" }}>Khôi phục</div>
                     )}
-                    {!o.viewOnly && o.st !== "cancel" && (
+                    {o.canStatus && o.st !== "cancel" && (
                       <div onClick={() => { if (confirm("Huỷ đơn " + o.code + "? (khách huỷ / không tới)")) run(advanceBookingStatus, { id: o.id, status: "CANCELLED" }, "Đã huỷ " + o.code); }} style={{ cursor: "pointer", textAlign: "center", fontSize: 13, fontWeight: 700, padding: "8px 12px", borderRadius: 12, border: "1.5px solid oklch(0.9 0.04 28)", color: "oklch(0.5 0.18 28)", whiteSpace: "nowrap" }}>Huỷ</div>
                     )}
                   </div>
@@ -395,11 +404,11 @@ function Drawer({
     fw: i === idx ? 800 : 600,
     fg: i <= idx ? "oklch(0.25 0.03 160)" : "oklch(0.55 0.02 160)",
   }));
-  const quick: [string, number][] = rem > 0 && o.st !== "cancel" && !o.viewOnly
+  const quick: [string, number][] = rem > 0 && o.st !== "cancel" && o.canPay
     ? ([["Cọc 30%", Math.round((o.net * 0.3) / 10000) * 10000], ["Cọc 50%", Math.round((o.net * 0.5) / 10000) * 10000], ["Thu đủ " + K(rem), rem]] as [string, number][]).filter((x) => x[1] > 0 && x[1] <= rem)
     : [];
-  const canCancel = o.st !== "cancel" && !o.viewOnly;
-  const drawerNext = o.st === "new" ? "Xác nhận giữ phòng" : o.st === "cancel" ? "Khôi phục đơn" : "";
+  const canCancel = o.st !== "cancel" && o.canStatus;
+  const drawerNext = o.canStatus ? (o.st === "new" ? "Xác nhận giữ phòng" : o.st === "cancel" ? "Khôi phục đơn" : "") : "";
 
   return (
     <>
@@ -473,8 +482,8 @@ function Drawer({
               <span style={{ color: "oklch(0.5 0.02 160)" }}>Đã thu</span>
               <b style={{ color: "oklch(0.4 0.1 155)" }}>{K(o.collected)}</b>
             </div>
-            {o.viewOnly ? (
-              <div style={{ fontSize: 12, fontWeight: 600, color: "oklch(0.5 0.02 160)", padding: "8px 10px", borderRadius: 10, background: "oklch(0.96 0.02 300)" }}>Đơn combo do Tà Xùa Booking điều phối — phần thu do sàn thực hiện.</div>
+            {!o.canPay ? (
+              <div style={{ fontSize: 12, fontWeight: 600, color: "oklch(0.5 0.02 160)", padding: "8px 10px", borderRadius: 10, background: "oklch(0.96 0.02 300)" }}>Đơn combo do Tà Xùa Booking điều phối — phần thu tiền do sàn thực hiện. Bạn vẫn xác nhận giữ phòng / huỷ phần phòng của mình.</div>
             ) : o.st !== "cancel" ? (
               <>
                 {quick.length > 0 && (
