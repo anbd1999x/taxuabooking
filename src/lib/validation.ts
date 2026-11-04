@@ -74,6 +74,10 @@ export const comboBookingSchema = z
     returnTripId: z.string().min(1, "Thiếu chuyến về."),
     origin: z.string().trim().max(120).optional().nullable(),
     people: z.coerce.number().int().min(1).max(30),
+    // Chỗ nằm xe cabin: số cabin đơn (1 người/buồng, nằm riêng) + số cabin đôi (2 người/buồng, ghép).
+    // 0/0 = client cũ → server tự xếp mặc định (tối đa ghép đôi).
+    cabinSingle: z.coerce.number().int().min(0).max(30).default(0),
+    cabinDouble: z.coerce.number().int().min(0).max(30).default(0),
     customerName: z.string().trim().min(2, "Vui lòng nhập họ tên.").max(120),
     phone: z.string().trim().regex(phoneRegex, "Số điện thoại không hợp lệ."),
     note: z.string().trim().max(1000).optional().nullable(),
@@ -81,6 +85,10 @@ export const comboBookingSchema = z
   .refine((d) => (d.roomIds?.length ?? 0) > 0 || Boolean(d.roomId), {
     message: "Thiếu phòng.",
     path: ["roomIds"],
+  })
+  .refine((d) => d.cabinSingle + d.cabinDouble === 0 || d.cabinSingle + d.cabinDouble * 2 >= d.people, {
+    message: "Chỗ nằm trên xe chưa đủ cho cả đoàn.",
+    path: ["cabinSingle"],
   });
 export type ComboBookingInput = z.infer<typeof comboBookingSchema>;
 

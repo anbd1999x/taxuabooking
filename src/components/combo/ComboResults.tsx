@@ -237,6 +237,11 @@ function ComboPlanCard({
   const [busId, setBusId] = useState(buses[0]?.serviceId ?? "");
   const bus = useMemo(() => buses.find((b) => b.serviceId === busId) ?? buses[0], [buses, busId]);
 
+  // Chỗ nằm xe cabin: mặc định ghép đôi tối đa, người lẻ nằm riêng. Khách chỉnh được.
+  const [cbDouble, setCbDouble] = useState(Math.floor(people / 2));
+  const [cbSingle, setCbSingle] = useState(people - Math.floor(people / 2) * 2);
+  const cabinCovered = cbSingle + cbDouble * 2;
+
   // Khách chọn ĐÚNG CĂN cho từng nhóm (nhóm còn nhiều căn hơn số cần). pick[gi] = mảng roomId đã chọn.
   const [pick, setPick] = useState<Record<number, string[]>>({});
   const pickedFor = (gi: number, g: ComboStayPlan["groups"][number]) =>
@@ -272,8 +277,10 @@ function ComboPlanCard({
   }, [plan]);
 
   const roomShare = Math.round(plan.roomCost / people);
-  const pricePerPerson = Math.max(0, roomShare + (bus?.farePerPerson ?? 0) - (plan.communal ? 0 : COMBO_DISCOUNT));
-  const total = pricePerPerson * people;
+  const fare = bus?.farePerPerson ?? 0;
+  const cabinCost = 2 * fare * (cbSingle + cbDouble); // mỗi buồng (đơn hoặc đôi) = 2×vé khứ hồi
+  const total = Math.max(0, roomShare * people + cabinCost - (plan.communal ? 0 : COMBO_DISCOUNT * people));
+  const pricePerPerson = people > 0 ? Math.round(total / people) : 0;
   const diff = budget != null ? pricePerPerson - budget : null;
 
   // Modal xem ảnh: giữ NHÓM đang mở + CĂN đang xem (ảnh/mô tả theo đúng căn đó).
@@ -317,6 +324,7 @@ function ComboPlanCard({
   async function book() {
     setErr("");
     if (!bus) { setErr("Vui lòng chọn xe cabin."); return; }
+    if (cabinCovered < people) { setErr(`Chỗ nằm trên xe mới đủ ${cabinCovered}/${people} người — thêm cabin đơn/đôi.`); return; }
     if (!name.trim()) { setErr("Vui lòng nhập họ tên."); return; }
     if (!/^0\d{9}$/.test(phone.replace(/\s/g, ""))) { setErr("Số điện thoại chưa đúng (10 số, bắt đầu bằng 0)."); return; }
     setSubmitting(true);
@@ -331,6 +339,8 @@ function ComboPlanCard({
           returnTripId: bus.returnTripId,
           origin: origin || null,
           people,
+          cabinSingle: cbSingle,
+          cabinDouble: cbDouble,
           customerName: name.trim(),
           phone: phone.trim(),
           note: note.trim() || null,
@@ -586,6 +596,32 @@ function ComboPlanCard({
                   <div className="flex justify-between gap-2"><span className="text-gray-500">Ngày</span><span className="font-bold text-ink">{checkIn} → {checkOut} · {nights} đêm</span></div>
                   <div className="mt-1 flex justify-between gap-2 border-t border-gray-200 pt-1.5"><span className="text-gray-500">Trọn gói</span><span className="text-right font-extrabold text-sunset-600">{vnd(pricePerPerson)}/khách · {vnd(total)} / {people} người</span></div>
                 </div>
+
+                {/* Chỗ nằm trên xe cabin: chọn nằm ghép (đôi) / nằm riêng (đơn) */}
+                <div className="flex flex-col gap-2.5 rounded-xl border border-gray-200 p-3.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[13px] font-bold text-ink">Chỗ nằm trên xe cabin</div>
+                    <div className={`text-xs font-bold ${cabinCovered < people ? "text-red-600" : "text-forest-700"}`}>Đã xếp {cabinCovered}/{people} người</div>
+                  </div>
+                  {([
+                    { label: "Cabin đôi · nằm ghép", sub: "2 người / buồng", value: cbDouble, set: setCbDouble },
+                    { label: "Cabin đơn · nằm riêng", sub: "1 người / buồng", value: cbSingle, set: setCbSingle },
+                  ] as const).map((r) => (
+                    <div key={r.label} className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="text-sm font-bold text-ink">{r.label}</div>
+                        <div className="text-xs text-gray-500">{r.sub} · {vnd(2 * fare)}/buồng</div>
+                      </div>
+                      <div className="flex flex-none items-center gap-2.5">
+                        <button type="button" onClick={() => r.set(Math.max(0, r.value - 1))} disabled={r.value <= 0} className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-lg font-bold text-ink disabled:opacity-40">−</button>
+                        <span className="w-5 text-center text-base font-extrabold text-ink">{r.value}</span>
+                        <button type="button" onClick={() => r.set(r.value + 1)} className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-lg font-bold text-ink">+</button>
+                      </div>
+                    </div>
+                  ))}
+                  <p className="text-[11px] leading-relaxed text-gray-400">Mỗi buồng = 2× vé khứ hồi. Nằm ghép rẻ hơn (2 người chung buồng); nằm riêng chiếm cả buồng nên tính bằng vé đôi.</p>
+                </div>
+
                 <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Họ và tên *" className="rounded-xl border border-gray-200 px-3.5 py-3 text-sm outline-none focus:border-forest-500" />
                 <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="Số điện thoại *" className="rounded-xl border border-gray-200 px-3.5 py-3 text-sm outline-none focus:border-forest-500" />
                 <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ghi chú (giờ đón, trẻ nhỏ…)" className="rounded-xl border border-gray-200 px-3.5 py-3 text-sm outline-none focus:border-forest-500" />

@@ -897,12 +897,22 @@ export async function createComboBooking(
       fare = f;
     }
   }
-  const pricePerPerson = planPricePerPerson(roomCost, communal, people, fare);
-  const total = pricePerPerson * people;
+  // Chỗ nằm xe cabin: mỗi BUỒNG round-trip = 2×vé khứ hồi (fare). Nằm ghép (đôi) = 2 người/buồng
+  // (= fare/người, như cũ); nằm riêng (đơn) = 1 người/buồng (= 2×fare/người). Client cũ (0/0) →
+  // tự xếp tối đa ghép đôi, người lẻ nằm riêng.
+  let nDouble = input.cabinDouble ?? 0;
+  let nSingle = input.cabinSingle ?? 0;
+  if (nSingle + nDouble === 0) {
+    nDouble = Math.floor(people / 2);
+    nSingle = people - nDouble * 2;
+  }
+  if (nSingle + nDouble * 2 < people) throw new Error("Chỗ nằm trên xe chưa đủ cho cả đoàn.");
+  const roomShare = Math.round(roomCost / people);
+  const busAmount = 2 * fare * (nSingle + nDouble); // mỗi buồng (đơn hoặc đôi) = 2×fare
+  const total = Math.max(0, roomShare * people + busAmount - (communal ? 0 : COMBO_DISCOUNT * people));
   // Tách tiền từng bên: bill về homestay = tiền phòng, bill về nhà xe = tiền vé.
   // (referencePrice = TỔNG khách trả, đã trừ giảm giá combo cho phòng thường.)
   const roomAmount = roomCost; // đã là tổng tiền phòng cả đoàn
-  const busAmount = fare * people;
   // Chiết khấu từng căn (snapshot) = tổng chiết khấu các phòng × đêm, fallback mức homestay.
   const comboRoomCommission = roomList.reduce(
     (n, r) => n + roomCommissionForNights(r, nights, toNumber(svc.roomCommission)),
@@ -925,7 +935,8 @@ export async function createComboBooking(
   const selectionLabel =
     `Combo: xe ${outbound.operatorName || busSvc?.title || "cabin"} (đi ${toDateKey(outbound.departureDate)} ${outbound.departureTime}, ` +
     `về ${toDateKey(ret.departureDate)} ${ret.departureTime}${origin ? `, đón tại ${origin}` : ""}) + ${svc.title} · ${roomsLabel}, ` +
-    `${nights.length} đêm (${toDateKey(checkIn)}→${toDateKey(to)}) · ${people} người`;
+    `${nights.length} đêm (${toDateKey(checkIn)}→${toDateKey(to)}) · ${people} người` +
+    ` · xe nằm: ${[nDouble ? `${nDouble} cabin đôi` : null, nSingle ? `${nSingle} cabin đơn` : null].filter(Boolean).join(" + ")}`;
 
   let code = generateBookingCode();
   for (let i = 0; i < 5; i++) {
@@ -954,7 +965,8 @@ export async function createComboBooking(
       roomIds: roomList.map((r) => r.id),
       cabinTripId: outbound.id,
       cabinReturnTripId: ret.id,
-      seatsSingle: people,
+      seatsSingle: nSingle,
+      seatsDouble: nDouble,
       selectionLabel,
       referencePrice: total,
       roomAmount,
