@@ -62,11 +62,13 @@ export function CabinBooking({ serviceId, operatorName, outbound, ret, phone, za
   const maxDouble = Math.min(...legs.map(legDouble));
 
   const priceDouble = outTrip?.priceDouble ?? null;
-  const total = useMemo(() => {
-    const leg = (t: CabinTripAvail | null) =>
-      !t ? 0 : single * t.priceSingle + double * (t.priceDouble ?? 0);
-    return leg(outTrip) + (retTrip ? leg(retTrip) : 0);
-  }, [outTrip, retTrip, single, double]);
+  // Giá MỖI VÉ theo hành trình đang đặt: khứ hồi = cộng cả 2 chiều, một chiều = chiều đó.
+  const unitSingle = (outTrip?.priceSingle ?? 0) + (roundTrip ? retTrip?.priceSingle ?? 0 : 0);
+  const unitDouble = priceDouble == null ? null : priceDouble + (roundTrip ? retTrip?.priceDouble ?? 0 : 0);
+  const total = useMemo(
+    () => single * unitSingle + double * (unitDouble ?? 0),
+    [single, double, unitSingle, unitDouble],
+  );
 
   const bookable = Boolean(outTrip) && (!roundTrip || Boolean(retTrip)) && single + double >= 1;
 
@@ -265,8 +267,8 @@ export function CabinBooking({ serviceId, operatorName, outbound, ret, phone, za
               <div className="flex flex-col gap-3">
                 <TicketStepper
                   label="Cabin đơn"
-                  sub="1 người / cabin"
-                  price={outTrip?.priceSingle ?? activeTrip.priceSingle}
+                  sub={roundTrip ? "1 người / cabin · khứ hồi" : "1 người / cabin · 1 chiều"}
+                  price={unitSingle}
                   value={single}
                   max={maxSingle}
                   onChange={setSingle}
@@ -275,8 +277,8 @@ export function CabinBooking({ serviceId, operatorName, outbound, ret, phone, za
                 {priceDouble != null && (
                   <TicketStepper
                     label="Cabin đôi"
-                    sub="2 người / cabin"
-                    price={priceDouble}
+                    sub={roundTrip ? "2 người / cabin · khứ hồi" : "2 người / cabin · 1 chiều"}
+                    price={unitDouble ?? 0}
                     value={double}
                     max={maxDouble}
                     onChange={setDouble}
