@@ -109,7 +109,7 @@ export function CabinScheduleEditor({
           <input type="checkbox" name="weekendsOnly" className="h-4 w-4 accent-forest-600" /> Chỉ cuối tuần
         </label>
         <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input type="checkbox" name="overwrite" className="h-4 w-4 accent-forest-600" /> Ghi đè chuyến đã có (cùng ngày &amp; giờ)
+          <input type="checkbox" name="overwrite" className="h-4 w-4 accent-forest-600" /> Ghi đè chuyến đã có (cùng ngày &amp; chiều — cập nhật cả giờ)
         </label>
       </div>
 

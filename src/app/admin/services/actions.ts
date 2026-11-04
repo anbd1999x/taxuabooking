@@ -1330,8 +1330,10 @@ export async function applyCabinSchedule(
   let updated = 0;
   let skipped = 0;
   for (const date of days) {
+    // Khớp theo NGÀY + CHIỀU (bỏ qua giờ): mỗi ngày chỉ 1 chuyến/chiều. Nhờ vậy đổi giờ
+    // vẫn GHI ĐÈ đúng chuyến cũ thay vì tạo trùng.
     const existing = await prisma.cabinTrip.findFirst({
-      where: { serviceId, departureDate: date, departureTime, direction },
+      where: { serviceId, departureDate: date, direction },
     });
     if (existing) {
       if (!overwrite) {
@@ -1341,7 +1343,7 @@ export async function applyCabinSchedule(
       await prisma.cabinTrip.update({
         where: { id: existing.id },
         data: {
-          seatsTotal, seatsAvailable, price, status, operatorName, route,
+          departureTime, seatsTotal, seatsAvailable, price, status, operatorName, route,
           priceDouble, seatsDoubleTotal, seatsDoubleAvailable,
         },
       });
