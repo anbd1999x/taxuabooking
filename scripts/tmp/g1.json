@@ -1,7 +1,0 @@
-[
- {"name":"cabin","match":"SVC CABIN","limit":16},
- {"name":"bepnhatao","match":"SVC HOMESTAY Bếp Nhà Táo","limit":16},
- {"name":"bepnhatao2","match":"SVC HOMESTAY Bếp Nhà Táo","skip":16,"limit":16},
- {"name":"taxuahill","match":"SVC HOMESTAY Tà Xùa Hill","limit":16},
- {"name":"taxuahill2","match":"SVC HOMESTAY Tà Xùa Hill","skip":16,"limit":16}
-]
