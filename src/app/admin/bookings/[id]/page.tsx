@@ -80,6 +80,15 @@ export default async function BookingDetailPage({
   ]);
 
   const cat = CATEGORIES[b.category];
+  // Ghi chú khách bị trộn thêm "Đón: … · Trả: … · Tạm tính: …" khi đặt cabin.
+  // Tách ra: điểm đón/trả khách tự chọn + ghi chú thật (sạch cho phần hiển thị).
+  const noteSegs = (b.note ?? "").split(" · ").map((s) => s.trim()).filter(Boolean);
+  const pickupChosen = noteSegs.find((s) => s.startsWith("Đón:"))?.slice(4).trim() || null;
+  const dropChosen = noteSegs.find((s) => s.startsWith("Trả:"))?.slice(4).trim() || null;
+  const customerNote =
+    noteSegs
+      .filter((s) => !s.startsWith("Đón:") && !s.startsWith("Trả:") && !s.startsWith("Tạm tính:"))
+      .join(" · ") || null;
   const price = toNumber(b.referencePrice);
   const collected = toNumber(b.amountCollected) ?? 0;
   const due = price != null ? Math.max(0, price - collected) : null;
@@ -135,6 +144,7 @@ export default async function BookingDetailPage({
     icTone: string;
     name: string;
     detail: string;
+    routeLines: string[];
     chips: string[];
     price: number | null;
     heldSide: "room" | "bus";
@@ -147,16 +157,27 @@ export default async function BookingDetailPage({
   ].filter(Boolean).join(" + ") || `${b.quantity} chỗ`;
 
   if (outTrip) {
+    // Lộ trình từng lượt: điểm đón → điểm trả của chuyến + ngày giờ khởi hành.
+    // Ưu tiên điểm khách tự chọn (lưu trong note) nếu khác lộ trình mặc định.
+    const outPickup = pickupChosen || outTrip.pickupPoint;
+    const routeLines = [
+      `${retTrip ? "Lượt đi · " : ""}${outPickup} → ${outTrip.dropoffPoint} · ${formatDate(outTrip.departureDate)} ${outTrip.departureTime}`,
+      ...(retTrip
+        ? [`Lượt về · ${retTrip.pickupPoint} → ${retTrip.dropoffPoint} · ${formatDate(retTrip.departureDate)} ${retTrip.departureTime}`]
+        : []),
+    ];
     parts.push({
       key: "bus",
       ic: "XE",
       icTone: "bg-sky-100 text-sky-700",
       name: `${outTrip.service.title}${retTrip ? " · Cabin khứ hồi" : " · Xe cabin"}`,
-      detail:
-        `Đi ${formatDate(outTrip.departureDate)} ${outTrip.departureTime}` +
-        (retTrip ? ` · Về ${formatDate(retTrip.departureDate)} ${retTrip.departureTime}` : "") +
-        ` · ${seatsLabel}`,
-      chips: [retTrip ? "Khứ hồi" : "Một chiều", `${b.quantity} khách`],
+      detail: seatsLabel,
+      routeLines,
+      chips: [
+        retTrip ? "Khứ hồi" : "Một chiều",
+        `${b.quantity} khách`,
+        ...(dropChosen ? [`Trả khách: ${dropChosen}`] : []),
+      ],
       price: b.category === "COMBO" ? toNumber(b.busAmount) : price,
       heldSide: "bus",
       held: b.heldBus,
@@ -178,6 +199,7 @@ export default async function BookingDetailPage({
       detail: isStay
         ? `Nhận ${formatDate(b.useDate)} · Trả ${formatDate(b.endDate!)} · ${b.nights} đêm · ${b.quantity} người`
         : `${formatDate(b.useDate)}${b.endDate ? ` → ${formatDate(b.endDate)}` : ""} · SL ${b.quantity}${b.selectionLabel && !rooms.length ? ` · ${b.selectionLabel}` : ""}`,
+      routeLines: [],
       chips: isStay ? [...roomChips, `${b.nights} đêm`, `${b.quantity} người`] : [cat.shortLabel],
       price: b.category === "COMBO" ? toNumber(b.roomAmount) : outTrip ? null : price,
       heldSide: "room",
@@ -193,6 +215,7 @@ export default async function BookingDetailPage({
       icTone: "bg-gray-100 text-gray-600",
       name: b.serviceTitle,
       detail: `${formatDate(b.useDate)}${b.endDate ? ` → ${formatDate(b.endDate)}` : ""} · SL ${b.quantity}${b.selectionLabel ? ` · ${b.selectionLabel}` : ""}`,
+      routeLines: [],
       chips: [cat.shortLabel],
       price,
       heldSide: "room",
@@ -244,7 +267,9 @@ export default async function BookingDetailPage({
   }
 
   // Văn bản sao chép.
-  const partLines = parts.map((p) => `- ${p.name}: ${p.detail}`).join("\n");
+  const partLines = parts
+    .map((p) => `- ${p.name}: ${[...p.routeLines, p.detail].filter(Boolean).join(" · ")}`)
+    .join("\n");
   const summaryText =
     `Đơn ${b.code} · ${b.customerName} · ${b.phone} · ${b.quantity} khách\n${partLines}\n` +
     `${price != null ? `Tổng ${formatPrice(price)}` : "Giá chờ xác nhận"} · ${payText}`;
@@ -409,7 +434,7 @@ export default async function BookingDetailPage({
               </div>
               <div>
                 <div className="text-xs text-gray-500">Ghi chú của khách</div>
-                <div className={`text-sm font-semibold ${b.note ? "text-ink" : "italic text-gray-400"}`}>{b.note || "Không có"}</div>
+                <div className={`text-sm font-semibold ${customerNote ? "text-ink" : "italic text-gray-400"}`}>{customerNote || "Không có"}</div>
               </div>
             </div>
           </section>
@@ -435,6 +460,16 @@ export default async function BookingDetailPage({
                     <div className={`flex h-10 w-10 flex-none items-center justify-center rounded-xl text-xs font-extrabold ${p.icTone}`}>{p.ic}</div>
                     <div className="min-w-0">
                       <div className="font-bold text-ink">{p.name}</div>
+                      {p.routeLines.length > 0 && (
+                        <div className="mt-1 flex flex-col gap-1">
+                          {p.routeLines.map((r) => (
+                            <div key={r} className="flex items-center gap-1.5 text-[13px] font-semibold text-ink">
+                              <span className="flex-none text-sky-500">📍</span>
+                              <span className="leading-snug">{r}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       <div className="mt-0.5 text-[13px] leading-relaxed text-gray-500">{p.detail}</div>
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         {p.chips.map((c) => (
