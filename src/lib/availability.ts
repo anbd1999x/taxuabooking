@@ -137,12 +137,18 @@ export type RoomCommissionFields = {
 };
 
 /**
- * Tổng chiết khấu CTV cho một phòng qua các đêm lưu trú.
- * Mỗi đêm = chiết-khấu-theo-thứ (nếu nhập) ?? mức cơ bản ?? 0.
+ * Tổng chiết khấu cho một phòng qua các đêm lưu trú.
+ * Mỗi đêm = chiết-khấu-theo-thứ (nếu nhập) ?? mức cơ bản của phòng (nếu nhập)
+ *           ?? chiết khấu mặc định cả homestay (`homeFallback`, nếu có) ?? 0.
  * daysOfWeek index theo getUTCDay(): 0=CN..6=T7.
  */
-export function roomCommissionForNights(r: RoomCommissionFields, nights: Date[]): number {
-  const base = toNumber(r.commission as never) ?? 0;
+export function roomCommissionForNights(
+  r: RoomCommissionFields,
+  nights: Date[],
+  homeFallback?: number | null,
+): number {
+  const base = toNumber(r.commission as never); // null nếu phòng không khai mức cơ bản
+  const home = homeFallback ?? null;
   const dow = [
     toNumber(r.commissionSun as never),
     toNumber(r.commissionMon as never),
@@ -153,7 +159,7 @@ export function roomCommissionForNights(r: RoomCommissionFields, nights: Date[])
     toNumber(r.commissionSat as never),
   ];
   let total = 0;
-  for (const d of nights) total += dow[d.getUTCDay()] ?? base;
+  for (const d of nights) total += dow[d.getUTCDay()] ?? base ?? home ?? 0;
   return total;
 }
 

@@ -31,7 +31,11 @@ export function StatsView({
       {/* Tổng quan */}
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Tổng đơn" value={String(t.orders)} sub={`${t.completed} hoàn thành`} />
-        <Stat label="Doanh thu (đã chốt)" value={formatPrice(t.revenue)} />
+        <Stat
+          label={t.discount > 0 ? "Thực nhận (sau chiết khấu)" : "Doanh thu (đã chốt)"}
+          value={formatPrice(t.revenue)}
+          sub={t.discount > 0 ? `đã trừ chiết khấu ${formatPrice(t.discount)}` : undefined}
+        />
         <Stat label="Đã thu" value={formatPrice(t.collected)} tone="ok" />
         <Stat label="Còn thiếu" value={formatPrice(t.outstanding)} tone="warn" sub={`${t.awaiting} đơn chờ TT`} />
       </div>

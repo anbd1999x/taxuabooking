@@ -32,6 +32,7 @@ interface Initial {
   contactOnly?: boolean;
   ownerId?: string | null;
   ctvCommission?: number | null;
+  roomCommission?: number | null;
   weekendPolicy?: string | null;
 }
 
@@ -197,6 +198,12 @@ export function ServiceForm({
         <span className="text-sm font-medium text-gray-600">Hoa hồng CTV / đơn (đ)</span>
         <MoneyInput name="ctvCommission" defaultValue={initial.ctvCommission ?? ""} placeholder="Để trống = dùng mức mặc định của CTV" className={inputCls} />
         <span className="mt-1 block text-xs text-gray-400">Ghi đè mức hoa hồng cố định mỗi đơn CTV đặt cho dịch vụ này. Để trống = dùng mức mặc định của từng CTV.</span>
+      </label>
+
+      <label className="block sm:max-w-sm">
+        <span className="text-sm font-medium text-gray-600">Chiết khấu mặc định cả homestay (đ/phòng/đêm)</span>
+        <MoneyInput name="roomCommission" defaultValue={initial.roomCommission ?? ""} placeholder="Để trống = chỉ dùng mức khai ở từng phòng" className={inputCls} />
+        <span className="mt-1 block text-xs text-gray-400">Dùng cho MỌI đơn khi phòng (và ngày) không khai riêng chiết khấu. Tiền chủ dịch vụ thực nhận = tiền phòng bán ra − chiết khấu.</span>
       </label>
 
       <label className="block sm:max-w-sm">

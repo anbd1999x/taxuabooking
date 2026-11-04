@@ -79,6 +79,7 @@ export async function createService(
     contactOnly: formData.get("contactOnly") === "on",
     ownerId: s(formData.get("ownerId")),
     ctvCommission: num(formData.get("ctvCommission")),
+    roomCommission: num(formData.get("roomCommission")),
     weekendPolicy: s(formData.get("weekendPolicy")),
   });
   if (!parsed.success) {
@@ -110,6 +111,7 @@ export async function createService(
       contactOnly: d.contactOnly ?? false,
       ownerId: d.ownerId ?? null,
       ctvCommission: d.ctvCommission ?? null,
+      roomCommission: d.roomCommission ?? null,
       weekendPolicy: d.weekendPolicy ?? "NONE",
     },
   });
@@ -146,6 +148,7 @@ export async function createServiceFull(
     contactOnly: formData.get("contactOnly") === "on",
     ownerId: s(formData.get("ownerId")),
     ctvCommission: num(formData.get("ctvCommission")),
+    roomCommission: num(formData.get("roomCommission")),
     weekendPolicy: s(formData.get("weekendPolicy")),
   });
   if (!parsed.success) {
@@ -228,6 +231,7 @@ export async function createServiceFull(
       contactOnly: d.contactOnly ?? false,
       ownerId: d.ownerId ?? null,
       ctvCommission: d.ctvCommission ?? null,
+      roomCommission: d.roomCommission ?? null,
       weekendPolicy: d.weekendPolicy ?? "NONE",
       roomTypes:
         rooms.length && d.category === "HOMESTAY"
@@ -319,6 +323,7 @@ export async function updateService(
     contactOnly: formData.get("contactOnly") === "on",
     ownerId: s(formData.get("ownerId")),
     ctvCommission: num(formData.get("ctvCommission")),
+    roomCommission: num(formData.get("roomCommission")),
     weekendPolicy: s(formData.get("weekendPolicy")),
   });
   if (!parsed.success) {
@@ -351,6 +356,7 @@ export async function updateService(
       contactOnly: d.contactOnly ?? false,
       ownerId: d.ownerId ?? null,
       ctvCommission: d.ctvCommission ?? null,
+      roomCommission: d.roomCommission ?? null,
       weekendPolicy: d.weekendPolicy ?? "NONE",
     },
   });

@@ -893,6 +893,11 @@ export async function createComboBooking(
   // (referencePrice = TỔNG khách trả, đã trừ giảm giá combo cho phòng thường.)
   const roomAmount = roomCost; // đã là tổng tiền phòng cả đoàn
   const busAmount = fare * people;
+  // Chiết khấu từng căn (snapshot) = tổng chiết khấu các phòng × đêm, fallback mức homestay.
+  const comboRoomCommission = roomList.reduce(
+    (n, r) => n + roomCommissionForNights(r, nights, toNumber(svc.roomCommission)),
+    0,
+  );
 
   // Nhãn phòng: gộp theo hạng — "2× Phòng đôi (P201, P202) + 1× Phòng đơn (P105)".
   const byType = new Map<string, { typeName: string; names: string[] }>();
@@ -946,7 +951,8 @@ export async function createComboBooking(
       busAmount,
       needsConfirmation: true,
       ctvId: ctvId ?? null,
-      commissionAmount: ctvId ? roomList.reduce((n, r) => n + roomCommissionForNights(r, nights), 0) : 0,
+      commissionAmount: ctvId ? comboRoomCommission : 0,
+      roomCommission: comboRoomCommission,
     },
   });
 

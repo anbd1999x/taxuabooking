@@ -139,7 +139,7 @@ export async function computeAvailability(
         availableUnits: free ? 1 : 0,
         pricePerUnit: nights.length > 0 && !hasIbNight ? total : null,
         count: nights.length,
-        commission: roomCommissionForNights(room, nights),
+        commission: roomCommissionForNights(room, nights, toNumber(service.roomCommission)),
       };
     });
 
@@ -328,6 +328,9 @@ export async function createBooking(
       ? stayCommission
       : await resolveCommission(service.id, ctvId)
     : 0;
+  // Chiết khấu từng căn (snapshot cho MỌI đơn homestay, kể cả khách tự đặt) → dùng để
+  // tính tiền chủ dịch vụ thực nhận = tiền phòng bán ra − chiết khấu.
+  const roomCommission = roomId ? stayCommission : null;
 
   // Mã yêu cầu không trùng.
   let code = generateBookingCode();
@@ -359,6 +362,7 @@ export async function createBooking(
       needsConfirmation,
       ctvId: ctvId ?? null,
       commissionAmount,
+      roomCommission,
     },
   });
 

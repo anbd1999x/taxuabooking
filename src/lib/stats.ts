@@ -15,6 +15,7 @@ export interface StatRow {
   outstanding: number; // còn thiếu (doanh thu − đã thu)
   commission: number; // hoa hồng CTV (đơn đã chốt)
   commissionUnpaid: number; // hoa hồng chưa trả CTV
+  discount: number; // tổng chiết khấu từng căn đã trừ khỏi doanh thu (phạm vi chủ dịch vụ)
 }
 
 export interface StatsResult {
@@ -24,7 +25,7 @@ export interface StatsResult {
 }
 
 function emptyRow(id: string, name: string): StatRow {
-  return { id, name, orders: 0, completed: 0, awaiting: 0, revenue: 0, collected: 0, outstanding: 0, commission: 0, commissionUnpaid: 0 };
+  return { id, name, orders: 0, completed: 0, awaiting: 0, revenue: 0, collected: 0, outstanding: 0, commission: 0, commissionUnpaid: 0, discount: 0 };
 }
 
 type Bk = {
@@ -35,6 +36,7 @@ type Bk = {
   ctvId: string | null;
   commissionAmount: unknown;
   commissionPaid: boolean;
+  roomCommission: unknown; // chiết khấu từng căn (trừ khỏi doanh thu khi xem ở phạm vi chủ dịch vụ)
 };
 
 /**
@@ -55,13 +57,23 @@ function comboSideView(
     ctvId: side === "home" ? b.ctvId : null,
     commissionAmount: side === "home" ? b.commissionAmount : null,
     commissionPaid: b.commissionPaid,
+    // Chiết khấu từng căn chỉ thuộc phần tiền phòng (phía homestay); vé xe không có.
+    roomCommission: side === "home" ? b.roomCommission : null,
   };
 }
 
-function accumulate(row: StatRow, b: Bk) {
+/**
+ * net = true (phạm vi một chủ dịch vụ): doanh thu / đã thu / còn thiếu tính theo
+ * TIỀN THỰC NHẬN = tiền bán ra − chiết khấu từng căn. net = false (admin tổng): giữ gross.
+ */
+function accumulate(row: StatRow, b: Bk, net = false) {
   if (b.status === "CANCELLED") return; // đơn huỷ không tính
-  const price = toNumber(b.referencePrice as never) ?? 0;
-  const collected = toNumber(b.amountCollected as never) ?? 0;
+  const gross = toNumber(b.referencePrice as never) ?? 0;
+  const discount = net ? toNumber(b.roomCommission as never) ?? 0 : 0;
+  const price = Math.max(0, gross - discount); // thực nhận của đơn
+  const rawCollected = toNumber(b.amountCollected as never) ?? 0;
+  // Tiền đã thu quy về thực nhận: không vượt quá tiền thực nhận của đơn.
+  const collected = net ? Math.min(rawCollected, price) : rawCollected;
   const isChot = b.status === "CONFIRMED" || b.status === "COMPLETED";
 
   row.orders += 1;
@@ -70,6 +82,7 @@ function accumulate(row: StatRow, b: Bk) {
   row.collected += collected;
   if (isChot) {
     row.revenue += price;
+    row.discount += discount;
     row.outstanding += Math.max(0, price - collected);
     if (b.ctvId) {
       const comm = toNumber(b.commissionAmount as never) ?? 0;
@@ -125,6 +138,7 @@ export async function computeStats(fromKey: string, toKey: string, ownerId?: str
       ctv: { select: { name: true } },
       commissionAmount: true,
       commissionPaid: true,
+      roomCommission: true,
       service: { select: { ownerId: true, owner: { select: { name: true } } } },
     },
   });
@@ -151,18 +165,21 @@ export async function computeStats(fromKey: string, toKey: string, ownerId?: str
   const byCtv = new Map<string, StatRow>();
   const byProvider = new Map<string, StatRow>();
 
+  // Phạm vi một chủ dịch vụ ⇒ tính theo tiền THỰC NHẬN (trừ chiết khấu từng căn).
+  const net = !!ownerId;
+
   for (const b of bookings) {
     const isCombo = b.category === "COMBO";
     // Phạm vi MỘT chủ dịch vụ: đơn combo chỉ tính PHẦN TIỀN của bên đó.
     const scoped =
       ownerId && isCombo ? comboSideView(b, b.service?.ownerId === ownerId ? "home" : "bus") : b;
 
-    accumulate(totals, scoped);
+    accumulate(totals, scoped, net);
 
     const ck = b.ctvId ?? "_none";
     const cn = b.ctv?.name ?? "Khách tự đặt (không qua CTV)";
     const crow = byCtv.get(ck) ?? emptyRow(ck, cn);
-    accumulate(crow, scoped);
+    accumulate(crow, scoped, net);
     byCtv.set(ck, crow);
 
     if (!ownerId) {

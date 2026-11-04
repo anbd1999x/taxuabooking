@@ -140,6 +140,9 @@ model Service {
   ownerId     String? // chủ dịch vụ (nhà xe / homestay)
   owner       AdminUser?      @relation("ServiceOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   ctvCommission Decimal?      @db.Decimal(12, 0) // hoa hồng CTV/đơn — ghi đè mức mặc định của CTV cho dịch vụ này
+  // Chiết khấu mặc định cho CẢ homestay (đ/phòng/đêm): dùng khi phòng (và ngày) không
+  // khai riêng chiết khấu. null = không có fallback (chỉ dùng mức khai ở từng phòng).
+  roomCommission Decimal?     @db.Decimal(12, 0)
   weekendPolicy WeekendPolicy @default(NONE) // chính sách bán cuối tuần theo cụm (homestay)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
@@ -475,6 +478,10 @@ model BookingRequest {
   amountCollected Decimal?    @db.Decimal(12, 0) // tổng tiền đã thu của khách (cọc + thanh toán)
   // Hoa hồng CTV (snapshot lúc đặt = Service.ctvCommission ?? CTV.commissionPerOrder ?? 0).
   commissionAmount Decimal?   @db.Decimal(12, 0)
+  // Chiết khấu từng căn (snapshot lúc đặt): tổng chiết-khấu-theo-phòng × số đêm của ĐƠN.
+  // Tiền chủ dịch vụ thực nhận = (tiền phòng bán ra) − roomCommission. Lưu cho MỌI đơn
+  // homestay/combo (kể cả khách tự đặt), không chỉ đơn có CTV.
+  roomCommission   Decimal?   @db.Decimal(12, 0)
   commissionPaid   Boolean    @default(false) // đã trả hoa hồng cho CTV chưa
   commissionPaidAt DateTime?
 

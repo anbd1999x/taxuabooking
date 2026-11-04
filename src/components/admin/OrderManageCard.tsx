@@ -30,6 +30,8 @@ export interface ManageBooking {
   displayPrice?: number | null;
   /** Chú thích cạnh giá (vd "Phần tiền phòng của combo"). */
   priceNote?: string | null;
+  /** Chiết khấu từng căn (đ) — tiền thực nhận = giá bán − chiết khấu. */
+  roomCommission?: unknown;
 }
 
 const PAY_LABEL = { UNPAID: "Chưa thu", DEPOSITED: "Đã cọc", PAID: "Đã thanh toán đủ" } as const;
@@ -50,6 +52,8 @@ export function OrderManageCard({ b, viewOnly = false }: { b: ManageBooking; vie
   const owed = Math.max(0, price - collected);
   const meta = BOOKING_STATUS_META[b.status];
   const comm = toNumber(b.commissionAmount as never) ?? 0;
+  const discount = toNumber(b.roomCommission as never) ?? 0; // chiết khấu từng căn
+  const net = Math.max(0, price - discount); // tiền thực nhận
 
   // Các bước vòng đời còn có thể chuyển tới.
   const steps: { status: string; label: string; cls: string }[] = [];
@@ -106,15 +110,24 @@ export function OrderManageCard({ b, viewOnly = false }: { b: ManageBooking; vie
         {viewOnly ? (
           <div className="mt-2 text-center text-xs">
             <div className="text-gray-400">{b.priceNote ? "Tiền của bạn trong đơn này" : "Giá đơn"}</div>
-            <div className="text-base font-bold text-ink">{formatPrice(price)}</div>
+            <div className="text-base font-bold text-ink">{formatPrice(discount > 0 ? net : price)}</div>
+            {discount > 0 && (
+              <div className="mt-0.5 text-[11px] text-gray-400">Giá bán {formatPrice(price)} − chiết khấu {formatPrice(discount)}</div>
+            )}
           </div>
         ) : (
           <>
             <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
-              <div><div className="text-gray-400">Giá đơn</div><div className="font-semibold text-ink">{formatPrice(price)}</div></div>
+              <div><div className="text-gray-400">Giá bán</div><div className="font-semibold text-ink">{formatPrice(price)}</div></div>
               <div><div className="text-gray-400">Đã thu</div><div className="font-semibold text-forest-700">{formatPrice(collected)}</div></div>
               <div><div className="text-gray-400">Còn thiếu</div><div className="font-semibold text-amber-700">{formatPrice(owed)}</div></div>
             </div>
+            {discount > 0 && (
+              <div className="mt-2 flex items-center justify-between rounded-lg bg-forest-50 px-2.5 py-1.5 text-xs">
+                <span className="text-gray-500">Chiết khấu từng căn <b className="text-amber-700">−{formatPrice(discount)}</b></span>
+                <span className="font-bold text-forest-700">Thực nhận {formatPrice(net)}</span>
+              </div>
+            )}
             <form action={setBookingPaymentStep} className="mt-2 flex flex-wrap items-end gap-1.5">
               <input type="hidden" name="id" value={b.id} />
               <label className="text-xs text-gray-500">Số tiền đã thu
