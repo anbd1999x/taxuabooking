@@ -2,6 +2,7 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/format";
 import { toDateKey, today } from "@/lib/dates";
+import { resolveRoomCommissions } from "@/lib/provider-commission";
 import { ProviderOrders, type ProviderOrderVM, type POStatus } from "@/components/admin/ProviderOrders";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +43,9 @@ export default async function ProviderOrdersPage() {
     prisma.service.findMany({ where: { ownerId: sub }, select: { title: true } }),
   ]);
 
+  // Chiết khấu hiệu lực mỗi đơn (snapshot, hoặc tính bù cho đơn cũ chưa backfill).
+  const discMap = await resolveRoomCommissions(bookings);
+
   const orders: ProviderOrderVM[] = bookings.map((b) => {
     const isCombo = b.category === "COMBO";
     const homeSide = b.service?.ownerId === sub;
@@ -70,7 +74,7 @@ export default async function ProviderOrdersPage() {
       collected = b.paymentStatus === "PAID" ? net0 : 0;
     } else {
       gross = isCombo ? toNumber(b.roomAmount) ?? 0 : toNumber(b.referencePrice) ?? 0;
-      discount = toNumber(b.roomCommission) ?? 0;
+      discount = discMap.get(b.id) ?? 0;
       mainTag = "PH";
       room = isCombo ? b.service?.title ?? b.serviceTitle : b.selectionLabel ?? b.service?.title ?? b.serviceTitle;
       moneyLabel = isCombo ? "Tiền phòng của bạn" : "Tiền của bạn";

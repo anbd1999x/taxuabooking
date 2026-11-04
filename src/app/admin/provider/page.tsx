@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { toNumber, formatPrice } from "@/lib/format";
+import { resolveRoomCommissions } from "@/lib/provider-commission";
 import { OrdersTable } from "../ctv/page";
 
 export const dynamic = "force-dynamic";
@@ -21,17 +22,20 @@ export default async function ProviderHome() {
     prisma.bookingRequest.findMany({
       // Doanh thu chỉ tính đơn đã chốt (xác nhận / hoàn thành).
       where: { service: { ownerId }, status: { in: ["CONFIRMED", "COMPLETED"] } },
-      select: { category: true, referencePrice: true, roomAmount: true, roomCommission: true, amountCollected: true, paymentStatus: true },
+      select: { id: true, category: true, referencePrice: true, roomAmount: true, roomCommission: true, roomId: true, roomIds: true, useDate: true, endDate: true, amountCollected: true, paymentStatus: true },
     }),
   ]);
+  // Chiết khấu hiệu lực mỗi đơn (snapshot, hoặc tính bù cho đơn cũ chưa backfill).
+  const discMap = await resolveRoomCommissions(all);
   // Đơn combo: doanh thu phía homestay = PHẦN TIỀN PHÒNG (không gộp tiền vé xe);
   // coi là đã thu khi khách thanh toán đủ (tiền combo do Tà Xùa Booking thu).
   // Tiền chủ dịch vụ THỰC NHẬN = tiền bán ra − chiết khấu từng căn.
   const grossOf = (b: (typeof all)[number]) =>
     b.category === "COMBO" ? toNumber(b.roomAmount) ?? 0 : toNumber(b.referencePrice) ?? 0;
-  const netOf = (b: (typeof all)[number]) => Math.max(0, grossOf(b) - (toNumber(b.roomCommission) ?? 0));
+  const discOf = (b: (typeof all)[number]) => discMap.get(b.id) ?? 0;
+  const netOf = (b: (typeof all)[number]) => Math.max(0, grossOf(b) - discOf(b));
   const total = all.reduce((n, b) => n + netOf(b), 0);
-  const discount = all.reduce((n, b) => n + (toNumber(b.roomCommission) ?? 0), 0);
+  const discount = all.reduce((n, b) => n + discOf(b), 0);
   const collected = all.reduce((n, b) => {
     const net = netOf(b);
     const raw = b.category === "COMBO" ? (b.paymentStatus === "PAID" ? net : 0) : toNumber(b.amountCollected) ?? 0;

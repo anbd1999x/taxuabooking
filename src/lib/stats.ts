@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "./prisma";
 import { parseDateOnly, addDays } from "./dates";
 import { toNumber } from "./format";
+import { resolveRoomCommissions } from "./provider-commission";
 
 /** Một dòng thống kê (tổng, theo CTV, hoặc theo chủ dịch vụ). */
 export interface StatRow {
@@ -126,6 +127,7 @@ export async function computeStats(fromKey: string, toKey: string, ownerId?: str
         : {}),
     },
     select: {
+      id: true,
       category: true,
       status: true,
       paymentStatus: true,
@@ -139,9 +141,20 @@ export async function computeStats(fromKey: string, toKey: string, ownerId?: str
       commissionAmount: true,
       commissionPaid: true,
       roomCommission: true,
+      roomId: true,
+      roomIds: true,
+      useDate: true,
+      endDate: true,
       service: { select: { ownerId: true, owner: { select: { name: true } } } },
     },
   });
+
+  // Phạm vi chủ dịch vụ: thay roomCommission bằng giá trị hiệu lực (snapshot, hoặc tính
+  // bù cho đơn cũ chưa backfill) để tiền thực nhận đúng ngay.
+  if (ownerId) {
+    const disc = await resolveRoomCommissions(bookings);
+    for (const b of bookings) (b as { roomCommission: unknown }).roomCommission = disc.get(b.id) ?? 0;
+  }
 
   // Chủ nhà xe của các đơn combo (tra theo chuyến đi) — cho bảng theo chủ dịch vụ.
   const comboTripIds = [
