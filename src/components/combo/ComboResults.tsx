@@ -88,7 +88,11 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
       e.score = 0.55 * sPrice + 0.25 * sAmen + 0.2 * sDist;
     }
 
+    // Ưu tiên: homestay Nổi bật (+ thứ tự ưu tiên) lên đầu, rồi mới tới sắp xếp đã chọn.
+    const prRank = (e: PlanEntry) => (e.home.featured ? (e.home.priorityOrder || 0) + 1 : 0);
     arr.sort((a, b) => {
+      const pr = prRank(b) - prRank(a);
+      if (pr !== 0) return pr;
       if (sort === "priceAsc") return a.bestPrice - b.bestPrice;
       if (sort === "priceDesc") return b.bestPrice - a.bestPrice;
       if (sort === "near") return distOf(a.home) - distOf(b.home) || a.bestPrice - b.bestPrice;

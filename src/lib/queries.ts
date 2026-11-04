@@ -386,7 +386,7 @@ export type HomestayCardStatus = "ok" | "low" | "full" | "none";
 async function getHomestayCardsImpl(fromKey?: string | null, toKey?: string | null) {
   const list = await prisma.service.findMany({
     where: { category: "HOMESTAY", published: true },
-    orderBy: [{ featured: "desc" }, { title: "asc" }],
+    orderBy: [{ featured: "desc" }, { priorityOrder: "desc" }, { title: "asc" }],
     include: {
       images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 1 },
       roomTypes: { select: { rooms: { select: { id: true, listPrice: true, salePrice: true } } } },
@@ -443,6 +443,7 @@ async function getHomestayCardsImpl(fromKey?: string | null, toKey?: string | nu
       priceOld: fromOld,
       cover: s.images[0]?.url ?? null,
       featured: s.featured,
+      priorityOrder: s.priorityOrder,
       cat,
       status,
       freeRooms,
@@ -466,7 +467,7 @@ const firstImageUrl = (items: { url: string }[]): string | null =>
 async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string | null) {
   const list = await prisma.service.findMany({
     where: { category: "HOMESTAY", published: true },
-    orderBy: [{ featured: "desc" }, { title: "asc" }],
+    orderBy: [{ featured: "desc" }, { priorityOrder: "desc" }, { title: "asc" }],
     include: {
       images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 1 },
       roomTypes: {
@@ -559,6 +560,7 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
           priceOld: first.priceOld,
           cover: first.cover,
           featured: s.featured,
+          priorityOrder: s.priorityOrder,
           cat,
           status,
           freeRooms: hasDates ? freeCount : g.length,

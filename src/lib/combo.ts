@@ -192,6 +192,8 @@ export interface ComboRoomOption {
   area: string | null;
   distanceKm: number | null; // cách trung tâm Tà Xùa (km)
   cover: string | null;
+  featured: boolean; // Nổi bật → ưu tiên lên đầu kết quả combo
+  priorityOrder: number; // thứ tự ưu tiên trong nhóm Nổi bật (số lớn hơn lên trước)
   roomTypeId: string;
   roomId: string;
   roomName: string;
@@ -266,6 +268,8 @@ export interface ComboHomeOption {
   area: string | null;
   distanceKm: number | null; // cách trung tâm Tà Xùa (km)
   cover: string | null;
+  featured: boolean; // Nổi bật → ưu tiên lên đầu kết quả combo
+  priorityOrder: number; // thứ tự ưu tiên trong nhóm Nổi bật (số lớn hơn lên trước)
   amenities: string[]; // nhãn tiện ích để hiển thị
   rooms: ComboRoomOption[]; // mọi phòng trống khớp tiêu chí (tham khảo)
   /** Phương án ghép phòng đủ chỗ cho cả đoàn, rẻ nhất trước (tối đa 3). */
@@ -563,7 +567,7 @@ export async function findComboMatches(input: {
   for (const r of rooms) {
     let h = homeMap.get(r.serviceId);
     if (!h) {
-      h = { serviceId: r.serviceId, slug: r.slug, title: r.title, area: r.area, distanceKm: r.distanceKm, cover: r.cover, amenities: [], rooms: [], plans: [], bestPricePerPerson: 0 };
+      h = { serviceId: r.serviceId, slug: r.slug, title: r.title, area: r.area, distanceKm: r.distanceKm, cover: r.cover, featured: r.featured, priorityOrder: r.priorityOrder, amenities: [], rooms: [], plans: [], bestPricePerPerson: 0 };
       homeMap.set(r.serviceId, h);
     }
     h.rooms.push(r);
@@ -587,7 +591,11 @@ export async function findComboMatches(input: {
     h.bestPricePerPerson = Math.min(...plans.map((p) => planPricePerPerson(p.roomCost, p.communal, people, cheapestFare)));
     homes.push(h);
   }
+  // Ưu tiên: homestay Nổi bật (+ thứ tự ưu tiên) lên đầu, rồi mới tới giá (gần ngân sách).
+  const prRank = (h: ComboHomeOption) => (h.featured ? (h.priorityOrder || 0) + 1 : 0);
   homes.sort((a, b) => {
+    const pr = prRank(b) - prRank(a);
+    if (pr !== 0) return pr;
     const da = budget != null ? Math.abs(a.bestPricePerPerson - budget) : a.bestPricePerPerson;
     const db = budget != null ? Math.abs(b.bestPricePerPerson - budget) : b.bestPricePerPerson;
     return da - db;
@@ -748,6 +756,8 @@ async function findRooms(
       area: s.area,
       distanceKm: s.distanceKm ?? null,
       cover: firstImageUrl(room.images) ?? (rt.imageUrl && !VIDEO_URL_RE.test(rt.imageUrl) ? rt.imageUrl : null) ?? s.images[0]?.url ?? null,
+      featured: s.featured,
+      priorityOrder: s.priorityOrder,
       roomTypeId: rt.id,
       roomId: room.id,
       roomName: `${rt.name} · ${room.name}`,

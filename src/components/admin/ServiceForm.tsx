@@ -34,6 +34,7 @@ interface Initial {
   ctvCommission?: number | null;
   roomCommission?: number | null;
   weekendPolicy?: string | null;
+  priorityOrder?: number | null;
 }
 
 const inputCls =
@@ -240,6 +241,18 @@ export function ServiceForm({
           <span className="text-sm text-gray-700">💬 Không quản lý lịch — khách nhắn tin nhận thông tin (luôn hiện khi tìm kiếm)</span>
         </label>
       </div>
+
+      <label className="block sm:max-w-sm">
+        <span className="text-sm font-medium text-gray-600">Thứ tự ưu tiên khi tìm kiếm</span>
+        <input
+          type="number"
+          name="priorityOrder"
+          defaultValue={initial.priorityOrder ?? 0}
+          min={0}
+          className={inputCls}
+        />
+        <span className="mt-1 block text-xs text-gray-400">Chỉ áp dụng khi tick “Dịch vụ nổi bật”. Trong kết quả tìm combo/homestay (khi còn chỗ/khớp tiêu chí), dịch vụ nổi bật được đẩy lên đầu — số càng lớn càng lên trước. 0 = không ưu tiên riêng.</span>
+      </label>
 
       {state.error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{state.error}</p>}
       {state.ok && <p className="rounded-lg bg-forest-50 px-3 py-2 text-sm text-forest-700">Đã lưu thành công.</p>}

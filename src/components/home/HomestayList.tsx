@@ -26,6 +26,7 @@ export interface HomestayCard {
   priceOld: number | null; // giá niêm yết gạch ngang khi đang giảm giá
   cover: string | null;
   featured: boolean;
+  priorityOrder: number;
   cat: string; // "Homestay" | "Bungalow"
   status: "ok" | "low" | "full" | "none";
   freeRooms: number;
@@ -328,6 +329,8 @@ export function HomestayList({
   // Khoảng cách tới trung tâm để sắp "gần trung tâm": thiếu số km nhưng khu vực là
   // "Trung tâm..." thì coi như 0; thiếu hẳn thì xếp cuối.
   const distOf = (x: HomestayCard) => x.distanceKm ?? (norm(x.area).includes("trung tam") ? 0 : Number.POSITIVE_INFINITY);
+  // Hạng ưu tiên: chỉ dịch vụ Nổi bật mới được ưu tiên; trong đó số thứ tự lớn hơn lên trước.
+  const prRank = (x: HomestayCard) => (x.featured ? (x.priorityOrder || 0) + 1 : 0);
   // Đủ chỗ cho cả đoàn (như combo): tính cả việc lấy NHIỀU phòng giống nhau cùng
   // loại — freeRooms = số phòng còn trống trong kỳ (chưa chọn ngày = tổng số phòng).
   const fitsGuests = (x: HomestayCard) => guests === 0 || x.capacity * x.freeRooms >= guests;
@@ -345,8 +348,10 @@ export function HomestayList({
   const hiddenFull = hasDates ? preFiltered.filter((x) => x.status === "full").length : 0;
   const items = preFiltered
     .filter((x) => !hasDates || x.status !== "full")
-    // Sắp theo tiêu chí đã chọn (sort ổn định — "rec" giữ thứ tự nổi bật từ server).
+    // Ưu tiên: dịch vụ Nổi bật (+ thứ tự ưu tiên) luôn lên đầu, rồi mới tới sắp xếp đã chọn.
     .sort((a, b) => {
+      const pr = prRank(b) - prRank(a);
+      if (pr !== 0) return pr;
       if (sort === "priceAsc") return (a.price > 0 ? a.price : Infinity) - (b.price > 0 ? b.price : Infinity);
       if (sort === "priceDesc") return b.price - a.price;
       if (sort === "near") return distOf(a) - distOf(b);

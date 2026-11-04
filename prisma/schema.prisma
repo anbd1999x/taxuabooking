@@ -129,6 +129,8 @@ model Service {
   contactPhone String?
   contactZalo String?
   featured    Boolean         @default(false)
+  // Thứ tự ưu tiên khi tìm kiếm (combo/homestay): trong nhóm "Nổi bật", số càng LỚN càng lên trước.
+  priorityOrder Int           @default(0)
   published   Boolean         @default(true)
   easyRoad    Boolean         @default(false) // đường dễ đi (dùng cho combo homestay)
   pool        Boolean         @default(false) // có hồ bơi (tiện ích homestay)

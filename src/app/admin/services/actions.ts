@@ -81,6 +81,7 @@ export async function createService(
     ctvCommission: num(formData.get("ctvCommission")),
     roomCommission: num(formData.get("roomCommission")),
     weekendPolicy: s(formData.get("weekendPolicy")),
+    priorityOrder: num(formData.get("priorityOrder")),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ." };
@@ -113,6 +114,7 @@ export async function createService(
       ctvCommission: d.ctvCommission ?? null,
       roomCommission: d.roomCommission ?? null,
       weekendPolicy: d.weekendPolicy ?? "NONE",
+      priorityOrder: d.priorityOrder ?? 0,
     },
   });
   if (d.category === "CABIN" && d.featured) await enforceSingleFeaturedCabin(created.id);
@@ -150,6 +152,7 @@ export async function createServiceFull(
     ctvCommission: num(formData.get("ctvCommission")),
     roomCommission: num(formData.get("roomCommission")),
     weekendPolicy: s(formData.get("weekendPolicy")),
+    priorityOrder: num(formData.get("priorityOrder")),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ." };
@@ -233,6 +236,7 @@ export async function createServiceFull(
       ctvCommission: d.ctvCommission ?? null,
       roomCommission: d.roomCommission ?? null,
       weekendPolicy: d.weekendPolicy ?? "NONE",
+      priorityOrder: d.priorityOrder ?? 0,
       roomTypes:
         rooms.length && d.category === "HOMESTAY"
           ? {
@@ -325,6 +329,7 @@ export async function updateService(
     ctvCommission: num(formData.get("ctvCommission")),
     roomCommission: num(formData.get("roomCommission")),
     weekendPolicy: s(formData.get("weekendPolicy")),
+    priorityOrder: num(formData.get("priorityOrder")),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ." };
@@ -358,6 +363,7 @@ export async function updateService(
       ctvCommission: d.ctvCommission ?? null,
       roomCommission: d.roomCommission ?? null,
       weekendPolicy: d.weekendPolicy ?? "NONE",
+      priorityOrder: d.priorityOrder ?? 0,
     },
   });
   if (d.category === "CABIN" && d.featured) await enforceSingleFeaturedCabin(id);
