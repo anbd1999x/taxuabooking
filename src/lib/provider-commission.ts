@@ -64,3 +64,50 @@ export async function resolveRoomCommissions(
   }
   return map;
 }
+
+/**
+ * Chiết khấu hiệu lực + NHÃN PHÒNG thực của mỗi đơn homestay/combo, trả map id →
+ * { discount, label }. Nạp TẤT CẢ phòng của các đơn (không chỉ đơn null snapshot) để
+ * dựng nhãn kiểu "Phòng đôi (P201) + Phòng đôi (P202)" như trang chi tiết admin.
+ */
+export async function resolveRoomInfo(
+  bookings: {
+    id: string;
+    roomCommission: unknown;
+    roomId: string | null;
+    roomIds: string[];
+    category: string;
+    useDate: Date;
+    endDate: Date | null;
+  }[],
+): Promise<Map<string, { discount: number; label: string }>> {
+  const out = new Map<string, { discount: number; label: string }>();
+  const stayBookings = bookings.filter(
+    (b) => (b.category === "HOMESTAY" || b.category === "COMBO") && (b.roomIds?.length || b.roomId),
+  );
+  const allRoomIds = new Set<string>();
+  for (const b of stayBookings) (b.roomIds?.length ? b.roomIds : b.roomId ? [b.roomId] : []).forEach((i) => allRoomIds.add(i));
+
+  const rooms = allRoomIds.size
+    ? await prisma.room.findMany({
+        where: { id: { in: [...allRoomIds] } },
+        include: { roomType: { include: { service: { select: { roomCommission: true } } } } },
+      })
+    : [];
+  const byId = new Map(rooms.map((r) => [r.id, r]));
+
+  for (const b of stayBookings) {
+    const ids = b.roomIds?.length ? b.roomIds : b.roomId ? [b.roomId] : [];
+    const rs = ids.map((id) => byId.get(id)).filter((r): r is NonNullable<typeof r> => !!r);
+    const label = rs.map((r) => `${r.roomType.name} (${r.name})`).join(" + ");
+    const snap = toNumber(b.roomCommission as never);
+    let discount = snap ?? 0;
+    if (snap == null) {
+      const checkout = b.endDate ?? addDays(b.useDate, 1);
+      const nights = enumerateNights(b.useDate, checkout);
+      discount = rs.reduce((n, r) => n + roomCommissionForNights(r, nights, toNumber(r.roomType.service.roomCommission)), 0);
+    }
+    out.set(b.id, { discount, label });
+  }
+  return out;
+}

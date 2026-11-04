@@ -316,7 +316,15 @@ export function ProviderOrders({
                   {n && (
                     <div onClick={() => doNext(o)} style={{ cursor: "pointer", textAlign: "center", fontSize: 14, fontWeight: 800, padding: "11px 14px", borderRadius: 12, background: n[2], color: "white", whiteSpace: "nowrap" }}>{n[0]}</div>
                   )}
-                  <div onClick={() => openOrder(o)} style={{ cursor: "pointer", textAlign: "center", fontSize: 13, fontWeight: 700, padding: "8px 12px", borderRadius: 12, border: "1.5px solid oklch(0.9 0.01 160)", whiteSpace: "nowrap" }}>Chi tiết</div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <div onClick={() => openOrder(o)} style={{ flex: 1, cursor: "pointer", textAlign: "center", fontSize: 13, fontWeight: 700, padding: "8px 12px", borderRadius: 12, border: "1.5px solid oklch(0.9 0.01 160)", whiteSpace: "nowrap" }}>Chi tiết</div>
+                    {!o.viewOnly && o.st === "cancel" && (
+                      <div onClick={() => run(advanceBookingStatus, { id: o.id, status: "NEW" }, "Đã khôi phục " + o.code)} style={{ cursor: "pointer", textAlign: "center", fontSize: 13, fontWeight: 700, padding: "8px 12px", borderRadius: 12, border: "1.5px solid oklch(0.9 0.01 160)", whiteSpace: "nowrap" }}>Khôi phục</div>
+                    )}
+                    {!o.viewOnly && o.st !== "cancel" && (
+                      <div onClick={() => { if (confirm("Huỷ đơn " + o.code + "? (khách huỷ / không tới)")) run(advanceBookingStatus, { id: o.id, status: "CANCELLED" }, "Đã huỷ " + o.code); }} style={{ cursor: "pointer", textAlign: "center", fontSize: 13, fontWeight: 700, padding: "8px 12px", borderRadius: 12, border: "1.5px solid oklch(0.9 0.04 28)", color: "oklch(0.5 0.18 28)", whiteSpace: "nowrap" }}>Huỷ</div>
+                    )}
+                  </div>
                 </div>
               </div>
               {o.ctv && (
@@ -390,7 +398,7 @@ function Drawer({
   const quick: [string, number][] = rem > 0 && o.st !== "cancel" && !o.viewOnly
     ? ([["Cọc 30%", Math.round((o.net * 0.3) / 10000) * 10000], ["Cọc 50%", Math.round((o.net * 0.5) / 10000) * 10000], ["Thu đủ " + K(rem), rem]] as [string, number][]).filter((x) => x[1] > 0 && x[1] <= rem)
     : [];
-  const canCancel = o.st !== "cancel" && o.st !== "paid" && !o.viewOnly;
+  const canCancel = o.st !== "cancel" && !o.viewOnly;
   const drawerNext = o.st === "new" ? "Xác nhận giữ phòng" : o.st === "cancel" ? "Khôi phục đơn" : "";
 
   return (
