@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/format";
 import { toDateKey, today } from "@/lib/dates";
 import { resolveRoomInfo } from "@/lib/provider-commission";
+import { providerUnlocked } from "@/lib/booking-flow";
 import { ProviderOrders, type ProviderOrderVM, type POStatus } from "@/components/admin/ProviderOrders";
 
 export const dynamic = "force-dynamic";
@@ -14,15 +15,17 @@ const two = (n: number) => String(n).padStart(2, "0");
 
 function mapStatus(status: string, pay: string): POStatus {
   if (status === "CANCELLED") return "cancel";
+  if (status === "COMPLETED") return "done";
   if (pay === "PAID") return "paid";
   if (pay === "DEPOSITED") return "dep";
-  if (status === "CONFIRMED" || status === "COMPLETED") return "held";
+  if (status === "CONFIRMED") return "held";
   return "new";
 }
 
 export default async function ProviderOrdersPage() {
   const session = await getSession();
   const sub = session!.sub;
+  const isAdmin = session!.role === "ADMIN";
 
   // Nhà xe cabin: đơn COMBO gắn serviceId homestay nhưng đi qua CHUYẾN của nhà xe.
   const myTrips = await prisma.cabinTrip.findMany({
@@ -57,7 +60,10 @@ export default async function ProviderOrdersPage() {
       (b.nights ? ` · ${b.nights} đêm` : "") +
       ` · ${b.quantity} người`;
 
-    let gross: number, discount: number, mainTag: "PH" | "XE", room: string, moneyLabel: string, showBusLine: boolean, canStatus: boolean, canPay: boolean, busLabel: string, busPrice: number, collected: number;
+    let gross: number, discount: number, mainTag: "PH" | "XE", room: string, moneyLabel: string, showBusLine: boolean, canStatus: boolean, canPay: boolean, canCancel: boolean, busLabel: string, busPrice: number, collected: number;
+
+    // Chủ dịch vụ chỉ được thao tác sau khi SÀN đã xác nhận + ghi nhận cọc.
+    const unlocked = providerUnlocked(b.status, b.paymentStatus);
 
     if (isCombo && !homeSide) {
       // Phía nhà xe: chỉ phần tiền vé, thuần xem (phòng & trạng thái do chủ homestay/sàn lo).
@@ -69,6 +75,7 @@ export default async function ProviderOrdersPage() {
       showBusLine = false;
       canStatus = false;
       canPay = false;
+      canCancel = false;
       busLabel = "";
       busPrice = 0;
       const net0 = gross;
@@ -82,9 +89,11 @@ export default async function ProviderOrdersPage() {
       room = info?.label || b.selectionLabel || b.service?.title || b.serviceTitle;
       moneyLabel = isCombo ? "Tiền phòng của bạn" : "Tiền của bạn";
       showBusLine = isCombo;
-      // Chủ homestay: luôn được giữ phòng/huỷ. Combo: khoá thu tiền (sàn thu), còn lại được.
-      canStatus = true;
-      canPay = !isCombo;
+      // SÀN (admin) xác nhận & ghi cọc; chủ dịch vụ chỉ mở khoá sau khi đơn đã xác nhận + có cọc.
+      // Khi đó: thu nốt (không combo — sàn thu combo) → hoàn thành. Huỷ: chỉ sàn.
+      canStatus = isAdmin ? true : unlocked;
+      canPay = !isCombo && (isAdmin ? true : unlocked);
+      canCancel = isAdmin;
       busLabel = isCombo ? b.selectionLabel ?? "Xe cabin trong combo" : "";
       busPrice = isCombo ? toNumber(b.busAmount) ?? 0 : 0;
       const net0 = Math.max(0, gross - discount);
@@ -102,6 +111,7 @@ export default async function ProviderOrdersPage() {
       combo: isCombo,
       canStatus,
       canPay,
+      canCancel,
       name: b.customerName,
       phone: b.phone,
       ciKey: toDateKey(ci),

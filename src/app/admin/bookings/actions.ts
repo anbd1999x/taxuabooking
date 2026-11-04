@@ -10,6 +10,7 @@ import { bookingStatusSchema } from "@/lib/validation";
 import { generateBookingCode } from "@/lib/utils";
 import { BOOKING_STATUS_META } from "@/lib/constants";
 import { adjustInventory, assignRoomsForBooking, statusHoldsInventory } from "@/lib/inventory";
+import { canRoleAct, type BookingRole } from "@/lib/booking-flow";
 
 export interface BookingActionState {
   ok?: boolean;
@@ -27,17 +28,21 @@ const REVALIDATE = [
   "/admin/availability",
 ];
 
-/** Kiểm tra quyền thao tác một đơn: ADMIN toàn quyền; PROVIDER chỉ đơn của dịch vụ mình. */
-async function canManage(bookingId: string): Promise<boolean> {
+/**
+ * Kiểm tra quyền thao tác một đơn, trả về VAI TRÒ (để gate theo giai đoạn) hoặc null.
+ * ADMIN: mọi đơn. PROVIDER: chỉ đơn thuộc dịch vụ mình sở hữu. CTV/khác: null.
+ * (Giá trị trả về vẫn dùng được như boolean: null = không có quyền.)
+ */
+async function canManage(bookingId: string): Promise<BookingRole | null> {
   const session = await getSession();
-  if (!session) return false;
-  if (session.role === "ADMIN") return true;
-  if (session.role !== "PROVIDER") return false;
+  if (!session) return null;
+  if (session.role === "ADMIN") return "ADMIN";
+  if (session.role !== "PROVIDER") return null;
   const b = await prisma.bookingRequest.findUnique({
     where: { id: bookingId },
     select: { service: { select: { ownerId: true } } },
   });
-  return !!b && b.service?.ownerId === session.sub;
+  return b && b.service?.ownerId === session.sub ? "PROVIDER" : null;
 }
 
 /** Số tiền (đồng) từ ô nhập; rỗng ⇒ null. */
@@ -56,10 +61,16 @@ export async function setBookingPaymentStep(formData: FormData): Promise<void> {
   const id = formData.get("id") ? String(formData.get("id")) : "";
   const status = String(formData.get("status") ?? "");
   if (!id || !["UNPAID", "DEPOSITED", "PAID"].includes(status)) return;
-  if (!(await canManage(id))) return;
+  const role = await canManage(id);
+  if (!role) return;
 
-  const b = await prisma.bookingRequest.findUnique({ where: { id }, select: { referencePrice: true } });
+  const b = await prisma.bookingRequest.findUnique({
+    where: { id },
+    select: { referencePrice: true, status: true, paymentStatus: true },
+  });
   if (!b) return;
+  // Chủ dịch vụ chỉ được ghi nhận thu tiền sau khi đơn đã xác nhận + đã có cọc (sàn thu cọc).
+  if (!canRoleAct(role, b.status, b.paymentStatus, "pay")) return;
   const entered = money(formData.get("amountCollected"));
 
   let amountCollected: number | null = null;
@@ -86,13 +97,16 @@ export async function setBookingPaymentStep(formData: FormData): Promise<void> {
 export async function advanceBookingStatus(formData: FormData): Promise<void> {
   const id = formData.get("id") ? String(formData.get("id")) : "";
   const status = String(formData.get("status") ?? "");
-  if (!id || !["NEW", "CONFIRMED", "COMPLETED", "CANCELLED"].includes(status)) return;
-  if (!(await canManage(id))) return;
+  if (!id || !["NEW", "CONTACTING", "CONFIRMED", "COMPLETED", "CANCELLED"].includes(status)) return;
+  const role = await canManage(id);
+  if (!role) return;
   const newStatus = status as BookingStatus;
 
   await prisma.$transaction(async (tx) => {
     const booking = await tx.bookingRequest.findUnique({ where: { id } });
     if (!booking) return;
+    // Gate theo vai trò: chủ dịch vụ không xác nhận/hủy; chỉ hoàn thành đơn đã thu đủ.
+    if (!canRoleAct(role, booking.status, booking.paymentStatus, "status", newStatus)) return;
     const shouldHold = statusHoldsInventory(newStatus);
     let inventoryApplied = booking.inventoryApplied;
     if (shouldHold && !booking.inventoryApplied) {
@@ -185,11 +199,14 @@ export async function bulkUpdateBookingStatus(
 
   let done = 0;
   for (const id of ids.slice(0, 100).map(String)) {
-    if (!(await canManage(id))) continue;
+    const role = await canManage(id);
+    if (!role) continue;
     try {
       await prisma.$transaction(async (tx) => {
         const booking = await tx.bookingRequest.findUnique({ where: { id } });
         if (!booking || booking.status === status) return;
+        // Chủ dịch vụ: chỉ được hoàn thành đơn đã thu đủ (không xác nhận/hủy hàng loạt).
+        if (!canRoleAct(role, booking.status, booking.paymentStatus, "status", status)) return;
 
         const shouldHold = statusHoldsInventory(status);
         let inventoryApplied = booking.inventoryApplied;
@@ -240,7 +257,8 @@ export async function saveBookingStage(
     return { error: "Dữ liệu không hợp lệ." };
   }
   if (status === "CANCELLED" && !cancelReason) return { error: "Chọn lý do huỷ trước khi lưu." };
-  if (!(await canManage(id))) return { error: "Không có quyền thao tác đơn này." };
+  const role = await canManage(id);
+  if (!role) return { error: "Không có quyền thao tác đơn này." };
   const by = await sessionName();
 
   try {
@@ -248,6 +266,9 @@ export async function saveBookingStage(
       const booking = await tx.bookingRequest.findUnique({ where: { id } });
       if (!booking) throw new Error("Không tìm thấy yêu cầu.");
       if (booking.status === status && status !== "CANCELLED") return;
+      if (!canRoleAct(role, booking.status, booking.paymentStatus, "status", status)) {
+        throw new Error("Chủ dịch vụ không có quyền chuyển sang trạng thái này.");
+      }
 
       const shouldHold = statusHoldsInventory(status);
       let inventoryApplied = booking.inventoryApplied;
@@ -296,13 +317,17 @@ export async function recordBookingPayment(
   const mode = String(formData.get("mode") ?? "add");
   const method = String(formData.get("method") ?? "Chuyển khoản").slice(0, 50);
   if (!id) return { error: "Dữ liệu không hợp lệ." };
-  if (!(await canManage(id))) return { error: "Không có quyền thao tác đơn này." };
+  const role = await canManage(id);
+  if (!role) return { error: "Không có quyền thao tác đơn này." };
 
   const b = await prisma.bookingRequest.findUnique({
     where: { id },
-    select: { referencePrice: true, amountCollected: true },
+    select: { referencePrice: true, amountCollected: true, status: true, paymentStatus: true },
   });
   if (!b) return { error: "Không tìm thấy yêu cầu." };
+  if (!canRoleAct(role, b.status, b.paymentStatus, "pay")) {
+    return { error: "Chủ dịch vụ chỉ ghi nhận thu tiền sau khi đơn đã xác nhận & có cọc." };
+  }
   const price = toNumber(b.referencePrice);
   const collected = toNumber(b.amountCollected) ?? 0;
 
@@ -363,9 +388,13 @@ export async function toggleBookingHeld(
   const side = String(formData.get("side") ?? "");
   const label = String(formData.get("label") ?? "").slice(0, 200);
   if (!id || !["room", "bus"].includes(side)) return { error: "Dữ liệu không hợp lệ." };
-  if (!(await canManage(id))) return { error: "Không có quyền thao tác đơn này." };
-  const b = await prisma.bookingRequest.findUnique({ where: { id }, select: { heldRoom: true, heldBus: true } });
+  const role = await canManage(id);
+  if (!role) return { error: "Không có quyền thao tác đơn này." };
+  const b = await prisma.bookingRequest.findUnique({ where: { id }, select: { heldRoom: true, heldBus: true, status: true, paymentStatus: true } });
   if (!b) return { error: "Không tìm thấy yêu cầu." };
+  if (!canRoleAct(role, b.status, b.paymentStatus, "held")) {
+    return { error: "Chủ dịch vụ chỉ thao tác sau khi đơn đã xác nhận & có cọc." };
+  }
   const next = side === "room" ? !b.heldRoom : !b.heldBus;
   await prisma.bookingRequest.update({
     where: { id },

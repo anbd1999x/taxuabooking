@@ -9,7 +9,7 @@ import {
 } from "@/app/admin/bookings/actions";
 
 /* Trạng thái gộp (đơn + thanh toán) để hiển thị theo thiết kế "Chủ dịch vụ - Đơn". */
-export type POStatus = "new" | "held" | "dep" | "paid" | "cancel";
+export type POStatus = "new" | "held" | "dep" | "paid" | "done" | "cancel";
 
 export interface ProviderOrderVM {
   id: string;
@@ -19,8 +19,9 @@ export interface ProviderOrderVM {
   st: POStatus;
   src: "web" | "ctv";
   combo: boolean;
-  canStatus: boolean; // được đổi trạng thái (giữ phòng/huỷ/khôi phục) — chủ phần dịch vụ
-  canPay: boolean; // được ghi nhận thu tiền — khoá với combo (sàn thu)
+  canStatus: boolean; // được đổi trạng thái (thu nốt/hoàn thành) — chỉ sau khi sàn xác nhận + có cọc
+  canPay: boolean; // được ghi nhận thu tiền — khoá với combo (sàn thu) & trước khi mở khoá
+  canCancel: boolean; // được huỷ/khôi phục đơn — chỉ SÀN (admin)
   name: string;
   phone: string;
   ciKey: string; // yyyy-mm-dd ngày nhận phòng (lọc/sắp xếp)
@@ -53,14 +54,17 @@ const ST: Record<POStatus, { label: string; bg: string; fg: string; dot: string 
   held: { label: "Đã giữ phòng", bg: "oklch(0.95 0.03 250)", fg: "oklch(0.42 0.12 250)", dot: "oklch(0.58 0.14 250)" },
   dep: { label: "Đã cọc", bg: "oklch(0.95 0.04 300)", fg: "oklch(0.45 0.13 300)", dot: "oklch(0.58 0.14 300)" },
   paid: { label: "Đã thanh toán đủ", bg: "oklch(0.94 0.05 155)", fg: "oklch(0.38 0.1 155)", dot: "oklch(0.55 0.13 155)" },
+  done: { label: "Hoàn thành", bg: "oklch(0.93 0.03 155)", fg: "oklch(0.33 0.08 155)", dot: "oklch(0.45 0.1 155)" },
   cancel: { label: "Đã huỷ", bg: "oklch(0.94 0 0)", fg: "oklch(0.45 0 0)", dot: "oklch(0.7 0 0)" },
 };
 
 // Nút bước kế tiếp theo trạng thái: [nhãn, hành động, màu nền]. 'pay' = mở drawer thu tiền.
-const NEXT: Partial<Record<POStatus, [string, "held" | "pay", string]>> = {
+// 'held' = xác nhận giữ phòng (SÀN); 'complete' = hoàn thành (chủ dịch vụ, sau khi thu đủ).
+const NEXT: Partial<Record<POStatus, [string, "held" | "pay" | "complete", string]>> = {
   new: ["Xác nhận giữ phòng", "held", "oklch(0.68 0.18 45)"],
   held: ["Ghi nhận cọc", "pay", "oklch(0.58 0.14 250)"],
   dep: ["Thu nốt tiền", "pay", "oklch(0.58 0.14 300)"],
+  paid: ["Hoàn thành đơn", "complete", "oklch(0.45 0.1 155)"],
 };
 
 const TAB_DEFS: { k: string; name: string; f: (o: ProviderOrderVM) => boolean; dot?: string }[] = [
@@ -69,6 +73,7 @@ const TAB_DEFS: { k: string; name: string; f: (o: ProviderOrderVM) => boolean; d
   { k: "held", name: "Đã giữ phòng", f: (o) => o.st === "held" },
   { k: "dep", name: "Đã cọc", f: (o) => o.st === "dep" },
   { k: "paid", name: "Đã thanh toán đủ", f: (o) => o.st === "paid" },
+  { k: "done", name: "Hoàn thành", f: (o) => o.st === "done" },
   { k: "cancel", name: "Đã huỷ", f: (o) => o.st === "cancel" },
   { k: "all", name: "Tất cả", f: () => true, dot: G },
 ];
@@ -158,10 +163,10 @@ export function ProviderOrders({
   }
 
   // Nút bước kế tiếp hợp lệ theo quyền: 'held' cần quyền đổi trạng thái, 'pay' cần quyền thu tiền.
-  function nextOf(o: ProviderOrderVM): [string, "held" | "pay", string] | undefined {
+  function nextOf(o: ProviderOrderVM): [string, "held" | "pay" | "complete", string] | undefined {
     const n = NEXT[o.st];
     if (!n) return undefined;
-    if (n[1] === "held") return o.canStatus ? n : undefined;
+    if (n[1] === "held" || n[1] === "complete") return o.canStatus ? n : undefined;
     return o.canPay ? n : undefined;
   }
 
@@ -169,6 +174,7 @@ export function ProviderOrders({
     const n = nextOf(o);
     if (!n) return;
     if (n[1] === "held") run(advanceBookingStatus, { id: o.id, status: "CONFIRMED" }, "Đã xác nhận giữ phòng " + o.code);
+    else if (n[1] === "complete") run(advanceBookingStatus, { id: o.id, status: "COMPLETED" }, "Đã hoàn thành " + o.code);
     else openOrder(o, true);
   }
 
@@ -327,10 +333,10 @@ export function ProviderOrders({
                   )}
                   <div style={{ display: "flex", gap: 6 }}>
                     <div onClick={() => openOrder(o)} style={{ flex: 1, cursor: "pointer", textAlign: "center", fontSize: 13, fontWeight: 700, padding: "8px 12px", borderRadius: 12, border: "1.5px solid oklch(0.9 0.01 160)", whiteSpace: "nowrap" }}>Chi tiết</div>
-                    {o.canStatus && o.st === "cancel" && (
+                    {o.canCancel && o.st === "cancel" && (
                       <div onClick={() => run(advanceBookingStatus, { id: o.id, status: "NEW" }, "Đã khôi phục " + o.code)} style={{ cursor: "pointer", textAlign: "center", fontSize: 13, fontWeight: 700, padding: "8px 12px", borderRadius: 12, border: "1.5px solid oklch(0.9 0.01 160)", whiteSpace: "nowrap" }}>Khôi phục</div>
                     )}
-                    {o.canStatus && o.st !== "cancel" && (
+                    {o.canCancel && o.st !== "cancel" && (
                       <div onClick={() => { if (confirm("Huỷ đơn " + o.code + "? (khách huỷ / không tới)")) run(advanceBookingStatus, { id: o.id, status: "CANCELLED" }, "Đã huỷ " + o.code); }} style={{ cursor: "pointer", textAlign: "center", fontSize: 13, fontWeight: 700, padding: "8px 12px", borderRadius: 12, border: "1.5px solid oklch(0.9 0.04 28)", color: "oklch(0.5 0.18 28)", whiteSpace: "nowrap" }}>Huỷ</div>
                     )}
                   </div>
@@ -397,7 +403,7 @@ function Drawer({
   const srcBg = o.src === "ctv" ? "oklch(0.96 0.04 80)" : "oklch(0.96 0.01 160)";
   const srcFg = o.src === "ctv" ? "oklch(0.48 0.12 60)" : "oklch(0.42 0.03 160)";
   const order: POStatus[] = ["new", "held", "dep", "paid"];
-  const idx = order.indexOf(o.st);
+  const idx = o.st === "done" ? 3 : order.indexOf(o.st);
   const steps = ["Đặt phòng", "Giữ phòng", "Đã cọc", "Thanh toán đủ"].map((name, i) => ({
     name,
     c: o.st === "cancel" ? "oklch(0.88 0 0)" : i <= idx ? st.dot : "oklch(0.9 0.01 160)",
@@ -407,8 +413,9 @@ function Drawer({
   const quick: [string, number][] = rem > 0 && o.st !== "cancel" && o.canPay
     ? ([["Cọc 30%", Math.round((o.net * 0.3) / 10000) * 10000], ["Cọc 50%", Math.round((o.net * 0.5) / 10000) * 10000], ["Thu đủ " + K(rem), rem]] as [string, number][]).filter((x) => x[1] > 0 && x[1] <= rem)
     : [];
-  const canCancel = o.st !== "cancel" && o.canStatus;
-  const drawerNext = o.canStatus ? (o.st === "new" ? "Xác nhận giữ phòng" : o.st === "cancel" ? "Khôi phục đơn" : "") : "";
+  const canCancel = o.st !== "cancel" && o.canCancel;
+  const drawerNext = o.st === "new" && o.canStatus ? "Xác nhận giữ phòng" : o.st === "cancel" && o.canCancel ? "Khôi phục đơn" : "";
+  const drawerComplete = o.st === "paid" && o.canStatus;
 
   return (
     <>
@@ -524,13 +531,16 @@ function Drawer({
           </div>
         </div>
 
-        {(canCancel || drawerNext) && (
+        {(canCancel || drawerNext || drawerComplete) && (
           <div style={{ padding: "12px 20px", background: "white", borderTop: "1px solid oklch(0.93 0.01 160)", display: "flex", gap: 8 }}>
             {canCancel && (
               <div onClick={() => { if (confirm("Huỷ đơn " + o.code + "?")) run(advanceBookingStatus, { id: o.id, status: "CANCELLED" }, "Đã huỷ " + o.code); }} style={{ cursor: "pointer", fontSize: 14, fontWeight: 800, padding: "12px 16px", borderRadius: 12, color: "oklch(0.5 0.18 28)", border: "1.5px solid oklch(0.9 0.04 28)", whiteSpace: "nowrap" }}>Huỷ đơn</div>
             )}
             {drawerNext && (
               <div onClick={() => run(advanceBookingStatus, { id: o.id, status: o.st === "new" ? "CONFIRMED" : "NEW" }, o.st === "new" ? "Đã xác nhận giữ phòng" : "Đã khôi phục đơn")} style={{ cursor: "pointer", flex: 1, textAlign: "center", fontSize: 15, fontWeight: 800, padding: "12px 16px", borderRadius: 12, background: o.st === "new" ? "oklch(0.68 0.18 45)" : G, color: "white" }}>{drawerNext}</div>
+            )}
+            {drawerComplete && (
+              <div onClick={() => run(advanceBookingStatus, { id: o.id, status: "COMPLETED" }, "Đã hoàn thành " + o.code)} style={{ cursor: "pointer", flex: 1, textAlign: "center", fontSize: 15, fontWeight: 800, padding: "12px 16px", borderRadius: 12, background: "oklch(0.45 0.1 155)", color: "white" }}>Hoàn thành đơn</div>
             )}
           </div>
         )}
