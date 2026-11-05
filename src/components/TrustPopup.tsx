@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { telHref, zaloHref, type TrustPopupConfig, type TrustPerson } from "@/lib/trust-popup";
+import { OFFICIAL_SITES, telHref, zaloHref, type TrustPopupConfig, type TrustPerson } from "@/lib/trust-popup";
 
 /** Key localStorage: khách tick "không hiện lại trong 7 ngày". */
 const HIDE_KEY = "txb-trust-popup";
@@ -202,7 +202,61 @@ export function TrustPopup({ config }: { config: TrustPopupConfig }) {
               maxWidth: 300,
             }}
           >
-            Tụi mình trực tiếp nghe máy, tư vấn và giữ chỗ cho từng khách. Liên hệ ai cũng được.
+            Hai đứa mình trực tiếp nghe máy, tư vấn và giữ chỗ cho từng khách. Liên hệ ai cũng được.
+          </div>
+
+          {/* Website chính thức duy nhất */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 8,
+              width: "100%",
+              maxWidth: 340,
+              paddingTop: 14,
+              borderTop: "1px solid oklch(1 0 0 / .14)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 800,
+                letterSpacing: ".12em",
+                textTransform: "uppercase",
+                color: "oklch(0.85 0.1 70)",
+              }}
+            >
+              Website chính thức duy nhất
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, width: "100%" }}>
+              {OFFICIAL_SITES.map((name) => (
+                <a
+                  key={name}
+                  href={`https://${name}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-white transition-colors hover:bg-[oklch(0.95_0.03_155)]"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "10px 8px",
+                    borderRadius: 999,
+                    color: "oklch(0.29 0.055 160)",
+                    fontSize: 14,
+                    fontWeight: 800,
+                    textDecoration: "none",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {name}
+                </a>
+              ))}
+            </div>
+            <div style={{ fontSize: 11, lineHeight: 1.5, color: "oklch(0.82 0.03 160)" }}>
+              Ngoài {OFFICIAL_SITES.length} địa chỉ này đều là giả mạo.
+            </div>
           </div>
         </div>
 
