@@ -226,6 +226,12 @@ export default async function ServiceDetailPage({
           policy={service.policy}
           weekendPolicy={service.weekendPolicy}
           childFreeUnderAge={service.childFreeUnderAge}
+          initialAdults={typeof sp.adults === "string" ? Math.max(1, parseInt(sp.adults, 10) || 0) || undefined : undefined}
+          initialChildAges={
+            typeof sp.kids === "string"
+              ? sp.kids.split("-").map((x) => parseInt(x, 10)).filter((n) => Number.isInteger(n) && n >= 0 && n <= 17)
+              : undefined
+          }
           description={service.description}
           suggestions={suggestions}
           header={

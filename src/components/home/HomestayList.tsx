@@ -390,6 +390,14 @@ export function HomestayList({
   const wide = w >= 980;
   const heroH = w < 640 ? 500 : 560;
   const dateQS = (() => { const p = new URLSearchParams(); if (hasDates) { p.set("from", initialFrom); p.set("to", initialTo); } const s = p.toString(); return s ? `?${s}` : ""; })();
+  // Mang theo số khách sang trang chi tiết để panel đặt tự điền (giá hiện đúng ngay).
+  const partyQS = (() => {
+    const parts: string[] = [];
+    if (adults > 0) parts.push(`adults=${adults}`);
+    if (childAges.length) parts.push(`kids=${childAges.join("-")}`);
+    if (!parts.length) return "";
+    return (dateQS ? "&" : "?") + parts.join("&");
+  })();
 
   // Bấm "Tìm kiếm" → đẩy ngày lên URL để server tính lại tình trạng còn phòng.
   function submitSearch() {
@@ -540,14 +548,48 @@ export function HomestayList({
               <DateField value={co} min={ci || undefined} onChange={setCo} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Trả phòng" />
             </label>
             <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Số người</span>
-              <select value={guests} onChange={(e) => setGuests(Number(e.target.value))} className={inp}>
+              <span className="text-xs font-semibold text-gray-500">Người lớn</span>
+              <select value={adults} onChange={(e) => setAdults(Number(e.target.value))} className={inp}>
                 <option value={0}>Mọi số khách</option>
                 {Array.from({ length: 20 }, (_, i) => i + 1).map((n) => (
-                  <option key={n} value={n}>{n} người</option>
+                  <option key={n} value={n}>{n} người lớn</option>
                 ))}
               </select>
             </label>
+            <div className={cell}>
+              <span className="text-xs font-semibold text-gray-500">Trẻ em</span>
+              <select
+                value={childAges.length}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  setChildAges((arr) => Array.from({ length: n }, (_, i) => arr[i] ?? 6));
+                }}
+                className={inp}
+              >
+                {Array.from({ length: 11 }, (_, i) => i).map((n) => (
+                  <option key={n} value={n}>{n === 0 ? "Không có trẻ" : `${n} trẻ`}</option>
+                ))}
+              </select>
+              {childAges.length > 0 && (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {childAges.map((age, i) => (
+                    <input
+                      key={i}
+                      type="number"
+                      min={0}
+                      max={17}
+                      value={age}
+                      aria-label={`Tuổi bé ${i + 1}`}
+                      onChange={(e) => {
+                        const v = Math.max(0, Math.min(17, parseInt(e.target.value || "0", 10) || 0));
+                        setChildAges((arr) => arr.map((x, j) => (j === i ? v : x)));
+                      }}
+                      className="w-11 rounded border border-gray-200 px-1 py-0.5 text-center text-xs font-bold text-ink outline-none"
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
             <label className={cell}>
               <span className="text-xs font-semibold text-gray-500">Khoảng giá</span>
               <select value={price} onChange={(e) => setPrice(e.target.value)} className={inp}>
@@ -652,7 +694,7 @@ export function HomestayList({
           {items.map((s, i) => (
             <Link
               key={s.id}
-              href={`/homestay/${s.slug}${dateQS}`}
+              href={`/homestay/${s.slug}${dateQS}${partyQS}`}
               data-reveal="1"
               className="group flex flex-col overflow-hidden rounded-[22px] border border-[oklch(0.93_0.01_230)] bg-white opacity-0 transition hover:shadow-[0_24px_50px_-24px_oklch(0.3_0.08_260_/.4)]"
               style={{ transform: "translateY(24px)", transitionProperty: "opacity, transform, box-shadow", transitionDuration: ".6s", transitionDelay: `${(i % 3) * 0.08}s` }}

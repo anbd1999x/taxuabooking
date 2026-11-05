@@ -115,10 +115,15 @@ export function HomestayBooking({
   initialCheckOut,
   weekendPolicy,
   childFreeUnderAge = 6,
+  initialAdults,
+  initialChildAges,
 }: {
   serviceId: string;
   /** Trẻ dưới số tuổi này miễn phí (không tính người/phụ thu). */
   childFreeUnderAge?: number;
+  /** Số người lớn / tuổi trẻ em mang từ trang tìm kiếm sang (điền sẵn). */
+  initialAdults?: number;
+  initialChildAges?: number[];
   /** Không quản lý lịch trên web: ẩn lịch & form đặt, khách nhắn tin để nhận thông tin. */
   contactOnly?: boolean;
   rooms: HomestayRoom[];
@@ -173,8 +178,8 @@ export function HomestayBooking({
   const [ci, setCi] = useState<string | null>(ci0);
   const [co, setCo] = useState<string | null>(co0);
   const [selected, setSelected] = useState<string | null>(null);
-  const [adults, setAdults] = useState(2);
-  const [childAges, setChildAges] = useState<number[]>([]);
+  const [adults, setAdults] = useState(initialAdults && initialAdults > 0 ? initialAdults : 2);
+  const [childAges, setChildAges] = useState<number[]>(initialChildAges ?? []);
 
   const [name, setName] = useState("");
   const [cphone, setCphone] = useState("");
