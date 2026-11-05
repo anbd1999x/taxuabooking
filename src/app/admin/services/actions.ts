@@ -84,6 +84,9 @@ export async function createService(
     weekendPolicy: s(formData.get("weekendPolicy")),
     priorityOrder: num(formData.get("priorityOrder")),
     childFreeUnderAge: num(formData.get("childFreeUnderAge")),
+    extraPersonFee: num(formData.get("extraPersonFee")),
+    earlyCheckinFee: num(formData.get("earlyCheckinFee")),
+    lateCheckoutFee: num(formData.get("lateCheckoutFee")),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ." };
@@ -118,6 +121,9 @@ export async function createService(
       weekendPolicy: d.weekendPolicy ?? "NONE",
       priorityOrder: d.priorityOrder ?? 0,
       childFreeUnderAge: d.childFreeUnderAge ?? 6,
+      extraPersonFee: d.extraPersonFee ?? null,
+      earlyCheckinFee: d.earlyCheckinFee ?? null,
+      lateCheckoutFee: d.lateCheckoutFee ?? null,
     },
   });
   if (d.category === "CABIN" && d.featured) await enforceSingleFeaturedCabin(created.id);
@@ -158,6 +164,9 @@ export async function createServiceFull(
     weekendPolicy: s(formData.get("weekendPolicy")),
     priorityOrder: num(formData.get("priorityOrder")),
     childFreeUnderAge: num(formData.get("childFreeUnderAge")),
+    extraPersonFee: num(formData.get("extraPersonFee")),
+    earlyCheckinFee: num(formData.get("earlyCheckinFee")),
+    lateCheckoutFee: num(formData.get("lateCheckoutFee")),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ." };
@@ -338,6 +347,9 @@ export async function updateService(
     weekendPolicy: s(formData.get("weekendPolicy")),
     priorityOrder: num(formData.get("priorityOrder")),
     childFreeUnderAge: num(formData.get("childFreeUnderAge")),
+    extraPersonFee: num(formData.get("extraPersonFee")),
+    earlyCheckinFee: num(formData.get("earlyCheckinFee")),
+    lateCheckoutFee: num(formData.get("lateCheckoutFee")),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ." };
@@ -373,6 +385,9 @@ export async function updateService(
       weekendPolicy: d.weekendPolicy ?? "NONE",
       priorityOrder: d.priorityOrder ?? 0,
       childFreeUnderAge: d.childFreeUnderAge ?? 6,
+      extraPersonFee: d.extraPersonFee ?? null,
+      earlyCheckinFee: d.earlyCheckinFee ?? null,
+      lateCheckoutFee: d.lateCheckoutFee ?? null,
     },
   });
   if (d.category === "CABIN" && d.featured) await enforceSingleFeaturedCabin(id);
@@ -764,11 +779,9 @@ export async function upsertRoom(_prev: ActionState, formData: FormData): Promis
     // bằng kéo-thả) — lưu phòng giữ nguyên thứ tự cũ, tránh "nhảy".
     // Giá & sức chứa ở cấp phòng con.
     capacity: num(formData.get("capacity")) ?? 2,
-    // Sức chứa tối đa + phụ thu (0/trống = không có).
+    // Sức chứa tối đa (0/trống = không nhận thêm). Phụ thu người thêm/check-in sớm/
+    // check-out muộn đã chuyển lên cấu hình CHUNG của homestay (Service).
     maxCapacity: num(formData.get("maxCapacity")) || null,
-    extraPersonFee: num(formData.get("extraPersonFee")) || null,
-    earlyCheckinFee: num(formData.get("earlyCheckinFee")) || null,
-    lateCheckoutFee: num(formData.get("lateCheckoutFee")) || null,
     listPrice: num(formData.get("listPrice")) ?? 0,
     // 0 = không giảm giá → lưu null (0 thật sẽ làm giá hiệu lực = 0đ).
     salePrice: (num(formData.get("salePrice")) || null) as number | null,
@@ -862,9 +875,6 @@ export async function duplicateRoom(formData: FormData): Promise<void> {
       description: src.description,
       capacity: src.capacity,
       maxCapacity: src.maxCapacity,
-      extraPersonFee: src.extraPersonFee,
-      earlyCheckinFee: src.earlyCheckinFee,
-      lateCheckoutFee: src.lateCheckoutFee,
       listPrice: src.listPrice,
       salePrice: src.salePrice,
       priceMon: src.priceMon,

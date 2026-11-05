@@ -125,15 +125,15 @@ export default async function RoomDetailPage({
             </div>
           </div>
 
-          {(room.extraPersonFee || room.earlyCheckinFee || room.lateCheckoutFee) && (
+          {(svc.extraPersonFee || svc.earlyCheckinFee || svc.lateCheckoutFee) && (
             <div className="mt-3 rounded-2xl bg-sunset-50 p-4 text-sm leading-relaxed text-gray-700 ring-1 ring-sunset-100">
               <p className="font-semibold text-sunset-700">Phụ thu (thanh toán tại chỗ)</p>
               <ul className="mt-1 list-inside list-disc text-gray-600">
-                {room.extraPersonFee && (
-                  <li>Thêm người (vượt {room.capacity} khách): {formatPrice(room.extraPersonFee)}/người/đêm</li>
+                {svc.extraPersonFee && (
+                  <li>Thêm người (vượt {room.capacity} khách): {formatPrice(svc.extraPersonFee)}/người/đêm</li>
                 )}
-                {room.earlyCheckinFee && <li>Check-in sớm: {formatPrice(room.earlyCheckinFee)}</li>}
-                {room.lateCheckoutFee && <li>Check-out muộn: {formatPrice(room.lateCheckoutFee)}</li>}
+                {svc.earlyCheckinFee && <li>Check-in sớm: {formatPrice(svc.earlyCheckinFee)}</li>}
+                {svc.lateCheckoutFee && <li>Check-out muộn: {formatPrice(svc.lateCheckoutFee)}</li>}
               </ul>
             </div>
           )}

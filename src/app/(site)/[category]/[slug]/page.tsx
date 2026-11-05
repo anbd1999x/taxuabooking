@@ -131,9 +131,10 @@ export default async function ServiceDetailPage({
         name: r.name,
         capacity: r.capacity,
         maxCapacity: r.maxCapacity,
-        extraFee: toNumber(r.extraPersonFee),
-        earlyFee: toNumber(r.earlyCheckinFee),
-        lateFee: toNumber(r.lateCheckoutFee),
+        // Phụ thu CHUNG của cả homestay (cấu hình ở Service, áp cho mọi phòng).
+        extraFee: toNumber(service.extraPersonFee),
+        earlyFee: toNumber(service.earlyCheckinFee),
+        lateFee: toNumber(service.lateCheckoutFee),
         amenities: (r.amenities ?? "").split(",").map((a) => a.trim()).filter(Boolean),
         // Ảnh thẻ phòng = ảnh riêng của phòng + ảnh/video của hạng phòng (nhiều
         // homestay chỉ có ảnh theo hạng, phòng con chưa up ảnh riêng).

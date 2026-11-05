@@ -299,7 +299,7 @@ export async function createBooking(
       roomId = opt.id;
       const room = await prisma.room.findUnique({
         where: { id: opt.id },
-        select: { roomTypeId: true, capacity: true, maxCapacity: true, extraPersonFee: true },
+        select: { roomTypeId: true, capacity: true, maxCapacity: true },
       });
       roomTypeId = room?.roomTypeId ?? null;
       nights = opt.count;
@@ -313,7 +313,7 @@ export async function createBooking(
       bChildrenAges = input.childrenAges ?? [];
       const occupants = billableOccupants(bAdults, bChildrenAges, freeUnder);
       const cap = room?.capacity ?? opt.capacity ?? 2;
-      const ec = extraPersonCost(occupants, cap, room?.maxCapacity, toNumber(room?.extraPersonFee), opt.count);
+      const ec = extraPersonCost(occupants, cap, room?.maxCapacity, toNumber(service.extraPersonFee), opt.count);
       if (ec.overCapacity) {
         throw new Error(`Số khách (${occupants}) vượt sức chứa tối đa của phòng (${ec.max}). Vui lòng chọn phòng lớn hơn hoặc giảm số người.`);
       }

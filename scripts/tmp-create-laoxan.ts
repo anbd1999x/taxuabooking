@@ -81,7 +81,6 @@ async function main() {
             name: "Hoa Lê",
             capacity: 2,
             maxCapacity: 3,
-            extraPersonFee: 250000,
             amenities: `Tầng 2, 25m², View thung lũng mây, Ban công riêng tư, ${AIRCON}, Máy sấy tóc, Siêu nước, Trà & cà phê miễn phí`,
             description:
               "Hạng phòng cao cấp dành cho khách ưu tiên sự riêng tư — tầng 2 view thung lũng mây, ban công gỗ riêng tư, thiết kế gỗ nguyên bản phong cách mộc Tây Bắc, chăn ga gối đệm cao cấp. Tiêu chuẩn 2 khách, tối đa 3 khách.",
@@ -110,7 +109,6 @@ async function main() {
             name: `Tớ Dầy ${n}`,
             capacity: 2,
             maxCapacity: 3,
-            extraPersonFee: 250000,
             amenities: `Tầng 1, 25m², Ban công tầng 1 rộng thoáng, ${AIRCON}, Thiết kế gỗ tự nhiên`,
             description:
               "Không gian lưu trú ấm cúng, yên bình giữa thung lũng mây Tà Xùa — tầng 1, ban công rộng thoáng, thiết kế gỗ tự nhiên phong cách Tây Bắc. Tiêu chuẩn 2 khách, tối đa 3 khách.",
@@ -121,7 +119,6 @@ async function main() {
             name: `Tớ Dầy ${n}`,
             capacity: 2,
             maxCapacity: 3,
-            extraPersonFee: 250000,
             amenities: `Tầng 1, 25m², Ban công tầng 1 rộng thoáng, ${AIRCON}, Thiết kế gỗ tự nhiên`,
             description:
               "Không gian lưu trú ấm cúng, yên bình giữa thung lũng mây Tà Xùa — tầng 1, ban công rộng thoáng, thiết kế gỗ tự nhiên phong cách Tây Bắc. Tiêu chuẩn 2 khách, tối đa 3 khách.",
@@ -150,7 +147,6 @@ async function main() {
             name: "Tớ Dầy Family",
             capacity: 4,
             maxCapacity: 5,
-            extraPersonFee: 250000,
             amenities: `01 giường 1,6m + 01 giường 1,2m, 01 WC, ${AIRCON}, Thiết kế gỗ tự nhiên`,
             description:
               "Phòng gia đình tiêu chuẩn 4 khách với 1 giường 1,6m và 1 giường 1,2m, 1 WC — phù hợp gia đình hoặc nhóm bạn nghỉ nhẹ nhàng, riêng tư tại Lao Xan.",
@@ -179,7 +175,6 @@ async function main() {
             name: "Bungalow Duplex",
             capacity: 4,
             maxCapacity: 5,
-            extraPersonFee: 250000,
             amenities: `2 tầng, 2 phòng ngủ, 2 WC, ${AIRCON}, Thiết kế gỗ nguyên bản`,
             description:
               "Bungalow 2 tầng với 2 phòng ngủ và 2 WC riêng — tiêu chuẩn 4 khách, không gian riêng tư trọn vẹn giữa khuôn viên cảnh quan của Lao Xan.",

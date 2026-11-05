@@ -144,7 +144,6 @@ async function main() {
           description: `Mây ${num}`, // tên phòng theo cách gọi của homestay
           capacity: rt.capacity,
           maxCapacity: rt.maxCapacity,
-          extraPersonFee: 200_000,
           listPrice: rt.weekday,
           priceSat: rt.sat,
           commission: COMMISSION,

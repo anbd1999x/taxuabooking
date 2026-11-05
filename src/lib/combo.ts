@@ -820,7 +820,7 @@ async function findRooms(
       typeName: rt.name,
       capacity: room.capacity,
       maxCapacity: Math.max(room.capacity, room.maxCapacity ?? room.capacity),
-      extraFeeStay: (toNumber(room.extraPersonFee) ?? 0) * nights.length,
+      extraFeeStay: (toNumber(s.extraPersonFee) ?? 0) * nights.length,
       roomCost,
       roomCostOld,
       features: {
@@ -951,7 +951,7 @@ export async function createComboBooking(
       for (const sl of roomList
         .map((r) => ({
           slots: Math.max(0, (r.maxCapacity ?? r.capacity) - r.capacity),
-          fee: (toNumber(r.extraPersonFee) ?? 0) * nights.length,
+          fee: (toNumber(svc.extraPersonFee) ?? 0) * nights.length, // phụ thu CHUNG của homestay
         }))
         .filter((s) => s.slots > 0)
         .sort((a, b) => a.fee - b.fee)) {

@@ -179,7 +179,7 @@ export function TrustPopup({ config }: { config: TrustPopupConfig }) {
               color: "oklch(0.85 0.1 70)",
             }}
           >
-            Người đứng sau Tà Xùa Booking
+            Xin chào, tụi mình là
           </div>
           <div
             style={{
@@ -305,7 +305,7 @@ export function TrustPopup({ config }: { config: TrustPopupConfig }) {
               bg="oklch(0.97 0.03 70)"
               border="1.5px solid oklch(0.88 0.08 65)"
             >
-              <b>Nếu ai chứng minh được tụi mình đào lửa</b>, tụi mình trao thưởng 100.000.000 đồng.
+              <b>Nếu ai chứng minh được tụi mình scam</b>, tụi mình trao thưởng 100.000.000 đồng.
             </PromiseRow>
             <PromiseRow
               amount="10 triệu"
@@ -315,7 +315,14 @@ export function TrustPopup({ config }: { config: TrustPopupConfig }) {
               bg="oklch(0.97 0.02 155)"
               border="1.5px solid oklch(0.86 0.06 155)"
             >
-              <b>Nếu ai chứng minh được giá trên website cao hơn giá niêm yết</b> của chính nhà xe, homestay, tụi mình đền 10.000.000 đồng.
+              <span style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+                <span>
+                  <b>Nếu giá trên website cao hơn giá niêm yết</b> của chính nhà xe, homestay, tụi mình đền 10.000.000 đồng.
+                </span>
+                <span style={{ fontSize: 12, lineHeight: 1.5, color: "oklch(0.45 0.03 155)" }}>
+                  Giá trên web để tham khảo, có thể lệch nếu chủ dịch vụ vừa đổi mà web chưa kịp cập nhật. Giá chính thức là giá chốt bill qua Zalo.
+                </span>
+              </span>
             </PromiseRow>
           </div>
 

@@ -36,6 +36,9 @@ interface Initial {
   weekendPolicy?: string | null;
   priorityOrder?: number | null;
   childFreeUnderAge?: number | null;
+  extraPersonFee?: number | null;
+  earlyCheckinFee?: number | null;
+  lateCheckoutFee?: number | null;
 }
 
 const inputCls =
@@ -228,6 +231,29 @@ export function ServiceForm({
           />
           <span className="mt-1 block text-xs text-gray-400">Trẻ DƯỚI số tuổi này: miễn phí, không tính vào số người. Từ tuổi này tính như 1 người (vào sức chứa + phụ thu người thêm/đêm nếu vượt chuẩn). Mặc định 6.</span>
         </label>
+      )}
+
+      {/* Phụ thu CHUNG cho cả homestay (áp cho mọi phòng) — không set riêng từng phòng nữa. */}
+      {(cat === "HOMESTAY" || cat === "BUNGALOW") && (
+        <div className="rounded-xl border border-gray-200 p-3.5">
+          <div className="text-sm font-semibold text-gray-700">Phụ thu chung cho cả homestay</div>
+          <p className="mt-0.5 text-xs text-gray-400">Áp dụng cho MỌI phòng của home. Để trống = không thu.</p>
+          <div className="mt-2.5 grid gap-3 sm:grid-cols-3">
+            <label className="block">
+              <span className="text-xs font-medium text-gray-600">Người thêm (đ/người/đêm)</span>
+              <MoneyInput name="extraPersonFee" defaultValue={initial.extraPersonFee ?? ""} placeholder="—" className={inputCls} />
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium text-gray-600">Check-in sớm (đ)</span>
+              <MoneyInput name="earlyCheckinFee" defaultValue={initial.earlyCheckinFee ?? ""} placeholder="—" className={inputCls} />
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium text-gray-600">Check-out muộn (đ)</span>
+              <MoneyInput name="lateCheckoutFee" defaultValue={initial.lateCheckoutFee ?? ""} placeholder="—" className={inputCls} />
+            </label>
+          </div>
+          <p className="mt-2 text-xs text-gray-400">Phụ thu <b>người thêm</b> cộng vào giá khi số khách vượt sức chứa chuẩn của phòng (×số đêm). Check-in sớm / check-out muộn là thông tin phụ thu hiển thị cho khách.</p>
+        </div>
       )}
 
       <label className="block sm:max-w-sm">

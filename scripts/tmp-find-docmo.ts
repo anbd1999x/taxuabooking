@@ -11,7 +11,7 @@ async function main() {
     for (const rt of svc.roomTypes) {
       console.log(`- Hạng: ${rt.name} id=${rt.id} cap=${rt.capacity} total=${rt.totalRooms} imgs=${rt.images.length} bathtub=${rt.hasBathtub} cloud=${rt.cloudView} bfast=${rt.breakfast} ac=${rt.airCon} heat=${rt.heating} (${rt.rooms.length} phòng)`);
       for (const r of rt.rooms) {
-        console.log(`    · ${r.name} id=${r.id}: list=${r.listPrice} sale=${r.salePrice} cap=${r.capacity}/${r.maxCapacity ?? "-"} extra=${r.extraPersonFee ?? "-"} T2..CN=[${[r.priceMon,r.priceTue,r.priceWed,r.priceThu,r.priceFri,r.priceSat,r.priceSun].join(",")}] comm=${r.commission ?? "-"}`);
+        console.log(`    · ${r.name} id=${r.id}: list=${r.listPrice} sale=${r.salePrice} cap=${r.capacity}/${r.maxCapacity ?? "-"} T2..CN=[${[r.priceMon,r.priceTue,r.priceWed,r.priceThu,r.priceFri,r.priceSat,r.priceSun].join(",")}] comm=${r.commission ?? "-"}`);
       }
     }
   }

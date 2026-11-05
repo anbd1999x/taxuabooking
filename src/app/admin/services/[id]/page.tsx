@@ -181,6 +181,7 @@ export default async function EditServicePage({
                     roomCommission: toNumber(service.roomCommission),
                     weekendPolicy: service.weekendPolicy,
                     priorityOrder: service.priorityOrder, childFreeUnderAge: service.childFreeUnderAge,
+                    extraPersonFee: toNumber(service.extraPersonFee), earlyCheckinFee: toNumber(service.earlyCheckinFee), lateCheckoutFee: toNumber(service.lateCheckoutFee),
                   }}
                 />
               </section>
@@ -432,6 +433,7 @@ export default async function EditServicePage({
                     roomCommission: toNumber(service.roomCommission),
                     weekendPolicy: service.weekendPolicy,
                     priorityOrder: service.priorityOrder, childFreeUnderAge: service.childFreeUnderAge,
+                    extraPersonFee: toNumber(service.extraPersonFee), earlyCheckinFee: toNumber(service.earlyCheckinFee), lateCheckoutFee: toNumber(service.lateCheckoutFee),
                   }}
                 />
               </section>
@@ -619,9 +621,7 @@ export default async function EditServicePage({
                                         💡 Để <b>0 / trống toàn bộ giá</b> (giá gốc, giá đang bán & giá theo thứ) = <b>không công khai giá</b>: phòng vẫn hiện khi khách tìm, nhưng web hiển thị <b>“IB để biết giá”</b> thay vì số tiền.
                                       </p>
                                       <L label="Tối đa (người)" cls="sm:col-span-3"><input name="maxCapacity" type="number" min={0} defaultValue={room.maxCapacity ?? ""} placeholder="= sức chứa" className={inp} /></L>
-                                      <L label="Phụ thu người thêm (đ/đêm)" cls="sm:col-span-3"><MoneyInput name="extraPersonFee" defaultValue={toNumber(room.extraPersonFee) ?? ""} placeholder="—" className={inp} /></L>
-                                      <L label="Phụ thu check-in sớm (đ)" cls="sm:col-span-3"><MoneyInput name="earlyCheckinFee" defaultValue={toNumber(room.earlyCheckinFee) ?? ""} placeholder="—" className={inp} /></L>
-                                      <L label="Phụ thu check-out muộn (đ)" cls="sm:col-span-3"><MoneyInput name="lateCheckoutFee" defaultValue={toNumber(room.lateCheckoutFee) ?? ""} placeholder="—" className={inp} /></L>
+                                      <p className="self-center text-[11px] leading-relaxed text-gray-400 sm:col-span-9">Phụ thu <b>người thêm / check-in sớm / check-out muộn</b> cấu hình <b>chung cho cả homestay</b> ở tab Thông tin.</p>
                                       <L label="Tiện ích (cách nhau dấu phẩy)" cls="sm:col-span-7"><input name="amenities" defaultValue={room.amenities ?? ""} placeholder="Wifi, Nóng lạnh, Ban công" className={inp} /></L>
                                       <L label="Mô tả ngắn" cls="sm:col-span-5"><input name="description" defaultValue={room.description ?? ""} className={inp} /></L>
                                       <RoomConDayPrices room={room} />
@@ -960,9 +960,7 @@ export default async function EditServicePage({
                           💡 Để <b>0 / trống toàn bộ giá</b> (giá gốc, giá đang bán & giá theo thứ) = <b>không công khai giá</b>: phòng vẫn hiện khi khách tìm, nhưng web hiển thị <b>“IB để biết giá”</b> thay vì số tiền.
                         </p>
                         <L label="Tối đa (người)" cls="sm:col-span-3"><input name="maxCapacity" type="number" min={0} defaultValue={room.maxCapacity ?? ""} placeholder="= sức chứa" className={inp} /></L>
-                        <L label="Phụ thu người thêm (đ/đêm)" cls="sm:col-span-3"><MoneyInput name="extraPersonFee" defaultValue={toNumber(room.extraPersonFee) ?? ""} placeholder="—" className={inp} /></L>
-                        <L label="Phụ thu check-in sớm (đ)" cls="sm:col-span-3"><MoneyInput name="earlyCheckinFee" defaultValue={toNumber(room.earlyCheckinFee) ?? ""} placeholder="—" className={inp} /></L>
-                        <L label="Phụ thu check-out muộn (đ)" cls="sm:col-span-3"><MoneyInput name="lateCheckoutFee" defaultValue={toNumber(room.lateCheckoutFee) ?? ""} placeholder="—" className={inp} /></L>
+                        <p className="self-center text-[11px] leading-relaxed text-gray-400 sm:col-span-9">Phụ thu <b>người thêm / check-in sớm / check-out muộn</b> cấu hình <b>chung cho cả homestay</b> ở tab Thông tin.</p>
                         <L label="Tiện ích (cách nhau dấu phẩy)" cls="sm:col-span-7"><input name="amenities" defaultValue={room.amenities ?? ""} placeholder="Wifi, Nóng lạnh, Ban công" className={inp} /></L>
                         <L label="Mô tả ngắn" cls="sm:col-span-5"><input name="description" defaultValue={room.description ?? ""} className={inp} /></L>
                         <RoomConDayPrices room={room} />
@@ -1012,9 +1010,7 @@ export default async function EditServicePage({
                 <L label="Giá gốc (gạch)" cls="sm:col-span-2"><MoneyInput name="listPrice" defaultValue={0} className={inp} /></L>
                 <L label="Giá đang bán" cls="sm:col-span-2"><MoneyInput name="salePrice" placeholder="(nếu có)" className={inp} /></L>
                 <L label="Tối đa (người)" cls="sm:col-span-3"><input name="maxCapacity" type="number" min={0} placeholder="= sức chứa" className={inp} /></L>
-                <L label="Phụ thu người thêm (đ/đêm)" cls="sm:col-span-3"><MoneyInput name="extraPersonFee" placeholder="—" className={inp} /></L>
-                <L label="Phụ thu check-in sớm (đ)" cls="sm:col-span-3"><MoneyInput name="earlyCheckinFee" placeholder="—" className={inp} /></L>
-                <L label="Phụ thu check-out muộn (đ)" cls="sm:col-span-3"><MoneyInput name="lateCheckoutFee" placeholder="—" className={inp} /></L>
+                <p className="self-center text-[11px] leading-relaxed text-gray-400 sm:col-span-9">Phụ thu <b>người thêm / check-in sớm / check-out muộn</b> cấu hình <b>chung cho cả homestay</b> ở tab Thông tin.</p>
                 <L label="Tiện ích (cách nhau dấu phẩy)" cls="sm:col-span-7"><input name="amenities" placeholder="Wifi, Nóng lạnh, Ban công" className={inp} /></L>
                 <L label="Mô tả ngắn" cls="sm:col-span-5"><input name="description" className={inp} /></L>
                 <RoomConDayPrices />

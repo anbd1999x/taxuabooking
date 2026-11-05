@@ -122,7 +122,6 @@ async function main() {
           name,
           capacity: rt.capacity,
           maxCapacity: rt.maxCapacity,
-          extraPersonFee: EXTRA_PERSON_FEE,
           listPrice: rt.low, // giá thường (CN–T5); salePrice = null → web KHÔNG gạch giá
           priceFri: rt.high, // T6
           priceSat: rt.high, // T7

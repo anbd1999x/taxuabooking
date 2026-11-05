@@ -136,6 +136,10 @@ export const serviceInputSchema = z.object({
   weekendPolicy: z.enum(["NONE", "FRI_SAT", "SAT_SUN", "FRI_SUN", "SAT_PAIRED"]).optional(),
   priorityOrder: z.coerce.number().int().optional().nullable(),
   childFreeUnderAge: z.coerce.number().int().min(0).max(18).optional().nullable(),
+  // Phụ thu CHUNG cho cả homestay.
+  extraPersonFee: z.coerce.number().int().min(0).optional().nullable(),
+  earlyCheckinFee: z.coerce.number().int().min(0).optional().nullable(),
+  lateCheckoutFee: z.coerce.number().int().min(0).optional().nullable(),
 });
 
 export type ServiceInput = z.infer<typeof serviceInputSchema>;
