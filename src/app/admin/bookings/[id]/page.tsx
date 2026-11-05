@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { CATEGORIES } from "@/lib/constants";
 import { formatPrice, formatDate, formatDateTime, toNumber } from "@/lib/format";
 import { today } from "@/lib/dates";
+import { SITE } from "@/lib/site";
 import { ActionForm } from "@/components/admin/ActionForm";
 import {
   CopyChip,
@@ -152,7 +153,7 @@ export default async function BookingDetailPage({
   };
   const parts: Part[] = [];
   const seatsLabel = [
-    b.seatsSingle ? `${b.seatsSingle} cabin đơn` : "",
+    b.seatsSingle ? `${b.seatsSingle} chỗ` : "",
     b.seatsDouble ? `${b.seatsDouble} cabin đôi` : "",
   ].filter(Boolean).join(" + ") || `${b.quantity} chỗ`;
 
@@ -273,14 +274,61 @@ export default async function BookingDetailPage({
   const summaryText =
     `Đơn ${b.code} · ${b.customerName} · ${b.phone} · ${b.quantity} khách\n${partLines}\n` +
     `${price != null ? `Tổng ${formatPrice(price)}` : "Giá chờ xác nhận"} · ${payText}`;
-  const customerMsg =
-    `Chào ${b.customerName}, Tà Xùa Booking đã nhận yêu cầu ${b.code} (${b.serviceTitle}, ` +
-    `${formatDate(b.useDate)}${b.endDate ? `–${formatDate(b.endDate)}` : ""}, ${b.quantity} khách` +
-    `${price != null ? `, ${formatPrice(price)}` : ""}). ` +
-    (due != null && due > 0
-      ? `Vui lòng cọc để giữ chỗ, còn thiếu ${formatPrice(due)}. `
-      : "") +
-    "Cảm ơn bạn!";
+  // ----- Tin nhắn gửi khách (format sẵn, dán thẳng Zalo) -----
+  const hotline = SITE.defaultPhone;
+  const mapUrl = b.service?.mapUrl || null;
+  const ctvLine = b.ctv ? `${b.ctv.name}${b.ctv.phone ? ` · ${b.ctv.phone}` : ""}` : null;
+  const roomsConfirmLabel = rooms.length
+    ? rooms.map((r) => `${r.roomType.name} (${r.name})`).join(", ")
+    : null;
+  const isStay = b.nights != null && b.endDate != null;
+
+  // 1) Tin nhắn ĐÃ NHẬN yêu cầu (gửi sớm, mời cọc) — bản rút gọn, nhiều dòng cho dễ đọc.
+  const customerMsg = [
+    `Chào ${b.customerName},`,
+    `Tà Xùa Booking đã nhận yêu cầu ${b.code}:`,
+    `• Dịch vụ: ${b.serviceTitle}`,
+    `• Ngày: ${formatDate(b.useDate)}${b.endDate ? ` → ${formatDate(b.endDate)}` : ""}${b.nights ? ` (${b.nights} đêm)` : ""}`,
+    `• Số khách: ${b.quantity}`,
+    price != null ? `• Tạm tính: ${formatPrice(price)}` : `• Giá: đang xác nhận`,
+    ...(due != null && due > 0 ? [`Vui lòng cọc để giữ chỗ (còn thiếu ${formatPrice(due)}).`] : []),
+    `Cảm ơn bạn! Hotline ${hotline}.`,
+  ].join("\n");
+
+  // 2) Tin nhắn XÁC NHẬN CHỐT ĐƠN (gửi khi đã chốt/cọc) — theo mẫu homestay, gắn đúng
+  //    tên dịch vụ + số tiền đã cọc + còn lại. Bỏ qua dòng không có dữ liệu.
+  const confirmLines: string[] = [
+    `${b.service?.title ?? b.serviceTitle} xin xác nhận booking của quý khách:`,
+    `Tên khách: ${b.customerName}`,
+    `Sđt: ${b.phone}`,
+  ];
+  if (ctvLine) confirmLines.push(`Hỗ trợ: ${ctvLine}`);
+  if (outTrip) {
+    const outPickup = pickupChosen || outTrip.pickupPoint;
+    confirmLines.push(
+      `Chuyến${retTrip ? " đi" : ""}: ${outPickup} → ${outTrip.dropoffPoint} · ${formatDate(outTrip.departureDate)} ${outTrip.departureTime}`,
+    );
+    if (retTrip)
+      confirmLines.push(
+        `Chuyến về: ${retTrip.pickupPoint} → ${retTrip.dropoffPoint} · ${formatDate(retTrip.departureDate)} ${retTrip.departureTime}`,
+      );
+    confirmLines.push(`Số chỗ: ${seatsLabel}`);
+  }
+  if (roomsConfirmLabel) confirmLines.push(`Số phòng: ${roomsConfirmLabel}`);
+  if (isStay) {
+    confirmLines.push(`Nhận phòng: ${formatDate(b.useDate)}`);
+    confirmLines.push(`Trả phòng: ${formatDate(b.endDate!)}`);
+  } else if (!outTrip) {
+    confirmLines.push(`Ngày dùng: ${formatDate(b.useDate)}${b.endDate ? ` → ${formatDate(b.endDate)}` : ""}`);
+  }
+  confirmLines.push(`Số người: ${b.quantity}`);
+  confirmLines.push(`Hotline: ${hotline}`);
+  if (mapUrl) confirmLines.push(`Định vị: ${mapUrl}`);
+  confirmLines.push(`Tổng số tiền: ${price != null ? formatPrice(price) : "Chờ xác nhận"}`);
+  confirmLines.push(`Đã cọc: ${collected > 0 ? formatPrice(collected) : "Chưa cọc"}`);
+  if (due != null) confirmLines.push(`Còn lại thanh toán lúc nhận phòng: ${formatPrice(due)}`);
+  confirmLines.push("--------------");
+  const confirmMsg = confirmLines.join("\n");
 
   // Nhật ký: thêm 2 dòng ảo — ghi chú cũ (nếu có) + thời điểm nhận yêu cầu.
   const logs = [
@@ -376,6 +424,7 @@ export default async function BookingDetailPage({
               Zalo
             </a>
             <CopyChip text={customerMsg} label="Chép tin nhắn cho khách" toast="Đã chép tin nhắn mẫu" className="border-[1.5px] py-2.5" />
+            <CopyChip text={confirmMsg} label="Chép xác nhận chốt đơn" toast="Đã chép nội dung xác nhận gửi khách" className="border-[1.5px] border-forest-300 bg-forest-50 py-2.5 text-forest-700 hover:bg-forest-100" />
           </div>
         </div>
 
