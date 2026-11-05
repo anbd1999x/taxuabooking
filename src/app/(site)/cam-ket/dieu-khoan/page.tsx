@@ -145,7 +145,7 @@ const SECTIONS: Section[] = [
 
 const LEGAL: [string, string][] = [
   ["Đơn vị vận hành", "[Tên cá nhân / hộ kinh doanh]"],
-  ["Người chịu trách nhiệm", "Bùi An"],
+  ["Người chịu trách nhiệm", "Bùi Danh An"],
   ["Địa chỉ", "[Địa chỉ hoạt động]"],
   ["Mã số thuế", "[Nếu có]"],
   ["Hotline", "0397 943 155 · 0357 452 952"],
