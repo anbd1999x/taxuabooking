@@ -109,6 +109,11 @@ export default async function EditServicePage({
 
   const cat = CATEGORIES[service.category];
   const kind = cat.availabilityKind;
+  // Danh mục có trang quản lý lịch (/admin/availability lọc đúng 3 nhóm này).
+  const canSchedule = (["HOMESTAY", "MOTORBIKE", "CABIN"] as const).includes(
+    service.category as "HOMESTAY" | "MOTORBIKE" | "CABIN",
+  );
+  const scheduleHref = `/admin/availability?service=${service.id}`;
 
   // ---- CABIN: giao diện quản lý theo tab (bám sát thiết kế) ----
   if (service.category === "CABIN") {
@@ -144,6 +149,9 @@ export default async function EditServicePage({
               <span className={`rounded-full px-2.5 py-1 font-bold ${service.published ? "bg-forest-50 text-forest-700" : "bg-gray-100 text-gray-500"}`}>{service.published ? "Đang hiển thị" : "Đang ẩn"}</span>
               <span className="text-gray-500">{cat.label}</span>
               <Link href={`/${cat.slug}/${service.slug}`} target="_blank" className="font-bold text-forest-700 hover:underline">Xem trên website ↗</Link>
+              {canSchedule && (
+                <Link href={scheduleHref} className="font-bold text-forest-700 hover:underline">Xem lịch ↗</Link>
+              )}
             </div>
           </div>
         </div>
@@ -392,6 +400,9 @@ export default async function EditServicePage({
               <span className={`rounded-full px-2.5 py-1 font-bold ${service.published ? "bg-forest-50 text-forest-700" : "bg-gray-100 text-gray-500"}`}>{service.published ? "Đang hiển thị" : "Đang ẩn"}</span>
               <span className="text-gray-500">{cat.label} · {roomTotal} phòng · {typeTotal} hạng</span>
               <Link href={`/${cat.slug}/${service.slug}`} target="_blank" className="font-bold text-forest-700 hover:underline">Xem trên website ↗</Link>
+              {canSchedule && (
+                <Link href={scheduleHref} className="font-bold text-forest-700 hover:underline">Xem lịch ↗</Link>
+              )}
             </div>
           </div>
         </div>
@@ -800,7 +811,7 @@ export default async function EditServicePage({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-ink">{service.title}</h1>
-          <p className="text-sm text-gray-500">{cat.label} · <Link href={`/${cat.slug}/${service.slug}`} target="_blank" className="text-forest-700 hover:underline">Xem trên website ↗</Link></p>
+          <p className="text-sm text-gray-500">{cat.label} · <Link href={`/${cat.slug}/${service.slug}`} target="_blank" className="text-forest-700 hover:underline">Xem trên website ↗</Link>{canSchedule && <> · <Link href={scheduleHref} className="text-forest-700 hover:underline">Xem lịch ↗</Link></>}</p>
         </div>
         <form action={deleteService}>
           <input type="hidden" name="id" value={service.id} />

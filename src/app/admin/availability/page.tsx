@@ -34,19 +34,22 @@ export default async function AvailabilityPage({
   const sp = await searchParams;
   const now = new Date();
   const month = str(sp.month) || monthKey(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)));
-  const serviceId = str(sp.service);
   const view = str(sp.view) === "overview" ? "overview" : "grid";
 
   // Danh sách homestay + nhà cho thuê xe + nhà xe cabin.
   // Chủ dịch vụ (PROVIDER) chỉ thấy & thao tác dịch vụ của chính mình.
   const session = await getSession();
-  const ownerFilter = session?.role === "PROVIDER" ? { ownerId: session.sub } : {};
+  const isProvider = session?.role === "PROVIDER";
+  const ownerFilter = isProvider ? { ownerId: session!.sub } : {};
   const services = await prisma.service.findMany({
     where: { category: { in: ["HOMESTAY", "MOTORBIKE", "CABIN"] }, ...ownerFilter },
     orderBy: [{ category: "asc" }, { title: "asc" }],
     select: { id: true, title: true, category: true },
   });
 
+  // Chủ dịch vụ thường chỉ có 1–2 dịch vụ → không bắt chọn lại: mặc định mở lịch
+  // dịch vụ đầu tiên đang quản lý ngay khi vào trang.
+  const serviceId = str(sp.service) || (isProvider ? services[0]?.id : undefined);
   const selected = serviceId ? services.find((s) => s.id === serviceId) : undefined;
 
   // Homestay có link Google Sheet — cho nút "Đồng bộ tất cả" (PROVIDER chỉ thấy của mình).
@@ -198,33 +201,57 @@ export default async function AvailabilityPage({
         Chọn dịch vụ để quản lý. Homestay có 2 chế độ: <strong>Tổng quan tháng</strong> (xem nhanh phòng trống cả tháng) và <strong>Theo từng phòng</strong>. Xe máy quản lý theo số xe; xe cabin theo chuyến từng ngày.
       </p>
 
-      {/* Chọn dịch vụ — dropdown */}
-      <form className="mt-4 flex flex-wrap items-end gap-2" action="/admin/availability">
-        <label className="block">
-          <span className="text-xs font-medium text-gray-500">Homestay / nhà cung cấp</span>
-          <select name="service" defaultValue={serviceId ?? ""} className="mt-1 block rounded-xl border border-gray-200 px-3 py-2.5 text-sm">
-            <option value="">— Chọn —</option>
-            <optgroup label="Homestay">
-              {services.filter((s) => s.category === "HOMESTAY").map((s) => (
-                <option key={s.id} value={s.id}>{s.title}</option>
-              ))}
-            </optgroup>
-            <optgroup label="Thuê xe máy">
-              {services.filter((s) => s.category === "MOTORBIKE").map((s) => (
-                <option key={s.id} value={s.id}>{s.title}</option>
-              ))}
-            </optgroup>
-            <optgroup label="Xe cabin">
-              {services.filter((s) => s.category === "CABIN").map((s) => (
-                <option key={s.id} value={s.id}>{s.title}</option>
-              ))}
-            </optgroup>
-          </select>
-        </label>
-        <input type="hidden" name="month" value={month} />
-        <input type="hidden" name="view" value={view} />
-        <button className="rounded-xl bg-forest-100 px-4 py-2.5 text-sm font-medium text-forest-700">Chọn</button>
-      </form>
+      {/* Chọn dịch vụ: chủ dịch vụ (ít dịch vụ) hiện dạng TAB, admin dùng dropdown. */}
+      {isProvider ? (
+        services.length > 1 ? (
+          <div className="mt-4 inline-flex flex-wrap gap-1 rounded-xl p-1" style={{ background: "oklch(0.93 0.008 150)" }}>
+            {services.map((s) => {
+              const active = s.id === serviceId;
+              return (
+                <Link
+                  key={s.id}
+                  href={`/admin/availability?service=${s.id}&month=${month}&view=${view}`}
+                  className="rounded-[9px] px-3.5 py-2 text-sm font-bold"
+                  style={
+                    active
+                      ? { background: "white", color: "oklch(0.29 0.055 160)", boxShadow: "0 1px 3px oklch(0.2 0.03 160 / .15)" }
+                      : { background: "transparent", color: "oklch(0.42 0.02 160)" }
+                  }
+                >
+                  {s.title}
+                </Link>
+              );
+            })}
+          </div>
+        ) : null
+      ) : (
+        <form className="mt-4 flex flex-wrap items-end gap-2" action="/admin/availability">
+          <label className="block">
+            <span className="text-xs font-medium text-gray-500">Homestay / nhà cung cấp</span>
+            <select name="service" defaultValue={serviceId ?? ""} className="mt-1 block rounded-xl border border-gray-200 px-3 py-2.5 text-sm">
+              <option value="">— Chọn —</option>
+              <optgroup label="Homestay">
+                {services.filter((s) => s.category === "HOMESTAY").map((s) => (
+                  <option key={s.id} value={s.id}>{s.title}</option>
+                ))}
+              </optgroup>
+              <optgroup label="Thuê xe máy">
+                {services.filter((s) => s.category === "MOTORBIKE").map((s) => (
+                  <option key={s.id} value={s.id}>{s.title}</option>
+                ))}
+              </optgroup>
+              <optgroup label="Xe cabin">
+                {services.filter((s) => s.category === "CABIN").map((s) => (
+                  <option key={s.id} value={s.id}>{s.title}</option>
+                ))}
+              </optgroup>
+            </select>
+          </label>
+          <input type="hidden" name="month" value={month} />
+          <input type="hidden" name="view" value={view} />
+          <button className="rounded-xl bg-forest-100 px-4 py-2.5 text-sm font-medium text-forest-700">Chọn</button>
+        </form>
+      )}
 
       <SheetSyncAll
         items={sheetServices.map((s) => ({ id: s.id, title: s.title, last: s.sheetSyncResult }))}
