@@ -45,7 +45,7 @@ const SECTIONS: Section[] = [
   },
   {
     id: "c10",
-    title: "Không bán cao hơn giá gốc — đền 10.000.000đ",
+    title: "Bán cao hơn giá niêm yết — đền 10.000.000đ",
     lead:
       "Giá tụi mình báo và chốt với bạn không cao hơn giá niêm yết công khai của chính nhà xe, homestay cho cùng dịch vụ. Nếu cao hơn, dù ngay từ lần báo giá đầu hay sau khi chốt, bạn được hoàn phần chênh lệch và đền thêm 10.000.000 đồng.",
     groups: [
@@ -230,7 +230,7 @@ export default function TermsPage() {
               style={{ padding: 18, borderRadius: 18, background: "oklch(0.97 0.02 155)", border: "1.5px solid oklch(0.86 0.06 155)", color: "inherit" }}
             >
               <div style={{ fontSize: 26, fontWeight: 800, color: "oklch(0.42 0.11 155)", letterSpacing: "-.03em" }}>10 triệu</div>
-              <div style={{ fontSize: 14, fontWeight: 700, marginTop: 4 }}>Không bán cao hơn giá gốc</div>
+              <div style={{ fontSize: 14, fontWeight: 700, marginTop: 4 }}>Bán cao hơn giá niêm yết</div>
               <div style={{ fontSize: 13, color: "oklch(0.4 0.04 155)", marginTop: 2 }}>Giá chốt Zalo cao hơn giá niêm yết</div>
             </a>
           </div>
