@@ -107,21 +107,22 @@ export function BackgroundMusic() {
         onClick={toggle}
         aria-label={playing ? "Tắt nhạc nền" : "Bật nhạc nền"}
         title={playing ? "Tắt nhạc nền" : off ? "Bật nhạc nền" : "Chạm vào trang để phát nhạc"}
-        className="fixed bottom-[88px] left-3 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-forest-800/90 text-white shadow-lg ring-2 ring-white/70 backdrop-blur transition hover:bg-forest-700 lg:bottom-5 lg:left-5"
+        // Nút rất nhỏ, mờ (chỉ rõ khi rê chuột/chạm) — vẫn giữ để khách TẮT được nhạc.
+        className="fixed bottom-[84px] left-2 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-black/25 text-white opacity-60 backdrop-blur transition hover:bg-forest-800/90 hover:opacity-100 lg:bottom-3 lg:left-3"
       >
         {playing ? (
           // Sóng nhạc chuyển động khi đang phát
-          <span className="flex h-4 items-end gap-[3px]" aria-hidden="true">
+          <span className="flex h-2.5 items-end gap-[2px]" aria-hidden="true">
             {[0, 0.2, 0.4, 0.1].map((d, i) => (
               <span
                 key={i}
-                className="w-[3px] rounded-full bg-white"
+                className="w-[2px] rounded-full bg-white"
                 style={{ height: "100%", animation: `txbEq .9s ${d}s ease-in-out infinite alternate`, transformOrigin: "bottom" }}
               />
             ))}
           </span>
         ) : (
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M9 18V5l12-2v13" />
             <circle cx="6" cy="18" r="3" />
             <circle cx="18" cy="16" r="3" />
