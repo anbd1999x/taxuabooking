@@ -195,17 +195,23 @@ export function ServiceForm({
         <span className="mt-1 block text-xs text-gray-400">Dùng để chủ dịch vụ đăng nhập xem đơn & đối soát thanh toán.</span>
       </label>
 
-      <label className="block sm:max-w-sm">
-        <span className="text-sm font-medium text-gray-600">Hoa hồng CTV / đơn (đ)</span>
-        <MoneyInput name="ctvCommission" defaultValue={initial.ctvCommission ?? ""} placeholder="Để trống = dùng mức mặc định của CTV" className={inputCls} />
-        <span className="mt-1 block text-xs text-gray-400">Ghi đè mức hoa hồng cố định mỗi đơn CTV đặt cho dịch vụ này. Để trống = dùng mức mặc định của từng CTV.</span>
-      </label>
+      {/* Hoa hồng CTV/đơn: CHỈ cho dịch vụ không có phòng (cabin, xe máy, xe ôm, taxi, combo). */}
+      {cat !== "HOMESTAY" && cat !== "BUNGALOW" && (
+        <label className="block sm:max-w-sm">
+          <span className="text-sm font-medium text-gray-600">Hoa hồng CTV / đơn (đ)</span>
+          <MoneyInput name="ctvCommission" defaultValue={initial.ctvCommission ?? ""} placeholder="Để trống = dùng mức mặc định của CTV" className={inputCls} />
+          <span className="mt-1 block text-xs text-gray-400">Hoa hồng cố định mỗi đơn CTV đặt cho dịch vụ này. Để trống = dùng mức mặc định của từng CTV.</span>
+        </label>
+      )}
 
-      <label className="block sm:max-w-sm">
-        <span className="text-sm font-medium text-gray-600">Chiết khấu mặc định cả homestay (đ/phòng/đêm)</span>
-        <MoneyInput name="roomCommission" defaultValue={initial.roomCommission ?? ""} placeholder="Để trống = chỉ dùng mức khai ở từng phòng" className={inputCls} />
-        <span className="mt-1 block text-xs text-gray-400">Dùng cho MỌI đơn khi phòng (và ngày) không khai riêng chiết khấu. Tiền chủ dịch vụ thực nhận = tiền phòng bán ra − chiết khấu.</span>
-      </label>
+      {/* Chiết khấu chung cho homestay (áp cho mọi phòng khi phòng không khai riêng). */}
+      {(cat === "HOMESTAY" || cat === "BUNGALOW") && (
+        <label className="block sm:max-w-sm">
+          <span className="text-sm font-medium text-gray-600">Chiết khấu áp cho TẤT CẢ phòng (đ/phòng/đêm)</span>
+          <MoneyInput name="roomCommission" defaultValue={initial.roomCommission ?? ""} placeholder="VD: 100.000 — mọi phòng dùng mức này" className={inputCls} />
+          <span className="mt-1 block text-xs text-gray-400">Mọi phòng của home dùng chung mức này, TRỪ phòng có khai chiết khấu riêng (theo thứ) ở mục Phòng. Tiền chủ nhà thực nhận = giá bán − chiết khấu. Để trống = chỉ dùng mức khai riêng ở từng phòng.</span>
+        </label>
+      )}
 
       <label className="block sm:max-w-sm">
         <span className="text-sm font-medium text-gray-600">Chính sách bán cuối tuần (homestay)</span>

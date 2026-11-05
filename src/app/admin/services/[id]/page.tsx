@@ -602,10 +602,10 @@ export default async function EditServicePage({
                                       </L>
                                       <L label="Tên phòng" cls="sm:col-span-3"><input name="name" defaultValue={room.name} className={inp} /></L>
                                       <L label="Sức chứa" cls="sm:col-span-2"><input name="capacity" type="number" min={1} defaultValue={room.capacity} className={inp} /></L>
-                                      <L label="Giá thường" cls="sm:col-span-2"><MoneyInput name="listPrice" defaultValue={toNumber(room.listPrice) ?? 0} className={inp} /></L>
-                                      <L label="Giá chiết khấu" cls="sm:col-span-2"><MoneyInput name="salePrice" defaultValue={toNumber(room.salePrice) ?? ""} placeholder="(nếu có)" className={inp} /></L>
+                                      <L label="Giá gốc (gạch)" cls="sm:col-span-2"><MoneyInput name="listPrice" defaultValue={toNumber(room.listPrice) ?? 0} className={inp} /></L>
+                                      <L label="Giá đang bán" cls="sm:col-span-2"><MoneyInput name="salePrice" defaultValue={toNumber(room.salePrice) ?? ""} placeholder="(nếu có)" className={inp} /></L>
                                       <p className="text-[11px] leading-relaxed text-gray-500 sm:col-span-12">
-                                        💡 Để <b>0 / trống toàn bộ giá</b> (giá thường, chiết khấu & giá theo thứ) = <b>không công khai giá</b>: phòng vẫn hiện khi khách tìm, nhưng web hiển thị <b>“IB để biết giá”</b> thay vì số tiền.
+                                        💡 Để <b>0 / trống toàn bộ giá</b> (giá gốc, giá đang bán & giá theo thứ) = <b>không công khai giá</b>: phòng vẫn hiện khi khách tìm, nhưng web hiển thị <b>“IB để biết giá”</b> thay vì số tiền.
                                       </p>
                                       <L label="Tối đa (người)" cls="sm:col-span-3"><input name="maxCapacity" type="number" min={0} defaultValue={room.maxCapacity ?? ""} placeholder="= sức chứa" className={inp} /></L>
                                       <L label="Phụ thu người thêm (đ/đêm)" cls="sm:col-span-3"><MoneyInput name="extraPersonFee" defaultValue={toNumber(room.extraPersonFee) ?? ""} placeholder="—" className={inp} /></L>
@@ -943,10 +943,10 @@ export default async function EditServicePage({
                         </L>
                         <L label="Tên phòng" cls="sm:col-span-3"><input name="name" defaultValue={room.name} className={inp} /></L>
                         <L label="Sức chứa" cls="sm:col-span-2"><input name="capacity" type="number" min={1} defaultValue={room.capacity} className={inp} /></L>
-                        <L label="Giá thường" cls="sm:col-span-2"><MoneyInput name="listPrice" defaultValue={toNumber(room.listPrice) ?? 0} className={inp} /></L>
-                        <L label="Giá chiết khấu" cls="sm:col-span-2"><MoneyInput name="salePrice" defaultValue={toNumber(room.salePrice) ?? ""} placeholder="(nếu có)" className={inp} /></L>
+                        <L label="Giá gốc (gạch)" cls="sm:col-span-2"><MoneyInput name="listPrice" defaultValue={toNumber(room.listPrice) ?? 0} className={inp} /></L>
+                        <L label="Giá đang bán" cls="sm:col-span-2"><MoneyInput name="salePrice" defaultValue={toNumber(room.salePrice) ?? ""} placeholder="(nếu có)" className={inp} /></L>
                         <p className="text-[11px] leading-relaxed text-gray-500 sm:col-span-12">
-                          💡 Để <b>0 / trống toàn bộ giá</b> (giá thường, chiết khấu & giá theo thứ) = <b>không công khai giá</b>: phòng vẫn hiện khi khách tìm, nhưng web hiển thị <b>“IB để biết giá”</b> thay vì số tiền.
+                          💡 Để <b>0 / trống toàn bộ giá</b> (giá gốc, giá đang bán & giá theo thứ) = <b>không công khai giá</b>: phòng vẫn hiện khi khách tìm, nhưng web hiển thị <b>“IB để biết giá”</b> thay vì số tiền.
                         </p>
                         <L label="Tối đa (người)" cls="sm:col-span-3"><input name="maxCapacity" type="number" min={0} defaultValue={room.maxCapacity ?? ""} placeholder="= sức chứa" className={inp} /></L>
                         <L label="Phụ thu người thêm (đ/đêm)" cls="sm:col-span-3"><MoneyInput name="extraPersonFee" defaultValue={toNumber(room.extraPersonFee) ?? ""} placeholder="—" className={inp} /></L>
@@ -998,8 +998,8 @@ export default async function EditServicePage({
                 </L>
                 <L label="Tên phòng" cls="sm:col-span-3"><input name="name" placeholder="VD: Rustic 4" className={inp} /></L>
                 <L label="Sức chứa" cls="sm:col-span-2"><input name="capacity" type="number" min={1} defaultValue={2} className={inp} /></L>
-                <L label="Giá thường" cls="sm:col-span-2"><MoneyInput name="listPrice" defaultValue={0} className={inp} /></L>
-                <L label="Giá chiết khấu" cls="sm:col-span-2"><MoneyInput name="salePrice" placeholder="(nếu có)" className={inp} /></L>
+                <L label="Giá gốc (gạch)" cls="sm:col-span-2"><MoneyInput name="listPrice" defaultValue={0} className={inp} /></L>
+                <L label="Giá đang bán" cls="sm:col-span-2"><MoneyInput name="salePrice" placeholder="(nếu có)" className={inp} /></L>
                 <L label="Tối đa (người)" cls="sm:col-span-3"><input name="maxCapacity" type="number" min={0} placeholder="= sức chứa" className={inp} /></L>
                 <L label="Phụ thu người thêm (đ/đêm)" cls="sm:col-span-3"><MoneyInput name="extraPersonFee" placeholder="—" className={inp} /></L>
                 <L label="Phụ thu check-in sớm (đ)" cls="sm:col-span-3"><MoneyInput name="earlyCheckinFee" placeholder="—" className={inp} /></L>
@@ -1255,10 +1255,10 @@ function TypeBulkPriceForm({
       <ActionForm action={applyRoomTypePrices} className="grid grid-cols-2 gap-2 px-3 pb-3 sm:grid-cols-12 sm:items-end">
         <input type="hidden" name="roomTypeId" value={rt.id} />
         <input type="hidden" name="serviceId" value={serviceId} />
-        <L label="Giá thường" cls="sm:col-span-3">
+        <L label="Giá gốc (gạch)" cls="sm:col-span-3">
           <MoneyInput name="listPrice" defaultValue={toNumber(first.listPrice as never) ?? 0} className={inp} />
         </L>
-        <L label="Giá chiết khấu" cls="sm:col-span-3">
+        <L label="Giá đang bán" cls="sm:col-span-3">
           <MoneyInput name="salePrice" defaultValue={toNumber(first.salePrice as never) ?? ""} placeholder="(nếu có)" className={inp} />
         </L>
         <div className="col-span-2 grid grid-cols-4 gap-2 sm:col-span-12 sm:grid-cols-7">
@@ -1269,7 +1269,7 @@ function TypeBulkPriceForm({
           ))}
         </div>
         <p className="col-span-2 text-[11px] leading-relaxed text-gray-500 sm:col-span-9">
-          ⚠️ Giá theo thứ (T2–CN) <b>ĐÈ</b> giá chiết khấu & giá thường — muốn web dùng giá thường/chiết khấu thì
+          ⚠️ Giá theo thứ (T2–CN) <b>ĐÈ</b> giá đang bán & giá gốc — muốn web dùng giá gốc/giá đang bán thì
           <b> xoá trống các ô thứ</b>. Bấm Áp giá sẽ ghi đè giá của <b>tất cả {rt.rooms.length} phòng</b> trong hạng này.
         </p>
         <button className="col-span-2 rounded-lg bg-forest-600 px-3 py-2 text-sm font-bold text-white hover:bg-forest-700 sm:col-span-3">
@@ -1312,7 +1312,7 @@ function RoomConDayPrices({ room }: { room?: RoomDayPrices }) {
   return (
     <details open={hasAny} className="col-span-1 mt-1 sm:col-span-12">
       <summary className="cursor-pointer text-[11px] font-medium text-forest-700">
-        Giá theo thứ (tuỳ chọn — để trống = dùng giá chiết khấu/giá thường)
+        Giá theo thứ (tuỳ chọn — để trống = dùng giá đang bán/giá gốc)
       </summary>
       <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-7">
         {DAY_FIELDS.map((d, i) => (
@@ -1352,7 +1352,7 @@ function RoomConCommission({ room }: { room?: RoomCommissionVals }) {
   return (
     <details open={hasAny} className="col-span-1 mt-1 sm:col-span-12">
       <summary className="cursor-pointer text-[11px] font-medium text-sunset-600">
-        💰 Chiết khấu CTV cho phòng này (đ/đêm) — để trống = không chiết khấu
+        💰 Chiết khấu RIÊNG cho phòng này (đ/đêm, theo thứ) — để trống = dùng mức chung của home
       </summary>
       <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-8">
         <L label="Cơ bản/đêm">
@@ -1364,7 +1364,7 @@ function RoomConCommission({ room }: { room?: RoomCommissionVals }) {
           </L>
         ))}
       </div>
-      <p className="mt-1 text-[11px] text-gray-400">CTV đặt phòng này sẽ được hưởng mức chiết khấu tương ứng cho mỗi đêm (ghi đè theo thứ nếu có, không thì dùng mức cơ bản).</p>
+      <p className="mt-1 text-[11px] text-gray-400">Chiết khấu riêng cho phòng này, ghi đè mức chung của home. Nhập mức cơ bản/đêm, hoặc khai theo từng thứ. Để trống toàn bộ = phòng dùng “Chiết khấu áp cho tất cả phòng” của home. (Tiền chủ nhà thực nhận = giá bán − chiết khấu; nếu CTV đặt thì đây cũng là hoa hồng CTV.)</p>
     </details>
   );
 }
