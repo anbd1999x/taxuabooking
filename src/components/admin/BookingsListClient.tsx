@@ -407,6 +407,28 @@ export default function BookingsListClient({ rows: all, totalInDb }: { rows: Boo
                 <span className={`mt-0.5 block whitespace-nowrap text-[11px] ${r.status === "NEW" && m > 30 ? "font-semibold text-sunset-600" : "text-gray-400"}`} suppressHydrationWarning>
                   Gửi {agoText(m)}
                 </span>
+                {/* Mobile: các cột Dịch vụ/Ngày/Giá/Thanh toán/Trạng thái bị ẩn → tóm tắt gọn ngay dưới để xem luôn. */}
+                <span className="mt-1.5 flex flex-wrap items-center gap-1.5 lg:hidden">
+                  <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-bold ${stMeta.bd} ${stMeta.bg} ${stMeta.fg}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${stMeta.dot}`} />
+                    {stMeta.name}
+                  </span>
+                  <span className={`inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-bold ${payTone.split(" ")[0]}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${payTone.split(" ")[1]}`} />
+                    {payText}
+                  </span>
+                </span>
+                <span className="mt-1 flex min-w-0 items-center gap-1.5 text-[12px] lg:hidden">
+                  <span className={`flex-none rounded px-1 py-px text-[10px] font-extrabold ${catTone}`}>{catK}</span>
+                  <span className="truncate font-semibold text-gray-700">{r.title}</span>
+                </span>
+                <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px] lg:hidden" suppressHydrationWarning>
+                  <span className="font-bold text-ink">
+                    {r.endDate && r.endDate !== r.useDate ? `${fmtDM(r.useDate)} → ${fmtDM(r.endDate)}` : fmtDM(r.useDate)}
+                  </span>
+                  <span className={soonHot ? "font-semibold text-sunset-600" : "text-gray-500"}>{soon}</span>
+                  <span className="font-extrabold text-ink">{r.price != null ? K(r.price) : ""}</span>
+                </span>
               </Link>
               <Link href={`/admin/bookings/${r.id}`} className="hidden min-w-0 overflow-hidden lg:block">
                 <span className="flex min-w-0 items-start gap-1.5">

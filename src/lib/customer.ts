@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 import { prisma } from "./prisma";
+import { vnPhoneError } from "./phone";
 
 const COOKIE = "taxua_customer";
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 ngày
@@ -62,7 +63,7 @@ export async function logoutCustomer(): Promise<void> {
 export async function registerCustomer(name: string, phoneRaw: string, password: string): Promise<{ error?: string }> {
   const phone = normalizePhone(phoneRaw);
   if (name.trim().length < 2) return { error: "Vui lòng nhập họ tên." };
-  if (!/^0\d{9}$/.test(phone)) return { error: "Số điện thoại chưa đúng (10 số, bắt đầu bằng 0)." };
+  { const pe = vnPhoneError(phone); if (pe) return { error: pe }; }
   if (password.length < 6) return { error: "Mật khẩu tối thiểu 6 ký tự." };
   const existing = await prisma.customerUser.findUnique({ where: { phone } });
   if (existing) return { error: "Số điện thoại đã đăng ký — hãy đăng nhập." };
@@ -102,7 +103,7 @@ export async function updateCustomerPhone(phoneRaw: string): Promise<{ error?: s
   const customer = await getCustomer();
   if (!customer) return { error: "Bạn chưa đăng nhập." };
   const phone = normalizePhone(phoneRaw);
-  if (!/^0\d{9}$/.test(phone)) return { error: "Số điện thoại chưa đúng (10 số, bắt đầu bằng 0)." };
+  { const pe = vnPhoneError(phone); if (pe) return { error: pe }; }
   const taken = await prisma.customerUser.findUnique({ where: { phone } });
   if (taken && taken.id !== customer.id) return { error: "Số điện thoại đã thuộc tài khoản khác." };
   const user = await prisma.customerUser.update({ where: { id: customer.id }, data: { phone } });

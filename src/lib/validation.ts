@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { normalizeVnPhone, vnPhoneError } from "./phone";
 
 // BUNGALOW đã gỡ khỏi danh mục chọn được (gộp vào HOMESTAY) — dữ liệu cũ đã migrate.
 const SERVICE_CATEGORIES = [
@@ -10,7 +11,18 @@ const SERVICE_CATEGORIES = [
   "COMBO",
 ] as const;
 
-const phoneRegex = /^(0|\+84)(\d[ .]?){8,10}\d$/;
+/**
+ * SĐT khách khi đặt: số di động VN thật (đầu số nhà mạng, chặn số dãy/lặp) — xem phone.ts.
+ * Lưu dạng chuẩn hoá 0xxxxxxxxx (bỏ khoảng trắng, +84 → 0) để tra cứu/khớp tài khoản.
+ */
+const phoneField = z
+  .string()
+  .trim()
+  .superRefine((v, ctx) => {
+    const e = vnPhoneError(v);
+    if (e) ctx.addIssue({ code: z.ZodIssueCode.custom, message: e });
+  })
+  .transform(normalizeVnPhone);
 const dateKeyRegex = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Dữ liệu khách gửi khi đặt dịch vụ. */
@@ -32,10 +44,7 @@ export const bookingInputSchema = z
       .trim()
       .min(2, "Vui lòng nhập họ tên.")
       .max(120),
-    phone: z
-      .string()
-      .trim()
-      .regex(phoneRegex, "Số điện thoại không hợp lệ."),
+    phone: phoneField,
     note: z.string().trim().max(1000).optional().nullable(),
   })
   .refine(
@@ -56,7 +65,7 @@ export const cabinBookingSchema = z
     pickup: z.string().trim().max(200).optional().nullable(),
     drop: z.string().trim().max(200).optional().nullable(),
     customerName: z.string().trim().min(2, "Vui lòng nhập họ tên.").max(120),
-    phone: z.string().trim().regex(phoneRegex, "Số điện thoại không hợp lệ."),
+    phone: phoneField,
     note: z.string().trim().max(1000).optional().nullable(),
   })
   .refine((d) => d.single + d.double >= 1, {
@@ -86,7 +95,7 @@ export const comboBookingSchema = z
     cabinSingle: z.coerce.number().int().min(0).max(30).default(0),
     cabinDouble: z.coerce.number().int().min(0).max(30).default(0),
     customerName: z.string().trim().min(2, "Vui lòng nhập họ tên.").max(120),
-    phone: z.string().trim().regex(phoneRegex, "Số điện thoại không hợp lệ."),
+    phone: phoneField,
     note: z.string().trim().max(1000).optional().nullable(),
   })
   .refine((d) => (d.roomIds?.length ?? 0) > 0 || Boolean(d.roomId), {

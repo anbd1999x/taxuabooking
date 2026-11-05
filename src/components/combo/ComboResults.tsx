@@ -13,6 +13,7 @@ import type {
 } from "@/lib/combo";
 import { ensureSheetFresh } from "@/components/ensureSheet";
 import { cabinAllocation, busCostPerPerson } from "@/lib/combo-pricing";
+import { vnPhoneError } from "@/lib/phone";
 import { showGlobalLoading } from "@/components/useSearchNav";
 
 // Phải khớp COMBO_DISCOUNT trong src/lib/combo.ts (server tính lại giá khi đặt).
@@ -372,7 +373,7 @@ function ComboPlanCard({
     if (cabinCovered < people) { setErr(`Chỗ nằm trên xe mới đủ ${cabinCovered}/${people} người — thêm cabin đơn/đôi.`); return; }
     if (people > bus.seatsAvailable) { setErr(`Xe chỉ còn ${bus.seatsAvailable} chỗ.`); return; }
     if (!name.trim()) { setErr("Vui lòng nhập họ tên."); return; }
-    if (!/^0\d{9}$/.test(phone.replace(/\s/g, ""))) { setErr("Số điện thoại chưa đúng (10 số, bắt đầu bằng 0)."); return; }
+    { const pe = vnPhoneError(phone); if (pe) { setErr(pe); return; } }
     setSubmitting(true);
     try {
       const res = await fetch("/api/combo/book", {

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { billableOccupants } from "@/lib/occupancy";
+import { vnPhoneError } from "@/lib/phone";
 
 export interface HomestayMedia {
   url: string;
@@ -402,7 +403,9 @@ export function HomestayBooking({
   // Kỳ có đêm không công khai giá → không có tạm tính (hiển thị "IB để biết giá").
   const total: number | null = sel ? (sel.ib ? null : (sel.stayPrice ?? 0) + extraCost) : 0;
   const over = sel ? occupants > selMax : false;
-  const phoneOk = /^0\d{9}$/.test(cphone.replace(/\s/g, ""));
+  // Số di động VN thật (đầu số nhà mạng, chặn số dãy/lặp) — server kiểm tra lại.
+  const phoneErr = vnPhoneError(cphone);
+  const phoneOk = phoneErr === null;
   const ready = nN > 0 && Boolean(sel) && !over && !policyWarn;
 
   async function submit() {
@@ -414,7 +417,7 @@ export function HomestayBooking({
     }
     if (!name.trim() || !phoneOk) {
       setTried(true);
-      setErr(!name.trim() ? "Vui lòng nhập họ tên." : "Số điện thoại chưa đúng (10 số, bắt đầu bằng 0).");
+      setErr(!name.trim() ? "Vui lòng nhập họ tên." : phoneErr ?? "");
       return;
     }
     setSubmitting(true);

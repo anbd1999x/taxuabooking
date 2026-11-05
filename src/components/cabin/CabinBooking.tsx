@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { CabinDirectionOptions, CabinTripAvail, CabinDay } from "@/lib/cabin";
+import { vnPhoneError } from "@/lib/phone";
 
 function vnd(n: number | null | undefined, fallback = "Liên hệ") {
   if (n == null) return fallback;
@@ -90,7 +91,9 @@ export function CabinBooking({ serviceId, operatorName, outbound, ret, phone, za
       ]
     : [];
 
-  const phoneOk = /^0\d{9}$/.test(custPhone.replace(/\s/g, ""));
+  // Số di động VN thật (đầu số nhà mạng, chặn số dãy/lặp) — server kiểm tra lại.
+  const phoneErr = vnPhoneError(custPhone);
+  const phoneOk = phoneErr === null;
 
   function step1Next() {
     if (!bookable) {
@@ -106,7 +109,7 @@ export function CabinBooking({ serviceId, operatorName, outbound, ret, phone, za
   async function submit() {
     setTried(true);
     if (!name.trim() || !phoneOk) {
-      setErr(!name.trim() ? "Vui lòng nhập họ tên." : "Số điện thoại chưa đúng (10 số, bắt đầu bằng 0).");
+      setErr(!name.trim() ? "Vui lòng nhập họ tên." : phoneErr);
       return;
     }
     setErr(null);
