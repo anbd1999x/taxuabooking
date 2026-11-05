@@ -126,9 +126,20 @@ interface DayMonth {
   y: number | null; // năm nếu ô ghi rõ, ngược lại null (suy sau, 1 lần/tab)
 }
 
-/** Nhận diện ô ngày (không suy năm). Hỗ trợ: D/M, D/M/YYYY, D-M, D.M, YYYY-MM-DD. */
+/**
+ * Nhãn THỨ đứng ngay TRƯỚC ngày trong ô tiêu đề — một số sheet gộp cả thứ lẫn
+ * ngày vào 1 ô ("Thứ Năm 1/10", "Chủ Nhật 4/10", "CN 4/10", "T5 1/10"). Lookahead
+ * (?=…D/M…) bảo đảm chỉ bỏ nhãn khi SAU đó là ngày thật; cố ý KHÔNG khớp "Tháng
+ * 1/2026" (nhãn tháng của bố cục khối-tháng) để không nuốt nhầm thành "1/2".
+ */
+const WEEKDAY_DATE_PREFIX =
+  /^(?:(?:thứ|thu|chủ|chu)\s*[\p{L}2-7]*|cn|t\s*[2-7])[\s,.:-]+(?=\d{1,2}\s*[/.\-]\s*\d)/iu;
+
+/** Nhận diện ô ngày (không suy năm). Hỗ trợ: D/M, D/M/YYYY, D-M, D.M, YYYY-MM-DD,
+ *  kèm nhãn thứ ở đầu ("Thứ Năm 1/10"). Vô hại với ô không-ngày vì sau khi bỏ nhãn
+ *  phần còn lại vẫn phải là NGÀY THUẦN mới được nhận. */
 function parseDayMonth(raw: string): DayMonth | null {
-  const s = raw.trim();
+  const s = raw.trim().replace(WEEKDAY_DATE_PREFIX, "").trim();
   if (!s) return null;
 
   // YYYY-MM-DD (gviz có thể trả dạng này)
@@ -189,7 +200,7 @@ function cellStatus(raw: string): RoomStatus {
   if (/check ?in/.test(t) || t === "in") return "BOOKED";
   if (/(dat|chot|book|full|kin|het|day|sold)/.test(t)) return "BOOKED";
   if (/(cho|wait|hold|giu|pending)/.test(t)) return "PENDING";
-  if (/(dong|close|khoa|nghi|off|bao tri)/.test(t)) return "CLOSED";
+  if (/(dong|close|khoa|nghi|off|bao tri|khong ban|ngung ban|ngung)/.test(t)) return "CLOSED";
   // Chủ sheet ghi rõ còn trống (thay vì để ô trống).
   if (/\b(trong|available|avail|free|empty|ok)\b/.test(t)) return "AVAILABLE";
   // Ô có chữ lạ nhưng không trống → coi như không bán được (an toàn).
@@ -975,6 +986,11 @@ export async function syncServiceSheet(
             if (candidates.some((c) => STATS_LABEL_RE.test(norm(c)))) continue;
             const cells = dateCols.map((dc) => (dataRow[dc.col] ?? "").trim()).filter(Boolean);
             if (cells.length > 0 && cells.every((v) => NUMERIC_CELL_RE.test(v))) continue;
+            // Banner gộp (vd tiêu đề "TÌNH TRẠNG PHÒNG 2026" colspan cả hàng): giá trị
+            // ô gộp bị TRẢI ra mọi cột ngày nên trông như "đã đặt". Nhận diện khi mọi
+            // ô ngày không rỗng đều trùng đúng nhãn hàng → bỏ qua êm, không cảnh báo.
+            const label = norm(candidates[0]);
+            if (cells.length > 0 && cells.every((v) => norm(v) === label)) continue;
             // Chỉ cảnh báo khi hàng có booking từ HÔM NAY trở đi — phòng chỉ còn
             // trong tab tháng đã qua (đã ngừng bán) không ảnh hưởng gì.
             const hasBooking = dateCols.some(
