@@ -225,6 +225,7 @@ export default async function ServiceDetailPage({
           mapUrl={resolvedMapUrl}
           policy={service.policy}
           weekendPolicy={service.weekendPolicy}
+          childFreeUnderAge={service.childFreeUnderAge}
           description={service.description}
           suggestions={suggestions}
           header={

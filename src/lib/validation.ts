@@ -20,6 +20,9 @@ export const bookingInputSchema = z
     useDate: z.string().regex(dateKeyRegex, "Ngày không hợp lệ."),
     endDate: z.string().regex(dateKeyRegex).optional().nullable(),
     quantity: z.coerce.number().int().min(1, "Số lượng tối thiểu là 1.").max(50),
+    // Homestay: tách người lớn / trẻ em (tuổi) để tính phụ thu + hiện bill chính xác.
+    adults: z.coerce.number().int().min(1).max(50).optional(),
+    childrenAges: z.array(z.coerce.number().int().min(0).max(17)).max(20).optional(),
     roomTypeId: z.string().optional().nullable(),
     roomId: z.string().optional().nullable(),
     cabinTripId: z.string().optional().nullable(),
@@ -119,6 +122,7 @@ export const serviceInputSchema = z.object({
   roomCommission: z.coerce.number().int().min(0).optional().nullable(),
   weekendPolicy: z.enum(["NONE", "FRI_SAT", "SAT_SUN", "FRI_SUN", "SAT_PAIRED"]).optional(),
   priorityOrder: z.coerce.number().int().optional().nullable(),
+  childFreeUnderAge: z.coerce.number().int().min(0).max(18).optional().nullable(),
 });
 
 export type ServiceInput = z.infer<typeof serviceInputSchema>;

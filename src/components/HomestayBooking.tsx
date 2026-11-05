@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
+import { billableOccupants } from "@/lib/occupancy";
 
 export interface HomestayMedia {
   url: string;
@@ -113,8 +114,11 @@ export function HomestayBooking({
   initialCheckIn,
   initialCheckOut,
   weekendPolicy,
+  childFreeUnderAge = 6,
 }: {
   serviceId: string;
+  /** Trẻ dưới số tuổi này miễn phí (không tính người/phụ thu). */
+  childFreeUnderAge?: number;
   /** Không quản lý lịch trên web: ẩn lịch & form đặt, khách nhắn tin để nhận thông tin. */
   contactOnly?: boolean;
   rooms: HomestayRoom[];
@@ -169,7 +173,8 @@ export function HomestayBooking({
   const [ci, setCi] = useState<string | null>(ci0);
   const [co, setCo] = useState<string | null>(co0);
   const [selected, setSelected] = useState<string | null>(null);
-  const [guests, setGuests] = useState(2);
+  const [adults, setAdults] = useState(2);
+  const [childAges, setChildAges] = useState<number[]>([]);
 
   const [name, setName] = useState("");
   const [cphone, setCphone] = useState("");
@@ -380,13 +385,15 @@ export function HomestayBooking({
 
   const dateQS = ci && coEff ? `?from=${ci}&to=${coEff}` : "";
   const sel = roomView.find((v) => v.r.id === selected && v.free) ?? null;
+  // Số người TÍNH PHÍ = người lớn + trẻ TỪ ngưỡng miễn phí trở lên (trẻ nhỏ hơn: miễn phí).
+  const occupants = billableOccupants(adults, childAges, childFreeUnderAge);
   // Sức chứa tối đa (nhận thêm người kèm phụ thu) & phụ thu người thêm.
   const selMax = sel ? Math.max(sel.r.capacity, sel.r.maxCapacity ?? sel.r.capacity) : 0;
-  const extraGuests = sel ? Math.max(0, Math.min(guests, selMax) - sel.r.capacity) : 0;
+  const extraGuests = sel ? Math.max(0, Math.min(occupants, selMax) - sel.r.capacity) : 0;
   const extraCost = sel && extraGuests > 0 && sel.r.extraFee ? extraGuests * sel.r.extraFee * nN : 0;
   // Kỳ có đêm không công khai giá → không có tạm tính (hiển thị "IB để biết giá").
   const total: number | null = sel ? (sel.ib ? null : (sel.stayPrice ?? 0) + extraCost) : 0;
-  const over = sel ? guests > selMax : false;
+  const over = sel ? occupants > selMax : false;
   const phoneOk = /^0\d{9}$/.test(cphone.replace(/\s/g, ""));
   const ready = nN > 0 && Boolean(sel) && !over && !policyWarn;
 
@@ -412,6 +419,8 @@ export function HomestayBooking({
           useDate: ci,
           endDate: coEff,
           quantity: 1,
+          adults,
+          childrenAges: childAges,
           roomId: sel!.r.id,
           roomTypeId: null,
           customerName: name.trim(),
@@ -670,7 +679,7 @@ export function HomestayBooking({
                             setSelected(v.r.id);
                             setResult(null);
                             const mx = Math.max(v.r.capacity, v.r.maxCapacity ?? v.r.capacity);
-                            if (guests > mx) setGuests(mx);
+                            if (adults > mx) setAdults(mx);
                           }}
                           className={[
                             "rounded-xl px-5 py-2.5 text-sm font-bold transition",
@@ -852,24 +861,56 @@ export function HomestayBooking({
                 </div>
               </button>
 
-              {/* Số khách */}
-              <div className="flex items-center justify-between py-0.5">
-                <div>
-                  <div className="text-sm font-bold text-ink">Số khách</div>
-                  <div className={`text-xs ${over ? "text-red-600" : "text-gray-500"}`}>
-                    {sel
-                      ? over
-                        ? `Vượt tối đa ${selMax} người`
-                        : extraGuests > 0
-                          ? `${extraGuests} người vượt chuẩn${sel.r.extraFee ? ` · phụ thu ${fmt(sel.r.extraFee)}/người/đêm` : ""}`
-                          : `Sức chứa ${sel.r.capacity}${selMax > sel.r.capacity ? ` · tối đa ${selMax}` : ""} người`
-                      : "Chọn phòng để biết sức chứa"}
+              {/* Số khách: người lớn + trẻ em (kèm tuổi) */}
+              <div className="flex flex-col gap-2.5 py-0.5">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-bold text-ink">Người lớn</div>
+                  <div className="flex items-center gap-2.5">
+                    <button type="button" onClick={() => setAdults((g) => Math.max(1, g - 1))} className="flex h-8 w-8 items-center justify-center rounded-full text-lg ring-1 ring-gray-200">−</button>
+                    <span className="min-w-[16px] text-center font-extrabold">{adults}</span>
+                    <button type="button" onClick={() => setAdults((g) => Math.min(20, g + 1))} className="flex h-8 w-8 items-center justify-center rounded-full text-lg ring-1 ring-gray-200">+</button>
                   </div>
                 </div>
-                <div className="flex items-center gap-2.5">
-                  <button type="button" onClick={() => setGuests((g) => Math.max(1, g - 1))} className="flex h-8 w-8 items-center justify-center rounded-full text-lg ring-1 ring-gray-200">−</button>
-                  <span className="min-w-[16px] text-center font-extrabold">{guests}</span>
-                  <button type="button" onClick={() => setGuests((g) => Math.min(20, g + 1))} className="flex h-8 w-8 items-center justify-center rounded-full text-lg ring-1 ring-gray-200">+</button>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-bold text-ink">Trẻ em</div>
+                    <div className="text-xs text-gray-500">Dưới {childFreeUnderAge} tuổi: miễn phí</div>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <button type="button" onClick={() => setChildAges((a) => a.slice(0, -1))} className="flex h-8 w-8 items-center justify-center rounded-full text-lg ring-1 ring-gray-200">−</button>
+                    <span className="min-w-[16px] text-center font-extrabold">{childAges.length}</span>
+                    <button type="button" onClick={() => setChildAges((a) => (a.length >= 10 ? a : [...a, 6]))} className="flex h-8 w-8 items-center justify-center rounded-full text-lg ring-1 ring-gray-200">+</button>
+                  </div>
+                </div>
+                {childAges.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {childAges.map((age, i) => (
+                      <label key={i} className="flex items-center gap-1.5 rounded-lg bg-gray-50 px-2 py-1 text-xs ring-1 ring-gray-200">
+                        <span className="text-gray-500">Bé {i + 1}</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={17}
+                          value={age}
+                          onChange={(e) => {
+                            const v = Math.max(0, Math.min(17, parseInt(e.target.value || "0", 10) || 0));
+                            setChildAges((arr) => arr.map((x, j) => (j === i ? v : x)));
+                          }}
+                          className="w-12 rounded border border-gray-200 px-1.5 py-1 text-center font-bold text-ink outline-none"
+                        />
+                        <span className="text-gray-500">tuổi</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+                <div className={`text-xs ${over ? "text-red-600" : "text-gray-500"}`}>
+                  {sel
+                    ? over
+                      ? `Vượt tối đa ${selMax} người (đang ${occupants})`
+                      : extraGuests > 0
+                        ? `${occupants} người tính phí · ${extraGuests} vượt chuẩn${sel.r.extraFee ? ` · phụ thu ${fmt(sel.r.extraFee)}/người/đêm` : ""}`
+                        : `Sức chứa ${sel.r.capacity}${selMax > sel.r.capacity ? ` · tối đa ${selMax}` : ""} người · đang ${occupants} tính phí`
+                    : "Chọn phòng để biết sức chứa"}
                 </div>
               </div>
 

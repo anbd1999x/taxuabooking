@@ -21,6 +21,7 @@ export interface HomestayCard {
   amen: Record<AmenKey, boolean>; // tiện ích (hạng phòng + dịch vụ) để lọc
   desc: string;
   capacity: number;
+  childFreeUnderAge: number; // trẻ dưới tuổi này miễn phí (không tính sức chứa)
   count: number; // số phòng giống nhau trong nhóm
   price: number;
   priceOld: number | null; // giá niêm yết gạch ngang khi đang giảm giá
@@ -98,7 +99,8 @@ export function HomestayList({
   // tính theo ngày TRÊN URL (initialFrom/initialTo) — chỉ đổi khi bấm "Tìm kiếm".
   const [ci, setCi] = useState(initialFrom); // nhận phòng = from
   const [co, setCo] = useState(initialTo); // trả phòng = to
-  const [guests, setGuests] = useState(initialPeople); // 0 = mọi số khách
+  const [adults, setAdults] = useState(initialPeople > 0 ? initialPeople : 0); // 0 = không lọc số khách
+  const [childAges, setChildAges] = useState<number[]>([]); // tuổi từng trẻ (lọc theo ngưỡng miễn phí từng home)
   const [price, setPrice] = useState("all");
   const [type, setType] = useState("all");
   const [zone, setZone] = useState("all"); // lọc theo khu vực (Trung tâm, Khe Cải, Đỉnh Gió...)
@@ -268,7 +270,7 @@ export function HomestayList({
       el.style.opacity = "1";
       el.style.transform = "none";
     });
-  }, [q, ci, co, guests, price, type, zone, home, sort, amen, all]);
+  }, [q, ci, co, adults, childAges, price, type, zone, home, sort, amen, all]);
 
   // Mở trang với sẵn ngày (từ trang chủ) → cuộn xuống danh sách để thấy kết quả
   // ngay trên mobile. Không chạy khi đang gõ lọc trực tiếp.
@@ -335,7 +337,10 @@ export function HomestayList({
   const prRank = (x: HomestayCard) => (x.featured ? (x.priorityOrder || 0) + 1 : 0);
   // Đủ chỗ cho cả đoàn (như combo): tính cả việc lấy NHIỀU phòng giống nhau cùng
   // loại — freeRooms = số phòng còn trống trong kỳ (chưa chọn ngày = tổng số phòng).
-  const fitsGuests = (x: HomestayCard) => guests === 0 || x.capacity * x.freeRooms >= guests;
+  // Số người TÍNH PHÍ cần chứa = người lớn + trẻ TỪ ngưỡng miễn phí của home đó.
+  const partyEmpty = adults === 0 && childAges.length === 0;
+  const occFor = (x: HomestayCard) => adults + childAges.filter((a) => a >= x.childFreeUnderAge).length;
+  const fitsGuests = (x: HomestayCard) => partyEmpty || x.capacity * x.freeRooms >= occFor(x);
   const preFiltered = all.filter(
     (x) =>
       (type === "all" || x.cat === type) &&
@@ -374,7 +379,7 @@ export function HomestayList({
     }
   }
   const items = [...prioHead, ...prioTail, ...normal];
-  const hasFilter = Boolean(q || ci || co || guests > 0 || price !== "all" || type !== "all" || zone !== "all" || home !== "all" || sort !== "rec" || amen.size > 0);
+  const hasFilter = Boolean(q || ci || co || adults > 0 || childAges.length > 0 || price !== "all" || type !== "all" || zone !== "all" || home !== "all" || sort !== "rec" || amen.size > 0);
   const toggleAmen = (k: AmenKey) =>
     setAmen((prev) => {
       const next = new Set(prev);
@@ -392,7 +397,8 @@ export function HomestayList({
     const p = new URLSearchParams();
     if (ci && co && co > ci) { p.set("from", ci); p.set("to", co); }
     if (q) p.set("q", q);
-    if (guests > 0) p.set("people", String(guests));
+    if (adults > 0) p.set("people", String(adults));
+    if (childAges.length) p.set("kids", childAges.join("-"));
     go(`/homestay${p.toString() ? `?${p}` : ""}`, { replace: true }); // kèm refresh — tránh cache cũ
     const el = listRef.current;
     if (el) window.setTimeout(() => window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 12, behavior: "smooth" }), 120);
@@ -400,7 +406,7 @@ export function HomestayList({
 
   // Xoá lọc: về trạng thái không ngày (server trả "Chọn ngày để xem").
   function clearAll() {
-    setQ(""); setCi(""); setCo(""); setGuests(0); setPrice("all"); setType("all"); setZone("all"); setHome("all"); setSort("rec"); setAmen(new Set());
+    setQ(""); setCi(""); setCo(""); setAdults(0); setChildAges([]); setPrice("all"); setType("all"); setZone("all"); setHome("all"); setSort("rec"); setAmen(new Set());
     go("/homestay", { replace: true });
   }
 

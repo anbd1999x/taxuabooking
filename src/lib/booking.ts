@@ -18,9 +18,10 @@ import {
   type StayAvailabilityResult,
 } from "./availability";
 import { checkWeekendPolicy } from "./weekend-policy";
-import { toNumber } from "./format";
+import { toNumber, formatPrice } from "./format";
 import { generateBookingCode } from "./utils";
 import { resolveCommission } from "./commission";
+import { billableOccupants, extraPersonCost, partyLabel, DEFAULT_CHILD_FREE_UNDER } from "./occupancy";
 import type { BookingInput } from "./validation";
 
 export interface StayOption {
@@ -268,6 +269,8 @@ export async function createBooking(
   let cabinTripId: string | null = null;
   let rentalVehicleId: string | null = null;
   let stayCommission = 0; // chiết khấu CTV theo phòng/đêm (homestay)
+  let bAdults: number | null = null; // người lớn (homestay)
+  let bChildrenAges: number[] = []; // tuổi từng trẻ (homestay)
 
   const computed = await computeAvailability(
     input.serviceId,
@@ -285,14 +288,30 @@ export async function createBooking(
     const opt = computed.stayOptions.find((o) => o.id === pickId);
     if (opt) {
       roomId = opt.id;
-      const room = await prisma.room.findUnique({ where: { id: opt.id }, select: { roomTypeId: true } });
+      const room = await prisma.room.findUnique({
+        where: { id: opt.id },
+        select: { roomTypeId: true, capacity: true, maxCapacity: true, extraPersonFee: true },
+      });
       roomTypeId = room?.roomTypeId ?? null;
-      selectionLabel = opt.name;
       nights = opt.count;
       bookingQty = 1;
-      referencePrice = opt.pricePerUnit;
       needsConfirmation = !opt.bookable;
       stayCommission = opt.commission ?? 0;
+
+      // Người lớn / trẻ em: trẻ dưới ngưỡng miễn phí không tính người; từ ngưỡng tính như 1 người.
+      const freeUnder = service.childFreeUnderAge ?? DEFAULT_CHILD_FREE_UNDER;
+      bAdults = Math.max(1, input.adults ?? input.quantity ?? 1);
+      bChildrenAges = input.childrenAges ?? [];
+      const occupants = billableOccupants(bAdults, bChildrenAges, freeUnder);
+      const cap = room?.capacity ?? opt.capacity ?? 2;
+      const ec = extraPersonCost(occupants, cap, room?.maxCapacity, toNumber(room?.extraPersonFee), opt.count);
+      if (ec.overCapacity) {
+        throw new Error(`Số khách (${occupants}) vượt sức chứa tối đa của phòng (${ec.max}). Vui lòng chọn phòng lớn hơn hoặc giảm số người.`);
+      }
+      referencePrice = opt.pricePerUnit != null ? opt.pricePerUnit + ec.cost : null;
+      selectionLabel =
+        `${opt.name} · ${partyLabel(bAdults, bChildrenAges)}` +
+        (ec.extraGuests > 0 ? ` · +${ec.extraGuests} khách phụ thu ${formatPrice(ec.cost)}` : "");
     }
   } else if (computed?.kind === "rental" && computed.stayOptions) {
     const opt = computed.stayOptions.find((o) => o.id === input.rentalVehicleId);
@@ -353,6 +372,8 @@ export async function createBooking(
       endDate: input.endDate ? parseDateOnly(input.endDate) : null,
       nights,
       quantity: bookingQty,
+      adults: bAdults,
+      childrenAges: bChildrenAges,
       roomTypeId,
       roomId,
       cabinTripId,

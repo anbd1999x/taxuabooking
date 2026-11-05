@@ -560,6 +560,7 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
           },
           desc: first.desc,
           capacity: first.capacity,
+          childFreeUnderAge: s.childFreeUnderAge,
           count: g.length, // tổng số phòng giống nhau
           price: first.price,
           priceOld: first.priceOld,

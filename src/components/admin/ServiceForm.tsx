@@ -35,6 +35,7 @@ interface Initial {
   roomCommission?: number | null;
   weekendPolicy?: string | null;
   priorityOrder?: number | null;
+  childFreeUnderAge?: number | null;
 }
 
 const inputCls =
@@ -210,6 +211,22 @@ export function ServiceForm({
           <span className="text-sm font-medium text-gray-600">Chiết khấu áp cho TẤT CẢ phòng (đ/phòng/đêm)</span>
           <MoneyInput name="roomCommission" defaultValue={initial.roomCommission ?? ""} placeholder="VD: 100.000 — mọi phòng dùng mức này" className={inputCls} />
           <span className="mt-1 block text-xs text-gray-400">Mọi phòng của home dùng chung mức này, TRỪ phòng có khai chiết khấu riêng (theo thứ) ở mục Phòng. Tiền chủ nhà thực nhận = giá bán − chiết khấu. Để trống = chỉ dùng mức khai riêng ở từng phòng.</span>
+        </label>
+      )}
+
+      {/* Ngưỡng miễn phí trẻ em (homestay): dưới tuổi này không tính người/phụ thu. */}
+      {(cat === "HOMESTAY" || cat === "BUNGALOW") && (
+        <label className="block sm:max-w-sm">
+          <span className="text-sm font-medium text-gray-600">Miễn phí trẻ em dưới … tuổi</span>
+          <input
+            type="number"
+            name="childFreeUnderAge"
+            min={0}
+            max={18}
+            defaultValue={initial.childFreeUnderAge ?? 6}
+            className={inputCls}
+          />
+          <span className="mt-1 block text-xs text-gray-400">Trẻ DƯỚI số tuổi này: miễn phí, không tính vào số người. Từ tuổi này tính như 1 người (vào sức chứa + phụ thu người thêm/đêm nếu vượt chuẩn). Mặc định 6.</span>
         </label>
       )}
 

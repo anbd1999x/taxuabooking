@@ -146,6 +146,9 @@ model Service {
   // khai riêng chiết khấu. null = không có fallback (chỉ dùng mức khai ở từng phòng).
   roomCommission Decimal?     @db.Decimal(12, 0)
   weekendPolicy WeekendPolicy @default(NONE) // chính sách bán cuối tuần theo cụm (homestay)
+  // Homestay: trẻ DƯỚI số tuổi này được MIỄN PHÍ (không tính người, không phụ thu);
+  // từ tuổi này tính như 1 người (vào sức chứa + phụ thu người thêm nếu vượt chuẩn).
+  childFreeUnderAge Int        @default(6)
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
@@ -462,6 +465,9 @@ model BookingRequest {
   endDate         DateTime?     @db.Date // ngày trả (lưu trú / thuê xe)
   nights          Int? // số đêm (nếu lưu trú)
   quantity        Int           @default(1) // số người / phòng / xe / vé
+  // Homestay/combo: tách người lớn & trẻ em (tuổi) để tính phụ thu + hiện bill chính xác.
+  adults          Int? // số người lớn (null = đơn cũ chưa tách)
+  childrenAges    Int[]         @default([]) // tuổi từng trẻ đi kèm (trẻ dưới ngưỡng miễn phí)
 
   // Tham chiếu tùy loại dịch vụ (ghi nhận lựa chọn cụ thể của khách).
   roomTypeId      String?

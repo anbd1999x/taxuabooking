@@ -82,6 +82,7 @@ export async function createService(
     roomCommission: num(formData.get("roomCommission")),
     weekendPolicy: s(formData.get("weekendPolicy")),
     priorityOrder: num(formData.get("priorityOrder")),
+    childFreeUnderAge: num(formData.get("childFreeUnderAge")),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ." };
@@ -115,6 +116,7 @@ export async function createService(
       roomCommission: d.roomCommission ?? null,
       weekendPolicy: d.weekendPolicy ?? "NONE",
       priorityOrder: d.priorityOrder ?? 0,
+      childFreeUnderAge: d.childFreeUnderAge ?? 6,
     },
   });
   if (d.category === "CABIN" && d.featured) await enforceSingleFeaturedCabin(created.id);
@@ -153,6 +155,7 @@ export async function createServiceFull(
     roomCommission: num(formData.get("roomCommission")),
     weekendPolicy: s(formData.get("weekendPolicy")),
     priorityOrder: num(formData.get("priorityOrder")),
+    childFreeUnderAge: num(formData.get("childFreeUnderAge")),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ." };
@@ -237,6 +240,7 @@ export async function createServiceFull(
       roomCommission: d.roomCommission ?? null,
       weekendPolicy: d.weekendPolicy ?? "NONE",
       priorityOrder: d.priorityOrder ?? 0,
+      childFreeUnderAge: d.childFreeUnderAge ?? 6,
       roomTypes:
         rooms.length && d.category === "HOMESTAY"
           ? {
@@ -330,6 +334,7 @@ export async function updateService(
     roomCommission: num(formData.get("roomCommission")),
     weekendPolicy: s(formData.get("weekendPolicy")),
     priorityOrder: num(formData.get("priorityOrder")),
+    childFreeUnderAge: num(formData.get("childFreeUnderAge")),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ." };
@@ -364,6 +369,7 @@ export async function updateService(
       roomCommission: d.roomCommission ?? null,
       weekendPolicy: d.weekendPolicy ?? "NONE",
       priorityOrder: d.priorityOrder ?? 0,
+      childFreeUnderAge: d.childFreeUnderAge ?? 6,
     },
   });
   if (d.category === "CABIN" && d.featured) await enforceSingleFeaturedCabin(id);

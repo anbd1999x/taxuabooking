@@ -180,7 +180,7 @@ export default async function EditServicePage({
                     ctvCommission: toNumber(service.ctvCommission),
                     roomCommission: toNumber(service.roomCommission),
                     weekendPolicy: service.weekendPolicy,
-                    priorityOrder: service.priorityOrder,
+                    priorityOrder: service.priorityOrder, childFreeUnderAge: service.childFreeUnderAge,
                   }}
                 />
               </section>
@@ -431,7 +431,7 @@ export default async function EditServicePage({
                     ctvCommission: toNumber(service.ctvCommission),
                     roomCommission: toNumber(service.roomCommission),
                     weekendPolicy: service.weekendPolicy,
-                    priorityOrder: service.priorityOrder,
+                    priorityOrder: service.priorityOrder, childFreeUnderAge: service.childFreeUnderAge,
                   }}
                 />
               </section>
@@ -847,7 +847,7 @@ export default async function EditServicePage({
             ownerId: service.ownerId,
             ctvCommission: toNumber(service.ctvCommission),
             weekendPolicy: service.weekendPolicy,
-            priorityOrder: service.priorityOrder,
+            priorityOrder: service.priorityOrder, childFreeUnderAge: service.childFreeUnderAge,
           }}
         />
       </section>
