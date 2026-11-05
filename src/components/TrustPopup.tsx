@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import { telHref, zaloHref, type TrustPopupConfig, type TrustPerson } from "@/lib/trust-popup";
 
-/** Key sessionStorage: đã xem trong phiên này (chuyển trang / F5 trong phiên → không hiện lại). */
-const SEEN_KEY = "txb-trust-seen";
 /** Key localStorage: khách tick "không hiện lại trong 7 ngày". */
 const HIDE_KEY = "txb-trust-popup";
 const HIDE_MS = 7 * 864e5;
@@ -27,25 +25,17 @@ export function TrustPopup({ config }: { config: TrustPopupConfig }) {
     const onResize = () => setWide(window.innerWidth >= 720);
     window.addEventListener("resize", onResize);
 
+    // Hiện mỗi lần TẢI TRANG (F5 / mở trực tiếp URL). Chuyển trang bằng link nội
+    // bộ (SPA) không mount lại component nên không hiện lại — đúng ý "chuyển trang
+    // không hiện lại". Chỉ bỏ qua khi khách đã tick "không hiện lại 7 ngày".
     let show = true;
     try {
-      // Đã xem trong phiên này → bỏ qua (chỉ hiện lần đầu khi mở web).
-      if (sessionStorage.getItem(SEEN_KEY)) show = false;
-      // Khách đã chọn ẩn 7 ngày → bỏ qua.
       const t = Number(localStorage.getItem(HIDE_KEY));
       if (t && Date.now() - t < HIDE_MS) show = false;
     } catch {
       /* chế độ riêng tư: vẫn hiện bình thường */
     }
-    if (show) {
-      setOpen(true);
-      try {
-        // Đánh dấu đã xem ngay → F5 / chuyển trang trong phiên không hiện lại.
-        sessionStorage.setItem(SEEN_KEY, "1");
-      } catch {
-        /* bỏ qua */
-      }
-    }
+    if (show) setOpen(true);
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
