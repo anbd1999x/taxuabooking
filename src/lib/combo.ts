@@ -3,7 +3,7 @@ import type { AvailabilityStatus } from "@prisma/client";
 import { prisma } from "./prisma";
 import { parseDateOnly, toDateKey, addDays, enumerateNights } from "./dates";
 import { toNumber } from "./format";
-import { roomPricing, priceForDay, roomCommissionForNights } from "./availability";
+import { roomPricing, priceForDay, stayStrike, roomCommissionForNights } from "./availability";
 import { generateBookingCode } from "./utils";
 import { checkWeekendPolicy } from "./weekend-policy";
 import type { ComboBookingInput } from "./validation";
@@ -205,6 +205,8 @@ export interface ComboRoomOption {
   extraFeeStay: number;
   /** Tổng tiền phòng cho cả kỳ lưu trú (1 phòng). */
   roomCost: number;
+  /** Tổng GIÁ GẠCH (niêm yết) cả kỳ cho 1 phòng; null = không giảm. */
+  roomCostOld: number | null;
   features: ComboRoomFeatures;
   easyRoad: boolean;
   pool: boolean;
@@ -245,6 +247,8 @@ export interface ComboStayPlan {
   capacity: number; // tổng sức chứa của các phòng trong phương án
   /** TỔNG tiền phòng cả kỳ cho cả đoàn (cộng đồng: đã nhân số người). */
   roomCost: number;
+  /** TỔNG giá gạch (niêm yết) cả kỳ cả đoàn; null = không giảm. */
+  roomCostOld: number | null;
   /** Toàn giường cộng đồng (giá theo người → không trừ giảm giá combo). */
   communal: boolean;
   /** Số khách Ở GHÉP vượt sức chứa chuẩn (phòng đôi 2 người nhận tối đa 3...). 0 = không. */
@@ -323,6 +327,7 @@ function makePlan(
   communal: boolean,
   extraGuests = 0,
   extraCost = 0,
+  roomCostOld: number | null = null,
 ): ComboStayPlan {
   const roomIds = groups.flatMap((g) => g.roomIds);
   // Điểm tiện ích = tỉ lệ CHỖ NGỦ được hưởng từng tiện ích, có trọng số
@@ -353,6 +358,7 @@ function makePlan(
     roomCount: roomIds.length,
     capacity,
     roomCost,
+    roomCostOld: roomCostOld != null && roomCostOld > roomCost ? roomCostOld : null,
     communal,
     extraGuests,
     extraCost,
@@ -380,30 +386,31 @@ export function buildStayPlans(rooms: ComboRoomOption[], people: number): ComboS
     r.roomName.startsWith(`${r.typeName} · `) ? r.roomName.slice(r.typeName.length + 3) : r.roomName;
 
   // --- Phòng thường: nhóm phòng giống nhau (cùng hạng + giá + sức chứa + phụ thu) ---
-  interface G { rep: ComboRoomOption; ids: string[]; names: string[]; rooms: ComboRoomOption[]; cap: number; capMax: number; extraStay: number; cost: number }
+  interface G { rep: ComboRoomOption; ids: string[]; names: string[]; rooms: ComboRoomOption[]; cap: number; capMax: number; extraStay: number; cost: number; costOld: number }
   const gm = new Map<string, G>();
   for (const r of normal) {
     const k = `${r.roomTypeId}|${r.roomCost}|${r.capacity}|${r.maxCapacity}|${r.extraFeeStay}`;
     const g = gm.get(k);
     if (g) { g.ids.push(r.roomId); g.names.push(plainName(r)); g.rooms.push(r); }
-    else gm.set(k, { rep: r, ids: [r.roomId], names: [plainName(r)], rooms: [r], cap: r.capacity, capMax: r.maxCapacity, extraStay: r.extraFeeStay, cost: r.roomCost });
+    // costOld = giá gạch 1 phòng cả kỳ (null → dùng giá bán, để tổng gạch vẫn đúng).
+    else gm.set(k, { rep: r, ids: [r.roomId], names: [plainName(r)], rooms: [r], cap: r.capacity, capMax: r.maxCapacity, extraStay: r.extraFeeStay, cost: r.roomCost, costOld: r.roomCostOld ?? r.roomCost });
   }
   // Nhóm rẻ nhất TÍNH TRÊN MỖI CHỖ đứng trước để DFS tìm phương án tốt sớm.
   const groups = [...gm.values()].sort((a, b) => a.cost / a.cap - b.cost / b.cap);
 
   // Duyệt tổ hợp số phòng mỗi nhóm cho tới khi đủ chỗ (sức chứa tính bằng capOf):
   // chỉ giữ phương án TỐI THIỂU (bỏ 1 phòng bất kỳ là thiếu chỗ).
-  interface Found { counts: number[]; cost: number; capStd: number; used: number }
+  interface Found { counts: number[]; cost: number; costOld: number; capStd: number; used: number }
   const maxRooms = Math.min(MAX_PLAN_ROOMS, people);
   const enumerate = (capOf: (g: G) => number): Found[] => {
     const counts = new Array<number>(groups.length).fill(0);
     const found: Found[] = [];
-    (function dfs(i: number, cost: number, cap: number, capStd: number, used: number) {
+    (function dfs(i: number, cost: number, costOld: number, cap: number, capStd: number, used: number) {
       if (cap >= people) {
         for (let j = 0; j < groups.length; j++) {
           if (counts[j] > 0 && cap - capOf(groups[j]) >= people) return; // thừa phòng
         }
-        found.push({ counts: [...counts], cost, capStd, used });
+        found.push({ counts: [...counts], cost, costOld, capStd, used });
         return;
       }
       if (i >= groups.length || used >= maxRooms || found.length > 400) return;
@@ -411,10 +418,10 @@ export function buildStayPlans(rooms: ComboRoomOption[], people: number): ComboS
       const maxK = Math.min(g.ids.length, Math.ceil((people - cap) / capOf(g)), maxRooms - used);
       for (let k = maxK; k >= 0; k--) {
         counts[i] = k;
-        dfs(i + 1, cost + k * g.cost, cap + k * capOf(g), capStd + k * g.cap, used + k);
+        dfs(i + 1, cost + k * g.cost, costOld + k * g.costOld, cap + k * capOf(g), capStd + k * g.cap, used + k);
       }
       counts[i] = 0;
-    })(0, 0, 0, 0, 0);
+    })(0, 0, 0, 0, 0, 0);
     return found;
   };
 
@@ -440,7 +447,8 @@ export function buildStayPlans(rooms: ComboRoomOption[], people: number): ComboS
         if (rem === 0) break;
       }
       if (rem > 0) continue;
-      variants.push({ f: { ...f, cost: f.cost + extraCost }, extraGuests, extraCost });
+      // Phụ thu ở ghép không giảm → cộng vào cả giá bán lẫn giá gạch.
+      variants.push({ f: { ...f, cost: f.cost + extraCost, costOld: f.costOld + extraCost }, extraGuests, extraCost });
     }
   }
 
@@ -460,7 +468,7 @@ export function buildStayPlans(rooms: ComboRoomOption[], people: number): ComboS
         options: g.ids.map((id, x) => ({ roomId: id, roomName: g.names[x], room: g.rooms[x] })),
       });
     }
-    const plan = makePlan(serviceId, pgs, f.cost, f.capStd + extraGuests, false, extraGuests, extraCost);
+    const plan = makePlan(serviceId, pgs, f.cost, f.capStd + extraGuests, false, extraGuests, extraCost, f.costOld);
     if (seenLabel.has(plan.label)) continue; // cùng kiểu ghép → giữ bản rẻ nhất
     seenLabel.add(plan.label);
     plans.push(plan);
@@ -472,11 +480,13 @@ export function buildStayPlans(rooms: ComboRoomOption[], people: number): ComboS
     const pgm = new Map<string, ComboPlanGroup>();
     let remaining = people;
     let total = 0;
+    let totalOld = 0;
     let cap = 0;
     for (const r of sorted) {
       if (remaining <= 0) break;
       const take = Math.min(remaining, r.capacity);
       total += r.roomCost * take; // giá dorm = giá MỖI NGƯỜI
+      totalOld += (r.roomCostOld ?? r.roomCost) * take;
       cap += r.capacity;
       remaining -= take;
       const k = `${r.roomTypeId}|${r.roomCost}`;
@@ -484,7 +494,7 @@ export function buildStayPlans(rooms: ComboRoomOption[], people: number): ComboS
       if (g) { g.roomIds.push(r.roomId); g.count += 1; g.options.push({ roomId: r.roomId, roomName: plainName(r), room: r }); }
       else pgm.set(k, { room: r, roomIds: [r.roomId], count: 1, unitCost: r.roomCost, options: [{ roomId: r.roomId, roomName: plainName(r), room: r }] });
     }
-    if (remaining <= 0) plans.push(makePlan(serviceId, [...pgm.values()], total, cap, true));
+    if (remaining <= 0) plans.push(makePlan(serviceId, [...pgm.values()], total, cap, true, 0, 0, totalOld));
   }
 
   plans.sort((a, b) => a.roomCost - b.roomCost || a.roomCount - b.roomCount);
@@ -745,9 +755,7 @@ async function findRooms(
     if (!free) continue;
     const kind = roomKindOf(room.capacity, rt.name);
     if (roomKind !== "all" && kind !== roomKind) continue;
-    const pricing = roomPricing(room);
-    let roomCost = 0;
-    for (const d of nights) roomCost += priceForDay(d, pricing, null);
+    const { total: roomCost, strikeTotal: roomCostOld } = stayStrike(nights, room);
     if (roomCost <= 0) continue;
     out.push({
       serviceId: s.id,
@@ -766,6 +774,7 @@ async function findRooms(
       maxCapacity: Math.max(room.capacity, room.maxCapacity ?? room.capacity),
       extraFeeStay: (toNumber(room.extraPersonFee) ?? 0) * nights.length,
       roomCost,
+      roomCostOld,
       features: {
         hasBathtub: rt.hasBathtub,
         cloudView: rt.cloudView,

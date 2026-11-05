@@ -24,6 +24,8 @@ export interface HomestayCard {
   count: number; // số phòng giống nhau trong nhóm
   price: number;
   priceOld: number | null; // giá niêm yết gạch ngang khi đang giảm giá
+  stayTotal: number | null; // tổng cả kỳ (chỉ khi có ngày) — dùng thay price × số đêm
+  stayOld: number | null; // tổng giá gạch cả kỳ (null = không giảm)
   cover: string | null;
   featured: boolean;
   priorityOrder: number;
@@ -684,14 +686,20 @@ export function HomestayList({
                   <div className="min-w-0">
                     <div className="text-[11px] text-gray-500 sm:text-xs">{s.price > 0 ? (hasDates ? `${nights} đêm từ` : "Giá từ") : "Giá phòng"}</div>
                     <div>
-                      {s.price > 0 ? (
+                      {s.price > 0 ? (() => {
+                        // Có ngày: dùng TỔNG cả kỳ (giá bán & giá gạch theo thứ) nếu tính được;
+                        // chưa có thì nhân cứng per-night × số đêm như cũ.
+                        const shown = hasDates ? (s.stayTotal ?? s.price * nights) : s.price;
+                        const old = hasDates ? (s.stayTotal != null ? s.stayOld : (s.priceOld != null ? s.priceOld * nights : null)) : s.priceOld;
+                        return (
                         <>
-                          {s.priceOld != null && s.priceOld > s.price && (
-                            <span className="mr-1.5 text-[12px] text-gray-400 line-through sm:text-[14px]">{vnd(hasDates ? s.priceOld * nights : s.priceOld)}</span>
+                          {old != null && old > shown && (
+                            <span className="mr-1.5 text-[12px] text-gray-400 line-through sm:text-[14px]">{vnd(old)}</span>
                           )}
-                          <span className="text-[17px] font-extrabold tracking-[-0.02em] sm:text-[21px]" style={{ color: TH.G }}>{vnd(hasDates ? s.price * nights : s.price)}</span>{!hasDates && <span className="text-[12px] text-gray-500 sm:text-[13px]">/đêm</span>}
+                          <span className="text-[17px] font-extrabold tracking-[-0.02em] sm:text-[21px]" style={{ color: TH.G }}>{vnd(shown)}</span>{!hasDates && <span className="text-[12px] text-gray-500 sm:text-[13px]">/đêm</span>}
                         </>
-                      ) : (
+                        );
+                      })() : (
                         <span className="text-[15px] font-extrabold tracking-[-0.02em] sm:text-[18px]" style={{ color: TH.G }}>IB để biết giá</span>
                       )}
                     </div>

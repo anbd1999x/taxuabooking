@@ -29,6 +29,8 @@ export interface HomestayRoom {
   por: boolean;
   /** Giá theo thứ, chỉ mục theo getUTCDay(): [CN,T2,T3,T4,T5,T6,T7]. null = dùng base. */
   days: (number | null)[];
+  /** Giá gạch (niêm yết) theo thứ, cùng chỉ mục getUTCDay(). null = dùng listPrice chung. */
+  listDays: (number | null)[];
   /** Các ngày (yyyy-mm-dd) phòng bị chiếm (không bán). */
   occupied: string[];
 }
@@ -208,6 +210,27 @@ export function HomestayBooking({
     const cands = [r.base, ...r.days].filter((p): p is number => p != null && p > 0);
     return cands.length ? Math.min(...cands) : null;
   };
+  // Giá gạch 1 đêm: giá-gạch-theo-thứ (nếu có) ?? giá niêm yết chung (khi đang giảm);
+  // chỉ trả khi CAO HƠN giá bán đêm đó.
+  const nightStrike = (r: HomestayRoom, d: Date, eff: number): number | null => {
+    const perDay = r.listDays[d.getUTCDay()];
+    const candidate = perDay != null && perDay > 0 ? perDay : r.hasSale ? r.listPrice : null;
+    return candidate != null && candidate > eff ? candidate : null;
+  };
+  // Giá gạch tương ứng đêm rẻ nhất (cho hiển thị "mỗi đêm từ" khi chưa chọn ngày).
+  const fromStrike = (r: HomestayRoom): number | null => {
+    const fp = fromPrice(r);
+    if (fp == null) return null;
+    let best: number | null = null;
+    for (let dow = 0; dow < 7; dow++) {
+      const eff = r.days[dow] != null ? (r.days[dow] as number) : r.base;
+      if (eff !== fp) continue;
+      const perDay = r.listDays[dow];
+      const cand = perDay != null && perDay > 0 ? perDay : r.hasSale ? r.listPrice : null;
+      if (cand != null && cand > eff && (best == null || cand > best)) best = cand;
+    }
+    return best;
+  };
 
   // Chỉ chọn 1 ngày = mặc định ở đúng 1 đêm (trả phòng trưa hôm sau).
   // Bấm thêm ngày sau đó mới chuyển sang logic khoảng nhận → trả như thường.
@@ -332,6 +355,19 @@ export function HomestayBooking({
     // Kỳ có ít nhất 1 đêm không công khai giá (IB) → không tính tổng được.
     const ib = nN > 0 && nights.some((d) => nightPrice(r, d) == null);
     const stayPrice = nN > 0 && !ib ? nights.reduce((a, d) => a + (nightPrice(r, d) ?? 0), 0) : null;
+    // Tổng giá gạch cho kỳ: đêm không giảm dùng chính giá bán → chỉ gạch khi tổng > giá bán.
+    let stayStrike: number | null = null;
+    if (nN > 0 && !ib) {
+      let sum = 0;
+      let any = false;
+      for (const d of nights) {
+        const eff = nightPrice(r, d) ?? 0;
+        const st = nightStrike(r, d, eff);
+        sum += st ?? eff;
+        if (st != null) any = true;
+      }
+      stayStrike = any && stayPrice != null && sum > stayPrice ? sum : null;
+    }
     const wdP = r.days[3] ?? r.base; // T4 đại diện ngày thường (chỉ mục getUTCDay)
     const weP = r.days[6] ?? r.base; // T7 đại diện cuối tuần
     let status: string, tone: "ok" | "low" | "full" | "idle";
@@ -339,7 +375,7 @@ export function HomestayBooking({
     else if (!nN) { status = "Chọn ngày"; tone = "idle"; }
     else if (!free) { status = "Hết phòng"; tone = "full"; }
     else { status = "Còn phòng"; tone = "ok"; }
-    return { r, i, free, ib, stayPrice, wdP, weP, status, tone };
+    return { r, i, free, ib, stayPrice, stayStrike, wdP, weP, status, tone };
   });
 
   const dateQS = ci && coEff ? `?from=${ci}&to=${coEff}` : "";
@@ -610,6 +646,10 @@ export function HomestayBooking({
                         <div>
                           <div className="text-xs text-gray-500">{v.r.por || v.ib ? "Giá phòng" : nN ? `${nN} đêm` : "Mỗi đêm từ"}</div>
                           <div className={`font-extrabold text-ink ${v.r.por || v.ib ? "text-base text-forest-700" : "text-xl"}`}>
+                            {!(v.r.por || v.ib) && (() => {
+                              const strike = nN ? v.stayStrike : fromStrike(v.r);
+                              return strike != null ? <span className="mr-1.5 align-middle text-sm font-semibold text-gray-400 line-through">{fmt(strike)}</span> : null;
+                            })()}
                             {v.r.por || v.ib ? IB : nN ? fmt(v.stayPrice) : fmt(fromPrice(v.r))}
                           </div>
                         </div>

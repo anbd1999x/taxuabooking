@@ -1240,9 +1240,22 @@ const DAY_FIELDS = [
   { name: "priceSun", label: "CN" },
 ] as const;
 
+// Giá gạch (niêm yết) theo thứ — song song với DAY_FIELDS.
+const LIST_DAY_FIELDS = [
+  { name: "listPriceMon", label: "T2" },
+  { name: "listPriceTue", label: "T3" },
+  { name: "listPriceWed", label: "T4" },
+  { name: "listPriceThu", label: "T5" },
+  { name: "listPriceFri", label: "T6" },
+  { name: "listPriceSat", label: "T7" },
+  { name: "listPriceSun", label: "CN" },
+] as const;
+
 interface RoomDayPrices {
   priceMon: unknown; priceTue: unknown; priceWed: unknown; priceThu: unknown;
   priceFri: unknown; priceSat: unknown; priceSun: unknown;
+  listPriceMon: unknown; listPriceTue: unknown; listPriceWed: unknown; listPriceThu: unknown;
+  listPriceFri: unknown; listPriceSat: unknown; listPriceSun: unknown;
 }
 
 /**
@@ -1274,7 +1287,12 @@ function TypeBulkPriceForm({
         </L>
         <div className="col-span-2 grid grid-cols-4 gap-2 sm:col-span-12 sm:grid-cols-7">
           {DAY_FIELDS.map((d) => (
-            <L key={d.name} label={`Giá ${d.label}`}>
+            <L key={d.name} label={`Bán ${d.label}`}>
+              <MoneyInput name={d.name} defaultValue={toNumber(first[d.name] as never) ?? ""} placeholder="—" className={inp} />
+            </L>
+          ))}
+          {LIST_DAY_FIELDS.map((d) => (
+            <L key={d.name} label={`Gạch ${d.label}`}>
               <MoneyInput name={d.name} defaultValue={toNumber(first[d.name] as never) ?? ""} placeholder="—" className={inp} />
             </L>
           ))}
@@ -1316,24 +1334,32 @@ function RoomFeatures({ room }: { room?: RoomFeatureFlags }) {
   );
 }
 
-/** Giá theo thứ (T2–CN) cho PHÒNG CON — lưới 12 cột. Để trống = dùng giá thường/chiết khấu. */
+/** Giá theo thứ (T2–CN) cho PHÒNG CON: mỗi thứ có giá bán + giá gạch. Để trống = dùng giá thường/chiết khấu. */
 function RoomConDayPrices({ room }: { room?: RoomDayPrices }) {
   const vals = DAY_FIELDS.map((d) => (room ? toNumber(room[d.name] as never) : null));
-  const hasAny = vals.some((v) => v != null);
+  const listVals = LIST_DAY_FIELDS.map((d) => (room ? toNumber(room[d.name] as never) : null));
+  const hasAny = vals.some((v) => v != null) || listVals.some((v) => v != null);
   return (
     <details open={hasAny} className="col-span-1 mt-1 sm:col-span-12">
       <summary className="cursor-pointer text-[11px] font-medium text-forest-700">
         Giá theo thứ (tuỳ chọn — để trống = dùng giá đang bán/giá gốc)
       </summary>
-      <div className="mt-2 grid grid-cols-4 gap-2 sm:grid-cols-7">
+      <div className="mt-2 grid grid-cols-[auto_repeat(7,minmax(0,1fr))] items-end gap-2">
+        <span className="pb-2 text-[11px] font-medium text-gray-500">Giá bán</span>
         {DAY_FIELDS.map((d, i) => (
           <L key={d.name} label={d.label}>
             <MoneyInput name={d.name} defaultValue={vals[i] ?? ""} placeholder="—" className={inp} />
           </L>
         ))}
+        <span className="pb-2 text-[11px] font-medium text-gray-500">Giá gạch</span>
+        {LIST_DAY_FIELDS.map((d, i) => (
+          <L key={d.name} label={d.label}>
+            <MoneyInput name={d.name} defaultValue={listVals[i] ?? ""} placeholder="—" className={inp} />
+          </L>
+        ))}
       </div>
       <p className="mt-1.5 text-[11px] leading-relaxed text-gray-500">
-        💡 Nhập <b>0</b> cho một thứ = <b>ngày đó không công khai giá</b>: khách chọn trúng ngày đó sẽ thấy <b>“IB để biết giá”</b> (các ngày khác vẫn hiện giá bình thường).
+        💡 <b>Giá bán</b> = giá khách trả đêm đó. <b>Giá gạch</b> = giá niêm yết gạch ngang cạnh giá bán (để trống = dùng giá gốc chung / không gạch). Nhập <b>0</b> ở giá bán = ngày đó hiện <b>“IB để biết giá”</b>.
       </p>
     </details>
   );

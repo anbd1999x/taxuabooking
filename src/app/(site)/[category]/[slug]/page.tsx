@@ -8,7 +8,7 @@ import { CATEGORIES } from "@/lib/constants";
 import { formatPrice, toNumber } from "@/lib/format";
 import { SITE } from "@/lib/site";
 import { prisma } from "@/lib/prisma";
-import { roomPricing, roomListPrice, isRoomPriceOnRequest } from "@/lib/availability";
+import { roomPricing, roomListPrice, roomListDaysOfWeek, isRoomPriceOnRequest } from "@/lib/availability";
 import { today, toDateKey, addDays } from "@/lib/dates";
 import { BookingPanel } from "@/components/BookingPanel";
 import { HomestayBooking, type HomestayRoom } from "@/components/HomestayBooking";
@@ -146,6 +146,7 @@ export default async function ServiceDetailPage({
         hasSale: roomListPrice(r) != null,
         por: isRoomPriceOnRequest(r),
         days: pricing.daysOfWeek ?? [null, null, null, null, null, null, null],
+        listDays: roomListDaysOfWeek(r),
         occupied: occByRoom.get(r.id) ?? [],
       };
     });

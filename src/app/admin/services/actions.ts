@@ -662,6 +662,14 @@ export async function applyRoomTypePrices(_prev: ActionState, formData: FormData
     priceFri: num(formData.get("priceFri")) ?? null,
     priceSat: num(formData.get("priceSat")) ?? null,
     priceSun: num(formData.get("priceSun")) ?? null,
+    // Giá gạch (niêm yết) theo thứ — 0/trống = null (dùng giá gốc chung / không gạch).
+    listPriceMon: num(formData.get("listPriceMon")) || null,
+    listPriceTue: num(formData.get("listPriceTue")) || null,
+    listPriceWed: num(formData.get("listPriceWed")) || null,
+    listPriceThu: num(formData.get("listPriceThu")) || null,
+    listPriceFri: num(formData.get("listPriceFri")) || null,
+    listPriceSat: num(formData.get("listPriceSat")) || null,
+    listPriceSun: num(formData.get("listPriceSun")) || null,
   };
   try {
     const r = await prisma.room.updateMany({ where: { roomTypeId }, data });
@@ -744,6 +752,14 @@ export async function upsertRoom(_prev: ActionState, formData: FormData): Promis
     priceFri: num(formData.get("priceFri")) ?? null,
     priceSat: num(formData.get("priceSat")) ?? null,
     priceSun: num(formData.get("priceSun")) ?? null,
+    // Giá gạch (niêm yết) theo thứ — 0/trống = null (dùng giá gốc chung / không gạch).
+    listPriceMon: num(formData.get("listPriceMon")) || null,
+    listPriceTue: num(formData.get("listPriceTue")) || null,
+    listPriceWed: num(formData.get("listPriceWed")) || null,
+    listPriceThu: num(formData.get("listPriceThu")) || null,
+    listPriceFri: num(formData.get("listPriceFri")) || null,
+    listPriceSat: num(formData.get("listPriceSat")) || null,
+    listPriceSun: num(formData.get("listPriceSun")) || null,
     // Chiết khấu CTV (đ/đêm): mức cơ bản + ghi đè theo thứ.
     commission: num(formData.get("commission")) ?? null,
     commissionMon: num(formData.get("commissionMon")) ?? null,
@@ -830,6 +846,13 @@ export async function duplicateRoom(formData: FormData): Promise<void> {
       priceFri: src.priceFri,
       priceSat: src.priceSat,
       priceSun: src.priceSun,
+      listPriceMon: src.listPriceMon,
+      listPriceTue: src.listPriceTue,
+      listPriceWed: src.listPriceWed,
+      listPriceThu: src.listPriceThu,
+      listPriceFri: src.listPriceFri,
+      listPriceSat: src.listPriceSat,
+      listPriceSun: src.listPriceSun,
       commission: src.commission,
       commissionMon: src.commissionMon,
       commissionTue: src.commissionTue,

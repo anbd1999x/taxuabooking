@@ -282,6 +282,13 @@ function ComboPlanCard({
   const total = Math.max(0, roomShare * people + cabinCost - (plan.communal ? 0 : COMBO_DISCOUNT * people));
   const pricePerPerson = people > 0 ? Math.round(total / people) : 0;
   const diff = budget != null ? pricePerPerson - budget : null;
+  // Giá gạch (niêm yết) trọn gói khi phòng có giảm theo ngày — chỉ phần phòng đổi.
+  const totalOld =
+    plan.roomCostOld != null
+      ? Math.max(0, Math.round(plan.roomCostOld / people) * people + cabinCost - (plan.communal ? 0 : COMBO_DISCOUNT * people))
+      : null;
+  const ppOld = totalOld != null && people > 0 ? Math.round(totalOld / people) : null;
+  const hasStrike = ppOld != null && ppOld > pricePerPerson;
 
   // Modal xem ảnh: giữ NHÓM đang mở + CĂN đang xem (ảnh/mô tả theo đúng căn đó).
   const [preview, setPreview] = useState<{ gi: number; roomId: string } | "bus" | null>(null);
@@ -508,7 +515,10 @@ function ComboPlanCard({
           )}
           <div>
             <div className="text-xs text-gray-500">Trọn gói / khách</div>
-            <div className="text-[30px] font-extrabold leading-tight tracking-[-0.03em] text-sunset-600">{vnd(pricePerPerson)}</div>
+            <div className="flex items-baseline gap-2">
+              {hasStrike && <span className="text-base font-semibold text-gray-400 line-through">{vnd(ppOld!)}</span>}
+              <span className="text-[30px] font-extrabold leading-tight tracking-[-0.03em] text-sunset-600">{vnd(pricePerPerson)}</span>
+            </div>
             <div className="mt-0.5 text-[13px] font-semibold text-gray-500">≈ {vnd(total)} cho {people} người</div>
           </div>
           <div className="flex flex-col gap-1.5 border-t border-dashed border-[oklch(0.88_0.02_70)] pt-2.5 text-xs leading-relaxed text-gray-500">
@@ -594,7 +604,7 @@ function ComboPlanCard({
                     <div className="flex justify-between gap-2"><span className="text-gray-500">Điểm đón</span><span className="font-bold text-ink">{origin}</span></div>
                   )}
                   <div className="flex justify-between gap-2"><span className="text-gray-500">Ngày</span><span className="font-bold text-ink">{checkIn} → {checkOut} · {nights} đêm</span></div>
-                  <div className="mt-1 flex justify-between gap-2 border-t border-gray-200 pt-1.5"><span className="text-gray-500">Trọn gói</span><span className="text-right font-extrabold text-sunset-600">{vnd(pricePerPerson)}/khách · {vnd(total)} / {people} người</span></div>
+                  <div className="mt-1 flex justify-between gap-2 border-t border-gray-200 pt-1.5"><span className="text-gray-500">Trọn gói</span><span className="text-right font-extrabold text-sunset-600">{hasStrike && <span className="mr-1.5 text-xs font-semibold text-gray-400 line-through">{vnd(ppOld!)}</span>}{vnd(pricePerPerson)}/khách · {vnd(total)} / {people} người</span></div>
                 </div>
 
                 {/* Chỗ nằm trên xe cabin: chọn nằm ghép (đôi) / nằm riêng (đơn) */}

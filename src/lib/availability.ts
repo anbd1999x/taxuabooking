@@ -187,6 +187,71 @@ export function roomListPrice(r: { listPrice: unknown; salePrice: unknown }): nu
   return sale < list ? list : null;
 }
 
+/** Các cột giá gạch (niêm yết) theo thứ của một phòng con. */
+export type RoomListPriceFields = {
+  listPrice: unknown;
+  salePrice: unknown;
+  listPriceMon: unknown;
+  listPriceTue: unknown;
+  listPriceWed: unknown;
+  listPriceThu: unknown;
+  listPriceFri: unknown;
+  listPriceSat: unknown;
+  listPriceSun: unknown;
+};
+
+/** Giá gạch theo thứ, index theo getUTCDay(): [CN,T2,T3,T4,T5,T6,T7]; null = chưa đặt. */
+export function roomListDaysOfWeek(r: RoomListPriceFields): (number | null)[] {
+  const pos = (v: unknown) => {
+    const n = toNumber(v as never);
+    return n != null && n > 0 ? n : null; // 0/âm = không gạch
+  };
+  return [
+    pos(r.listPriceSun),
+    pos(r.listPriceMon),
+    pos(r.listPriceTue),
+    pos(r.listPriceWed),
+    pos(r.listPriceThu),
+    pos(r.listPriceFri),
+    pos(r.listPriceSat),
+  ];
+}
+
+/**
+ * Giá gạch (niêm yết) cho MỘT đêm: giá-gạch-theo-thứ (nếu nhập) ?? giá niêm yết
+ * chung (listPrice khi đang giảm). Chỉ trả về khi CAO HƠN giá bán đêm đó, ngược
+ * lại null (không gạch).
+ */
+export function strikeForDay(date: Date, r: RoomListPriceFields, effective: number): number | null {
+  const perDay = roomListDaysOfWeek(r)[date.getUTCDay()];
+  const candidate = perDay ?? roomListPrice(r);
+  return candidate != null && candidate > effective ? candidate : null;
+}
+
+/**
+ * Tổng giá bán + tổng giá gạch cho một kỳ (nhiều đêm) của một phòng — dùng cho
+ * thẻ tìm kiếm / combo. strikeTotal = null nếu cả kỳ không có đêm nào giảm.
+ * Đêm không giảm được tính bằng chính giá bán vào cả hai tổng (để tổng gạch vẫn
+ * đúng khi chỉ vài đêm giảm).
+ */
+export function stayStrike(
+  nights: Date[],
+  r: RoomPriceFields & RoomListPriceFields,
+): { total: number; strikeTotal: number | null } {
+  const pricing = roomPricing(r);
+  let total = 0;
+  let strikeSum = 0;
+  let anyStrike = false;
+  for (const d of nights) {
+    const eff = priceForDay(d, pricing, null);
+    total += eff;
+    const st = strikeForDay(d, r, eff);
+    strikeSum += st ?? eff;
+    if (st != null) anyStrike = true;
+  }
+  return { total, strikeTotal: anyStrike && strikeSum > total ? strikeSum : null };
+}
+
 /**
  * Tính giá một đêm/ngày dựa trên override hoặc bảng giá weekday/weekend/holiday.
  */

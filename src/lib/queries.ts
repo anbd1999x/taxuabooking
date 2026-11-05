@@ -20,6 +20,7 @@ import {
   aggregateStay,
   roomTypePricing,
   roomPricing,
+  stayStrike,
   type AvailabilityRecord,
   type StayAvailabilityResult,
 } from "./availability";
@@ -510,6 +511,8 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
         const listP = toNumber(r.listPrice) ?? 0;
         const sale = toNumber(r.salePrice);
         const onSale = sale != null && sale > 0 && sale < listP;
+        // Khi có ngày: tổng cả kỳ (giá bán & giá gạch) theo giá-theo-thứ của phòng.
+        const stay = hasDates && nights.length ? stayStrike(nights, r) : null;
         return {
           roomId: r.id,
           roomName: r.name,
@@ -517,6 +520,8 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
           capacity: r.capacity,
           price,
           priceOld: onSale && price === sale ? listP : null,
+          stayTotal: stay ? stay.total : null,
+          stayOld: stay ? stay.strikeTotal : null,
           cover: firstImageUrl(r.images) ?? firstImageUrl(rt.images) ?? (rt.imageUrl && !VIDEO_URL_RE.test(rt.imageUrl) ? rt.imageUrl : null) ?? s.images[0]?.url ?? null,
           // Homestay "chỉ liên hệ" không quản lý lịch → coi như luôn trống khi tìm kiếm.
           free: s.contactOnly || !occupied.has(r.id),
@@ -564,6 +569,9 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
           cat,
           status,
           freeRooms: hasDates ? freeCount : g.length,
+          // Tổng cả kỳ của phòng đại diện (chỉ khi có ngày) — thẻ hiện số này + giá gạch.
+          stayTotal: first.stayTotal,
+          stayOld: first.stayOld,
         };
       });
     });

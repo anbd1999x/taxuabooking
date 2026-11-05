@@ -257,6 +257,15 @@ model Room {
   priceFri    Decimal?        @db.Decimal(12, 0)
   priceSat    Decimal?        @db.Decimal(12, 0)
   priceSun    Decimal?        @db.Decimal(12, 0)
+  // Giá gạch (niêm yết) theo thứ — để gạch ngang cạnh giá-theo-thứ. null = dùng
+  // giá niêm yết chung (listPrice) khi có giảm, hoặc không gạch.
+  listPriceMon Decimal? @db.Decimal(12, 0)
+  listPriceTue Decimal? @db.Decimal(12, 0)
+  listPriceWed Decimal? @db.Decimal(12, 0)
+  listPriceThu Decimal? @db.Decimal(12, 0)
+  listPriceFri Decimal? @db.Decimal(12, 0)
+  listPriceSat Decimal? @db.Decimal(12, 0)
+  listPriceSun Decimal? @db.Decimal(12, 0)
   // Chiết khấu CTV cho phòng này (đ / phòng / đêm). commission = mức cơ bản;
   // commissionMon..Sun ghi đè theo thứ. null = không chiết khấu (0).
   commission    Decimal? @db.Decimal(12, 0)
