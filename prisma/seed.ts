@@ -128,6 +128,24 @@ async function main() {
       { key: "cabinBikeFrom", value: "150000" },
       { key: "cabinFareFootnote", value: "Giá có thể thay đổi theo thời điểm. Vui lòng liên hệ trước để giữ chỗ." },
       { key: "cabinTagline", value: "Đi xa không chỉ là khoảng cách, mà là những trải nghiệm đáng nhớ!" },
+      // Popup uy tín (hiện khi khách mới vào web) — cấu hình ở /admin/popup
+      {
+        key: "trustPopup",
+        value: JSON.stringify({
+          enabled: true,
+          people: [
+            { name: "Bùi An", phone: "0397 943 155", facebook: "https://facebook.com/", zalo: "", avatar: "" },
+            { name: "Tăng Linh", phone: "0900 000 000", facebook: "https://facebook.com/", zalo: "", avatar: "" },
+          ],
+          fiveRules: [
+            "Không đội giá",
+            "Không phụ thu ẩn",
+            "Không bỏ khách giữa đường",
+            "Không cọc mất trắng",
+            "Không thái độ với khách",
+          ],
+        }),
+      },
     ],
   });
 

@@ -19,6 +19,7 @@ const ADMIN_NAV: NavItem[] = [
   { href: "/admin/articles", label: "Bài viết (SEO)" },
   { href: "/admin/places", label: "Nhà hàng & Cafe" },
   { href: "/admin/reviews", label: "Đánh giá" },
+  { href: "/admin/popup", label: "Popup uy tín" },
   { href: "/admin/feedback", label: "Góp ý" },
   { href: "/admin/accounts", label: "Tài khoản (CTV / Chủ)" },
   { href: "/admin/reports", label: "Thống kê & thanh toán" },
