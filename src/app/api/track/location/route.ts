@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
 
@@ -30,8 +31,10 @@ async function reverseGeocode(lat: number, lng: number): Promise<string | null> 
  */
 export async function POST(request: NextRequest) {
   if (!rateLimit(`loc:${clientIp(request)}`, 10, 60_000)) return new NextResponse(null, { status: 429 });
-  const vid = request.cookies.get("tx_vid")?.value;
-  if (!vid || !/^[0-9a-f-]{36}$/i.test(vid)) return new NextResponse(null, { status: 204 });
+  // Banner hiện sau 3s — có thể /api/track chưa kịp cấp cookie tx_vid → tự cấp ở đây.
+  let vid = request.cookies.get("tx_vid")?.value;
+  const newVid = !vid || !/^[0-9a-f-]{36}$/i.test(vid);
+  if (newVid) vid = randomUUID();
 
   let body: { lat?: unknown; lng?: unknown; accuracy?: unknown } = {};
   try {
@@ -47,8 +50,12 @@ export async function POST(request: NextRequest) {
   }
   const accuracy = Number.isFinite(acc) && acc >= 0 ? Math.min(acc, 1_000_000) : null;
 
-  const visitor = await prisma.visitor.findUnique({ where: { id: vid }, select: { lat: true, lng: true, locAddress: true } });
-  if (!visitor) return new NextResponse(null, { status: 204 });
+  const visitor = await prisma.visitor.upsert({
+    where: { id: vid! },
+    create: { id: vid! },
+    update: {},
+    select: { lat: true, lng: true, locAddress: true },
+  });
 
   // Chỉ dịch lại địa chỉ khi vị trí đổi đáng kể (~>100m) để tiết kiệm lượt gọi Nominatim.
   const moved =
@@ -57,9 +64,13 @@ export async function POST(request: NextRequest) {
 
   await prisma.visitor
     .update({
-      where: { id: vid },
+      where: { id: vid! },
       data: { lat, lng, locAccuracy: accuracy, locAddress: address, locAt: new Date() },
     })
     .catch(() => {});
-  return new NextResponse(null, { status: 204 });
+  const res = new NextResponse(null, { status: 204 });
+  if (newVid) {
+    res.cookies.set("tx_vid", vid!, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 365 * 2 });
+  }
+  return res;
 }

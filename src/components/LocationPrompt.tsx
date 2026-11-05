@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 const KEY = "tx_loc"; // localStorage: { s: "sent" | "dismissed" | "denied", t: timestamp }
 const RESEND_MS = 24 * 3600_000; // đã cho phép → cập nhật lại vị trí tối đa 1 lần/ngày
 const REASK_MS = 7 * 24 * 3600_000; // bấm "Để sau" → 7 ngày sau mới hỏi lại
-const SHOW_DELAY_MS = 10000; // sau popup uy tín + sau khi /api/track đã cấp cookie tx_vid
+const SHOW_DELAY_MS = 3000; // vào trang bất kỳ 3 giây thì hỏi
 
 function readState(): { s: string; t: number } | null {
   try {
