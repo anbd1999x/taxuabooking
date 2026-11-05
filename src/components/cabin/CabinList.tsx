@@ -84,7 +84,8 @@ export function CabinList({
 }) {
   const { pending: searching, go } = useSearchNav();
   const [w, setW] = useState(1280);
-  const [trip, setTrip] = useState<"one" | "round">(to ? "round" : "one");
+  // Mặc định KHỨ HỒI; chỉ giữ "Một chiều" khi khách đã tìm 1 chiều (có ngày đi, không ngày về).
+  const [trip, setTrip] = useState<"one" | "round">(from && !to ? "one" : "round");
   // Danh sách điểm đón: theo bảng giá chặng để chọn đâu cũng có giá đúng; luôn có Hà Nội.
   const fromOpts = pickups.length ? (pickups.includes("Hà Nội") ? pickups : ["Hà Nội", ...pickups]) : FROMS;
   const [pickup, setPickup] = useState(initialPickup && fromOpts.includes(initialPickup) ? initialPickup : "Hà Nội");
@@ -92,6 +93,7 @@ export function CabinList({
   const [ve, setVe] = useState(to);
   const [pax, setPax] = useState(initialPax);
   const [sort, setSort] = useState<"time" | "price">("time");
+  const [tried, setTried] = useState(false);
 
   const sunRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
@@ -258,9 +260,15 @@ export function CabinList({
   const wide = w >= 980;
   const heroH = w < 640 ? 520 : 600;
   const round = trip === "round";
-  const dateErr = round && di && ve && ve < di ? "Ngày về phải sau hoặc trùng ngày đi." : "";
+  const dateErr =
+    round && di && ve && ve < di
+      ? "Ngày về phải sau hoặc trùng ngày đi."
+      : tried && round && di && !ve
+        ? "Chọn ngày về (hoặc chọn Một chiều)."
+        : "";
 
   function search() {
+    if (round && di && !ve) { setTried(true); return; }
     if (dateErr) return;
     const p = new URLSearchParams();
     if (di) p.set("from", di);
@@ -375,7 +383,7 @@ export function CabinList({
       <div data-in="4" className="container-page relative z-[4] -mt-[70px] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .4s, transform .9s cubic-bezier(.2,.7,.2,1) .4s" }}>
         <div className="flex flex-col gap-2 rounded-[22px] border border-white/80 p-2.5 shadow-[0_24px_60px_-24px_oklch(0.25_0.06_220_/.45)]" style={{ background: "oklch(1 0 0 / .9)", backdropFilter: "blur(14px)" }}>
           <div className="flex gap-1 p-0.5">
-            {([["one", "Một chiều"], ["round", "Khứ hồi"]] as const).map(([k, n]) => (
+            {([["round", "Khứ hồi"], ["one", "Một chiều"]] as const).map(([k, n]) => (
               <button key={k} type="button" onClick={() => setTrip(k)} className="rounded-full px-3.5 py-2 text-sm font-bold transition" style={{ background: trip === k ? TH.G : "oklch(0.95 0.01 200)", color: trip === k ? "white" : "oklch(0.35 0.02 160)" }}>{n}</button>
             ))}
           </div>
@@ -503,7 +511,7 @@ export function CabinList({
                     <div className="flex-1" />
                     <div className="flex items-end justify-between gap-2 border-t border-[oklch(0.94_0.01_200)] pt-2 sm:gap-2.5 sm:pt-3">
                       <div>
-                        <div className="text-[11px] text-gray-500 sm:text-xs">{op.ret != null ? "Vé khứ hồi/khách (nằm ghép)" : "Vé 1 chiều/khách (nằm ghép)"}</div>
+                        <div className="text-[11px] text-gray-500 sm:text-xs">{op.ret != null || op.contactOnly ? "Vé khứ hồi/khách (nằm ghép)" : "Vé 1 chiều/khách (nằm ghép)"}</div>
                         {unit != null ? (
                           <>
                             <div className="text-[18px] font-extrabold tracking-[-0.02em] sm:text-[22px]" style={{ color: "oklch(0.6 0.18 45)" }}>{vnd(unit)}</div>

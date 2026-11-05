@@ -175,7 +175,10 @@ async function getCabinOperatorsImpl(
     return svcs.flatMap((s): CabinOperatorCard[] => {
       let fromPrice = s.cabinTrips[0] ? toNumber(s.cabinTrips[0].price) : null;
       const rows: FareRow[] = s.cabinPriceRows.length ? s.cabinPriceRows : generalRows;
-      if (rows.length) {
+      if (s.contactOnly) {
+        // Nhà xe chỉ nhắn tin: luôn hiện, giá = khứ hồi theo bảng giá chặng (thiếu → "Liên hệ").
+        fromPrice = rows.length ? roundTripFareFor(rows, origin ?? DEFAULT_PICKUP) : null;
+      } else if (rows.length) {
         // Giá chặng 1 chiều/khách theo điểm đón (mặc định Hà Nội) — khớp giá lúc đặt.
         if (origin && !hasOriginFare(rows, origin)) return []; // bảng giá không khai điểm đón này
         fromPrice = legFareFor(rows, origin ?? DEFAULT_PICKUP, "OUTBOUND");
@@ -222,7 +225,10 @@ async function getCabinOperatorsImpl(
     // Giá "từ"/khách cho hành trình đang tìm: khứ hồi = đi + về, một chiều = chiều đó.
     let fromPrice: number | null = null;
     const rows: FareRow[] = s.cabinPriceRows.length ? s.cabinPriceRows : generalRows;
-    if (origin && rows.length) {
+    if (s.contactOnly) {
+      // Nhà xe chỉ nhắn tin: luôn hiện, giá = khứ hồi theo bảng giá chặng (thiếu → "Liên hệ").
+      fromPrice = rows.length ? roundTripFareFor(rows, origin ?? DEFAULT_PICKUP) : null;
+    } else if (origin && rows.length) {
       if (!hasOriginFare(rows, origin)) continue; // nhà xe không đón ở điểm này
       fromPrice =
         outbound && ret
