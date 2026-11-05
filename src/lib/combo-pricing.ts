@@ -22,6 +22,21 @@ export function cabinAllocation(
   return { nSingle: people - nDouble * 2, nDouble };
 }
 
+/**
+ * Tiền xe cabin (dùng chung trang /xe-cabin + combo): `fare` = giá chặng MỖI KHÁCH
+ * (khứ hồi hoặc 1 chiều theo hành trình). Mọi buồng là cabin đôi, giá buồng = 2 × fare:
+ * - nằm chung (2 người/buồng) → mỗi người trả fare;
+ * - nằm riêng (1 người/buồng) → người đó trả 2 × fare.
+ */
+export function cabinBoothTotal(fare: number, shared: number, solo: number): number {
+  return 2 * fare * (Math.max(0, shared) + Math.max(0, solo));
+}
+
+/** Số khách của cách xếp buồng: nằm chung 2 người/buồng + nằm riêng 1 người/buồng. */
+export function cabinPeople(shared: number, solo: number): number {
+  return 2 * Math.max(0, shared) + Math.max(0, solo);
+}
+
 /** Tiền xe MỖI KHÁCH theo cách xếp mặc định. null = xe không đủ chỗ cho đoàn. */
 export function busCostPerPerson(
   bus: { farePerPerson: number; seatsAvailable: number },

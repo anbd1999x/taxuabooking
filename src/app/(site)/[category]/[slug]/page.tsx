@@ -14,7 +14,7 @@ import { BookingPanel } from "@/components/BookingPanel";
 import { HomestayBooking, type HomestayRoom } from "@/components/HomestayBooking";
 import { CabinBooking } from "@/components/cabin/CabinBooking";
 import { ServiceReviews } from "@/components/ServiceReviews";
-import { buildDirectionOptions } from "@/lib/cabin";
+import { buildDirectionOptions, getCabinFareOptions } from "@/lib/cabin";
 import { CabinRoutes } from "@/components/CabinRoutes";
 import { Gallery } from "@/components/Gallery";
 import { Badge } from "@/components/ui/Badge";
@@ -268,6 +268,9 @@ export default async function ServiceDetailPage({
     service.category === "CABIN" && toKey
       ? await buildDirectionOptions(service.id, "RETURN", toKey)
       : null;
+  // Giá chặng/khách theo điểm xuất phát (khứ hồi nếu có ngày về, không thì chiều đi).
+  const cabinFares =
+    service.category === "CABIN" ? await getCabinFareOptions(service.id, Boolean(toKey)) : null;
 
   return (
     <div className="container-page py-8">
@@ -536,6 +539,8 @@ export default async function ServiceDetailPage({
               phone={phone}
               zalo={zalo}
               pickupProvince={typeof sp.pickup === "string" ? sp.pickup : null}
+              hasFareTable={cabinFares?.hasTable ?? false}
+              fares={cabinFares?.options ?? []}
             />
           ) : (
             <BookingPanel

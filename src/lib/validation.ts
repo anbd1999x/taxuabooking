@@ -60,17 +60,20 @@ export const cabinBookingSchema = z
     serviceId: z.string().min(1, "Thiếu nhà xe."),
     outboundTripId: z.string().min(1, "Chưa chọn chuyến đi."),
     returnTripId: z.string().optional().nullable(),
-    single: z.coerce.number().int().min(0).max(20).default(0),
-    double: z.coerce.number().int().min(0).max(20).default(0),
+    // Điểm xuất phát (tỉnh) để tra giá theo bảng giá chặng; trống = Hà Nội.
+    origin: z.string().trim().max(120).optional().nullable(),
+    // Cabin đôi: số buồng NẰM CHUNG (2 người/buồng) + số buồng NẰM RIÊNG (1 người/buồng).
+    shared: z.coerce.number().int().min(0).max(20).default(0),
+    solo: z.coerce.number().int().min(0).max(20).default(0),
     pickup: z.string().trim().max(200).optional().nullable(),
     drop: z.string().trim().max(200).optional().nullable(),
     customerName: z.string().trim().min(2, "Vui lòng nhập họ tên.").max(120),
     phone: phoneField,
     note: z.string().trim().max(1000).optional().nullable(),
   })
-  .refine((d) => d.single + d.double >= 1, {
-    message: "Vui lòng chọn ít nhất 1 vé.",
-    path: ["single"],
+  .refine((d) => d.shared + d.solo >= 1, {
+    message: "Vui lòng chọn ít nhất 1 cabin.",
+    path: ["shared"],
   });
 export type CabinBookingInput = z.infer<typeof cabinBookingSchema>;
 

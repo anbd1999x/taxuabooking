@@ -7,6 +7,7 @@ import { toNumber } from "./format";
 import { generateBookingCode } from "./utils";
 import { resolveCommission } from "./commission";
 import { hasOriginFare, legFareFor, roundTripFareFor, type FareRow } from "./combo";
+import { cabinBoothTotal, cabinPeople } from "./combo-pricing";
 import type { CabinBookingInput } from "./validation";
 
 const WD = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
@@ -171,12 +172,11 @@ async function getCabinOperatorsImpl(
     });
     return svcs.flatMap((s): CabinOperatorCard[] => {
       let fromPrice = s.cabinTrips[0] ? toNumber(s.cabinTrips[0].price) : null;
-      if (origin) {
-        const rows: FareRow[] = s.cabinPriceRows.length ? s.cabinPriceRows : generalRows;
-        if (rows.length) {
-          if (!hasOriginFare(rows, origin)) return []; // bảng giá không khai điểm đón này
-          fromPrice = legFareFor(rows, origin, "OUTBOUND");
-        }
+      const rows: FareRow[] = s.cabinPriceRows.length ? s.cabinPriceRows : generalRows;
+      if (rows.length) {
+        // Giá chặng 1 chiều/khách theo điểm đón (mặc định Hà Nội) — khớp giá lúc đặt.
+        if (origin && !hasOriginFare(rows, origin)) return []; // bảng giá không khai điểm đón này
+        fromPrice = legFareFor(rows, origin ?? DEFAULT_PICKUP, "OUTBOUND");
       }
       return [{
         id: s.id,
@@ -239,7 +239,8 @@ async function getCabinOperatorsImpl(
           ? roundTripFareFor(rows, DEFAULT_PICKUP)
           : legFareFor(rows, DEFAULT_PICKUP, outbound ? "OUTBOUND" : "RETURN")
         : null;
-      fromPrice = tableFare ?? tripFare;
+      // Có bảng giá chặng thì CHỈ theo bảng (khớp giá lúc đặt); chưa có bảng mới dùng giá chuyến.
+      fromPrice = rows.length ? tableFare : tripFare;
     }
 
     // Chiều "chính" để xếp hạng còn chỗ: ưu tiên chiều đi, nếu chỉ tìm chiều về thì theo chiều về.
@@ -261,6 +262,56 @@ async function getCabinOperatorsImpl(
   const rank: Record<DayState, number> = { ok: 0, low: 1, unk: 2, full: 3 };
   return cards.sort((a, b) => rank[a.state] - rank[b.state]);
 }
+/* ===================== Giá chặng (dùng chung hiển thị + đặt vé) ===================== */
+
+/** Bảng giá chặng áp cho nhà xe: bảng riêng nếu có, không thì bảng chung (serviceId=null). */
+async function fareRowsFor(serviceId: string): Promise<FareRow[]> {
+  const rows = await prisma.cabinPriceRow.findMany({
+    where: { OR: [{ serviceId }, { serviceId: null }] },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+  });
+  const own = rows.filter((r) => r.serviceId === serviceId);
+  return own.length ? own : rows.filter((r) => r.serviceId === null);
+}
+
+/** Giá chặng MỖI KHÁCH (nằm chung) cho hành trình: khứ hồi hoặc chiều đi. */
+function journeyFare(rows: FareRow[], origin: string, roundTrip: boolean): number | null {
+  return roundTrip ? roundTripFareFor(rows, origin) : legFareFor(rows, origin, "OUTBOUND");
+}
+
+export interface CabinFareOption {
+  origin: string;
+  /** Giá MỖI KHÁCH khi nằm chung (buồng = 2 × fare). */
+  fare: number;
+}
+
+/**
+ * Danh sách điểm xuất phát + giá chặng/khách cho widget đặt vé của một nhà xe.
+ * hasTable = false: nhà xe chưa có bảng giá chặng → widget dùng giá chuyến làm dự phòng.
+ */
+export async function getCabinFareOptions(
+  serviceId: string,
+  roundTrip: boolean,
+): Promise<{ hasTable: boolean; options: CabinFareOption[] }> {
+  const rows = await fareRowsFor(serviceId);
+  if (!rows.length) return { hasTable: false, options: [] };
+  const seen = new Set<string>();
+  const options: CabinFareOption[] = [];
+  for (const r of rows) {
+    // Điểm xuất phát của khách: dòng "Chiều về" có thể nhập "Tà Xùa → <tỉnh>".
+    const places = r.ticketType === "RETURN" ? [r.destination, r.pickupPoint] : [r.pickupPoint];
+    for (const place of places) {
+      const name = place?.trim();
+      if (!name || name.toLowerCase() === "tà xùa" || seen.has(name.toLowerCase())) continue;
+      const fare = journeyFare(rows, name, roundTrip);
+      if (fare == null) continue; // chặng chưa khai đủ giá cho hành trình này
+      seen.add(name.toLowerCase());
+      options.push({ origin: name, fare });
+    }
+  }
+  return { hasTable: true, options };
+}
+
 /** Cache 30s theo cặp ngày tìm — giảm tải khi nhiều khách tìm cùng ngày. */
 export const getCabinOperators = unstable_cache(getCabinOperatorsImpl, ["cabin-operators"], { revalidate: 30 });
 
@@ -298,9 +349,11 @@ export async function createCabinBooking(
     : null;
   if (input.returnTripId && !ret) throw new Error("Chuyến về không hợp lệ.");
 
-  const nSingle = input.single;
-  const nDouble = input.double;
-  if (nSingle + nDouble < 1) throw new Error("Vui lòng chọn ít nhất 1 vé.");
+  // Cabin đôi: nằm chung (2 người/buồng) + nằm riêng (1 người/buồng).
+  const shared = input.shared;
+  const solo = input.solo;
+  if (shared + solo < 1) throw new Error("Vui lòng chọn ít nhất 1 cabin.");
+  const people = cabinPeople(shared, solo);
 
   // Ngày: không đặt chuyến đã chạy; chiều về không được trước chiều đi.
   if (outbound.departureDate < today()) throw new Error("Chuyến đi đã qua ngày khởi hành.");
@@ -308,41 +361,50 @@ export async function createCabinBooking(
     throw new Error("Ngày về phải cùng hoặc sau ngày đi.");
   }
 
-  // Giá từng chiều (server-authoritative). Giá đôi trống = chuyến KHÔNG bán cabin đôi
-  // → từ chối (trước đây tính 0đ cho vé đôi).
-  const legCost = (t: typeof outbound) => {
-    const ps = toNumber(t.price) ?? 0;
-    const pd = toNumber(t.priceDouble) ?? 0;
-    if (nSingle > 0 && ps <= 0) throw new Error(`Chuyến ${toDateKey(t.departureDate)} chưa có giá vé đơn — vui lòng liên hệ.`);
-    if (nDouble > 0 && pd <= 0) throw new Error(`Chuyến ${toDateKey(t.departureDate)} không bán cabin đôi.`);
-    return nSingle * ps + nDouble * pd;
-  };
-  const total = legCost(outbound) + (ret ? legCost(ret) : 0);
+  // Giá chặng MỖI KHÁCH (server-authoritative): theo bảng giá chặng của nhà xe (thiếu thì
+  // bảng chung) và điểm xuất phát; khứ hồi ưu tiên dòng "Khứ hồi", không có thì đi + về.
+  // Nhà xe chưa có bảng giá chặng → dự phòng bằng giá chuyến (đi + về).
+  const origin = input.origin?.trim() || DEFAULT_PICKUP;
+  const rows = await fareRowsFor(service.id);
+  // Thiếu giá (bảng chưa khai chặng/chiều này, hoặc chuyến chưa có giá) → vẫn nhận yêu cầu
+  // nhưng KHÔNG tự đặt giá: referencePrice = null, nhà xe/sàn báo giá khi gọi xác nhận.
+  let fare: number | null;
+  if (rows.length) {
+    fare = journeyFare(rows, origin, Boolean(ret));
+  } else {
+    const legs = [outbound, ...(ret ? [ret] : [])].map((t) => toNumber(t.price) ?? 0);
+    fare = legs.every((p) => p > 0) ? legs.reduce((a, b) => a + b, 0) : null;
+  }
+  // Mỗi buồng = 2 × fare: nằm chung mỗi người trả fare, nằm riêng trả 2 × fare.
+  const total = fare == null ? null : cabinBoothTotal(fare, shared, solo);
 
-  // Cần xác nhận nếu thiếu chỗ hoặc tình trạng chưa sẵn sàng.
+  // Chỗ trên xe tính theo SỐ KHÁCH ở kho vé thường (giống combo & "+ Thêm vé" của admin).
   const legNeedsConfirm = (t: typeof outbound) =>
     t.status === "NOT_UPDATED" ||
     t.status === "PENDING_CONFIRM" ||
     t.status === "SOLD_OUT" ||
-    nSingle > t.seatsAvailable ||
-    nDouble > t.seatsDoubleAvailable;
-  const needsConfirmation = legNeedsConfirm(outbound) || (ret ? legNeedsConfirm(ret) : false);
+    people > t.seatsAvailable;
+  const needsConfirmation = fare == null || legNeedsConfirm(outbound) || (ret ? legNeedsConfirm(ret) : false);
 
   const tickets = [
-    nSingle ? `${nSingle} vé đơn` : null,
-    nDouble ? `${nDouble} vé đôi` : null,
+    shared ? `${shared} cabin nằm chung (${shared * 2} khách)` : null,
+    solo ? `${solo} cabin nằm riêng (${solo} khách)` : null,
   ]
     .filter(Boolean)
-    .join(", ");
+    .join(" + ");
+  const fareText =
+    fare == null
+      ? `chờ báo giá (${ret ? "khứ hồi" : "1 chiều"} từ ${origin})`
+      : `${fmt(fare)}/khách ${ret ? "khứ hồi" : "1 chiều"} từ ${origin}`;
   const selectionLabel = ret
-    ? `Khứ hồi · ${tickets} · đi ${toDateKey(outbound.departureDate)} ${outbound.departureTime}, về ${toDateKey(ret.departureDate)} ${ret.departureTime}`
-    : `Một chiều · ${tickets} · ${toDateKey(outbound.departureDate)} ${outbound.departureTime}`;
+    ? `Khứ hồi · ${tickets} · ${fareText} · đi ${toDateKey(outbound.departureDate)} ${outbound.departureTime}, về ${toDateKey(ret.departureDate)} ${ret.departureTime}`
+    : `Một chiều · ${tickets} · ${fareText} · ${toDateKey(outbound.departureDate)} ${outbound.departureTime}`;
 
   const noteParts = [
     input.note?.trim() || null,
     input.pickup ? `Đón: ${input.pickup}` : null,
     input.drop ? `Trả: ${input.drop}` : null,
-    `Tạm tính: ${fmt(total)}`,
+    total == null ? "Chờ báo giá" : `Tạm tính: ${fmt(total)}`,
   ].filter(Boolean);
 
   let code = generateBookingCode();
@@ -363,9 +425,11 @@ export async function createCabinBooking(
       note: noteParts.join(" · ") || null,
       useDate: outbound.departureDate,
       endDate: ret ? ret.departureDate : null,
-      quantity: nSingle + nDouble,
-      seatsSingle: nSingle,
-      seatsDouble: nDouble,
+      // Giữ chỗ khi xác nhận: trừ ĐÚNG số khách ở kho vé thường (cả đi lẫn về).
+      // Cách nằm chung/riêng đã ghi trong selectionLabel cho nhà xe.
+      quantity: people,
+      seatsSingle: people,
+      seatsDouble: 0,
       cabinTripId: outbound.id,
       cabinReturnTripId: ret?.id ?? null,
       selectionLabel,

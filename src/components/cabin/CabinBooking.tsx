@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { CabinDirectionOptions, CabinTripAvail, CabinDay } from "@/lib/cabin";
+import { useState } from "react";
+import type { CabinDirectionOptions, CabinTripAvail, CabinDay, CabinFareOption } from "@/lib/cabin";
+import { cabinBoothTotal, cabinPeople } from "@/lib/combo-pricing";
 import { vnPhoneError } from "@/lib/phone";
 
 function vnd(n: number | null | undefined, fallback = "Liên hệ") {
@@ -25,15 +26,28 @@ interface Props {
   zalo?: string | null;
   /** Tỉnh khách chọn ở trang tìm (điểm đón → Tà Xùa). */
   pickupProvince?: string | null;
+  /** Nhà xe có bảng giá chặng không (không có → dự phòng giá chuyến). */
+  hasFareTable: boolean;
+  /** Giá chặng MỖI KHÁCH (nằm chung) theo điểm xuất phát, đúng hành trình (khứ hồi/1 chiều). */
+  fares: CabinFareOption[];
 }
 
-export function CabinBooking({ serviceId, operatorName, outbound, ret, phone, zalo, pickupProvince }: Props) {
+const DEFAULT_ORIGIN = "Hà Nội";
+
+export function CabinBooking({ serviceId, operatorName, outbound, ret, phone, zalo, pickupProvince, hasFareTable, fares }: Props) {
   const roundTrip = Boolean(ret);
   const [dir, setDir] = useState<"di" | "ve">("di");
   const [outIdx, setOutIdx] = useState(outbound.pickIndex);
   const [retIdx, setRetIdx] = useState(ret?.pickIndex ?? 0);
-  const [single, setSingle] = useState(1);
-  const [double, setDouble] = useState(0);
+  // Cabin đôi: số buồng nằm chung (2 người) + số buồng nằm riêng (1 người).
+  const [shared, setShared] = useState(1);
+  const [solo, setSolo] = useState(0);
+  // Điểm xuất phát để tra giá chặng: tỉnh đã tìm → Hà Nội → điểm đầu tiên trong bảng.
+  const [origin, setOrigin] = useState<string>(() => {
+    const has = (o: string | null | undefined) =>
+      o ? fares.find((f) => f.origin.toLowerCase() === o.trim().toLowerCase())?.origin : undefined;
+    return has(pickupProvince) ?? has(DEFAULT_ORIGIN) ?? fares[0]?.origin ?? pickupProvince?.trim() ?? DEFAULT_ORIGIN;
+  });
   const [step, setStep] = useState(1);
   const [pickup, setPickup] = useState<string | null>(null);
   const [drop, setDrop] = useState<string | null>(null);
@@ -53,28 +67,31 @@ export function CabinBooking({ serviceId, operatorName, outbound, ret, phone, za
   const setActiveIdx = (i: number) => (dir === "di" ? setOutIdx(i) : setRetIdx(i));
   const activeTrip = dir === "di" ? outTrip : retTrip;
 
-  // Chỗ còn cho từng loại (lấy min giữa chiều đi & về).
-  const legSingle = (t: CabinTripAvail | null) =>
+  // Số KHÁCH còn nhận được (chỗ ở kho vé thường, lấy min giữa chiều đi & về).
+  // Chuyến chưa cập nhật/chờ xác nhận vẫn cho gửi yêu cầu (tối đa 10 khách).
+  const legSeats = (t: CabinTripAvail | null) =>
     !t ? 0 : t.status === "SOLD_OUT" ? 0 : t.status === "AVAILABLE" || t.status === "LIMITED" ? t.singleAvailable : 10;
-  const legDouble = (t: CabinTripAvail | null) =>
-    !t || t.priceDouble == null ? 0 : t.status === "SOLD_OUT" ? 0 : t.status === "AVAILABLE" || t.status === "LIMITED" ? t.doubleAvailable : 10;
   const legs = roundTrip ? [outTrip, retTrip] : [outTrip];
-  const maxSingle = Math.min(...legs.map(legSingle));
-  const maxDouble = Math.min(...legs.map(legDouble));
+  const maxPeople = Math.min(...legs.map(legSeats));
+  const people = cabinPeople(shared, solo);
+  const maxShared = Math.max(0, Math.floor((maxPeople - solo) / 2));
+  const maxSolo = Math.max(0, maxPeople - shared * 2);
 
-  const priceDouble = outTrip?.priceDouble ?? null;
-  // Giá MỖI VÉ theo hành trình đang đặt: khứ hồi = cộng cả 2 chiều, một chiều = chiều đó.
-  const unitSingle = (outTrip?.priceSingle ?? 0) + (roundTrip ? retTrip?.priceSingle ?? 0 : 0);
-  const unitDouble = priceDouble == null ? null : priceDouble + (roundTrip ? retTrip?.priceDouble ?? 0 : 0);
-  const total = useMemo(
-    () => single * unitSingle + double * (unitDouble ?? 0),
-    [single, double, unitSingle, unitDouble],
-  );
+  // Giá chặng MỖI KHÁCH (nằm chung): theo bảng giá chặng + điểm xuất phát; nhà xe chưa
+  // có bảng thì dự phòng giá chuyến (đi + về). Server tính lại y hệt khi gửi đơn.
+  const legPrices = legs.map((t) => t?.priceSingle ?? 0);
+  const fare = hasFareTable
+    ? fares.find((f) => f.origin === origin)?.fare ?? null
+    : legPrices.every((p) => p > 0)
+      ? legPrices.reduce((a, b) => a + b, 0)
+      : null;
+  const total = fare == null ? null : cabinBoothTotal(fare, shared, solo);
 
-  const bookable = Boolean(outTrip) && (!roundTrip || Boolean(retTrip)) && single + double >= 1;
+  // Thiếu giá chặng vẫn cho gửi yêu cầu (chờ báo giá) — không chặn khách, không tự bịa giá.
+  const bookable = Boolean(outTrip) && (!roundTrip || Boolean(retTrip)) && shared + solo >= 1;
 
-  // ---- Điểm đón / trả (suy ra từ chuyến đi + tỉnh khách chọn) ----
-  const province = pickupProvince?.trim() || null;
+  // ---- Điểm đón / trả (suy ra từ chuyến đi + điểm xuất phát khách chọn) ----
+  const province = origin?.trim() || pickupProvince?.trim() || null;
   const pickOpts = outTrip
     ? [
         ...(province && province !== outTrip.pickupPoint
@@ -97,7 +114,11 @@ export function CabinBooking({ serviceId, operatorName, outbound, ret, phone, za
 
   function step1Next() {
     if (!bookable) {
-      setErr(!outTrip ? "Ngày này chưa có chuyến. Hãy chọn ngày khác." : "Vui lòng chọn ít nhất 1 vé.");
+      setErr(
+        !outTrip || (roundTrip && !retTrip)
+          ? "Ngày này chưa có chuyến. Hãy chọn ngày khác."
+          : "Vui lòng chọn ít nhất 1 cabin.",
+      );
       return;
     }
     setErr(null);
@@ -122,8 +143,9 @@ export function CabinBooking({ serviceId, operatorName, outbound, ret, phone, za
           serviceId,
           outboundTripId: outTrip?.id,
           returnTripId: retTrip?.id ?? null,
-          single,
-          double,
+          origin: hasFareTable ? origin : null,
+          shared,
+          solo,
           pickup,
           drop,
           customerName: name,
@@ -148,8 +170,8 @@ export function CabinBooking({ serviceId, operatorName, outbound, ret, phone, za
 
   function reset() {
     setStep(1);
-    setSingle(1);
-    setDouble(0);
+    setShared(1);
+    setSolo(0);
     setName("");
     setCustPhone("");
     setNote("");
@@ -268,28 +290,48 @@ export function CabinBooking({ serviceId, operatorName, outbound, ret, phone, za
           {step === 1 && (
             activeTrip ? (
               <div className="flex flex-col gap-3">
+                {hasFareTable && fares.length > 0 && (
+                  <label className="flex flex-col gap-1.5 text-[13px] font-bold text-ink">
+                    Điểm xuất phát
+                    <select
+                      value={origin}
+                      onChange={(e) => setOrigin(e.target.value)}
+                      className="rounded-xl border-[1.5px] border-gray-200 bg-white px-3 py-2.5 text-[15px] font-semibold outline-none"
+                    >
+                      {fares.map((f) => (
+                        <option key={f.origin} value={f.origin}>
+                          {f.origin} · {vnd(f.fare)}/khách {roundTrip ? "khứ hồi" : "1 chiều"}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 <TicketStepper
-                  label="Cabin đơn"
-                  sub={roundTrip ? "1 người / cabin · khứ hồi" : "1 người / cabin · 1 chiều"}
-                  price={unitSingle}
-                  value={single}
-                  max={maxSingle}
-                  onChange={setSingle}
+                  label="Cabin đôi · 2 người nằm chung"
+                  sub={
+                    fare == null
+                      ? "2 khách / cabin · nhà xe báo giá khi xác nhận"
+                      : `${vnd(fare)}/khách ${roundTrip ? "khứ hồi" : "1 chiều"} · 2 khách / cabin`
+                  }
+                  price={fare == null ? null : cabinBoothTotal(fare, 1, 0)}
+                  unit="/cabin"
+                  value={shared}
+                  max={maxShared}
+                  onChange={setShared}
                   accent="forest"
                 />
-                {priceDouble != null && (
-                  <TicketStepper
-                    label="Cabin đôi"
-                    sub={roundTrip ? "2 người / cabin · khứ hồi" : "2 người / cabin · 1 chiều"}
-                    price={unitDouble ?? 0}
-                    value={double}
-                    max={maxDouble}
-                    onChange={setDouble}
-                    accent="sunset"
-                  />
-                )}
+                <TicketStepper
+                  label="Cabin đôi · 1 người nằm riêng"
+                  sub={`Bao trọn buồng · ×2 giá ${roundTrip ? "khứ hồi" : "1 chiều"}`}
+                  price={fare == null ? null : cabinBoothTotal(fare, 0, 1)}
+                  unit="/cabin"
+                  value={solo}
+                  max={maxSolo}
+                  onChange={setSolo}
+                  accent="sunset"
+                />
                 <p className="text-center text-xs leading-relaxed text-gray-500">
-                  Chỗ được giữ sau khi nhà xe gọi xác nhận. Chưa cần thanh toán.
+                  {people > 0 ? `${people} khách · ` : ""}Chỗ được giữ sau khi nhà xe gọi xác nhận. Chưa cần thanh toán.
                 </p>
               </div>
             ) : (
@@ -343,7 +385,12 @@ export function CabinBooking({ serviceId, operatorName, outbound, ret, phone, za
                 {[
                   { k: "Chuyến đi", v: outTrip ? `${outbound.days[outIdx].dd} · ${outTrip.departureTime}` : "—" },
                   ...(roundTrip ? [{ k: "Chuyến về", v: retTrip ? `${ret!.days[retIdx].dd} · ${retTrip.departureTime}` : "—" }] : []),
-                  { k: "Vé", v: [single ? `${single} đơn` : null, double ? `${double} đôi` : null].filter(Boolean).join(", ") || "—" },
+                  ...(hasFareTable ? [{ k: "Xuất phát", v: origin }] : []),
+                  {
+                    k: "Cabin",
+                    v: [shared ? `${shared} nằm chung` : null, solo ? `${solo} nằm riêng` : null].filter(Boolean).join(" + ") || "—",
+                  },
+                  { k: "Số khách", v: String(people) },
                   { k: "Đón", v: pickup ?? "—" },
                   { k: "Trả", v: drop ?? "—" },
                 ].map((r) => (
@@ -385,10 +432,12 @@ export function CabinBooking({ serviceId, operatorName, outbound, ret, phone, za
           <div className="mt-4 flex flex-col gap-2.5 border-t border-gray-100 px-[18px] pb-[18px] pt-3.5">
             <div className="flex items-baseline justify-between gap-2.5">
               <div className="min-w-0 truncate text-xs text-gray-500">
-                {single + double > 0 ? `${single + double} vé${roundTrip ? " × 2 chiều" : ""}` : "Chưa chọn vé"}
+                {shared + solo > 0
+                  ? `${people} khách · ${shared + solo} cabin · ${roundTrip ? "khứ hồi" : "1 chiều"}`
+                  : "Chưa chọn cabin"}
               </div>
               <div className="whitespace-nowrap text-[22px] font-extrabold tracking-tight text-sunset-600">
-                {bookable ? vnd(total) : "—"}
+                {!bookable ? "—" : total == null ? "Chờ báo giá" : vnd(total)}
               </div>
             </div>
             {err && <p className="text-[13px] font-semibold text-red-600">{err}</p>}
@@ -429,9 +478,9 @@ export function CabinBooking({ serviceId, operatorName, outbound, ret, phone, za
 }
 
 function TicketStepper({
-  label, sub, price, value, max, onChange, accent,
+  label, sub, price, unit = "", value, max, onChange, accent,
 }: {
-  label: string; sub: string; price: number; value: number; max: number;
+  label: string; sub: string; price: number | null; unit?: string; value: number; max: number;
   onChange: (n: number) => void; accent: "forest" | "sunset";
 }) {
   const ring = accent === "forest" ? "text-forest-700" : "text-sunset-600";
@@ -445,7 +494,7 @@ function TicketStepper({
         </div>
         <div className="mt-0.5 text-xs text-gray-500">{sub}</div>
         <div className={`mt-0.5 text-sm font-extrabold ${ring}`}>
-          {new Intl.NumberFormat("vi-VN").format(price)}đ
+          {price == null ? "Liên hệ" : `${new Intl.NumberFormat("vi-VN").format(price)}đ${unit}`}
         </div>
       </div>
       <div className="flex flex-none items-center gap-2.5">

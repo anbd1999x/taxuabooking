@@ -1,5 +1,6 @@
 "use client";
 
+import { cabinBoothTotal } from "@/lib/combo-pricing";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -434,8 +435,7 @@ export function CabinList({
               const tail = (() => { const p = new URLSearchParams(); if (from) p.set("from", from); if (to) p.set("to", to); if (pickup && pickup !== "Hà Nội") p.set("pickup", pickup); const s = p.toString(); return s ? `?${s}` : ""; })();
               const amen: string[] = [];
               const anyTrip = op.outbound ?? op.ret;
-              if (anyTrip) amen.push("Cabin đơn");
-              if (anyTrip?.priceDouble != null) amen.push("Cabin đôi");
+              if (anyTrip) amen.push("Cabin đôi · nằm chung", "Nằm riêng ×2");
               if (op.ret) amen.push("Khứ hồi");
               const cta = !searched ? "Xem chuyến →" : full ? "Chọn ngày khác →" : op.state === "unk" ? "Gửi yêu cầu →" : "Xem & đặt vé →";
               return (
@@ -495,11 +495,11 @@ export function CabinList({
                     <div className="flex-1" />
                     <div className="flex items-end justify-between gap-2 border-t border-[oklch(0.94_0.01_200)] pt-2 sm:gap-2.5 sm:pt-3">
                       <div>
-                        <div className="text-[11px] text-gray-500 sm:text-xs">{op.ret != null ? "Khứ hồi từ" : "Một chiều từ"}</div>
+                        <div className="text-[11px] text-gray-500 sm:text-xs">{op.ret != null ? "Khứ hồi/khách từ" : "Một chiều/khách từ"}</div>
                         {unit != null ? (
                           <>
                             <div className="text-[18px] font-extrabold tracking-[-0.02em] sm:text-[22px]" style={{ color: "oklch(0.6 0.18 45)" }}>{vnd(unit)}</div>
-                            {!full && <div className="text-xs font-semibold text-gray-500">{pax} khách · tạm tính {vnd(unit * pax)}</div>}
+                            {!full && <div className="text-xs font-semibold text-gray-500">{pax} khách · tạm tính {vnd(cabinBoothTotal(unit, Math.floor(pax / 2), pax % 2))}{pax % 2 ? " (1 nằm riêng)" : ""}</div>}
                           </>
                         ) : (
                           <div className="text-[15px] font-bold text-gray-500">Liên hệ xác nhận giá</div>

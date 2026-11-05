@@ -22,7 +22,7 @@ export default async function AdminBookingsPage() {
     const chips: string[] = [];
     if (b.selectionLabel) chips.push(b.selectionLabel);
     if (b.nights) chips.push(`${b.nights} đêm`);
-    if (b.seatsSingle) chips.push(`${b.seatsSingle} cabin đơn`);
+    if (b.seatsSingle) chips.push(`${b.seatsSingle} chỗ`);
     if (b.seatsDouble) chips.push(`${b.seatsDouble} cabin đôi`);
 
     const price = toNumber(b.referencePrice);
