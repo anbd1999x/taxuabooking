@@ -560,6 +560,26 @@ export async function reorderRoomImages(formData: FormData): Promise<void> {
   if (serviceId) revalidatePath(`/admin/services/${serviceId}`);
 }
 
+/**
+ * Sắp xếp lại THỨ TỰ HIỂN THỊ PHÒNG (chung mọi hạng) theo danh sách id kéo-thả.
+ * Gán sortOrder = 0..n đúng theo thứ tự nhận được — ổn định, không "nhảy".
+ */
+export async function reorderRooms(formData: FormData): Promise<void> {
+  const serviceId = s(formData.get("serviceId"));
+  const ids = idList(formData);
+  if (!serviceId || ids.length === 0) return;
+  const valid = new Set(
+    (await prisma.room.findMany({ where: { roomType: { serviceId } }, select: { id: true } })).map((r) => r.id),
+  );
+  const ordered = ids.filter((id) => valid.has(id));
+  if (ordered.length === 0) return;
+  await prisma.$transaction(
+    ordered.map((id, i) => prisma.room.update({ where: { id }, data: { sortOrder: i } })),
+  );
+  revalidatePath(`/admin/services/${serviceId}`);
+  revalidatePath("/admin/availability");
+}
+
 // ---------------- Thứ tự hạng phòng (nút ↑ ↓) ----------------
 async function moveRoomTypeDir(formData: FormData, dir: "left" | "right"): Promise<void> {
   const id = s(formData.get("id"));
@@ -705,7 +725,8 @@ export async function upsertRoom(_prev: ActionState, formData: FormData): Promis
     name,
     amenities: s(formData.get("amenities")) ?? null,
     description: s(formData.get("description")) ?? null,
-    sortOrder: num(formData.get("sortOrder")) ?? 0,
+    // Thứ tự hiển thị KHÔNG sửa ở form phòng nữa (quản lý ở khu "Thứ tự hiển thị phòng"
+    // bằng kéo-thả) — lưu phòng giữ nguyên thứ tự cũ, tránh "nhảy".
     // Giá & sức chứa ở cấp phòng con.
     capacity: num(formData.get("capacity")) ?? 2,
     // Sức chứa tối đa + phụ thu (0/trống = không có).
@@ -734,25 +755,27 @@ export async function upsertRoom(_prev: ActionState, formData: FormData): Promis
     commissionSun: num(formData.get("commissionSun")) ?? null,
   };
   try {
+    const svcId =
+      serviceId ||
+      (await prisma.roomType.findUnique({ where: { id: roomTypeId }, select: { serviceId: true } }))?.serviceId;
     let roomId = id;
     if (id) {
       const existing = await prisma.room.findUnique({ where: { id } });
+      // KHÔNG đụng sortOrder khi sửa phòng (giữ nguyên thứ tự hiển thị).
       await prisma.room.update({ where: { id }, data: { ...data, roomTypeId } });
-      // Nếu đổi hạng phòng -> tính lại số trống cho cả hạng cũ & mới.
       if (existing && existing.roomTypeId !== roomTypeId) {
         await resyncRoomTypeWindow(existing.roomTypeId);
         await resyncRoomTypeWindow(roomTypeId);
       }
     } else {
-      const created = await prisma.room.create({ data: { roomTypeId, ...data } });
+      // Phòng mới xuống CUỐI danh sách hiển thị.
+      const endOrder = svcId ? await prisma.room.count({ where: { roomType: { serviceId: svcId } } }) : 0;
+      const created = await prisma.room.create({ data: { roomTypeId, ...data, sortOrder: endOrder } });
       roomId = created.id;
       await resyncRoomTypeWindow(roomTypeId);
     }
-    // Dồn lại thứ tự hiển thị trên mọi hạng thành dãy 0..n duy nhất (không trùng/nhảy).
-    const svcId =
-      serviceId ||
-      (await prisma.roomType.findUnique({ where: { id: roomTypeId }, select: { serviceId: true } }))?.serviceId;
-    if (svcId) await normalizeServiceRoomOrder(svcId, roomId ?? undefined);
+    // Dồn lại thứ tự hiển thị thành dãy 0..n duy nhất (ổn định; sửa phòng giữ nguyên trật tự).
+    if (svcId) await normalizeServiceRoomOrder(svcId);
   } catch {
     return { error: "Lưu phòng thất bại." };
   }

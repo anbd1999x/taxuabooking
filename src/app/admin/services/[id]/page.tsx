@@ -10,6 +10,7 @@ import { MoneyInput } from "@/components/admin/MoneyInput";
 import { ImageUploader } from "@/components/admin/ImageUploader";
 import { DriveImport } from "@/components/admin/DriveImport";
 import { SortableImages } from "@/components/admin/SortableImages";
+import { SortableRooms } from "@/components/admin/SortableRooms";
 import { ServiceTabNav } from "@/components/admin/ServiceTabNav";
 import { CabinScheduleEditor } from "@/components/admin/CabinScheduleEditor";
 import { ActionForm } from "@/components/admin/ActionForm";
@@ -36,6 +37,7 @@ import {
   moveRoomTypeUp,
   moveRoomTypeDown,
   reorderServiceImages,
+  reorderRooms,
   reorderRoomTypeImages,
   reorderRoomImages,
   deleteRoomImage,
@@ -593,9 +595,6 @@ export default async function EditServicePage({
                                     <ActionForm action={upsertRoom} className="grid grid-cols-1 gap-2 rounded-xl bg-white p-3 ring-1 ring-black/5 sm:grid-cols-12 sm:items-end">
                                       <input type="hidden" name="serviceId" value={service.id} />
                                       <input type="hidden" name="id" value={room.id} />
-                                      <L label="Thứ tự hiển thị trên web (nhỏ → lớn, chung mọi hạng; tự dồn lại 0,1,2…)" cls="sm:col-span-3">
-                                        <input name="sortOrder" type="number" defaultValue={room.sortOrder} className={inp} />
-                                      </L>
                                       <L label="Hạng phòng" cls="sm:col-span-3">
                                         <select name="roomTypeId" defaultValue={room.roomTypeId} className={inp}>
                                           {service.roomTypes.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
@@ -657,6 +656,38 @@ export default async function EditServicePage({
                 )}
               </section>
             </details>
+
+            {/* 4b · Thứ tự hiển thị phòng (khu riêng, kéo-thả) */}
+            {service.roomTypes.some((rt) => rt.rooms.length > 0) && (
+              <details open id="sec-roomorder" className="group/acc scroll-mt-20">
+                <summary className={`${labelCls} flex cursor-pointer select-none list-none items-center gap-2 [&::-webkit-details-marker]:hidden`}>
+                  Thứ tự hiển thị phòng
+                  <span className="text-[10px] text-gray-400 transition group-open/acc:rotate-180">▼</span>
+                </summary>
+                <section className={`${cardCls} mt-2`}>
+                  <div className="mb-3">
+                    <div className="text-[17px] font-extrabold text-ink">Thứ tự hiển thị phòng trên web</div>
+                    <div className="text-[13px] text-gray-500">Kéo-thả (hoặc dùng ↑ ↓) để sắp thứ tự phòng khi khách xem homestay — <b>chung mọi hạng</b>. Lưu tự động, không ảnh hưởng khi anh sửa phòng.</div>
+                  </div>
+                  <SortableRooms
+                    serviceId={service.id}
+                    reorderAction={reorderRooms}
+                    items={service.roomTypes
+                      .flatMap((rt, ti) =>
+                        rt.rooms.map((r) => ({
+                          id: r.id,
+                          name: r.name,
+                          typeName: rt.name,
+                          price: priceK(eff(r)),
+                          color: COLORS[ti % COLORS.length],
+                          sortOrder: r.sortOrder,
+                        })),
+                      )
+                      .sort((a, b) => a.sortOrder - b.sortOrder)}
+                  />
+                </section>
+              </details>
+            )}
 
             {/* 5 · Đồng bộ OTA (iCal) */}
             <details open id="sec-ota" className="group/acc scroll-mt-20">
@@ -905,9 +936,6 @@ export default async function EditServicePage({
                       <ActionForm action={upsertRoom} className="grid grid-cols-1 gap-2 rounded-xl bg-white p-3 ring-1 ring-black/5 sm:grid-cols-12 sm:items-end">
                         <input type="hidden" name="serviceId" value={service.id} />
                         <input type="hidden" name="id" value={room.id} />
-                        <L label="Thứ tự hiển thị trên web (nhỏ → lớn, chung mọi hạng; tự dồn lại 0,1,2…)" cls="sm:col-span-3">
-                          <input name="sortOrder" type="number" defaultValue={room.sortOrder} className={inp} />
-                        </L>
                         <L label="Hạng phòng" cls="sm:col-span-3">
                           <select name="roomTypeId" defaultValue={room.roomTypeId} className={inp}>
                             {service.roomTypes.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
