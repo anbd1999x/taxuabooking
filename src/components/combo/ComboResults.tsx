@@ -23,7 +23,8 @@ const G = "oklch(0.29 0.055 160)"; // xanh rừng
 const O = "oklch(0.68 0.18 45)"; // cam điểm nhấn
 
 /** Style select trong thanh lọc kết quả. */
-const SEL = "min-w-0 flex-1 rounded-xl border-[1.5px] border-[oklch(0.88_0.015_180)] bg-white px-3 py-2 text-sm font-bold text-ink outline-none";
+/** Dropdown chữ mảnh trong thanh lọc kết quả (không khung, như trang danh sách homestay). */
+const SEL = "min-w-0 max-w-[240px] cursor-pointer truncate border-0 bg-transparent p-0 text-[13px] font-extrabold outline-none";
 
 const FEAT: [keyof ComboRoomFeatures, string][] = [
   ["cloudView", "⛅ View mây"],
@@ -141,15 +142,13 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
         </div>
       </div>
 
-      {/* Thanh lọc kết quả: Xem theo nhà · Khu vực · Sắp xếp */}
-      <div
-        className="mb-4 grid gap-2 rounded-2xl border border-[oklch(0.92_0.01_200)] bg-white p-2"
-        style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,230px),1fr))" }}
-      >
+      {/* Thanh lọc kết quả: Xem theo nhà · Khu vực · Sắp xếp — dropdown CHỮ MẢNH,
+          không khung (đồng bộ kiểu lọc nhanh của trang danh sách homestay). */}
+      <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2">
         {homeNames.length > 1 && (
-          <label className="flex min-w-0 items-center gap-2 pl-1.5">
-            <span className="w-[106px] flex-none whitespace-nowrap text-[13px] font-semibold text-gray-500">Xem theo nhà</span>
-            <select value={homeName} onChange={(e) => setHomeName(e.target.value)} className={SEL}>
+          <label className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-gray-500">
+            Xem theo nhà
+            <select value={homeName} onChange={(e) => setHomeName(e.target.value)} className={SEL} style={{ color: "oklch(0.29 0.055 160)" }}>
               <option value="all">Tất cả homestay</option>
               {homeNames.map((n) => (
                 <option key={n} value={n}>{n}</option>
@@ -158,9 +157,9 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
           </label>
         )}
         {zones.length > 1 && (
-          <label className="flex min-w-0 items-center gap-2 pl-1.5">
-            <span className="w-[106px] flex-none whitespace-nowrap text-[13px] font-semibold text-gray-500">Khu vực</span>
-            <select value={zone} onChange={(e) => setZone(e.target.value)} className={SEL}>
+          <label className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-gray-500">
+            Khu vực
+            <select value={zone} onChange={(e) => setZone(e.target.value)} className={SEL} style={{ color: "oklch(0.52 0.12 50)" }}>
               <option value="all">Mọi khu vực</option>
               {zones.map((z) => (
                 <option key={z} value={z}>{z.replace(/^Trung tâm Tà Xùa$/i, "Trung tâm")}</option>
@@ -168,9 +167,9 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
             </select>
           </label>
         )}
-        <label className="flex min-w-0 items-center gap-2 pl-1.5">
-          <span className="w-[106px] flex-none whitespace-nowrap text-[13px] font-semibold text-gray-500">Sắp xếp</span>
-          <select value={sort} onChange={(e) => setSort(e.target.value)} className={SEL}>
+        <label className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-gray-500">
+          Sắp xếp
+          <select value={sort} onChange={(e) => setSort(e.target.value)} className={SEL} style={{ color: "oklch(0.29 0.055 160)" }}>
             <option value="match">{budget != null ? "Tối ưu (khớp giá · tiện ích · vị trí)" : "Tối ưu (giá · tiện ích · vị trí)"}</option>
             <option value="priceAsc">Giá thấp → cao</option>
             <option value="priceDesc">Giá cao → thấp</option>
