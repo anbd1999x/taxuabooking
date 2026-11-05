@@ -1,6 +1,7 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { VisitTracker } from "@/components/VisitTracker";
+import { LocationPrompt } from "@/components/LocationPrompt";
 import { SearchLoadingOverlay } from "@/components/useSearchNav";
 import { TrustPopup } from "@/components/TrustPopup";
 import { BackgroundMusic } from "@/components/BackgroundMusic";
@@ -25,6 +26,7 @@ export default async function SiteLayout({
       <main className="flex-1">{children}</main>
       <Footer settings={settings} />
       <BackgroundMusic />
+      <LocationPrompt />
     </>
   );
 }

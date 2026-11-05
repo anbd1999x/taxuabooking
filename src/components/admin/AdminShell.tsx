@@ -44,6 +44,7 @@ const ADMIN_NAV: NavGroup[] = [
       { href: "/admin/reports", label: "Thống kê & thanh toán" },
       { href: "/admin/accounts", label: "Tài khoản (CTV / Chủ)" },
       { href: "/admin/visits", label: "Lượt truy cập" },
+      { href: "/admin/ip-block", label: "Chặn IP" },
     ],
   },
 ];

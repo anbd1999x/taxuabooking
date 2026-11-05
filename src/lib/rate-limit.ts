@@ -1,4 +1,5 @@
 import "server-only";
+import { requestIp } from "./ip-block";
 
 /**
  * Giới hạn tần suất đơn giản trong bộ nhớ (per-process) — chống spam gửi đơn.
@@ -25,11 +26,7 @@ export function rateLimit(key: string, limit = 5, windowMs = 60_000): boolean {
   return true;
 }
 
-/** Lấy IP khách (qua nginx: X-Forwarded-For; fallback X-Real-IP). */
+/** Lấy IP khách (X-Forwarded-For do Caddy đặt — xem `requestIp` trong ip-block.ts). */
 export function clientIp(request: Request): string {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
+  return requestIp(request.headers) ?? "unknown";
 }

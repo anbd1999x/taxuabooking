@@ -6,12 +6,18 @@ import { getSession } from "@/lib/auth";
 import { attachPhoneIfMissing } from "@/lib/customer";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
 import { notifyNewBooking } from "@/lib/push";
+import { isIpBlocked, recordBookingSource, requestIp } from "@/lib/ip-block";
+import { ensureGeo } from "@/lib/visits";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   if (!rateLimit(`book:${clientIp(request)}`, 5, 60_000)) {
     return NextResponse.json({ error: "Bạn gửi yêu cầu quá nhanh, vui lòng thử lại sau 1 phút." }, { status: 429 });
+  }
+  // IP trong danh sách chặn (spam) → từ chối (proxy đã chặn, đây là lớp bảo vệ thứ 2).
+  if (await isIpBlocked(requestIp(request.headers))) {
+    return NextResponse.json({ error: "Không thể gửi yêu cầu. Vui lòng liên hệ hotline." }, { status: 403 });
   }
   let body: unknown;
   try {
@@ -25,6 +31,8 @@ export async function POST(request: Request) {
     const session = await getSession();
     const ctvId = session?.role === "CTV" ? session.sub : null;
     const result = await createBooking(input, ctvId);
+    await recordBookingSource(result.code, request.headers);
+    void ensureGeo(requestIp(request.headers)); // tra khu vực/nhà mạng cho trang Chặn IP
     await attachPhoneIfMissing(input.phone).catch(() => {});
     void notifyNewBooking({ code: result.code, customerName: input.customerName, phone: input.phone });
     return NextResponse.json(result, { status: 201 });

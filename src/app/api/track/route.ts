@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { randomUUID } from "node:crypto";
 import { ensureGeo, recordVisit } from "@/lib/visits";
 import { getCustomer } from "@/lib/customer";
+import { requestIp } from "@/lib/ip-block";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -12,15 +13,9 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 365 * 2; // 2 năm
 /** Bỏ qua bot/crawler phổ biến để số liệu gần với người thật. */
 const BOT_RE = /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|whatsapp|telegram|curl|wget|python-requests|headless/i;
 
-/** IP thật của khách (qua proxy nginx / Cloudflare). */
+/** IP thật của khách — xem `requestIp` (không tin CF-Connecting-IP vì site không qua Cloudflare). */
 function clientIp(request: NextRequest): string | null {
-  const cf = request.headers.get("cf-connecting-ip");
-  if (cf) return cf.trim();
-  const xff = request.headers.get("x-forwarded-for");
-  if (xff) return xff.split(",")[0].trim();
-  const real = request.headers.get("x-real-ip");
-  if (real) return real.trim();
-  return null;
+  return requestIp(request.headers);
 }
 
 /** Chỉ ghi nhật ký cho trang công khai (bỏ api, _next, admin). */

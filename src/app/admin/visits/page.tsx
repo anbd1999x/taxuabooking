@@ -34,6 +34,18 @@ function ago(d: Date, now: number): string {
   return `${Math.round(m / 1440)} ngày trước`;
 }
 
+/** Bản đồ nhúng OpenStreetMap có ghim tại toạ độ (không cần API key). */
+function osmEmbed(lat: number, lng: number): string {
+  const d = 0.006;
+  const bbox = [lng - d, lat - d * 0.6, lng + d, lat + d * 0.6].map((n) => n.toFixed(5)).join(",");
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat.toFixed(6)},${lng.toFixed(6)}`;
+}
+
+/** Địa chỉ Nominatim rất dài — lấy 3 phần đầu cho dòng tóm tắt. */
+function shortAddr(a: string): string {
+  return a.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 3).join(", ");
+}
+
 interface VisitRow {
   path: string;
   createdAt: Date;
@@ -57,15 +69,23 @@ export default async function AdminVisitsPage({
   const sp = await searchParams;
   const rangeKey = str(sp.range) && RANGES[str(sp.range)!] ? str(sp.range)! : "7d";
   const q = (str(sp.q) ?? "").trim();
-  const who = str(sp.who) === "user" ? "user" : "all";
+  const whoRaw = str(sp.who);
+  const who: "all" | "user" | "gps" = whoRaw === "user" ? "user" : whoRaw === "gps" ? "gps" : "all";
   const now = Date.now();
   const rangeMs = RANGES[rangeKey].ms;
   const since = rangeMs ? new Date(now - rangeMs) : undefined;
+
+  // Lọc "Có vị trí GPS": khách đã cho phép chia sẻ vị trí.
+  const gpsIds =
+    who === "gps"
+      ? (await prisma.visitor.findMany({ where: { lat: { not: null } }, select: { id: true }, take: 5000 })).map((v) => v.id)
+      : null;
 
   const where: Prisma.PageViewWhereInput = {
     ...(since ? { createdAt: { gte: since } } : {}),
     ...(q ? { path: { contains: q, mode: "insensitive" } } : {}),
     ...(who === "user" ? { customerId: { not: null } } : {}),
+    ...(gpsIds ? { visitorId: { in: gpsIds } } : {}),
   };
 
   const [stats, views, viewsRange, visitorsGrouped] = await Promise.all([
@@ -100,14 +120,22 @@ export default async function AdminVisitsPage({
   }
   const list = [...groups.values()].slice(0, 120);
 
-  const geo = await geoForIps(list.map((g) => g.ip).filter((x): x is string => Boolean(x)));
+  const [geo, locRows] = await Promise.all([
+    geoForIps(list.map((g) => g.ip).filter((x): x is string => Boolean(x))),
+    prisma.visitor.findMany({
+      where: { id: { in: list.map((g) => g.visitorId) }, lat: { not: null } },
+      select: { id: true, lat: true, lng: true, locAccuracy: true, locAddress: true, locAt: true },
+    }),
+  ]);
+  const locs = new Map(locRows.map((l) => [l.id, l]));
 
   const rangeTabs = Object.entries(RANGES);
 
   function buildHref(next: { range?: string; who?: string }): string {
     const p = new URLSearchParams();
     p.set("range", next.range ?? rangeKey);
-    if ((next.who ?? who) === "user") p.set("who", "user");
+    const w = next.who ?? who;
+    if (w !== "all") p.set("who", w);
     if (q) p.set("q", q);
     return `/admin/visits?${p.toString()}`;
   }
@@ -118,6 +146,7 @@ export default async function AdminVisitsPage({
         <h1 className="text-xl font-bold text-ink sm:text-2xl">Lượt truy cập</h1>
         <p className="mt-1 text-sm text-gray-500">
           Lịch sử khách vào website: trang nào, lúc nào, từ IP &amp; khu vực nào. Số liệu cập nhật khi tải lại trang.
+          Khu vực là nơi đăng ký của nhà mạng (thường ghi Hà Nội / TP.HCM), không phải vị trí thật của khách.
         </p>
       </header>
 
@@ -152,10 +181,16 @@ export default async function AdminVisitsPage({
           >
             Đã đăng nhập
           </a>
+          <a
+            href={buildHref({ who: "gps" })}
+            className={`rounded-full px-3 py-1.5 text-sm font-semibold ring-1 ${who === "gps" ? "bg-forest-600 text-white ring-forest-600" : "bg-white text-gray-600 ring-gray-200 hover:bg-gray-50"}`}
+          >
+            📍 Có vị trí GPS
+          </a>
         </div>
         <form method="get" className="flex flex-wrap gap-2">
           <input type="hidden" name="range" value={rangeKey} />
-          {who === "user" && <input type="hidden" name="who" value="user" />}
+          {who !== "all" && <input type="hidden" name="who" value={who} />}
           <input
             name="q"
             defaultValue={q}
@@ -185,6 +220,7 @@ export default async function AdminVisitsPage({
         <div className="flex flex-col gap-2.5">
           {list.map((g) => {
             const gi: GeoInfo | undefined = g.ip ? geo.get(g.ip) : undefined;
+            const loc = locs.get(g.visitorId);
             return (
               <details key={g.visitorId} className="group rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
                 <summary className="flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 p-4">
@@ -200,8 +236,19 @@ export default async function AdminVisitsPage({
                       </span>
                     </span>
                     <span className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-gray-500">
-                      <span>📍 {regionLabel(gi)}</span>
+                      {loc ? (
+                        <span className="rounded-full bg-forest-50 px-2 py-0.5 font-semibold text-forest-700">
+                          📍 GPS: {loc.locAddress ? shortAddr(loc.locAddress) : `${loc.lat!.toFixed(5)}, ${loc.lng!.toFixed(5)}`}
+                        </span>
+                      ) : (
+                        <span title="Theo IP — chỉ là nơi đăng ký của nhà mạng">🌐 {regionLabel(gi)}</span>
+                      )}
                       {g.ip && <span className="font-mono text-gray-400">{g.ip}</span>}
+                      {g.ip && (
+                        <a href={`/admin/ip-block?ip=${encodeURIComponent(g.ip)}`} className="font-semibold text-red-600 hover:underline">
+                          Chặn IP
+                        </a>
+                      )}
                       <span>· {deviceLabel(g.ua)}</span>
                     </span>
                   </span>
@@ -212,6 +259,31 @@ export default async function AdminVisitsPage({
                 </summary>
 
                 <div className="border-t border-gray-100 px-4 pb-4 pt-3">
+                  {loc && (
+                    <div className="mb-3 overflow-hidden rounded-xl ring-1 ring-gray-200">
+                      <iframe
+                        title={`Vị trí khách ${g.visitorId.slice(0, 8)}`}
+                        src={osmEmbed(loc.lat!, loc.lng!)}
+                        loading="lazy"
+                        className="h-64 w-full border-0"
+                      />
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+                        <span className="min-w-0 flex-1">
+                          <b className="text-ink">Vị trí thật (khách cho phép):</b> {loc.locAddress ?? "—"}
+                          {loc.locAccuracy != null && <> · sai số ±{Math.round(loc.locAccuracy)} m</>}
+                          {loc.locAt && <> · {fmtTime(loc.locAt)}</>}
+                        </span>
+                        <a
+                          href={`https://www.google.com/maps?q=${loc.lat},${loc.lng}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-semibold text-forest-700 underline"
+                        >
+                          Mở Google Maps
+                        </a>
+                      </div>
+                    </div>
+                  )}
                   {g.referrer && (
                     <div className="mb-2 text-xs text-gray-500">
                       Nguồn vào: <span className="break-all text-gray-700">{g.referrer}</span>

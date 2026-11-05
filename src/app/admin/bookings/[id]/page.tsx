@@ -19,6 +19,9 @@ import {
   duplicateBooking,
   setBookingCommissionPaid,
 } from "../actions";
+import { blockIp } from "../../ip-block/actions";
+import { geoForIps } from "@/lib/visits";
+import { regionLabel } from "@/lib/track-labels";
 
 export const dynamic = "force-dynamic";
 
@@ -79,6 +82,15 @@ export default async function BookingDetailPage({
     prisma.bookingRequest.count(),
     prisma.bookingRequest.count({ where: { phone: b.phone, id: { not: b.id } } }),
   ]);
+
+  // Nguồn gửi đơn (chống spam): IP + khu vực nhà mạng + số đơn cùng IP + đã chặn chưa.
+  const [ipGeo, ipOrders, ipBlocked] = b.clientIp
+    ? await Promise.all([
+        geoForIps([b.clientIp]).then((m) => m.get(b.clientIp!)),
+        prisma.bookingRequest.count({ where: { clientIp: b.clientIp } }),
+        prisma.blockedIp.findUnique({ where: { ip: b.clientIp } }),
+      ])
+    : [undefined, 0, null];
 
   const cat = CATEGORIES[b.category];
   // Ghi chú khách bị trộn thêm "Đón: … · Trả: … · Tạm tính: …" khi đặt cabin.
@@ -546,6 +558,33 @@ export default async function BookingDetailPage({
                 <div className="text-xs text-gray-500">Ghi chú của khách</div>
                 <div className={`text-sm font-semibold ${customerNote ? "text-ink" : "italic text-gray-400"}`}>{customerNote || "Không có"}</div>
               </div>
+            </div>
+            {/* Nguồn gửi đơn — để truy & chặn IP spam */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl bg-gray-50 px-3 py-2.5 text-sm">
+              <span className="text-xs text-gray-500">IP gửi đơn</span>
+              {b.clientIp ? (
+                <>
+                  <span className="font-mono font-bold text-ink">{b.clientIp}</span>
+                  <span className="text-xs text-gray-500">
+                    📍 {regionLabel(ipGeo)}{ipGeo?.isp ? ` · ${ipGeo.isp}` : ""}
+                  </span>
+                  <Link href={`/admin/ip-block?ip=${encodeURIComponent(b.clientIp)}`} className="text-xs font-semibold text-forest-700 underline">
+                    {ipOrders} đơn từ IP này
+                  </Link>
+                  <span className="flex-1" />
+                  {ipBlocked ? (
+                    <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">Đã chặn</span>
+                  ) : (
+                    <ActionForm action={blockIp} success="Đã chặn IP">
+                      <input type="hidden" name="ip" value={b.clientIp} />
+                      <input type="hidden" name="reason" value={`Spam đơn ${b.code}`} />
+                      <button className="rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white hover:bg-red-700">Chặn IP này</button>
+                    </ActionForm>
+                  )}
+                </>
+              ) : (
+                <span className="text-xs italic text-gray-400">Không có (đơn tạo trước khi bật ghi IP, hoặc do admin/CTV nhập)</span>
+              )}
             </div>
           </section>
 

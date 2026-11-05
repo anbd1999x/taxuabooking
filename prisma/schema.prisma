@@ -509,11 +509,15 @@ model BookingRequest {
   cancelReason    String? // lý do huỷ (để thống kê)
   heldRoom        Boolean       @default(false) // nhà cung cấp phòng/dịch vụ đã xác nhận giữ chỗ
   heldBus         Boolean       @default(false) // nhà xe đã xác nhận giữ chỗ (cabin / combo)
+  // Nguồn gửi đơn (chống spam): IP khách (X-Forwarded-For do Caddy đặt) + trình duyệt.
+  clientIp        String?
+  clientUa        String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
   logs BookingLog[]
 
+  @@index([clientIp])
   @@index([status])
   @@index([createdAt])
   @@index([serviceId])
@@ -709,6 +713,12 @@ model Visitor {
   views     Int      @default(1) // số trang đã xem
   firstSeen DateTime @default(now())
   lastSeen  DateTime @default(now())
+  // Vị trí THẬT (GPS trình duyệt) — chỉ có khi khách bấm cho phép chia sẻ vị trí.
+  lat         Float?
+  lng         Float?
+  locAccuracy Float? // sai số (mét)
+  locAddress  String? // địa chỉ dịch ngược từ toạ độ (OpenStreetMap)
+  locAt       DateTime? // lúc ghi nhận vị trí
 
   @@index([lastSeen])
 }
@@ -742,6 +752,14 @@ model IpGeo {
   isp         String? // nhà mạng
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+/// IP bị CHẶN truy cập website công khai + gửi đơn (chống spam). /admin không bị chặn.
+model BlockedIp {
+  ip        String   @id
+  reason    String? // lý do (VD: "spam đơn TX-A1B2C3")
+  createdBy String? // username admin đã chặn
+  createdAt DateTime @default(now())
 }
 
 /// Trình duyệt đã đăng ký nhận Web Push (thông báo đơn mới) của tài khoản quản trị.
