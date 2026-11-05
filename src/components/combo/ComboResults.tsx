@@ -257,16 +257,16 @@ function ComboPlanCard({
 }) {
   // Chỉ những xe còn đủ chỗ cho số khách tính phí của home này.
   const usableBuses = useMemo(
-    () => buses.filter((b) => cabinAllocation(people, b.seatsAvailable, b.doubleAvailable) != null),
+    () => buses.filter((b) => cabinAllocation(people, b.seatsAvailable) != null),
     [buses, people],
   );
   const [busId, setBusId] = useState(usableBuses[0]?.serviceId ?? "");
   const bus = useMemo(() => usableBuses.find((b) => b.serviceId === busId) ?? usableBuses[0], [usableBuses, busId]);
 
-  // Chỗ nằm xe cabin: mặc định ghép đôi tối đa TRONG SỐ BUỒNG ĐÔI CÒN của xe đang chọn,
+  // Chỗ nằm xe cabin: mặc định ghép đôi tối đa (2 người/buồng),
   // người lẻ nằm riêng. Đổi xe → xếp lại theo xe mới. Khách chỉnh được.
   const defaultAlloc = (b: ComboBusOption | undefined) =>
-    (b && cabinAllocation(people, b.seatsAvailable, b.doubleAvailable)) ?? {
+    (b && cabinAllocation(people, b.seatsAvailable)) ?? {
       nDouble: Math.floor(people / 2),
       nSingle: people - Math.floor(people / 2) * 2,
     };
@@ -370,8 +370,7 @@ function ComboPlanCard({
     setErr("");
     if (!bus) { setErr("Vui lòng chọn xe cabin."); return; }
     if (cabinCovered < people) { setErr(`Chỗ nằm trên xe mới đủ ${cabinCovered}/${people} người — thêm cabin đơn/đôi.`); return; }
-    if (cbDouble > bus.doubleAvailable) { setErr(bus.doubleAvailable > 0 ? `Xe chỉ còn ${bus.doubleAvailable} cabin đôi.` : "Xe này không còn cabin đôi — chọn cabin đơn."); return; }
-    if (cbSingle > bus.seatsAvailable) { setErr(`Xe chỉ còn ${bus.seatsAvailable} cabin đơn.`); return; }
+    if (people > bus.seatsAvailable) { setErr(`Xe chỉ còn ${bus.seatsAvailable} chỗ.`); return; }
     if (!name.trim()) { setErr("Vui lòng nhập họ tên."); return; }
     if (!/^0\d{9}$/.test(phone.replace(/\s/g, ""))) { setErr("Số điện thoại chưa đúng (10 số, bắt đầu bằng 0)."); return; }
     setSubmitting(true);

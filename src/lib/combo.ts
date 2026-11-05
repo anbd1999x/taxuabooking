@@ -87,8 +87,6 @@ export interface ComboBusOption {
   fareOrigin: string | null;
   /** Số chỗ đơn còn ít nhất giữa 2 chiều. */
   seatsAvailable: number;
-  /** Số buồng ĐÔI còn ít nhất giữa 2 chiều (0 = không còn/không bán đôi). */
-  doubleAvailable: number;
   /** Dữ liệu XEM NHANH trong trang combo (không rời phễu đặt). */
   images: string[];
   outboundStops: ComboRouteStop[];
@@ -594,7 +592,7 @@ export async function findComboMatches(input: {
     findRooms(nights, filters, roomKind),
   ]);
   // Lọc sơ bộ: xe còn đủ chỗ cho ít nhất số người lớn (từng thẻ lọc tiếp theo số tính phí của home).
-  const buses = allBuses.filter((b) => cabinAllocation(minBillable, b.seatsAvailable, b.doubleAvailable) != null);
+  const buses = allBuses.filter((b) => cabinAllocation(minBillable, b.seatsAvailable) != null);
 
   // Gom phòng theo homestay rồi SINH PHƯƠNG ÁN GHÉP PHÒNG đủ chỗ cho cả đoàn
   // (10 người → "5× Phòng đơn" / "4× Phòng đôi + 2× Phòng đơn" / dorm...).
@@ -691,8 +689,8 @@ async function findBuses(from: Date, to: Date, origin: string | null): Promise<C
     const outbound = s.cabinTrips.find((t) => t.direction === "OUTBOUND");
     const ret = s.cabinTrips.find((t) => t.direction === "RETURN");
     if (!outbound || !ret) continue;
-    const okOut = BOOKABLE.includes(outbound.status) && outbound.seatsAvailable + outbound.seatsDoubleAvailable > 0;
-    const okRet = BOOKABLE.includes(ret.status) && ret.seatsAvailable + ret.seatsDoubleAvailable > 0;
+    const okOut = BOOKABLE.includes(outbound.status) && outbound.seatsAvailable > 0;
+    const okRet = BOOKABLE.includes(ret.status) && ret.seatsAvailable > 0;
     if (!okOut || !okRet) continue;
     let fare = (toNumber(outbound.price) ?? 0) + (toNumber(ret.price) ?? 0);
     let fareOrigin: string | null = null;
@@ -727,7 +725,6 @@ async function findBuses(from: Date, to: Date, origin: string | null): Promise<C
       farePerPerson: fare,
       fareOrigin,
       seatsAvailable: Math.min(outbound.seatsAvailable, ret.seatsAvailable),
-      doubleAvailable: Math.min(outbound.seatsDoubleAvailable, ret.seatsDoubleAvailable),
       images: s.images.map((i) => i.url).filter((u) => !VIDEO_URL_RE.test(u)),
       outboundStops: stopsOf("OUTBOUND"),
       returnStops: stopsOf("RETURN"),
@@ -985,22 +982,14 @@ export async function createComboBooking(
   // Chỗ nằm xe cabin: mỗi BUỒNG round-trip = 2×vé khứ hồi (fare). Nằm ghép (đôi) = 2 người/buồng
   // (= fare/người, như cũ); nằm riêng (đơn) = 1 người/buồng (= 2×fare/người). Client cũ (0/0) →
   // tự xếp tối đa ghép đôi, người lẻ nằm riêng.
-  const singleAvail = Math.min(outbound.seatsAvailable, ret.seatsAvailable);
-  const doubleAvail = Math.min(outbound.seatsDoubleAvailable, ret.seatsDoubleAvailable);
+  // Chỗ trên xe = SỐ KHÁCH, trừ ở kho vé thường của cả 2 chiều (KHÔNG dùng kho "cabin đôi"
+  // của trang /xe-cabin — nhiều chuyến không khai kho đó). Ghép/riêng chỉ ảnh hưởng GIÁ.
+  const seatsAvail = Math.min(outbound.seatsAvailable, ret.seatsAvailable);
+  if (seatsAvail < people) throw new Error(`Xe chỉ còn ${seatsAvail} chỗ — không đủ cho ${people} khách.`);
   let nDouble = input.cabinDouble ?? 0;
   let nSingle = input.cabinSingle ?? 0;
-  if (nSingle + nDouble === 0) {
-    // Client cũ: tự xếp theo số buồng còn thật (chuyến không bán đôi → toàn buồng đơn).
-    const a = cabinAllocation(people, singleAvail, doubleAvail);
-    if (!a) throw new Error("Xe không còn đủ chỗ cho cả đoàn.");
-    ({ nSingle, nDouble } = a);
-  }
+  if (nSingle + nDouble === 0) ({ nSingle, nDouble } = cabinAllocation(people, seatsAvail)!);
   if (nSingle + nDouble * 2 < people) throw new Error("Chỗ nằm trên xe chưa đủ cho cả đoàn.");
-  // Kiểm tra số buồng còn ở CẢ 2 chiều (tránh nhận đơn rồi xác nhận mới báo thiếu chỗ).
-  if (nDouble > doubleAvail) {
-    throw new Error(doubleAvail > 0 ? `Xe chỉ còn ${doubleAvail} cabin đôi.` : "Chuyến này không còn/không bán cabin đôi — vui lòng chọn cabin đơn.");
-  }
-  if (nSingle > singleAvail) throw new Error(`Xe chỉ còn ${singleAvail} cabin đơn.`);
   const roomShare = Math.round(roomCost / people);
   const busAmount = 2 * fare * (nSingle + nDouble); // mỗi buồng (đơn hoặc đôi) = 2×fare
   const total = Math.max(0, roomShare * people + busAmount - (communal ? 0 : COMBO_DISCOUNT * people));
@@ -1062,8 +1051,10 @@ export async function createComboBooking(
       roomIds: roomList.map((r) => r.id),
       cabinTripId: outbound.id,
       cabinReturnTripId: ret.id,
-      seatsSingle: nSingle,
-      seatsDouble: nDouble,
+      // Giữ chỗ khi xác nhận: trừ ĐÚNG số khách ở kho vé thường (2 chiều). Cách nằm
+      // ghép/riêng đã ghi trong selectionLabel cho nhà xe.
+      seatsSingle: people,
+      seatsDouble: 0,
       selectionLabel,
       referencePrice: total,
       roomAmount,

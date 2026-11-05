@@ -3,38 +3,31 @@
  * server (combo.ts: tìm + đặt) lẫn client (ComboResults: giá thẻ + mặc định chỗ nằm),
  * bảo đảm giá khách thấy trên danh sách = giá khi bấm đặt.
  *
- * Mô hình: mỗi BUỒNG (đơn hoặc đôi) = 2 × vé khứ hồi. Buồng đôi 2 người nằm ghép
- * (= 1 vé/người), buồng đơn 1 người nằm riêng (= 2 vé/người).
+ * Mô hình: vé khứ hồi `fare` là giá MỖI KHÁCH khi nằm ghép (2 người/buồng). Mỗi buồng
+ * (ghép 2 người hoặc 1 người nằm riêng) = 2 × fare → nằm riêng = 2 × fare/người.
+ * Chỗ trên xe tính theo SỐ KHÁCH ở kho vé thường của chuyến (`seatsAvailable`) — KHÔNG
+ * dùng kho "cabin đôi" của trang /xe-cabin (đó là sản phẩm khác, giá riêng; nhiều
+ * chuyến không khai kho này nên trước đây bị xếp nhầm toàn buồng riêng → giá ×2).
  */
 
 /**
- * Xếp buồng cho đoàn `people` người theo số buồng còn: ưu tiên buồng ĐÔI trong giới
- * hạn còn trống, người lẻ / thiếu buồng đôi nằm buồng ĐƠN. null = xe không đủ chỗ.
+ * Cách xếp MẶC ĐỊNH: ghép đôi tối đa, người lẻ nằm riêng. null = xe không đủ chỗ.
  */
 export function cabinAllocation(
   people: number,
-  singleAvail: number,
-  doubleAvail: number,
+  seatsAvail: number,
 ): { nSingle: number; nDouble: number } | null {
-  const dbl = Math.max(0, doubleAvail);
-  const sgl = Math.max(0, singleAvail);
-  let nDouble = Math.min(Math.floor(people / 2), dbl);
-  let nSingle = people - nDouble * 2;
-  // Thiếu buồng đơn cho người lẻ → cho người lẻ nằm 1 buồng đôi (giá buồng như nhau).
-  while (nSingle > sgl && nDouble < dbl) {
-    nDouble++;
-    nSingle = Math.max(0, people - nDouble * 2);
-  }
-  return nSingle <= sgl ? { nSingle, nDouble } : null;
+  if (people <= 0 || seatsAvail < people) return null;
+  const nDouble = Math.floor(people / 2);
+  return { nSingle: people - nDouble * 2, nDouble };
 }
 
 /** Tiền xe MỖI KHÁCH theo cách xếp mặc định. null = xe không đủ chỗ cho đoàn. */
 export function busCostPerPerson(
-  bus: { farePerPerson: number; seatsAvailable: number; doubleAvailable: number },
+  bus: { farePerPerson: number; seatsAvailable: number },
   people: number,
 ): number | null {
-  if (people <= 0) return null;
-  const a = cabinAllocation(people, bus.seatsAvailable, bus.doubleAvailable);
+  const a = cabinAllocation(people, bus.seatsAvailable);
   if (!a) return null;
   return Math.round((2 * bus.farePerPerson * (a.nSingle + a.nDouble)) / people);
 }
