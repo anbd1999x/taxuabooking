@@ -64,7 +64,7 @@ export default async function AdminServicesPage({
       </div>
 
       {/* Tab danh mục */}
-      <div className="mt-4 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+      <div className="mt-4 flex flex-wrap gap-2">
         <Link href={tabHref()} className={tabCls(!cat)}>
           Tất cả <span className="ml-0.5 opacity-70">{totalCount}</span>
         </Link>
