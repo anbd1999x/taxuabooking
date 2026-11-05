@@ -146,10 +146,9 @@ const SECTIONS: Section[] = [
 const LEGAL: [string, string][] = [
   ["Đơn vị vận hành", "taxuabooking.com"],
   ["Người chịu trách nhiệm", "Bùi Danh An"],
-  ["Địa chỉ", "[Địa chỉ hoạt động]"],
   ["Mã số thuế", "[Nếu có]"],
   ["Hotline", "0397 943 155 · 0357 452 952"],
-  ["Email", "anbd.dev@gmail.com"],
+  ["Email", "lienhe@taxuabooking.com"],
   ["Website", "taxuabooking.com · taxuabooking.vn"],
 ];
 
@@ -344,10 +343,10 @@ export default function TermsPage() {
                 Zalo 0357 452 952
               </a>
               <a
-                href="mailto:anbd.dev@gmail.com"
+                href="mailto:lienhe@taxuabooking.com"
                 style={{ fontSize: 14, fontWeight: 800, padding: "11px 16px", borderRadius: 999, border: "1.5px solid oklch(1 0 0 / .4)", color: "white", whiteSpace: "nowrap" }}
               >
-                anbd.dev@gmail.com
+                lienhe@taxuabooking.com
               </a>
             </div>
           </section>
