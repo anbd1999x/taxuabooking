@@ -366,25 +366,39 @@ export function HomestayList({
     if (sort === "near") return distOf(a) - distOf(b);
     return 0; // "rec": giữ thứ tự nổi bật/ưu tiên/tên từ server
   };
-  // Ưu tiên: dịch vụ Nổi bật (+ thứ tự ưu tiên) lên đầu, rồi mới tới sắp xếp đã chọn.
-  const ranked = [...matched].sort((a, b) => prRank(b) - prRank(a) || bySort(a, b));
-  // Nhóm ưu tiên hiện trước nhóm bình thường. Trong nhóm ưu tiên: mỗi home chỉ hiện TỐI ĐA
-  // 3 căn ở lượt đầu (tránh 1 home lố khi có nhiều home ưu tiên), các căn thừa dồn xuống
-  // CUỐI nhóm ưu tiên (vẫn trước danh sách bình thường). Chỉ 1 home ưu tiên → hiện hết căn của nó.
-  const perHome = new Map<string, number>();
-  const prioHead: HomestayCard[] = []; // tối đa 3 căn / home ưu tiên
-  const prioTail: HomestayCard[] = []; // căn thừa của home ưu tiên (cuối nhóm ưu tiên)
-  const normal: HomestayCard[] = []; // home không ưu tiên
-  for (const x of ranked) {
-    if (prRank(x) > 0) {
-      const n = perHome.get(x.slug) ?? 0;
-      perHome.set(x.slug, n + 1);
-      (n < 3 ? prioHead : prioTail).push(x);
-    } else {
-      normal.push(x);
+  // Ưu tiên (Nổi bật lên đầu) CHỈ áp dụng ở trạng thái MẶC ĐỊNH: mọi mức giá +
+  // sắp xếp "Phù hợp nhất". Khi khách đã lọc giá hoặc đổi sắp xếp → bỏ ưu tiên,
+  // hiển thị đúng theo bộ lọc/sắp xếp đã chọn.
+  const keepPriority = price === "all" && sort === "rec";
+  let items: HomestayCard[];
+  if (keepPriority) {
+    const ranked = [...matched].sort((a, b) => prRank(b) - prRank(a) || bySort(a, b));
+    // Nhóm ưu tiên hiện trước nhóm bình thường. Trong nhóm ưu tiên: mỗi home chỉ hiện TỐI ĐA
+    // 3 căn ở lượt đầu (tránh 1 home lố khi có nhiều home ưu tiên), các căn thừa dồn xuống
+    // CUỐI nhóm ưu tiên (vẫn trước danh sách bình thường). Chỉ 1 home ưu tiên → hiện hết căn của nó.
+    const perHome = new Map<string, number>();
+    const prioHead: HomestayCard[] = []; // tối đa 3 căn / home ưu tiên
+    const prioTail: HomestayCard[] = []; // căn thừa của home ưu tiên (cuối nhóm ưu tiên)
+    const normal: HomestayCard[] = []; // home không ưu tiên
+    for (const x of ranked) {
+      if (prRank(x) > 0) {
+        const n = perHome.get(x.slug) ?? 0;
+        perHome.set(x.slug, n + 1);
+        (n < 3 ? prioHead : prioTail).push(x);
+      } else {
+        normal.push(x);
+      }
     }
+    items = [...prioHead, ...prioTail, ...normal];
+  } else {
+    // Đã lọc giá hoặc đổi sắp xếp → KHÔNG ưu tiên Nổi bật nữa: chỉ theo sắp xếp đã chọn
+    // (riêng "Phù hợp nhất" thì xếp theo tên cho trung lập, không đẩy Nổi bật lên).
+    items = [...matched].sort((a, b) =>
+      sort === "rec"
+        ? (a.homeName || a.name).localeCompare(b.homeName || b.name, "vi")
+        : bySort(a, b),
+    );
   }
-  const items = [...prioHead, ...prioTail, ...normal];
   const hasFilter = Boolean(q || ci || co || adults > 0 || childAges.length > 0 || price !== "all" || type !== "all" || zone !== "all" || home !== "all" || sort !== "rec" || amen.size > 0);
   const toggleAmen = (k: AmenKey) =>
     setAmen((prev) => {

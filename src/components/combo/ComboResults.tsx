@@ -100,18 +100,23 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
       e.score = 0.55 * sPrice + 0.25 * sAmen + 0.2 * sDist;
     }
 
-    // Ưu tiên: homestay Nổi bật (+ thứ tự ưu tiên) lên đầu, rồi mới tới sắp xếp đã chọn.
+    // Ưu tiên (Nổi bật lên đầu) CHỈ áp dụng ở trạng thái MẶC ĐỊNH: mọi mức giá +
+    // sắp xếp "Tối ưu (phù hợp nhất)". Khi khách đã chọn khoảng giá hoặc đổi sắp xếp
+    // → bỏ ưu tiên, xếp đúng theo bộ lọc/sắp xếp.
     const prRank = (e: PlanEntry) => (e.home.featured ? (e.home.priorityOrder || 0) + 1 : 0);
+    const keepPriority = priceMax == null && priceMin == null && budget == null && sort === "match";
     arr.sort((a, b) => {
-      const pr = prRank(b) - prRank(a);
-      if (pr !== 0) return pr;
+      if (keepPriority) {
+        const pr = prRank(b) - prRank(a);
+        if (pr !== 0) return pr;
+      }
       if (sort === "priceAsc") return a.bestPrice - b.bestPrice;
       if (sort === "priceDesc") return b.bestPrice - a.bestPrice;
       if (sort === "near") return distOf(a.home) - distOf(b.home) || a.bestPrice - b.bestPrice;
       return a.score - b.score || a.bestPrice - b.bestPrice;
     });
     return arr;
-  }, [homes, buses, budget, zone, homeName, sort]);
+  }, [homes, buses, budget, priceMax, priceMin, zone, homeName, sort]);
 
   const bestPlanId = buses.length > 0 && entries.length > 0 ? entries[0].plan.id : null;
 
