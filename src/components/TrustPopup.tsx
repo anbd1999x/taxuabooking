@@ -251,7 +251,7 @@ export function TrustPopup({ config }: { config: TrustPopupConfig }) {
               bg="oklch(0.97 0.03 70)"
               border="1.5px solid oklch(0.88 0.08 65)"
             >
-              <b>Nếu ai chứng minh được tụi mình lừa đảo</b>, tụi mình trao thưởng 100.000.000 đồng.
+              <b>Nếu ai chứng minh được tụi mình đào lửa</b>, tụi mình trao thưởng 100.000.000 đồng.
             </PromiseRow>
             <PromiseRow
               amount="10 triệu"
@@ -261,7 +261,7 @@ export function TrustPopup({ config }: { config: TrustPopupConfig }) {
               bg="oklch(0.97 0.02 155)"
               border="1.5px solid oklch(0.86 0.06 155)"
             >
-              <b>Nếu giá trên website cao hơn giá niêm yết</b> của chính nhà xe, homestay, tụi mình đền 10.000.000 đồng.
+              <b>Nếu ai chứng minh được giá trên website cao hơn giá niêm yết</b> của chính nhà xe, homestay, tụi mình đền 10.000.000 đồng.
             </PromiseRow>
           </div>
 
