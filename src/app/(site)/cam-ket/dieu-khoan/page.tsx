@@ -144,9 +144,7 @@ const SECTIONS: Section[] = [
 ];
 
 const LEGAL: [string, string][] = [
-  ["Đơn vị vận hành", "taxuabooking.com"],
   ["Người chịu trách nhiệm", "Bùi Danh An"],
-  ["Mã số thuế", "[Nếu có]"],
   ["Hotline", "0397 943 155 · 0357 452 952"],
   ["Email", "lienhe@taxuabooking.com"],
   ["Website", "taxuabooking.com · taxuabooking.vn"],
