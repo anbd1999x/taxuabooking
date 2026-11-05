@@ -98,7 +98,7 @@ export function LocationPrompt() {
     <div
       role="dialog"
       aria-label="Chia sẻ vị trí"
-      className="fixed inset-x-3 bottom-24 z-40 mx-auto max-w-md rounded-2xl bg-white p-4 shadow-[0_18px_50px_-12px_rgba(20,50,35,0.45)] ring-1 ring-black/10 sm:inset-x-auto sm:bottom-6 sm:left-6"
+      className="fixed left-3 right-3 top-14 z-40 max-w-sm rounded-2xl bg-white p-4 shadow-[0_18px_50px_-12px_rgba(20,50,35,0.45)] ring-1 ring-black/10 sm:right-auto sm:left-6 sm:top-20 sm:w-full"
     >
       <div className="flex gap-3">
         <span className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-forest-50 text-xl">📍</span>
