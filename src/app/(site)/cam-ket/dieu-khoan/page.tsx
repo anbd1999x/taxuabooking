@@ -144,7 +144,7 @@ const SECTIONS: Section[] = [
 ];
 
 const LEGAL: [string, string][] = [
-  ["Đơn vị vận hành", "[Tên cá nhân / hộ kinh doanh]"],
+  ["Đơn vị vận hành", "taxuabooking.com"],
   ["Người chịu trách nhiệm", "Bùi Danh An"],
   ["Địa chỉ", "[Địa chỉ hoạt động]"],
   ["Mã số thuế", "[Nếu có]"],
