@@ -69,6 +69,7 @@ export function CabinList({
   to,
   pickup: initialPickup = "",
   pickups = [],
+  pax: initialPax = 2,
 }: {
   operators: CabinOperator[];
   from: string;
@@ -76,6 +77,8 @@ export function CabinList({
   pickup?: string;
   /** Điểm đón đã khai trong bảng giá chặng (server truyền xuống); rỗng → dùng FROMS. */
   pickups?: string[];
+  /** Số khách đã tìm (?pax=) — truyền tiếp sang trang đặt vé. */
+  pax?: number;
 }) {
   const { pending: searching, go } = useSearchNav();
   const [w, setW] = useState(1280);
@@ -85,7 +88,7 @@ export function CabinList({
   const [pickup, setPickup] = useState(initialPickup && fromOpts.includes(initialPickup) ? initialPickup : "Hà Nội");
   const [di, setDi] = useState(from);
   const [ve, setVe] = useState(to);
-  const [pax, setPax] = useState(2);
+  const [pax, setPax] = useState(initialPax);
   const [sort, setSort] = useState<"time" | "price">("time");
 
   const sunRef = useRef<HTMLDivElement>(null);
@@ -261,6 +264,7 @@ export function CabinList({
     if (di) p.set("from", di);
     if (round && ve) p.set("to", ve);
     if (pickup && pickup !== "Hà Nội") p.set("pickup", pickup);
+    if (pax !== 2) p.set("pax", String(pax));
     // Điều hướng mềm (SPA, không tải lại trang) + refresh để lấy dữ liệu mới;
     // staleTimes:0 trong next.config giúp không dùng lại cache cũ.
     go(`/xe-cabin${p.toString() ? `?${p.toString()}` : ""}`);
@@ -432,10 +436,10 @@ export function CabinList({
               const sm = ST[op.state];
               const full = op.state === "full";
               const unit = op.fromPrice;
-              const tail = (() => { const p = new URLSearchParams(); if (from) p.set("from", from); if (to) p.set("to", to); if (pickup && pickup !== "Hà Nội") p.set("pickup", pickup); const s = p.toString(); return s ? `?${s}` : ""; })();
+              const tail = (() => { const p = new URLSearchParams(); if (from) p.set("from", from); if (to) p.set("to", to); if (pickup && pickup !== "Hà Nội") p.set("pickup", pickup); p.set("pax", String(pax)); const s = p.toString(); return s ? `?${s}` : ""; })();
               const amen: string[] = [];
               const anyTrip = op.outbound ?? op.ret;
-              if (anyTrip) amen.push("Cabin đôi · nằm chung", "Nằm riêng ×2");
+              if (anyTrip) amen.push("Cabin đôi · nằm ghép", "Cabin đơn · nằm riêng ×2");
               if (op.ret) amen.push("Khứ hồi");
               const cta = !searched ? "Xem chuyến →" : full ? "Chọn ngày khác →" : op.state === "unk" ? "Gửi yêu cầu →" : "Xem & đặt vé →";
               return (
@@ -495,11 +499,21 @@ export function CabinList({
                     <div className="flex-1" />
                     <div className="flex items-end justify-between gap-2 border-t border-[oklch(0.94_0.01_200)] pt-2 sm:gap-2.5 sm:pt-3">
                       <div>
-                        <div className="text-[11px] text-gray-500 sm:text-xs">{op.ret != null ? "Khứ hồi/khách từ" : "Một chiều/khách từ"}</div>
+                        <div className="text-[11px] text-gray-500 sm:text-xs">{op.ret != null ? "Vé khứ hồi/khách (nằm ghép)" : "Vé 1 chiều/khách (nằm ghép)"}</div>
                         {unit != null ? (
                           <>
                             <div className="text-[18px] font-extrabold tracking-[-0.02em] sm:text-[22px]" style={{ color: "oklch(0.6 0.18 45)" }}>{vnd(unit)}</div>
-                            {!full && <div className="text-xs font-semibold text-gray-500">{pax} khách · tạm tính {vnd(cabinBoothTotal(unit, Math.floor(pax / 2), pax % 2))}{pax % 2 ? " (1 nằm riêng)" : ""}</div>}
+                            {!full && (
+                              <div className="text-xs font-semibold text-gray-500">
+                                {pax} khách · tạm tính <b className="text-ink">{vnd(cabinBoothTotal(unit, Math.floor(pax / 2), pax % 2))}</b>
+                                <div className="font-normal">
+                                  {[
+                                    Math.floor(pax / 2) ? `${Math.floor(pax / 2)} cabin đôi nằm ghép` : null,
+                                    pax % 2 ? "1 cabin đơn nằm riêng (×2 giá)" : null,
+                                  ].filter(Boolean).join(" + ")}
+                                </div>
+                              </div>
+                            )}
                           </>
                         ) : (
                           <div className="text-[15px] font-bold text-gray-500">Liên hệ xác nhận giá</div>

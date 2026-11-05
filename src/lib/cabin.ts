@@ -353,7 +353,10 @@ export async function createCabinBooking(
   const shared = input.shared;
   const solo = input.solo;
   if (shared + solo < 1) throw new Error("Vui lòng chọn ít nhất 1 cabin.");
-  const people = cabinPeople(shared, solo);
+  // Số khách thực tế: phải vừa với số chỗ nằm đã xếp và không thừa buồng trống.
+  const people = input.people ?? cabinPeople(shared, solo);
+  if (cabinPeople(shared, solo) < people) throw new Error(`Chỗ nằm đã xếp chưa đủ cho ${people} khách.`);
+  if (shared + solo > people) throw new Error(`Thừa buồng: ${shared + solo} buồng cho ${people} khách.`);
 
   // Ngày: không đặt chuyến đã chạy; chiều về không được trước chiều đi.
   if (outbound.departureDate < today()) throw new Error("Chuyến đi đã qua ngày khởi hành.");
@@ -387,11 +390,11 @@ export async function createCabinBooking(
   const needsConfirmation = fare == null || legNeedsConfirm(outbound) || (ret ? legNeedsConfirm(ret) : false);
 
   const tickets = [
-    shared ? `${shared} cabin nằm chung (${shared * 2} khách)` : null,
-    solo ? `${solo} cabin nằm riêng (${solo} khách)` : null,
+    shared ? `${shared} cabin đôi nằm ghép` : null,
+    solo ? `${solo} cabin đơn nằm riêng (×2 giá)` : null,
   ]
     .filter(Boolean)
-    .join(" + ");
+    .join(" + ") + ` · ${people} khách`;
   const fareText =
     fare == null
       ? `chờ báo giá (${ret ? "khứ hồi" : "1 chiều"} từ ${origin})`

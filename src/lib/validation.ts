@@ -65,6 +65,8 @@ export const cabinBookingSchema = z
     // Cabin đôi: số buồng NẰM CHUNG (2 người/buồng) + số buồng NẰM RIÊNG (1 người/buồng).
     shared: z.coerce.number().int().min(0).max(20).default(0),
     solo: z.coerce.number().int().min(0).max(20).default(0),
+    // Số khách thực tế (trống = suy ra từ cách xếp buồng).
+    people: z.coerce.number().int().min(1).max(40).optional().nullable(),
     pickup: z.string().trim().max(200).optional().nullable(),
     drop: z.string().trim().max(200).optional().nullable(),
     customerName: z.string().trim().min(2, "Vui lòng nhập họ tên.").max(120),

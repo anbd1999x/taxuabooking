@@ -56,6 +56,11 @@ export default async function CategoryPage({
   if (!cat) notFound();
 
   const sp = await searchParams;
+  /** Số khách từ URL (?pax=), mặc định 2, kẹp 1..20. */
+  const paxParam = (v: unknown) => {
+    const n = Math.floor(Number(typeof v === "string" ? v : NaN));
+    return Number.isFinite(n) && n >= 1 ? Math.min(20, n) : 2;
+  };
 
   // ----- Xe cabin: tìm vé theo ngày đi/về → danh sách nhà xe còn chỗ -----
   if (cat.key === "CABIN") {
@@ -68,7 +73,7 @@ export default async function CategoryPage({
       getCabinOperators(from ?? null, to ?? null, pickup),
       getComboOrigins(),
     ]);
-    return <CabinList operators={operators} from={from ?? ""} to={to ?? ""} pickup={pickup ?? ""} pickups={pickups} />;
+    return <CabinList operators={operators} from={from ?? ""} to={to ?? ""} pickup={pickup ?? ""} pickups={pickups} pax={paxParam(sp.pax)} />;
   }
 
   // ----- Combo: tìm xe + phòng khớp giá mong muốn -----

@@ -541,6 +541,7 @@ export default async function ServiceDetailPage({
               pickupProvince={typeof sp.pickup === "string" ? sp.pickup : null}
               hasFareTable={cabinFares?.hasTable ?? false}
               fares={cabinFares?.options ?? []}
+              initialPeople={(() => { const n = Math.floor(Number(typeof sp.pax === "string" ? sp.pax : NaN)); return Number.isFinite(n) && n >= 1 ? Math.min(20, n) : 2; })()}
             />
           ) : (
             <BookingPanel
