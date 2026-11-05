@@ -24,6 +24,7 @@ export interface ProviderOrderVM {
   canCancel: boolean; // được huỷ/khôi phục đơn — chỉ SÀN (admin)
   name: string;
   phone: string;
+  phoneLocked: boolean; // true = ẩn SĐT khách (chủ dịch vụ, đơn chưa nhận cọc/hoàn thành)
   ciKey: string; // yyyy-mm-dd ngày nhận phòng (lọc/sắp xếp)
   calMon: string;
   calDay: number;
@@ -306,10 +307,14 @@ export function ProviderOrders({
                 {/* Khách */}
                 <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
                   <div style={{ fontSize: 14, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.name}</div>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    <a href={`tel:${o.phone}`} style={{ fontSize: 13, fontWeight: 700, padding: "6px 10px", borderRadius: 999, background: "oklch(0.96 0.02 155)", whiteSpace: "nowrap", color: "inherit" }}>☎ {o.phone}</a>
-                    <a href={`https://zalo.me/${o.phone}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 700, padding: "6px 10px", borderRadius: 999, background: "oklch(0.95 0.03 250)", color: "oklch(0.42 0.12 250)" }}>Zalo</a>
-                  </div>
+                  {o.phoneLocked ? (
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "oklch(0.52 0.02 160)", padding: "6px 10px", borderRadius: 999, background: "oklch(0.95 0.005 160)", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6, width: "fit-content" }} title="SĐT khách hiện sau khi ghi nhận cọc">🔒 SĐT hiện sau khi nhận cọc</div>
+                  ) : (
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      <a href={`tel:${o.phone}`} style={{ fontSize: 13, fontWeight: 700, padding: "6px 10px", borderRadius: 999, background: "oklch(0.96 0.02 155)", whiteSpace: "nowrap", color: "inherit" }}>☎ {o.phone}</a>
+                      <a href={`https://zalo.me/${o.phone}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 700, padding: "6px 10px", borderRadius: 999, background: "oklch(0.95 0.03 250)", color: "oklch(0.42 0.12 250)" }}>Zalo</a>
+                    </div>
+                  )}
                 </div>
                 {/* Tiền */}
                 <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
@@ -448,12 +453,14 @@ function Drawer({
           <div style={{ padding: "14px 16px", borderRadius: 16, background: "white", border: "1px solid oklch(0.92 0.01 160)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <div>
               <div style={{ fontSize: 16, fontWeight: 800 }}>{o.name}</div>
-              <div style={{ fontSize: 13, color: "oklch(0.5 0.02 160)" }}>{o.phone} · {o.stay.split(" · ").slice(-1)[0]}</div>
+              <div style={{ fontSize: 13, color: "oklch(0.5 0.02 160)" }}>{o.phoneLocked ? "🔒 SĐT hiện sau khi nhận cọc" : o.phone} · {o.stay.split(" · ").slice(-1)[0]}</div>
             </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              <a href={`tel:${o.phone}`} style={{ fontSize: 13, fontWeight: 800, padding: "9px 14px", borderRadius: 999, background: "oklch(0.29 0.055 160)", color: "white" }}>Gọi</a>
-              <a href={`https://zalo.me/${o.phone}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 800, padding: "9px 14px", borderRadius: 999, background: "oklch(0.95 0.03 250)", color: "oklch(0.42 0.12 250)" }}>Zalo</a>
-            </div>
+            {!o.phoneLocked && (
+              <div style={{ display: "flex", gap: 6 }}>
+                <a href={`tel:${o.phone}`} style={{ fontSize: 13, fontWeight: 800, padding: "9px 14px", borderRadius: 999, background: "oklch(0.29 0.055 160)", color: "white" }}>Gọi</a>
+                <a href={`https://zalo.me/${o.phone}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 13, fontWeight: 800, padding: "9px 14px", borderRadius: 999, background: "oklch(0.95 0.03 250)", color: "oklch(0.42 0.12 250)" }}>Zalo</a>
+              </div>
+            )}
           </div>
           {/* dịch vụ trong đơn */}
           <div style={{ padding: "14px 16px", borderRadius: 16, background: "white", border: "1px solid oklch(0.92 0.01 160)", display: "flex", flexDirection: "column", gap: 10 }}>

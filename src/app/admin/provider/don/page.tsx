@@ -101,19 +101,25 @@ export default async function ProviderOrdersPage() {
     }
     const net = Math.max(0, gross - discount);
 
+    // Chủ dịch vụ chỉ thấy SĐT khách sau khi đơn Đã cọc / Đã thanh toán đủ / Hoàn thành.
+    // Admin (sàn) luôn thấy. Ẩn ngay từ server để không lộ SĐT xuống client.
+    const st = mapStatus(b.status, b.paymentStatus);
+    const phoneLocked = !isAdmin && !(st === "dep" || st === "paid" || st === "done");
+
     return {
       id: b.id,
       code: b.code,
       createdText: `${dmy(b.createdAt)} ${two(b.createdAt.getHours())}:${two(b.createdAt.getMinutes())}`,
       createdSort: b.createdAt.toISOString(),
-      st: mapStatus(b.status, b.paymentStatus),
+      st,
       src: b.ctvId ? "ctv" : "web",
       combo: isCombo,
       canStatus,
       canPay,
       canCancel,
       name: b.customerName,
-      phone: b.phone,
+      phone: phoneLocked ? "" : b.phone,
+      phoneLocked,
       ciKey: toDateKey(ci),
       calMon: c.mon,
       calDay: c.day,
