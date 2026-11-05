@@ -7,6 +7,7 @@ import { QtyInput } from "@/components/QtyInput";
 import { AVAILABILITY_META } from "@/lib/constants";
 import type { AvailabilityKind } from "@/lib/constants";
 import { Badge } from "./ui/Badge";
+import { CommitmentLink } from "@/components/trust/parts";
 import { ensureSheetFresh } from "@/components/ensureSheet";
 import { showGlobalLoading } from "@/components/useSearchNav";
 
@@ -453,6 +454,7 @@ export function BookingPanel({
       >
         {submitting ? "Đang gửi..." : "Gửi yêu cầu đặt"}
       </button>
+      <CommitmentLink />
       {requireSelection && !selectedId && avail && (
         <p className="mt-2 text-center text-xs text-gray-500">
           Vui lòng chọn một phương án ở trên.

@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { CabinDirectionOptions, CabinTripAvail, CabinDay, CabinFareOption } from "@/lib/cabin";
 import { cabinSeatTotal } from "@/lib/combo-pricing";
 import { vnPhoneError } from "@/lib/phone";
+import { CommitmentLink } from "@/components/trust/parts";
 
 function vnd(n: number | null | undefined, fallback = "Liên hệ") {
   if (n == null) return fallback;
@@ -523,6 +524,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
                 {submitting ? "Đang gửi..." : step === 3 ? "Gửi yêu cầu đặt" : "Tiếp tục"}
               </button>
             </div>
+            {step === 3 && <CommitmentLink />}
             <div className="grid grid-cols-2 gap-2">
               <a href={`tel:${phone.replace(/\s/g, "")}`} className="rounded-[10px] border border-gray-200 py-2.5 text-center text-[13px] font-bold text-forest-700">
                 Gọi {phone}

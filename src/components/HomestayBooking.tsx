@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { billableOccupants } from "@/lib/occupancy";
+import { CommitmentLink } from "@/components/trust/parts";
 import { vnPhoneError } from "@/lib/phone";
 
 export interface HomestayMedia {
@@ -994,6 +995,7 @@ export function HomestayBooking({
                 >
                   {submitting ? "Đang gửi..." : "Gửi yêu cầu đặt phòng"}
                 </button>
+                <CommitmentLink className="flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-forest-700 transition hover:text-forest-900" />
                 <p className="text-center text-xs leading-relaxed text-gray-500">
                   Giá tham khảo. Chủ nhà gọi xác nhận, không thanh toán online.
                 </p>

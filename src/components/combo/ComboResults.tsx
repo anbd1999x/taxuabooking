@@ -15,6 +15,7 @@ import { ensureSheetFresh } from "@/components/ensureSheet";
 import { cabinAllocation, busCostPerPerson } from "@/lib/combo-pricing";
 import { vnPhoneError } from "@/lib/phone";
 import { showGlobalLoading } from "@/components/useSearchNav";
+import { CommitmentLink } from "@/components/trust/parts";
 
 // Phải khớp COMBO_DISCOUNT trong src/lib/combo.ts (server tính lại giá khi đặt).
 const COMBO_DISCOUNT = 25000;
@@ -701,6 +702,7 @@ function ComboPlanCard({
                 <button type="button" onClick={book} disabled={submitting} className="rounded-full bg-sunset-500 py-3.5 text-center text-sm font-bold text-white hover:bg-sunset-600 disabled:opacity-60">
                   {submitting ? "Đang gửi..." : "Gửi yêu cầu đặt combo"}
                 </button>
+                <CommitmentLink className="flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-forest-700 transition hover:text-forest-900" />
                 <p className="text-center text-xs leading-relaxed text-gray-500">Giá tham khảo · chủ dịch vụ gọi xác nhận, không thanh toán online.</p>
               </div>
             )}
