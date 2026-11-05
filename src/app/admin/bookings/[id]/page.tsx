@@ -295,39 +295,100 @@ export default async function BookingDetailPage({
     `Cảm ơn bạn! Hotline ${hotline}.`,
   ].join("\n");
 
-  // 2) Tin nhắn XÁC NHẬN CHỐT ĐƠN (gửi khi đã chốt/cọc) — theo mẫu homestay, gắn đúng
-  //    tên dịch vụ + số tiền đã cọc + còn lại. Bỏ qua dòng không có dữ liệu.
-  const confirmLines: string[] = [
-    `${b.service?.title ?? b.serviceTitle} xin xác nhận booking của quý khách:`,
-    `Tên khách: ${b.customerName}`,
-    `Sđt: ${b.phone}`,
-  ];
-  if (ctvLine) confirmLines.push(`Hỗ trợ: ${ctvLine}`);
-  if (outTrip) {
-    const outPickup = pickupChosen || outTrip.pickupPoint;
-    confirmLines.push(
-      `Chuyến${retTrip ? " đi" : ""}: ${outPickup} → ${outTrip.dropoffPoint} · ${formatDate(outTrip.departureDate)} ${outTrip.departureTime}`,
-    );
-    if (retTrip)
+  // 2) Tin nhắn XÁC NHẬN CHỐT ĐƠN (gửi khi đã chốt/cọc). Thương hiệu Tà Xùa Booking
+  //    đứng ra xác nhận; nội dung theo loại đơn: vé xe riêng / homestay riêng / combo
+  //    (gộp cả 2 nhưng tách bạch từng phần). Gắn đúng tên dịch vụ + cọc + còn lại.
+  const brandHeader = "Tà Xùa Booking (taxuabooking.com) xác nhận booking của quý khách:";
+  const partyLabelStr = (() => {
+    if (b.adults != null) {
+      const kids = b.childrenAges ?? [];
+      const parts = [`${b.adults} người lớn`];
+      if (kids.length) parts.push(`${kids.length} trẻ em (${kids.join(", ")} tuổi)`);
+      return parts.join(" · ");
+    }
+    return `${b.quantity} khách`;
+  })();
+  const outPickup2 = outTrip ? pickupChosen || outTrip.pickupPoint : null;
+
+  let confirmLines: string[];
+  if (b.category === "COMBO") {
+    // Combo: gộp cả XE + HOMESTAY, tách bạch từng phần + tiền từng bên.
+    confirmLines = [
+      brandHeader,
+      `Tên khách: ${b.customerName}`,
+      `Sđt: ${b.phone}`,
+      ...(ctvLine ? [`Hỗ trợ: ${ctvLine}`] : []),
+      `Số khách: ${partyLabelStr}`,
+    ];
+    if (outTrip) {
       confirmLines.push(
-        `Chuyến về: ${retTrip.pickupPoint} → ${retTrip.dropoffPoint} · ${formatDate(retTrip.departureDate)} ${retTrip.departureTime}`,
+        "",
+        `🚐 XE CABIN: ${outTrip.service.title}`,
+        `- Loại vé: ${retTrip ? "Khứ hồi" : "Một chiều"}${seatsLabel ? ` · ${seatsLabel}` : ""}`,
+        ...(outPickup2 ? [`- Đón tại: ${outPickup2}`] : []),
+        `- Giờ đi: ${formatDate(outTrip.departureDate)} ${outTrip.departureTime}`,
+        ...(retTrip ? [`- Giờ về: ${formatDate(retTrip.departureDate)} ${retTrip.departureTime}`] : []),
+        ...(b.busAmount != null ? [`- Tiền vé: ${formatPrice(b.busAmount)}`] : []),
       );
-    confirmLines.push(`Số chỗ: ${seatsLabel}`);
+    }
+    if (roomsConfirmLabel || isStay) {
+      confirmLines.push(
+        "",
+        `🏠 HOMESTAY: ${b.service?.title ?? b.serviceTitle}`,
+        ...(roomsConfirmLabel ? [`- Phòng: ${roomsConfirmLabel}`] : []),
+        ...(isStay ? [`- Nhận phòng: ${formatDate(b.useDate)}`, `- Trả phòng: ${formatDate(b.endDate!)}`] : []),
+        ...(mapUrl ? [`- Định vị: ${mapUrl}`] : []),
+        ...(b.roomAmount != null ? [`- Tiền phòng: ${formatPrice(b.roomAmount)}`] : []),
+      );
+    }
+    confirmLines.push(
+      "",
+      `Tổng số tiền: ${price != null ? formatPrice(price) : "Chờ xác nhận"}`,
+      `Đã cọc: ${collected > 0 ? formatPrice(collected) : "Chưa cọc"}`,
+      ...(due != null ? [`Còn lại thanh toán: ${formatPrice(due)}`] : []),
+      `Hotline: ${hotline}`,
+      "--------------",
+    );
+  } else if (b.category === "CABIN" && outTrip) {
+    // Vé xe đặt riêng: rõ nhà xe, điểm đón, giờ đi/về, số khách, cọc, còn thiếu lên xe.
+    confirmLines = [
+      brandHeader,
+      `Tên khách: ${b.customerName}`,
+      `Sđt: ${b.phone}`,
+      ...(ctvLine ? [`Hỗ trợ: ${ctvLine}`] : []),
+      `Nhà xe: ${outTrip.service.title}`,
+      `Loại vé: ${retTrip ? "Khứ hồi" : "Một chiều"}${seatsLabel ? ` · ${seatsLabel}` : ""}`,
+      ...(outPickup2 ? [`Đón tại: ${outPickup2}`] : []),
+      `Giờ đón (chiều đi): ${formatDate(outTrip.departureDate)} ${outTrip.departureTime}`,
+      ...(retTrip ? [`Giờ về (chiều về): ${formatDate(retTrip.departureDate)} ${retTrip.departureTime}`] : []),
+      `Số khách: ${partyLabelStr}`,
+      `Tổng số tiền: ${price != null ? formatPrice(price) : "Chờ xác nhận"}`,
+      `Đã cọc: ${collected > 0 ? formatPrice(collected) : "Chưa cọc"}`,
+      ...(due != null ? [`Còn thiếu (thanh toán khi lên xe): ${formatPrice(due)}`] : []),
+      `Hotline: ${hotline}`,
+      "--------------",
+    ];
+  } else {
+    // Homestay / lưu trú khác.
+    confirmLines = [
+      brandHeader,
+      `Tên khách: ${b.customerName}`,
+      `Sđt: ${b.phone}`,
+      ...(ctvLine ? [`Hỗ trợ: ${ctvLine}`] : []),
+      `Homestay: ${b.service?.title ?? b.serviceTitle}`,
+      ...(roomsConfirmLabel ? [`Số phòng: ${roomsConfirmLabel}`] : []),
+      ...(isStay
+        ? [`Nhận phòng: ${formatDate(b.useDate)}`, `Trả phòng: ${formatDate(b.endDate!)}`]
+        : [`Ngày dùng: ${formatDate(b.useDate)}${b.endDate ? ` → ${formatDate(b.endDate)}` : ""}`]),
+      `Số người: ${partyLabelStr}`,
+      `Tổng số tiền: ${price != null ? formatPrice(price) : "Chờ xác nhận"}`,
+      `Đã cọc: ${collected > 0 ? formatPrice(collected) : "Chưa cọc"}`,
+      ...(due != null ? [`Còn lại thanh toán lúc nhận phòng: ${formatPrice(due)}`] : []),
+      `Hotline: ${hotline}`,
+      ...(mapUrl ? [`Định vị: ${mapUrl}`] : []),
+      "--------------",
+    ];
   }
-  if (roomsConfirmLabel) confirmLines.push(`Số phòng: ${roomsConfirmLabel}`);
-  if (isStay) {
-    confirmLines.push(`Nhận phòng: ${formatDate(b.useDate)}`);
-    confirmLines.push(`Trả phòng: ${formatDate(b.endDate!)}`);
-  } else if (!outTrip) {
-    confirmLines.push(`Ngày dùng: ${formatDate(b.useDate)}${b.endDate ? ` → ${formatDate(b.endDate)}` : ""}`);
-  }
-  confirmLines.push(`Số người: ${b.quantity}`);
-  confirmLines.push(`Hotline: ${hotline}`);
-  if (mapUrl) confirmLines.push(`Định vị: ${mapUrl}`);
-  confirmLines.push(`Tổng số tiền: ${price != null ? formatPrice(price) : "Chờ xác nhận"}`);
-  confirmLines.push(`Đã cọc: ${collected > 0 ? formatPrice(collected) : "Chưa cọc"}`);
-  if (due != null) confirmLines.push(`Còn lại thanh toán lúc nhận phòng: ${formatPrice(due)}`);
-  confirmLines.push("--------------");
   const confirmMsg = confirmLines.join("\n");
 
   // Nhật ký: thêm 2 dòng ảo — ghi chú cũ (nếu có) + thời điểm nhận yêu cầu.
