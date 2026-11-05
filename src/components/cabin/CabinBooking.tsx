@@ -349,8 +349,8 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
                     <div className="text-xs font-bold text-forest-700">{people} khách</div>
                   </div>
                   {([
-                    { label: "Cabin đôi · nằm ghép", sub: "Tính theo người · đi lẻ nhà xe xếp ghép cùng khách khác", value: shared, per: fare, inc: toShared, dec: toSolo },
-                    { label: "Cabin đơn · nằm riêng", sub: "Bao trọn 1 buồng · ×2 giá vé", value: solo, per: fare == null ? null : 2 * fare, inc: toSolo, dec: toShared },
+                    { label: "Cabin đôi · nằm ghép", sub: "2 người 1 buồng", value: shared, per: fare, inc: toShared, dec: toSolo },
+                    { label: "Cabin đơn · nằm riêng", sub: "1 người 1 buồng · ×2 giá vé", value: solo, per: fare == null ? null : 2 * fare, inc: toSolo, dec: toShared },
                   ] as const).map((r) => (
                     <div key={r.label} className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
@@ -368,10 +368,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
                     </div>
                   ))}
                   <p className="text-[11px] leading-relaxed text-gray-500">
-                    <b>Cabin đôi nằm ghép</b>: mỗi người trả 1 vé {roundTrip ? "khứ hồi" : "1 chiều"}
-                    {fare != null ? ` (${vnd(fare)}/người)` : ""}; đi 1 mình nhà xe xếp nằm chung với khách khác.{" "}
-                    <b>Cabin đơn nằm riêng</b>: 1 người bao trọn buồng nên tính ×2 giá vé
-                    {fare != null ? ` (${vnd(2 * fare)}/người)` : ""}.
+                    <b>Cabin đôi</b>: 2 người 1 buồng. <b>Cabin đơn</b>: 1 người 1 buồng (×2 giá vé).
                   </p>
                 </div>
 

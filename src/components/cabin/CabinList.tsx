@@ -506,7 +506,7 @@ export function CabinList({
                             {!full && (
                               <div className="text-xs font-semibold text-gray-500">
                                 {pax} khách nằm ghép · tạm tính <b className="text-ink">{vnd(cabinSeatTotal(unit, pax, 0))}</b>
-                                <div className="font-normal">Nằm riêng (bao buồng): {vnd(2 * unit)}/người</div>
+                                <div className="font-normal">Cabin đôi: 2 người 1 buồng · Cabin đơn: 1 người 1 buồng ({vnd(2 * unit)})</div>
                               </div>
                             )}
                           </>
