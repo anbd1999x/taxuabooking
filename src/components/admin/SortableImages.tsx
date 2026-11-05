@@ -60,8 +60,10 @@ export function SortableImages({
     pointerId: number;
   } | null>(null);
 
-  // Đồng bộ lại khi server trả dữ liệu mới (router.refresh sau khi lưu).
-  const propKey = useMemo(() => items.map((i) => i.id).join("|"), [items]);
+  // Đồng bộ lại khi server trả dữ liệu mới (router.refresh sau khi lưu). Khoá gồm cả
+  // cờ BÌA + url: trước đây chỉ theo thứ tự id nên "Đặt bìa" (không đổi thứ tự) không
+  // hiện ra cho tới khi đổi vị trí ảnh.
+  const propKey = useMemo(() => items.map((i) => `${i.id}:${i.isCover ? 1 : 0}:${i.url}`).join("|"), [items]);
   const propKeyRef = useRef(propKey);
   useEffect(() => {
     if (propKeyRef.current !== propKey) {
@@ -255,7 +257,11 @@ export function SortableImages({
               {coverAction && !img.isCover && !img.isVideo && (
                 <button
                   type="button"
-                  onClick={() => runAction(coverAction, { id: img.id })}
+                  onClick={() => {
+                    // Hiện bìa mới NGAY (không chờ server), server trả về sẽ đồng bộ lại.
+                    setList((cur) => cur.map((x) => ({ ...x, isCover: x.id === img.id })));
+                    runAction(coverAction, { id: img.id });
+                  }}
                   className="rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-medium text-forest-700"
                 >
                   {coverLabel}
