@@ -32,7 +32,7 @@ const SECTIONS: Section[] = [
     groups: [
       ok([
         "Đơn hàng có mã do Tà Xùa Booking cấp và đã chốt bill qua Zalo chính thức.",
-        "Bạn chuyển khoản vào đúng tài khoản Bùi An hoặc Tăng Linh được công bố trên taxuabooking.com / taxuabooking.vn.",
+        "Bạn chuyển khoản vào đúng tài khoản Bùi Danh An hoặc Tăng Mai Linh được công bố trên taxuabooking.com / taxuabooking.vn.",
         "Tụi mình không cung cấp dịch vụ, không hoàn tiền và không đưa ra phương án thay thế mà bạn đồng ý.",
       ]),
       no([
