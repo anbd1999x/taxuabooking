@@ -476,7 +476,6 @@ export function RestaurantList({ items: all, initialArea = "" }: { items: Restau
                     )}
                   </div>
                   <div className="flex flex-none gap-1.5">
-                    <a href={`tel:${s.phone.replace(/\s/g, "")}`} className="relative z-[2] hidden whitespace-nowrap rounded-full px-3.5 py-2.5 text-sm font-bold sm:inline-flex" style={{ border: "1.5px solid oklch(0.88 0.02 160)", color: "oklch(0.3 0.05 160)" }}>Gọi</a>
                     <span className="whitespace-nowrap rounded-full px-3 py-2 text-xs font-bold text-white transition group-hover:bg-sunset-500 sm:px-4 sm:py-2.5 sm:text-sm" style={{ background: TH.G }}>Xem quán</span>
                   </div>
                 </div>
@@ -486,12 +485,12 @@ export function RestaurantList({ items: all, initialArea = "" }: { items: Restau
         </div>
         {items.length === 0 && (
           <div className="rounded-[22px] border-[1.5px] border-dashed border-[oklch(0.85_0.02_200)] bg-white px-6 py-12 text-center text-[15px] text-gray-500">
-            Chưa có quán phù hợp. Gọi <a href="tel:0357452952" className="font-bold text-forest-700">0357452952</a>, tụi mình gợi ý quán theo lịch trình của bạn.
+            Chưa có quán phù hợp. <a href="https://zalo.me/0357452952" target="_blank" rel="noopener noreferrer" className="font-bold text-forest-700">Nhắn Tà Xùa Booking qua Zalo</a>, tụi mình gợi ý quán theo lịch trình của bạn.
           </div>
         )}
 
         <div className="mt-2.5 rounded-[18px] border px-5 py-[18px] text-sm leading-relaxed" style={{ background: "oklch(0.95 0.025 155)", borderColor: "oklch(0.9 0.04 155)", color: "oklch(0.3 0.05 160)" }}>
-          <b>Lưu ý:</b> giá và giờ mở cửa do quán tự cập nhật, có thể đổi theo mùa; nên gọi xác nhận trước khi tới. Cần gợi ý quán hợp lịch trình? Gọi Tà Xùa Booking, tụi mình tư vấn miễn phí kèm{" "}
+          <b>Lưu ý:</b> giá và giờ mở cửa do quán tự cập nhật, có thể đổi theo mùa; nên nhắn Zalo xác nhận trước khi tới. Cần gợi ý quán hợp lịch trình? Nhắn Tà Xùa Booking qua Zalo, tụi mình tư vấn miễn phí kèm{" "}
           <Link href="/homestay" className="font-bold underline underline-offset-2">đặt phòng</Link> và <Link href="/xe-cabin" className="font-bold underline underline-offset-2">vé xe cabin</Link>.
           Tìm chỗ ngồi ngắm mây uống cà phê? Xem <Link href="/cafe" className="font-bold underline underline-offset-2">danh sách cafe Tà Xùa</Link>.
           Chưa biết gọi món gì? Đọc <Link href="/kinh-nghiem/an-gi-o-ta-xua" className="font-bold underline underline-offset-2">món gì nên thử ở Tà Xùa</Link>.

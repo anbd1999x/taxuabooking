@@ -89,13 +89,12 @@ export async function PlaceDetail({ place, basePath }: { place: Place & { review
   for (const r of reviews) distribution[5 - Math.min(5, Math.max(1, r.rating))] += 1;
 
   const settings = await getSettings();
-  const hotline = settings.contactPhone || SITE.defaultPhone;
-  const phone = place.phone || hotline;
-  const telHref = `tel:${phone.replace(/\s/g, "")}`;
+  // Phần nhà hàng/cafe KHÔNG hiển thị SĐT/nút gọi — mọi liên hệ qua Zalo.
   const hasOwnZalo = !!place.zalo;
   const zalo = (place.zalo || settings.contactZalo || SITE.defaultZalo).replace(/\s/g, "");
+  const zaloHref = `https://zalo.me/${zalo}`;
   const bookingLabel =
-    place.booking === "call" ? "Nhận đặt bàn trước — gọi quán" :
+    place.booking === "call" ? "Nhận đặt bàn trước — nhắn Zalo" :
     place.booking === "group" ? "Nhận đặt bàn cho nhóm từ 6 người" :
     place.booking === "no" ? "Không nhận đặt bàn, nên tới sớm" : null;
 
@@ -122,7 +121,6 @@ export async function PlaceDetail({ place, basePath }: { place: Place & { review
     name: place.name,
     url: pageUrl,
     image: gallery.length ? gallery : undefined,
-    telephone: place.phone ?? undefined,
     address: {
       "@type": "PostalAddress",
       streetAddress: place.address ?? undefined,
@@ -192,7 +190,7 @@ export async function PlaceDetail({ place, basePath }: { place: Place & { review
           <div className="flex flex-wrap gap-2">
             <SaveButton placeId={place.id} />
             <a href={mapOpenUrl(place)} target="_blank" rel="noopener noreferrer" className={pillBtn} style={{ border: `1.5px solid ${BTNBORDER}`, color: "oklch(0.3 0.05 160)" }}>Chỉ đường</a>
-            <a href={telHref} className="whitespace-nowrap rounded-full px-[18px] py-2.5 text-sm font-bold text-white transition hover:bg-sunset-500" style={{ background: G }}>Gọi quán</a>
+            <a href={zaloHref} target="_blank" rel="noopener noreferrer" className="whitespace-nowrap rounded-full px-[18px] py-2.5 text-sm font-bold text-white transition hover:bg-sunset-500" style={{ background: G }}>{hasOwnZalo ? "Nhắn Zalo" : "Hỏi qua Zalo"}</a>
           </div>
         </div>
 
@@ -285,7 +283,7 @@ export async function PlaceDetail({ place, basePath }: { place: Place & { review
               {place.price ? (
                 <div className="text-[30px] font-extrabold leading-[1.1] tracking-[-0.03em]" style={{ color: PRICE }}>{place.price}</div>
               ) : (
-                <div className="text-[22px] font-extrabold leading-[1.2]" style={{ color: "oklch(0.42 0.1 250)" }}>Gọi để hỏi giá</div>
+                <div className="text-[22px] font-extrabold leading-[1.2]" style={{ color: "oklch(0.42 0.1 250)" }}>Nhắn Zalo hỏi giá</div>
               )}
               <div className="text-[13px]" style={{ color: MUTED }}>Giá & giờ do quán tự cập nhật</div>
             </div>
@@ -294,10 +292,8 @@ export async function PlaceDetail({ place, basePath }: { place: Place & { review
               {st && <div className="flex justify-between gap-3 text-sm"><span style={{ color: MUTED }}>Hôm nay</span><b style={{ color: st.open ? "oklch(0.38 0.1 155)" : "oklch(0.55 0.12 25)" }}>{st.open ? "Đang mở" : "Đã đóng"}</b></div>}
               <div className="flex justify-between gap-3 text-sm"><span style={{ color: MUTED }}>Khu vực</span><b className="text-right">{place.area}</b></div>
               {bookingLabel && <div className="flex justify-between gap-3 text-sm"><span style={{ color: MUTED }}>Đặt bàn</span><b className="text-right">{bookingLabel}</b></div>}
-              <div className="flex justify-between gap-3 text-sm"><span style={{ color: MUTED }}>Điện thoại</span><a href={telHref} className="font-bold text-forest-700">{phone}</a></div>
             </div>
-            <a href={telHref} className="rounded-full px-3.5 py-3.5 text-center text-[15px] font-extrabold text-white" style={{ background: ACCENT }}>Gọi quán · {phone}</a>
-            <a href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="rounded-full px-3 py-3 text-center text-sm font-bold" style={{ border: `1.5px solid ${BTNBORDER}`, color: "oklch(0.3 0.05 160)" }}>{hasOwnZalo ? "Nhắn quán qua Zalo" : "Hỏi Tà Xùa Booking qua Zalo"}</a>
+            <a href={zaloHref} target="_blank" rel="noopener noreferrer" className="rounded-full px-3.5 py-3.5 text-center text-[15px] font-extrabold text-white" style={{ background: ACCENT }}>{hasOwnZalo ? "Nhắn quán qua Zalo" : "Hỏi Tà Xùa Booking qua Zalo"}</a>
             <div className="text-center text-xs leading-[1.5]" style={{ color: MUTED }}>
               Muốn ở gần đây? Xem <Link href="/homestay" className="font-bold">homestay khu {place.area}</Link> hoặc đặt <Link href="/xe-cabin" className="font-bold">vé xe cabin</Link>.
             </div>
@@ -354,11 +350,11 @@ export async function PlaceDetail({ place, basePath }: { place: Place & { review
       <div className="sticky bottom-0 z-30 flex items-center justify-between gap-3 border-t bg-white px-4 py-2.5 lg:hidden" style={{ borderColor: BORDER }}>
         <div className="min-w-0">
           <div className="text-xs" style={{ color: MUTED }}>{place.price ? (isCafe ? "Đồ uống từ" : "Giá tham khảo") : "Liên hệ"}</div>
-          <div className="truncate text-[18px] font-extrabold tracking-[-0.02em]" style={{ color: PRICE }}>{place.price || phone}</div>
+          <div className="truncate text-[18px] font-extrabold tracking-[-0.02em]" style={{ color: PRICE }}>{place.price || "Liên hệ"}</div>
         </div>
         <div className="flex flex-none gap-2">
           <a href={mapOpenUrl(place)} target="_blank" rel="noopener noreferrer" className="whitespace-nowrap rounded-full px-3.5 py-3 text-sm font-bold" style={{ border: `1.5px solid ${BTNBORDER}`, color: "oklch(0.3 0.05 160)" }}>Chỉ đường</a>
-          <a href={telHref} className="whitespace-nowrap rounded-full px-[18px] py-3 text-sm font-extrabold text-white" style={{ background: ACCENT }}>Gọi quán</a>
+          <a href={zaloHref} target="_blank" rel="noopener noreferrer" className="whitespace-nowrap rounded-full px-[18px] py-3 text-sm font-extrabold text-white" style={{ background: ACCENT }}>{hasOwnZalo ? "Nhắn Zalo" : "Hỏi qua Zalo"}</a>
         </div>
       </div>
     </div>
