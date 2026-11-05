@@ -317,10 +317,10 @@ export function TrustPopup({ config }: { config: TrustPopupConfig }) {
             >
               <span style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
                 <span>
-                  <b>Nếu giá trên website cao hơn giá niêm yết</b> của chính nhà xe, homestay, tụi mình đền 10.000.000 đồng.
+                  <b>Nếu giá tụi mình chốt bill cho bạn cao hơn giá niêm yết</b> của chính nhà xe, homestay, tụi mình đền 10.000.000 đồng.
                 </span>
                 <span style={{ fontSize: 12, lineHeight: 1.5, color: "oklch(0.45 0.03 155)" }}>
-                  Giá trên web để tham khảo, có thể lệch nếu chủ dịch vụ vừa đổi mà web chưa kịp cập nhật. Giá chính thức là giá chốt bill qua Zalo.
+                  Cam kết tính theo giá chốt bill qua Zalo. Giá hiển thị trên web chỉ để tham khảo, có thể chưa kịp cập nhật khi chủ dịch vụ vừa đổi giá.
                 </span>
               </span>
             </PromiseRow>
