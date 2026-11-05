@@ -47,7 +47,7 @@ const SECTIONS: Section[] = [
     id: "c10",
     title: "Bán cao hơn giá niêm yết — đền 10.000.000đ",
     lead:
-      "Giá tụi mình báo và chốt với bạn không cao hơn giá niêm yết công khai của chính nhà xe, homestay cho cùng dịch vụ. Nếu cao hơn, dù ngay từ lần báo giá đầu hay sau khi chốt, bạn được hoàn phần chênh lệch và đền thêm 10.000.000 đồng.",
+      "Giá tụi mình báo và chốt với bạn không cao hơn giá niêm yết công khai của chính nhà xe, homestay cho cùng dịch vụ. Nếu cao hơn sau khi chốt dịch vụ, bạn được hoàn phần chênh lệch và đền thêm 10.000.000 đồng.",
     groups: [
       ok([
         "Cùng nhà cung cấp, cùng loại phòng/vé, cùng ngày sử dụng, cùng số lượng và điều kiện dịch vụ.",
