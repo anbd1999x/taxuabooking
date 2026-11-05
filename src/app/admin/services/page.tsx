@@ -31,6 +31,27 @@ export default async function AdminServicesPage({
     include: { _count: { select: { images: true } }, owner: { select: { name: true } } },
   });
 
+  // Số lượng dịch vụ mỗi danh mục (theo bộ tìm kiếm hiện tại) để hiện trên tab.
+  const countWhere: Prisma.ServiceWhereInput = {};
+  if (q) countWhere.title = { contains: q, mode: "insensitive" };
+  const grouped = await prisma.service.groupBy({ by: ["category"], where: countWhere, _count: { _all: true } });
+  const countOf = (k: ServiceCategory) => grouped.find((g) => g.category === k)?._count._all ?? 0;
+  const totalCount = grouped.reduce((n, g) => n + g._count._all, 0);
+
+  // Thứ tự tab: Homestay → Cabin → Taxi → Xe ôm → Thuê xe máy → Combo.
+  const TAB_ORDER: ServiceCategory[] = ["HOMESTAY", "CABIN", "TAXI", "XEOM", "MOTORBIKE", "COMBO"];
+  const tabHref = (slug?: string) => {
+    const p = new URLSearchParams();
+    if (slug) p.set("category", slug);
+    if (q) p.set("q", q);
+    const s = p.toString();
+    return `/admin/services${s ? `?${s}` : ""}`;
+  };
+  const tabCls = (active: boolean) =>
+    `whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition ${
+      active ? "bg-forest-600 text-white" : "bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50"
+    }`;
+
   return (
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -42,21 +63,31 @@ export default async function AdminServicesPage({
         </div>
       </div>
 
-      {/* Bộ lọc */}
-      <form className="mt-4 flex flex-wrap gap-2" action="/admin/services">
+      {/* Tab danh mục */}
+      <div className="mt-4 -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+        <Link href={tabHref()} className={tabCls(!cat)}>
+          Tất cả <span className="ml-0.5 opacity-70">{totalCount}</span>
+        </Link>
+        {TAB_ORDER.map((k) => {
+          const meta = CATEGORIES[k];
+          return (
+            <Link key={k} href={tabHref(meta.slug)} className={tabCls(cat?.key === k)}>
+              {meta.shortLabel} <span className="ml-0.5 opacity-70">{countOf(k)}</span>
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Tìm kiếm (giữ nguyên tab đang chọn) */}
+      <form className="mt-3 flex flex-wrap gap-2" action="/admin/services">
+        {catSlug && <input type="hidden" name="category" value={catSlug} />}
         <input
           name="q"
           defaultValue={q ?? ""}
           placeholder="Tìm theo tên..."
           className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
         />
-        <select name="category" defaultValue={catSlug ?? ""} className="rounded-xl border border-gray-200 px-3 py-2 text-sm">
-          <option value="">Tất cả danh mục</option>
-          {CATEGORY_LIST.map((c) => (
-            <option key={c.slug} value={c.slug}>{c.shortLabel}</option>
-          ))}
-        </select>
-        <button className="rounded-xl bg-forest-100 px-4 py-2 text-sm font-medium text-forest-700">Lọc</button>
+        <button className="rounded-xl bg-forest-100 px-4 py-2 text-sm font-medium text-forest-700">Tìm</button>
       </form>
 
       <div className="mt-4 overflow-x-auto rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
