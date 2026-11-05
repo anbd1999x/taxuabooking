@@ -32,6 +32,15 @@ export function cabinBoothTotal(fare: number, shared: number, solo: number): num
   return 2 * fare * (Math.max(0, shared) + Math.max(0, solo));
 }
 
+/**
+ * Tiền vé cabin trang /xe-cabin — tính THEO NGƯỜI:
+ * - nằm ghép: mỗi người 1 vé (`fare`); đi lẻ thì nhà xe xếp ghép với khách khác;
+ * - nằm riêng (bao trọn buồng): mỗi người 2 × fare.
+ */
+export function cabinSeatTotal(fare: number, sharedPeople: number, soloPeople: number): number {
+  return fare * Math.max(0, sharedPeople) + 2 * fare * Math.max(0, soloPeople);
+}
+
 /** Số khách của cách xếp buồng: nằm chung 2 người/buồng + nằm riêng 1 người/buồng. */
 export function cabinPeople(shared: number, solo: number): number {
   return 2 * Math.max(0, shared) + Math.max(0, solo);

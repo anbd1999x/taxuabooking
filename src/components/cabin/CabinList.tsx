@@ -1,6 +1,6 @@
 "use client";
 
-import { cabinBoothTotal } from "@/lib/combo-pricing";
+import { cabinSeatTotal } from "@/lib/combo-pricing";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -505,13 +505,8 @@ export function CabinList({
                             <div className="text-[18px] font-extrabold tracking-[-0.02em] sm:text-[22px]" style={{ color: "oklch(0.6 0.18 45)" }}>{vnd(unit)}</div>
                             {!full && (
                               <div className="text-xs font-semibold text-gray-500">
-                                {pax} khách · tạm tính <b className="text-ink">{vnd(cabinBoothTotal(unit, Math.floor(pax / 2), pax % 2))}</b>
-                                <div className="font-normal">
-                                  {[
-                                    Math.floor(pax / 2) ? `${Math.floor(pax / 2)} cabin đôi nằm ghép` : null,
-                                    pax % 2 ? "1 cabin đơn nằm riêng (×2 giá)" : null,
-                                  ].filter(Boolean).join(" + ")}
-                                </div>
+                                {pax} khách nằm ghép · tạm tính <b className="text-ink">{vnd(cabinSeatTotal(unit, pax, 0))}</b>
+                                <div className="font-normal">Nằm riêng (bao buồng): {vnd(2 * unit)}/người</div>
                               </div>
                             )}
                           </>

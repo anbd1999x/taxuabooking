@@ -62,7 +62,7 @@ export const cabinBookingSchema = z
     returnTripId: z.string().optional().nullable(),
     // Điểm xuất phát (tỉnh) để tra giá theo bảng giá chặng; trống = Hà Nội.
     origin: z.string().trim().max(120).optional().nullable(),
-    // Cabin đôi: số buồng NẰM CHUNG (2 người/buồng) + số buồng NẰM RIÊNG (1 người/buồng).
+    // Tính theo NGƯỜI: số khách nằm ghép (cabin đôi) + số khách nằm riêng (cabin đơn, ×2 giá).
     shared: z.coerce.number().int().min(0).max(20).default(0),
     solo: z.coerce.number().int().min(0).max(20).default(0),
     // Số khách thực tế (trống = suy ra từ cách xếp buồng).

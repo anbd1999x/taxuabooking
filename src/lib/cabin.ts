@@ -7,7 +7,7 @@ import { toNumber } from "./format";
 import { generateBookingCode } from "./utils";
 import { resolveCommission } from "./commission";
 import { hasOriginFare, legFareFor, roundTripFareFor, type FareRow } from "./combo";
-import { cabinBoothTotal, cabinPeople } from "./combo-pricing";
+import { cabinSeatTotal } from "./combo-pricing";
 import type { CabinBookingInput } from "./validation";
 
 const WD = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
@@ -349,14 +349,15 @@ export async function createCabinBooking(
     : null;
   if (input.returnTripId && !ret) throw new Error("Chuyến về không hợp lệ.");
 
-  // Cabin đôi: nằm chung (2 người/buồng) + nằm riêng (1 người/buồng).
+  // Tính THEO NGƯỜI: shared = số khách NẰM GHÉP (đi lẻ thì nhà xe xếp ghép với khách khác),
+  // solo = số khách NẰM RIÊNG (bao trọn buồng). Tổng = số khách.
   const shared = input.shared;
   const solo = input.solo;
-  if (shared + solo < 1) throw new Error("Vui lòng chọn ít nhất 1 cabin.");
-  // Số khách thực tế: phải vừa với số chỗ nằm đã xếp và không thừa buồng trống.
-  const people = input.people ?? cabinPeople(shared, solo);
-  if (cabinPeople(shared, solo) < people) throw new Error(`Chỗ nằm đã xếp chưa đủ cho ${people} khách.`);
-  if (shared + solo > people) throw new Error(`Thừa buồng: ${shared + solo} buồng cho ${people} khách.`);
+  const people = shared + solo;
+  if (people < 1) throw new Error("Vui lòng chọn ít nhất 1 khách.");
+  if (input.people != null && input.people !== people) {
+    throw new Error(`Đã xếp ${people}/${input.people} khách — vui lòng xếp đủ chỗ nằm cho cả đoàn.`);
+  }
 
   // Ngày: không đặt chuyến đã chạy; chiều về không được trước chiều đi.
   if (outbound.departureDate < today()) throw new Error("Chuyến đi đã qua ngày khởi hành.");
@@ -378,8 +379,8 @@ export async function createCabinBooking(
     const legs = [outbound, ...(ret ? [ret] : [])].map((t) => toNumber(t.price) ?? 0);
     fare = legs.every((p) => p > 0) ? legs.reduce((a, b) => a + b, 0) : null;
   }
-  // Mỗi buồng = 2 × fare: nằm chung mỗi người trả fare, nằm riêng trả 2 × fare.
-  const total = fare == null ? null : cabinBoothTotal(fare, shared, solo);
+  // Nằm ghép: mỗi người 1 vé; nằm riêng: mỗi người 2 × giá vé.
+  const total = fare == null ? null : cabinSeatTotal(fare, shared, solo);
 
   // Chỗ trên xe tính theo SỐ KHÁCH ở kho vé thường (giống combo & "+ Thêm vé" của admin).
   const legNeedsConfirm = (t: typeof outbound) =>
@@ -390,8 +391,8 @@ export async function createCabinBooking(
   const needsConfirmation = fare == null || legNeedsConfirm(outbound) || (ret ? legNeedsConfirm(ret) : false);
 
   const tickets = [
-    shared ? `${shared} cabin đôi nằm ghép` : null,
-    solo ? `${solo} cabin đơn nằm riêng (×2 giá)` : null,
+    shared ? `${shared} khách nằm ghép (cabin đôi)` : null,
+    solo ? `${solo} khách nằm riêng (cabin đơn, ×2 giá)` : null,
   ]
     .filter(Boolean)
     .join(" + ") + ` · ${people} khách`;

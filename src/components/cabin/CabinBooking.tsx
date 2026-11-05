@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { CabinDirectionOptions, CabinTripAvail, CabinDay, CabinFareOption } from "@/lib/cabin";
-import { cabinBoothTotal, cabinPeople } from "@/lib/combo-pricing";
+import { cabinSeatTotal } from "@/lib/combo-pricing";
 import { vnPhoneError } from "@/lib/phone";
 
 function vnd(n: number | null | undefined, fallback = "Liên hệ") {
@@ -36,9 +36,9 @@ interface Props {
 
 const DEFAULT_ORIGIN = "Hà Nội";
 
-/** Xếp mặc định: ghép đôi tối đa, người lẻ nằm riêng (giống combo). */
+/** Mặc định: cả đoàn nằm ghép (rẻ nhất; đi lẻ nhà xe xếp ghép với khách khác). */
 function defaultAlloc(people: number) {
-  return { shared: Math.floor(people / 2), solo: people % 2 };
+  return { shared: people, solo: 0 };
 }
 
 export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProvince, hasFareTable, fares, initialPeople = 2 }: Props) {
@@ -46,7 +46,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
   const [dir, setDir] = useState<"di" | "ve">("di");
   const [outIdx, setOutIdx] = useState(outbound.pickIndex);
   const [retIdx, setRetIdx] = useState(ret?.pickIndex ?? 0);
-  // Số khách + cách xếp buồng: cabin đôi nằm ghép (2 người/buồng) + cabin đơn nằm riêng (1 người/buồng).
+  // Số khách + chia theo NGƯỜI: shared = số khách nằm ghép, solo = số khách nằm riêng (×2 giá). shared + solo = people.
   const [people, setPeopleRaw] = useState(Math.max(1, initialPeople));
   const [shared, setShared] = useState(() => defaultAlloc(Math.max(1, initialPeople)).shared);
   const [solo, setSolo] = useState(() => defaultAlloc(Math.max(1, initialPeople)).solo);
@@ -89,10 +89,9 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
     !t ? 0 : t.status === "SOLD_OUT" ? 0 : t.status === "AVAILABLE" || t.status === "LIMITED" ? t.singleAvailable : 10;
   const legs = roundTrip ? [outTrip, retTrip] : [outTrip];
   const maxPeople = Math.min(...legs.map(legSeats));
-  // Số chỗ nằm đã xếp; hợp lệ khi đủ chỗ cho cả đoàn và không thừa buồng trống.
-  const covered = cabinPeople(shared, solo);
-  const booths = shared + solo;
-  const allocOk = covered >= people && booths <= people;
+  // Chuyển 1 khách giữa nằm ghép ↔ nằm riêng (tổng luôn = số khách).
+  const toSolo = () => { if (shared > 0) { setShared(shared - 1); setSolo(solo + 1); } };
+  const toShared = () => { if (solo > 0) { setSolo(solo - 1); setShared(shared + 1); } };
 
   // Giá chặng MỖI KHÁCH (nằm chung): theo bảng giá chặng + điểm xuất phát; nhà xe chưa
   // có bảng thì dự phòng giá chuyến (đi + về). Server tính lại y hệt khi gửi đơn.
@@ -102,10 +101,10 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
     : legPrices.every((p) => p > 0)
       ? legPrices.reduce((a, b) => a + b, 0)
       : null;
-  const total = fare == null ? null : cabinBoothTotal(fare, shared, solo);
+  const total = fare == null ? null : cabinSeatTotal(fare, shared, solo);
 
   // Thiếu giá chặng vẫn cho gửi yêu cầu (chờ báo giá) — không chặn khách, không tự bịa giá.
-  const bookable = Boolean(outTrip) && (!roundTrip || Boolean(retTrip)) && booths >= 1 && allocOk;
+  const bookable = Boolean(outTrip) && (!roundTrip || Boolean(retTrip)) && people >= 1 && shared + solo === people;
 
   // ---- Điểm đón / trả (suy ra từ chuyến đi + điểm xuất phát khách chọn) ----
   const province = origin?.trim() || pickupProvince?.trim() || null;
@@ -134,9 +133,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
       setErr(
         !outTrip || (roundTrip && !retTrip)
           ? "Ngày này chưa có chuyến. Hãy chọn ngày khác."
-          : covered < people
-            ? `Mới xếp ${covered}/${people} khách — thêm cabin cho đủ đoàn.`
-            : `Đang thừa buồng (${booths} buồng cho ${people} khách) — bớt cabin.`,
+          : "Vui lòng chọn số khách.",
       );
       return;
     }
@@ -349,49 +346,48 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
                 <div className="flex flex-col gap-2.5 rounded-2xl border border-gray-200 p-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="text-[13px] font-bold text-ink">Chỗ nằm trên xe cabin</div>
-                    <div className={`text-xs font-bold ${allocOk ? "text-forest-700" : "text-red-600"}`}>
-                      Đã xếp {covered}/{people} khách
-                    </div>
+                    <div className="text-xs font-bold text-forest-700">{people} khách</div>
                   </div>
                   {([
-                    { label: "Cabin đôi · nằm ghép", sub: "2 người chung 1 buồng", value: shared, set: setShared },
-                    { label: "Cabin đơn · nằm riêng", sub: "1 người 1 buồng · ×2 giá vé", value: solo, set: setSolo },
+                    { label: "Cabin đôi · nằm ghép", sub: "Tính theo người · đi lẻ nhà xe xếp ghép cùng khách khác", value: shared, per: fare, inc: toShared, dec: toSolo },
+                    { label: "Cabin đơn · nằm riêng", sub: "Bao trọn 1 buồng · ×2 giá vé", value: solo, per: fare == null ? null : 2 * fare, inc: toSolo, dec: toShared },
                   ] as const).map((r) => (
                     <div key={r.label} className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
                         <div className="text-sm font-bold text-ink">{r.label}</div>
                         <div className="text-xs text-gray-500">
                           {r.sub}
-                          {fare != null && <> · <b className="text-forest-700">{vnd(cabinBoothTotal(fare, 1, 0))}/buồng</b></>}
+                          {r.per != null && <> · <b className="text-forest-700">{vnd(r.per)}/người</b></>}
                         </div>
                       </div>
                       <div className="flex flex-none items-center gap-2.5">
-                        <button type="button" onClick={() => r.set(Math.max(0, r.value - 1))} disabled={r.value <= 0} className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-lg font-bold text-ink disabled:opacity-40">−</button>
+                        <button type="button" onClick={r.dec} disabled={r.value <= 0} className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-lg font-bold text-ink disabled:opacity-40">−</button>
                         <span className="w-5 text-center text-base font-extrabold text-ink">{r.value}</span>
-                        <button type="button" onClick={() => r.set(r.value + 1)} disabled={booths >= people} className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-lg font-bold text-ink disabled:opacity-40">+</button>
+                        <button type="button" onClick={r.inc} disabled={r.value >= people} className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-lg font-bold text-ink disabled:opacity-40">+</button>
                       </div>
                     </div>
                   ))}
                   <p className="text-[11px] leading-relaxed text-gray-500">
-                    Mỗi buồng = 2× vé {roundTrip ? "khứ hồi" : "1 chiều"}. <b>Cabin đôi nằm ghép</b>: 2 người chung buồng, mỗi người trả 1 vé
-                    {fare != null ? ` (${vnd(fare)}/người)` : ""}. <b>Cabin đơn nằm riêng</b>: 1 người bao cả buồng nên tính ×2 giá vé
-                    {fare != null ? ` (${vnd(cabinBoothTotal(fare, 0, 1))}/người)` : ""}.
+                    <b>Cabin đôi nằm ghép</b>: mỗi người trả 1 vé {roundTrip ? "khứ hồi" : "1 chiều"}
+                    {fare != null ? ` (${vnd(fare)}/người)` : ""}; đi 1 mình nhà xe xếp nằm chung với khách khác.{" "}
+                    <b>Cabin đơn nằm riêng</b>: 1 người bao trọn buồng nên tính ×2 giá vé
+                    {fare != null ? ` (${vnd(2 * fare)}/người)` : ""}.
                   </p>
                 </div>
 
                 {/* Bảng tính chi tiết */}
-                {fare != null && booths > 0 && (
+                {fare != null && people > 0 && (
                   <div className="flex flex-col gap-1 rounded-xl bg-[oklch(0.97_0.006_150)] p-3 text-[13px]">
                     {shared > 0 && (
                       <div className="flex justify-between gap-2">
-                        <span className="text-gray-600">{shared} cabin đôi nằm ghép ({shared * 2} người × {vnd(fare)})</span>
-                        <span className="font-bold text-ink">{vnd(cabinBoothTotal(fare, shared, 0))}</span>
+                        <span className="text-gray-600">Nằm ghép: {shared} người × {vnd(fare)}</span>
+                        <span className="font-bold text-ink">{vnd(cabinSeatTotal(fare, shared, 0))}</span>
                       </div>
                     )}
                     {solo > 0 && (
                       <div className="flex justify-between gap-2">
-                        <span className="text-gray-600">{solo} cabin đơn nằm riêng ({solo} người × 2 × {vnd(fare)})</span>
-                        <span className="font-bold text-ink">{vnd(cabinBoothTotal(fare, 0, solo))}</span>
+                        <span className="text-gray-600">Nằm riêng: {solo} người × 2 × {vnd(fare)}</span>
+                        <span className="font-bold text-ink">{vnd(cabinSeatTotal(fare, 0, solo))}</span>
                       </div>
                     )}
                     <div className="mt-1 flex justify-between gap-2 border-t border-gray-200 pt-1.5">
@@ -458,7 +454,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
                   ...(hasFareTable ? [{ k: "Xuất phát", v: origin }] : []),
                   {
                     k: "Cabin",
-                    v: [shared ? `${shared} cabin đôi nằm ghép` : null, solo ? `${solo} cabin đơn nằm riêng` : null].filter(Boolean).join(" + ") || "—",
+                    v: [shared ? `${shared} khách nằm ghép` : null, solo ? `${solo} khách nằm riêng` : null].filter(Boolean).join(" + ") || "—",
                   },
                   { k: "Số khách", v: String(people) },
                   { k: "Đón", v: pickup ?? "—" },
@@ -502,7 +498,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
           <div className="mt-4 flex flex-col gap-2.5 border-t border-gray-100 px-[18px] pb-[18px] pt-3.5">
             <div className="flex items-baseline justify-between gap-2.5">
               <div className="min-w-0 truncate text-xs text-gray-500">
-                {`${people} khách · ${booths} buồng · ${roundTrip ? "khứ hồi" : "1 chiều"}`}
+                {`${people} khách · ${roundTrip ? "khứ hồi" : "1 chiều"}`}
               </div>
               <div className="whitespace-nowrap text-[22px] font-extrabold tracking-tight text-sunset-600">
                 {!bookable ? "—" : total == null ? "Chờ báo giá" : vnd(total)}
