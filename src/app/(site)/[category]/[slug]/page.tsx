@@ -13,6 +13,7 @@ import { today, toDateKey, addDays } from "@/lib/dates";
 import { BookingPanel } from "@/components/BookingPanel";
 import { HomestayBooking, type HomestayRoom } from "@/components/HomestayBooking";
 import { CabinBooking } from "@/components/cabin/CabinBooking";
+import { CabinContactPanel } from "@/components/cabin/CabinContactPanel";
 import { ServiceReviews } from "@/components/ServiceReviews";
 import { buildDirectionOptions, getCabinFareOptions } from "@/lib/cabin";
 import { CabinRoutes } from "@/components/CabinRoutes";
@@ -270,7 +271,9 @@ export default async function ServiceDetailPage({
       : null;
   // Giá chặng/khách theo điểm xuất phát (khứ hồi nếu có ngày về, không thì chiều đi).
   const cabinFares =
-    service.category === "CABIN" ? await getCabinFareOptions(service.id, Boolean(toKey)) : null;
+    service.category === "CABIN"
+      ? await getCabinFareOptions(service.id, Boolean(toKey) || service.contactOnly)
+      : null;
 
   return (
     <div className="container-page py-8">
@@ -530,7 +533,15 @@ export default async function ServiceDetailPage({
 
         {/* Panel đặt dịch vụ */}
         <div className="min-w-0">
-          {service.category === "CABIN" && cabinOutbound ? (
+          {service.category === "CABIN" && service.contactOnly ? (
+            <CabinContactPanel
+              operatorName={service.title}
+              phone={phone}
+              zalo={zalo}
+              fares={cabinFares?.options ?? []}
+              roundTrip={Boolean(toKey) || service.contactOnly}
+            />
+          ) : service.category === "CABIN" && cabinOutbound ? (
             <CabinBooking
               serviceId={service.id}
               operatorName={service.title}

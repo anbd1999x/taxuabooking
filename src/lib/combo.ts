@@ -664,7 +664,7 @@ export async function findComboMatches(input: {
 async function findBuses(from: Date, to: Date, origin: string | null): Promise<ComboBusOption[]> {
   const [services, generalRows] = await Promise.all([
     prisma.service.findMany({
-      where: { category: "CABIN", published: true },
+      where: { category: "CABIN", published: true, contactOnly: false },
       orderBy: [{ featured: "desc" }, { title: "asc" }],
       include: {
         images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 6 },
@@ -896,7 +896,7 @@ export async function createComboBooking(
   }
   if (outbound.serviceId !== ret.serviceId) throw new Error("Chuyến đi và chuyến về phải cùng một nhà xe.");
   const busService = await prisma.service.findFirst({
-    where: { id: outbound.serviceId, category: "CABIN", published: true },
+    where: { id: outbound.serviceId, category: "CABIN", published: true, contactOnly: false },
     select: { id: true },
   });
   if (!busService) throw new Error("Nhà xe không còn nhận đặt.");

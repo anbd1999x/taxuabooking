@@ -287,7 +287,11 @@ export function ServiceForm({
         </label>
         <label className="flex items-center gap-2">
           <input type="checkbox" name="contactOnly" defaultChecked={initial.contactOnly ?? false} className="accent-forest-600 h-4 w-4" />
-          <span className="text-sm text-gray-700">💬 Không quản lý lịch — khách nhắn tin nhận thông tin (luôn hiện khi tìm kiếm)</span>
+          <span className="text-sm text-gray-700">
+            {cat === "CABIN"
+              ? "💬 Chỉ nhắn tin — không cho đặt trước trên web, khách nhắn Zalo để giữ vé (không ghép combo)"
+              : "💬 Không quản lý lịch — khách nhắn tin nhận thông tin (luôn hiện khi tìm kiếm)"}
+          </span>
         </label>
       </div>
 

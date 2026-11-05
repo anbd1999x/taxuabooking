@@ -25,6 +25,8 @@ export interface CabinOperator {
   ret: TripAvail | null;
   fromPrice: number | null;
   state: "ok" | "low" | "full" | "unk";
+  /** Chỉ nhắn tin Zalo, không đặt trước trên web. */
+  contactOnly?: boolean;
 }
 
 // Theme "Rừng núi Tây Bắc"
@@ -434,14 +436,14 @@ export function CabinList({
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,330px),1fr))] sm:gap-[22px]">
             {sorted.map((op, j) => {
               const sm = ST[op.state];
-              const full = op.state === "full";
+              const full = !op.contactOnly && op.state === "full";
               const unit = op.fromPrice;
               const tail = (() => { const p = new URLSearchParams(); if (from) p.set("from", from); if (to) p.set("to", to); if (pickup && pickup !== "Hà Nội") p.set("pickup", pickup); p.set("pax", String(pax)); const s = p.toString(); return s ? `?${s}` : ""; })();
               const amen: string[] = [];
               const anyTrip = op.outbound ?? op.ret;
               if (anyTrip) amen.push("Cabin đôi · nằm ghép", "Cabin đơn · nằm riêng ×2");
               if (op.ret) amen.push("Khứ hồi");
-              const cta = !searched ? "Xem chuyến →" : full ? "Chọn ngày khác →" : op.state === "unk" ? "Gửi yêu cầu →" : "Xem & đặt vé →";
+              const cta = op.contactOnly ? "💬 Nhắn Zalo →" : !searched ? "Xem chuyến →" : full ? "Chọn ngày khác →" : op.state === "unk" ? "Gửi yêu cầu →" : "Xem & đặt vé →";
               return (
                 <Link
                   key={op.id}
@@ -458,7 +460,9 @@ export function CabinList({
                     )}
                     <div className="pointer-events-none absolute left-3 right-3 top-3 flex items-start justify-between gap-1.5">
                       {op.ret ? <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[oklch(0.3_0.04_160)]">Có khứ hồi</span> : <span />}
-                      {searched && <span className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: sm.bg, color: sm.fg }}>{sm.text}</span>}
+                      {op.contactOnly ? (
+                        <span className="whitespace-nowrap rounded-full bg-sunset-500 px-2.5 py-1 text-xs font-bold text-white">💬 Nhắn tin đặt chỗ</span>
+                      ) : searched && <span className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: sm.bg, color: sm.fg }}>{sm.text}</span>}
                     </div>
                   </div>
                   <div className="flex flex-1 flex-col gap-2 p-3 sm:gap-3 sm:p-5 sm:pt-[18px]">
@@ -503,7 +507,9 @@ export function CabinList({
                         {unit != null ? (
                           <>
                             <div className="text-[18px] font-extrabold tracking-[-0.02em] sm:text-[22px]" style={{ color: "oklch(0.6 0.18 45)" }}>{vnd(unit)}</div>
-                            {!full && (
+                            {op.contactOnly ? (
+                              <div className="text-xs font-semibold text-gray-500">Giá tham khảo · nhắn Zalo để kiểm tra chỗ & giữ vé</div>
+                            ) : !full && (
                               <div className="text-xs font-semibold text-gray-500">
                                 {pax} khách nằm ghép · tạm tính <b className="text-ink">{vnd(cabinSeatTotal(unit, pax, 0))}</b>
                                 <div className="font-normal">Cabin đôi: 2 người 1 buồng · Cabin đơn: 1 người 1 buồng ({vnd(2 * unit)})</div>

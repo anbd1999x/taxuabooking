@@ -136,6 +136,8 @@ export interface CabinOperatorCard {
   ret: CabinTripAvail | null;
   fromPrice: number | null;
   state: DayState;
+  /** Nhà xe chỉ nhận nhắn tin (Zalo) — không đặt trước trên web, luôn hiện khi tìm kiếm. */
+  contactOnly: boolean;
 }
 
 /**
@@ -188,6 +190,7 @@ async function getCabinOperatorsImpl(
         ret: null,
         fromPrice,
         state: "unk",
+        contactOnly: s.contactOnly,
       }];
     });
   }
@@ -210,9 +213,9 @@ async function getCabinOperatorsImpl(
   for (const s of services) {
     const outTrip = from ? s.cabinTrips.find((t) => t.direction === "OUTBOUND") ?? null : null;
     const retTrip = to ? s.cabinTrips.find((t) => t.direction === "RETURN") ?? null : null;
-    // Chỉ giữ nhà xe có đủ (các) chiều đang tìm.
-    if (from && !outTrip) continue;
-    if (to && !retTrip) continue;
+    // Chỉ giữ nhà xe có đủ (các) chiều đang tìm — trừ nhà xe "chỉ nhắn tin" (không quản lý lịch trên web).
+    if (!s.contactOnly && from && !outTrip) continue;
+    if (!s.contactOnly && to && !retTrip) continue;
     const outbound = outTrip ? tripToAvail(outTrip) : null;
     const ret = retTrip ? tripToAvail(retTrip) : null;
 
@@ -254,7 +257,8 @@ async function getCabinOperatorsImpl(
       outbound,
       ret,
       fromPrice,
-      state: dayState(primary),
+      state: s.contactOnly ? "unk" : dayState(primary),
+      contactOnly: s.contactOnly,
     });
   }
 
@@ -336,6 +340,9 @@ export async function createCabinBooking(
     where: { id: input.serviceId, published: true, category: "CABIN" },
   });
   if (!service) throw new Error("Nhà xe không tồn tại.");
+  if (service.contactOnly) {
+    throw new Error("Nhà xe này không nhận đặt trước trên web — vui lòng nhắn Zalo để giữ chỗ.");
+  }
 
   const outbound = await prisma.cabinTrip.findFirst({
     where: { id: input.outboundTripId, serviceId: service.id, direction: "OUTBOUND" },
