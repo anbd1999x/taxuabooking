@@ -308,7 +308,7 @@ export function ProviderOrders({
                 <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
                   <div style={{ fontSize: 14, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.name}</div>
                   {o.phoneLocked ? (
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "oklch(0.52 0.02 160)", padding: "6px 10px", borderRadius: 999, background: "oklch(0.95 0.005 160)", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6, width: "fit-content" }} title="SĐT khách hiện sau khi ghi nhận cọc">🔒 SĐT hiện sau khi nhận cọc</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "oklch(0.52 0.02 160)", padding: "6px 10px", borderRadius: 999, background: "oklch(0.95 0.005 160)", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: 6, width: "fit-content" }} title="SĐT khách hiện sau khi ghi nhận cọc">🔒 Tạm ẩn</div>
                   ) : (
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                       <a href={`tel:${o.phone}`} style={{ fontSize: 13, fontWeight: 700, padding: "6px 10px", borderRadius: 999, background: "oklch(0.96 0.02 155)", whiteSpace: "nowrap", color: "inherit" }}>☎ {o.phone}</a>
@@ -453,7 +453,7 @@ function Drawer({
           <div style={{ padding: "14px 16px", borderRadius: 16, background: "white", border: "1px solid oklch(0.92 0.01 160)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <div>
               <div style={{ fontSize: 16, fontWeight: 800 }}>{o.name}</div>
-              <div style={{ fontSize: 13, color: "oklch(0.5 0.02 160)" }}>{o.phoneLocked ? "🔒 SĐT hiện sau khi nhận cọc" : o.phone} · {o.stay.split(" · ").slice(-1)[0]}</div>
+              <div style={{ fontSize: 13, color: "oklch(0.5 0.02 160)" }}>{o.phoneLocked ? "🔒 Tạm ẩn" : o.phone} · {o.stay.split(" · ").slice(-1)[0]}</div>
             </div>
             {!o.phoneLocked && (
               <div style={{ display: "flex", gap: 6 }}>
