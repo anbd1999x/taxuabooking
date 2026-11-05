@@ -33,6 +33,8 @@ export interface HomestayCard {
   cat: string; // "Homestay" | "Bungalow"
   status: "ok" | "low" | "full" | "none";
   freeRooms: number;
+  /** Ẩn vì kỳ đã chọn vi phạm chính sách bán cuối tuần (vd chỉ đêm T7), không phải hết phòng. */
+  policyBlocked?: boolean;
 }
 
 export type AmenKey = "cloudView" | "bathtub" | "breakfast" | "airCon" | "heating" | "pool" | "easyRoad";
@@ -352,7 +354,11 @@ export function HomestayList({
       (!qn || norm(`${x.name} ${x.homeName} ${x.area}`).includes(qn)),
   );
   // Đã tìm theo ngày → ẨN HẲN phòng hết chỗ trong kỳ (chỉ hiện phòng còn trống).
-  const hiddenFull = hasDates ? preFiltered.filter((x) => x.status === "full").length : 0;
+  const hiddenFull = hasDates ? preFiltered.filter((x) => x.status === "full" && !x.policyBlocked).length : 0;
+  // Số home bị ẩn do không bán lẻ cuối tuần (vd chỉ ở đêm T7) → báo lý do + gợi ý thêm đêm.
+  const hiddenPolicyHomes = hasDates
+    ? new Set(preFiltered.filter((x) => x.status === "full" && x.policyBlocked).map((x) => x.slug)).size
+    : 0;
   const matched = preFiltered.filter((x) => !hasDates || x.status !== "full");
   const bySort = (a: HomestayCard, b: HomestayCard) => {
     if (sort === "priceAsc") return (a.price > 0 ? a.price : Infinity) - (b.price > 0 ? b.price : Infinity);
@@ -627,6 +633,11 @@ export function HomestayList({
               <span className="text-sm font-semibold text-gray-500">
                 {items.length} loại phòng{hasDates ? ` · ${nights} đêm` : ""}
                 {hiddenFull > 0 && <span className="text-gray-400"> · đã ẩn {hiddenFull} loại hết phòng</span>}
+                {hiddenPolicyHomes > 0 && (
+                  <span className="block text-[13px] font-medium text-amber-700">
+                    ⚠️ {hiddenPolicyHomes} homestay không bán lẻ đêm cuối tuần nên đã ẩn — chọn thêm đêm thứ 6 hoặc chủ nhật để xem.
+                  </span>
+                )}
               </span>
             </div>
           </div>

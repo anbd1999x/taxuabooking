@@ -1,5 +1,6 @@
 "use server";
 
+import { requireAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
@@ -33,6 +34,7 @@ function revalidate(slug?: string) {
 }
 
 export async function upsertArticle(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   const title = s(formData.get("title"));
   const content = s(formData.get("content"));
@@ -69,6 +71,7 @@ export async function upsertArticle(_prev: ActionState, formData: FormData): Pro
 }
 
 export async function deleteArticle(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   if (!id) return;
   const a = await prisma.article.delete({ where: { id } }).catch(() => null);
@@ -77,6 +80,7 @@ export async function deleteArticle(formData: FormData): Promise<void> {
 }
 
 export async function toggleArticlePublished(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   if (!id) return;
   const a = await prisma.article.findUnique({ where: { id } });

@@ -1,7 +1,7 @@
 import "server-only";
 import type { Prisma, AvailabilityStatus } from "@prisma/client";
 import { prisma } from "./prisma";
-import { parseDateOnly, toDateKey, addDays } from "./dates";
+import { addDays, today } from "./dates";
 
 function statusFromCount(available: number): AvailabilityStatus {
   if (available <= 0) return "SOLD_OUT";
@@ -38,7 +38,7 @@ export async function resyncRoomTypeWindow(
   days = 90,
   client: Client = prisma,
 ): Promise<void> {
-  const start = parseDateOnly(toDateKey(new Date()));
+  const start = today();
   for (let i = 0; i < days; i++) {
     await syncRoomTypeAvailability(roomTypeId, addDays(start, i), client);
   }

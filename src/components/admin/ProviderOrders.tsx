@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
-  advanceBookingStatus,
+  advanceBookingStatusResult as advanceBookingStatus,
   setBookingPaymentStep,
   setBookingCommissionPaid,
 } from "@/app/admin/bookings/actions";
@@ -110,13 +110,19 @@ export function ProviderOrders({
     toastT.current = window.setTimeout(() => setToast(""), 2200);
   }
 
-  function run(action: (fd: FormData) => Promise<void>, fields: Record<string, string>, msg?: string) {
+  function run(action: (fd: FormData) => Promise<void | { error?: string }>, fields: Record<string, string>, msg?: string) {
     const fd = new FormData();
     for (const [k, v] of Object.entries(fields)) fd.append(k, v);
     start(async () => {
-      await action(fd);
-      router.refresh();
-      if (msg) say(msg);
+      try {
+        const res = await action(fd);
+        router.refresh();
+        // Action trả lỗi nghiệp vụ (vd phòng đã kín khi xác nhận) → báo rõ thay vì báo thành công.
+        if (res && res.error) say("⚠ " + res.error);
+        else if (msg) say(msg);
+      } catch {
+        say("⚠ Thao tác thất bại, vui lòng tải lại trang và thử lại.");
+      }
     });
   }
 
@@ -396,7 +402,7 @@ function Drawer({
   setMethod: (v: string) => void;
   payErr: string;
   addPay: () => void;
-  run: (a: (fd: FormData) => Promise<void>, f: Record<string, string>, m?: string) => void;
+  run: (a: (fd: FormData) => Promise<void | { error?: string }>, f: Record<string, string>, m?: string) => void;
   openOrder: (o: ProviderOrderVM, pay?: boolean) => void;
 }) {
   const st = ST[o.st];

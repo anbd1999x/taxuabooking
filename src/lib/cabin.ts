@@ -302,10 +302,19 @@ export async function createCabinBooking(
   const nDouble = input.double;
   if (nSingle + nDouble < 1) throw new Error("Vui lòng chọn ít nhất 1 vé.");
 
-  // Giá từng chiều (server-authoritative).
+  // Ngày: không đặt chuyến đã chạy; chiều về không được trước chiều đi.
+  if (outbound.departureDate < today()) throw new Error("Chuyến đi đã qua ngày khởi hành.");
+  if (ret && ret.departureDate < outbound.departureDate) {
+    throw new Error("Ngày về phải cùng hoặc sau ngày đi.");
+  }
+
+  // Giá từng chiều (server-authoritative). Giá đôi trống = chuyến KHÔNG bán cabin đôi
+  // → từ chối (trước đây tính 0đ cho vé đôi).
   const legCost = (t: typeof outbound) => {
     const ps = toNumber(t.price) ?? 0;
     const pd = toNumber(t.priceDouble) ?? 0;
+    if (nSingle > 0 && ps <= 0) throw new Error(`Chuyến ${toDateKey(t.departureDate)} chưa có giá vé đơn — vui lòng liên hệ.`);
+    if (nDouble > 0 && pd <= 0) throw new Error(`Chuyến ${toDateKey(t.departureDate)} không bán cabin đôi.`);
     return nSingle * ps + nDouble * pd;
   };
   const total = legCost(outbound) + (ret ? legCost(ret) : 0);

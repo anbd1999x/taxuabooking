@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { getSession, requireAdmin } from "@/lib/auth";
 import { serviceInputSchema, availabilityBulkSchema } from "@/lib/validation";
 import { slugify } from "@/lib/utils";
 import { CATEGORIES } from "@/lib/constants";
@@ -56,6 +56,7 @@ export async function createService(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  await requireAdmin();
   const parsed = serviceInputSchema.safeParse({
     category: formData.get("category"),
     title: formData.get("title"),
@@ -129,6 +130,7 @@ export async function createServiceFull(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  await requireAdmin();
   const parsed = serviceInputSchema.safeParse({
     category: formData.get("category"),
     title: formData.get("title"),
@@ -306,6 +308,7 @@ export async function updateService(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   if (!id) return { error: "Thiếu id." };
   const parsed = serviceInputSchema.safeParse({
@@ -379,6 +382,7 @@ export async function updateService(
 }
 
 export async function deleteService(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   if (id) {
     await prisma.service.delete({ where: { id } });
@@ -397,6 +401,7 @@ async function enforceSingleFeaturedCabin(keepId: string): Promise<void> {
 }
 
 export async function toggleField(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   const field = s(formData.get("field"));
   if (!id || (field !== "published" && field !== "featured")) return;
@@ -417,6 +422,7 @@ export async function toggleField(formData: FormData): Promise<void> {
 
 // ---------------- Ảnh ----------------
 export async function addImage(formData: FormData): Promise<void> {
+  await requireAdmin();
   const serviceId = s(formData.get("serviceId"));
   const url = s(formData.get("url"));
   if (!serviceId || !url) return;
@@ -428,6 +434,7 @@ export async function addImage(formData: FormData): Promise<void> {
 }
 
 export async function deleteImage(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   if (!id) return;
@@ -436,6 +443,7 @@ export async function deleteImage(formData: FormData): Promise<void> {
 }
 
 export async function setCover(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   if (!id || !serviceId) return;
@@ -469,6 +477,7 @@ async function swapOrder(
 }
 
 export async function moveServiceImage(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   if (!id || !serviceId) return;
@@ -484,6 +493,7 @@ export async function moveServiceImage(formData: FormData): Promise<void> {
 }
 
 export async function moveRoomTypeImage(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   const roomTypeId = s(formData.get("roomTypeId"));
   const serviceId = s(formData.get("serviceId"));
@@ -501,6 +511,7 @@ export async function moveRoomTypeImage(formData: FormData): Promise<void> {
 }
 
 export async function moveRoomImage(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   const roomId = s(formData.get("roomId"));
   const serviceId = s(formData.get("serviceId"));
@@ -528,6 +539,7 @@ function idList(formData: FormData): string[] {
 }
 
 export async function reorderServiceImages(formData: FormData): Promise<void> {
+  await requireAdmin();
   const serviceId = s(formData.get("serviceId"));
   const ids = idList(formData);
   if (!serviceId || ids.length === 0) return;
@@ -540,6 +552,7 @@ export async function reorderServiceImages(formData: FormData): Promise<void> {
 }
 
 export async function reorderRoomTypeImages(formData: FormData): Promise<void> {
+  await requireAdmin();
   const roomTypeId = s(formData.get("roomTypeId"));
   const serviceId = s(formData.get("serviceId"));
   const ids = idList(formData);
@@ -554,6 +567,7 @@ export async function reorderRoomTypeImages(formData: FormData): Promise<void> {
 }
 
 export async function reorderRoomImages(formData: FormData): Promise<void> {
+  await requireAdmin();
   const roomId = s(formData.get("roomId"));
   const serviceId = s(formData.get("serviceId"));
   const ids = idList(formData);
@@ -571,6 +585,7 @@ export async function reorderRoomImages(formData: FormData): Promise<void> {
  * Gán sortOrder = 0..n đúng theo thứ tự nhận được — ổn định, không "nhảy".
  */
 export async function reorderRooms(formData: FormData): Promise<void> {
+  await requireAdmin();
   const serviceId = s(formData.get("serviceId"));
   const ids = idList(formData);
   if (!serviceId || ids.length === 0) return;
@@ -603,15 +618,18 @@ async function moveRoomTypeDir(formData: FormData, dir: "left" | "right"): Promi
 }
 
 export async function moveRoomTypeUp(formData: FormData): Promise<void> {
+  await requireAdmin();
   await moveRoomTypeDir(formData, "left");
 }
 
 export async function moveRoomTypeDown(formData: FormData): Promise<void> {
+  await requireAdmin();
   await moveRoomTypeDir(formData, "right");
 }
 
 // ---------------- Loại phòng ----------------
 export async function upsertRoomType(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
   const serviceId = s(formData.get("serviceId"));
   const id = s(formData.get("id"));
   if (!serviceId) return { error: "Thiếu dịch vụ." };
@@ -654,6 +672,7 @@ export async function upsertRoomType(_prev: ActionState, formData: FormData): Pr
  * Giá trị trong form được áp nguyên trạng: ô thứ bỏ trống = xoá ghi đè ngày đó.
  */
 export async function applyRoomTypePrices(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
   const roomTypeId = s(formData.get("roomTypeId"));
   const serviceId = s(formData.get("serviceId"));
   if (!roomTypeId) return { error: "Thiếu hạng phòng." };
@@ -689,6 +708,7 @@ export async function applyRoomTypePrices(_prev: ActionState, formData: FormData
 }
 
 export async function deleteRoomType(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   if (id) {
@@ -730,6 +750,7 @@ async function normalizeServiceRoomOrder(serviceId: string, preferId?: string): 
 }
 
 export async function upsertRoom(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
   const serviceId = s(formData.get("serviceId"));
   const roomTypeId = s(formData.get("roomTypeId"));
   const id = s(formData.get("id"));
@@ -822,6 +843,7 @@ function nextRoomName(base: string, taken: string[]): string {
 
 /** Nhân bản một phòng: copy toàn bộ giá/sức chứa/tiện ích + ảnh (dùng chung file). */
 export async function duplicateRoom(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   if (!id) return;
@@ -912,14 +934,17 @@ async function moveRoomDir(formData: FormData, dir: "left" | "right"): Promise<v
 }
 
 export async function moveRoomUp(formData: FormData): Promise<void> {
+  await requireAdmin();
   await moveRoomDir(formData, "left");
 }
 
 export async function moveRoomDown(formData: FormData): Promise<void> {
+  await requireAdmin();
   await moveRoomDir(formData, "right");
 }
 
 export async function deleteRoom(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   const roomTypeId = s(formData.get("roomTypeId"));
@@ -965,6 +990,7 @@ async function syncRoomThumbnail(roomTypeId: string): Promise<void> {
 }
 
 export async function deleteRoomImage(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   if (!id) return;
@@ -986,6 +1012,7 @@ export async function deleteRoomImage(formData: FormData): Promise<void> {
 }
 
 export async function setRoomImageCover(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   const roomTypeId = s(formData.get("roomTypeId"));
@@ -1000,6 +1027,7 @@ export async function setRoomImageCover(formData: FormData): Promise<void> {
 
 // ---------------- Ảnh phòng riêng lẻ ----------------
 export async function deleteRoomPhoto(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   if (!id) return;
@@ -1018,6 +1046,7 @@ export async function deleteRoomPhoto(formData: FormData): Promise<void> {
 }
 
 export async function setRoomPhotoCover(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   const roomId = s(formData.get("roomId"));
@@ -1031,6 +1060,7 @@ export async function setRoomPhotoCover(formData: FormData): Promise<void> {
 
 // ---------------- Xe cho thuê ----------------
 export async function upsertVehicle(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
   const serviceId = s(formData.get("serviceId"));
   const id = s(formData.get("id"));
   if (!serviceId) return { error: "Thiếu dịch vụ." };
@@ -1052,6 +1082,7 @@ export async function upsertVehicle(_prev: ActionState, formData: FormData): Pro
 }
 
 export async function deleteVehicle(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   if (id) {
@@ -1066,6 +1097,7 @@ export async function deleteVehicle(formData: FormData): Promise<void> {
 
 // ---------------- Chuyến cabin ----------------
 export async function upsertTrip(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
   const serviceId = s(formData.get("serviceId"));
   const id = s(formData.get("id"));
   const dateKey = s(formData.get("departureDate"));
@@ -1104,6 +1136,7 @@ export async function upsertTrip(_prev: ActionState, formData: FormData): Promis
 }
 
 export async function deleteTrip(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   if (id) {
@@ -1122,6 +1155,7 @@ export async function deleteTrip(formData: FormData): Promise<void> {
 
 // ---------------- Thông tin tuyến (xe ôm/taxi) ----------------
 export async function upsertTransport(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
   const serviceId = s(formData.get("serviceId"));
   if (!serviceId) return { error: "Thiếu dịch vụ." };
   const data = {
@@ -1149,6 +1183,7 @@ export async function upsertTransport(_prev: ActionState, formData: FormData): P
 
 // ---------------- Lộ trình cabin (đi / về) ----------------
 export async function upsertCabinRoute(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
   const serviceId = s(formData.get("serviceId"));
   const direction = s(formData.get("direction")) as "OUTBOUND" | "RETURN" | undefined;
   if (!serviceId || (direction !== "OUTBOUND" && direction !== "RETURN")) {
@@ -1176,6 +1211,7 @@ export async function upsertCabinRoute(_prev: ActionState, formData: FormData): 
 }
 
 export async function upsertCabinStop(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
   const serviceId = s(formData.get("serviceId"));
   const direction = s(formData.get("direction")) as "OUTBOUND" | "RETURN" | undefined;
   const id = s(formData.get("id"));
@@ -1212,6 +1248,7 @@ export async function upsertCabinStop(_prev: ActionState, formData: FormData): P
 }
 
 export async function deleteCabinStop(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   if (id) await prisma.cabinRouteStop.delete({ where: { id } });
@@ -1337,6 +1374,7 @@ export async function applyCabinSchedule(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  await requireAdmin();
   const serviceId = s(formData.get("serviceId"));
   if (!serviceId) return { error: "Thiếu nhà xe." };
   const startKey = s(formData.get("startDate"));

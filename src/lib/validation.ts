@@ -76,7 +76,11 @@ export const comboBookingSchema = z
     outboundTripId: z.string().min(1, "Thiếu chuyến đi."),
     returnTripId: z.string().min(1, "Thiếu chuyến về."),
     origin: z.string().trim().max(120).optional().nullable(),
+    // `people` = số khách TÍNH PHÍ (người lớn + trẻ từ ngưỡng miễn phí của home đã chọn).
     people: z.coerce.number().int().min(1).max(30),
+    // Người lớn + tuổi từng trẻ (để lưu đơn + dựng nhãn; server tính lại số tính phí theo ngưỡng của home).
+    adults: z.coerce.number().int().min(1).max(30).optional(),
+    childrenAges: z.array(z.coerce.number().int().min(0).max(17)).max(20).optional(),
     // Chỗ nằm xe cabin: số cabin đơn (1 người/buồng, nằm riêng) + số cabin đôi (2 người/buồng, ghép).
     // 0/0 = client cũ → server tự xếp mặc định (tối đa ghép đôi).
     cabinSingle: z.coerce.number().int().min(0).max(30).default(0),

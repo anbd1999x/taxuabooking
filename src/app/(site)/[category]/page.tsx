@@ -76,7 +76,13 @@ export default async function CategoryPage({
     const from = str(sp.from);
     const to = str(sp.to);
     const origin = str(sp.origin)?.trim() || "";
-    const people = Math.max(1, Number(str(sp.people)) || 2);
+    // `people` (link cũ) = số người lớn; `kids=5-8` = tuổi từng trẻ.
+    const adults = Math.max(1, Number(str(sp.people)) || 2);
+    const childrenAges = (str(sp.kids) ?? "")
+      .split("-")
+      .map((x) => parseInt(x, 10))
+      .filter((n) => Number.isFinite(n) && n >= 0 && n <= 17)
+      .slice(0, 20);
     // Khoảng giá từ dropdown: "lt900000" = dưới 900k, "gt2000000" = trên 2tr.
     const priceKey = str(sp.price) ?? "";
     const pm = priceKey.match(/^(lt|gt)(\d+)$/);
@@ -96,7 +102,7 @@ export default async function CategoryPage({
     const [origins, result] = await Promise.all([
       getComboOrigins(),
       from && to
-        ? findComboMatches({ fromKey: from, toKey: to, people, origin: origin || null, budget, priceMax, priceMin, filters: comboFilters, roomKind })
+        ? findComboMatches({ fromKey: from, toKey: to, people: adults, adults, childrenAges, origin: origin || null, budget, priceMax, priceMin, filters: comboFilters, roomKind })
         : Promise.resolve(null),
     ]);
 
@@ -107,7 +113,8 @@ export default async function CategoryPage({
         <ComboSearch
           initialFrom={from ?? ""}
           initialTo={to ?? ""}
-          initialPeople={people}
+          initialPeople={adults}
+          initialKids={childrenAges}
           initialPrice={pm ? priceKey : ""}
           initialFilters={activeFilters}
           initialKind={roomKind}
@@ -131,7 +138,8 @@ export default async function CategoryPage({
                 fixFrom = toDateKey(addDays(parseDateOnly(from!), -1));
                 fixTo = to! > from! ? to! : toDateKey(addDays(parseDateOnly(from!), 1));
                 if (fixFrom >= toDateKey(today())) {
-                  const q = new URLSearchParams({ from: fixFrom, to: fixTo, people: String(people) });
+                  const q = new URLSearchParams({ from: fixFrom, to: fixTo, people: String(adults) });
+                  if (childrenAges.length) q.set("kids", childrenAges.join("-"));
                   if (origin) q.set("origin", origin);
                   if (pm) q.set("price", priceKey);
                   if (activeFilters.length) q.set("f", activeFilters.join(","));

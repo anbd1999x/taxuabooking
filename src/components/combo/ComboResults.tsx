@@ -12,6 +12,7 @@ import type {
   ComboSearchResult,
 } from "@/lib/combo";
 import { ensureSheetFresh } from "@/components/ensureSheet";
+import { cabinAllocation, busCostPerPerson } from "@/lib/combo-pricing";
 import { showGlobalLoading } from "@/components/useSearchNav";
 
 // Phải khớp COMBO_DISCOUNT trong src/lib/combo.ts (server tính lại giá khi đặt).
@@ -35,9 +36,12 @@ function vnd(n: number): string {
   return new Intl.NumberFormat("vi-VN").format(Math.round(n)) + "đ";
 }
 
-/** Giá combo/khách của một phương án (roomCost = TỔNG tiền phòng cả đoàn). */
-function planPP(plan: ComboStayPlan, people: number, fare: number): number {
-  return Math.max(0, Math.round(plan.roomCost / people) + fare - (plan.communal ? 0 : COMBO_DISCOUNT));
+/**
+ * Giá combo/khách của một phương án (roomCost = TỔNG tiền phòng cả đoàn).
+ * busPerPerson = tiền xe/khách theo cách xếp buồng mặc định (busCostPerPerson) — khớp giá khi đặt.
+ */
+function planPP(plan: ComboStayPlan, people: number, busPerPerson: number): number {
+  return Math.max(0, Math.round(plan.roomCost / people) + busPerPerson - (plan.communal ? 0 : COMBO_DISCOUNT));
 }
 
 /** Một thẻ kết quả = một PHƯƠNG ÁN ghép phòng của một homestay. */
@@ -49,7 +53,7 @@ interface PlanEntry {
 }
 
 export function ComboResults({ result }: { result: ComboSearchResult }) {
-  const { homes, buses, people, nights, origin, budget, priceMax, priceMin, checkIn, checkOut, fromKey, toKey } = result;
+  const { homes, buses, adults, childrenAges, nights, origin, budget, priceMax, priceMin, checkIn, checkOut, fromKey, toKey } = result;
   const exactBudget = priceMax == null && priceMin == null ? budget : null;
 
   const [zone, setZone] = useState("all");
@@ -64,14 +68,20 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
   const entries = useMemo<PlanEntry[]>(() => {
     const distOf = (h: ComboHomeOption) =>
       h.distanceKm ?? (/trung tâm/i.test(h.area ?? "") ? 0 : Number.POSITIVE_INFINITY);
-    const cheapestFare = buses.length ? Math.min(...buses.map((b) => b.farePerPerson)) : 0;
+    // Giá rẻ nhất xét theo xe RẺ NHẤT CÒN ĐỦ CHỖ cho số tính phí của home (trẻ miễn phí ở cùng).
+    // Tiền xe/khách rẻ nhất theo cách xếp buồng thực tế (đoàn lẻ có người nằm riêng = 2×vé).
+    const cheapestFareFor = (billable: number) => {
+      const costs = buses.map((b) => busCostPerPerson(b, billable)).filter((c): c is number => c != null);
+      return costs.length ? Math.min(...costs) : 0;
+    };
 
     const arr: PlanEntry[] = [];
     for (const home of homes) {
       if (zone !== "all" && home.area !== zone) continue;
       if (homeName !== "all" && home.title !== homeName) continue;
+      const cheapestFare = cheapestFareFor(home.billable);
       for (const plan of home.plans) {
-        arr.push({ home, plan, bestPrice: planPP(plan, people, cheapestFare), score: 0 });
+        arr.push({ home, plan, bestPrice: planPP(plan, home.billable, cheapestFare), score: 0 });
       }
     }
     if (arr.length === 0) return arr;
@@ -99,7 +109,7 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
       return a.score - b.score || a.bestPrice - b.bestPrice;
     });
     return arr;
-  }, [homes, buses, people, budget, zone, homeName, sort]);
+  }, [homes, buses, budget, zone, homeName, sort]);
 
   const bestPlanId = buses.length > 0 && entries.length > 0 ? entries[0].plan.id : null;
 
@@ -118,7 +128,7 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
           {entries.length} phương án combo
         </div>
         <div className="mt-1 text-sm text-gray-500">
-          {buses.length} nhà xe · {people} người · {nights} đêm ({checkIn} → {checkOut})
+          {buses.length} nhà xe · {adults} người lớn{childrenAges.length > 0 ? ` · ${childrenAges.length} trẻ em (${childrenAges.join(", ")} tuổi)` : ""} · {nights} đêm ({checkIn} → {checkOut})
           {origin && <> · đón tại <span className="font-bold text-ink">{origin}</span></>}
           {priceMax != null ? (
             <> · mức giá <span className="font-semibold text-forest-700">dưới {vnd(priceMax)}</span>/khách</>
@@ -175,7 +185,10 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
             home={e.home}
             plan={e.plan}
             buses={buses}
-            people={people}
+            people={e.home.billable}
+            freeChildren={e.home.freeChildren}
+            adults={adults}
+            childrenAges={childrenAges}
             nights={nights}
             budget={exactBudget}
             best={e.plan.id === bestPlanId}
@@ -212,6 +225,9 @@ function ComboPlanCard({
   plan,
   buses,
   people,
+  freeChildren,
+  adults,
+  childrenAges,
   nights,
   budget,
   best,
@@ -224,7 +240,12 @@ function ComboPlanCard({
   home: ComboHomeOption;
   plan: ComboStayPlan;
   buses: ComboBusOption[];
+  /** Số khách TÍNH PHÍ ở home này (người lớn + trẻ ≥ ngưỡng) — chia giá & xếp chỗ theo số này. */
   people: number;
+  /** Số trẻ MIỄN PHÍ ở home này (ở cùng, không tính tiền). */
+  freeChildren: number;
+  adults: number;
+  childrenAges: number[];
   nights: number;
   budget: number | null;
   best: boolean;
@@ -234,12 +255,29 @@ function ComboPlanCard({
   toKey: string;
   origin: string | null;
 }) {
-  const [busId, setBusId] = useState(buses[0]?.serviceId ?? "");
-  const bus = useMemo(() => buses.find((b) => b.serviceId === busId) ?? buses[0], [buses, busId]);
+  // Chỉ những xe còn đủ chỗ cho số khách tính phí của home này.
+  const usableBuses = useMemo(
+    () => buses.filter((b) => cabinAllocation(people, b.seatsAvailable, b.doubleAvailable) != null),
+    [buses, people],
+  );
+  const [busId, setBusId] = useState(usableBuses[0]?.serviceId ?? "");
+  const bus = useMemo(() => usableBuses.find((b) => b.serviceId === busId) ?? usableBuses[0], [usableBuses, busId]);
 
-  // Chỗ nằm xe cabin: mặc định ghép đôi tối đa, người lẻ nằm riêng. Khách chỉnh được.
-  const [cbDouble, setCbDouble] = useState(Math.floor(people / 2));
-  const [cbSingle, setCbSingle] = useState(people - Math.floor(people / 2) * 2);
+  // Chỗ nằm xe cabin: mặc định ghép đôi tối đa TRONG SỐ BUỒNG ĐÔI CÒN của xe đang chọn,
+  // người lẻ nằm riêng. Đổi xe → xếp lại theo xe mới. Khách chỉnh được.
+  const defaultAlloc = (b: ComboBusOption | undefined) =>
+    (b && cabinAllocation(people, b.seatsAvailable, b.doubleAvailable)) ?? {
+      nDouble: Math.floor(people / 2),
+      nSingle: people - Math.floor(people / 2) * 2,
+    };
+  const [cbDouble, setCbDouble] = useState(() => defaultAlloc(bus).nDouble);
+  const [cbSingle, setCbSingle] = useState(() => defaultAlloc(bus).nSingle);
+  useEffect(() => {
+    const a = defaultAlloc(bus);
+    setCbDouble(a.nDouble);
+    setCbSingle(a.nSingle);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bus?.serviceId, people]);
   const cabinCovered = cbSingle + cbDouble * 2;
 
   // Khách chọn ĐÚNG CĂN cho từng nhóm (nhóm còn nhiều căn hơn số cần). pick[gi] = mảng roomId đã chọn.
@@ -332,6 +370,8 @@ function ComboPlanCard({
     setErr("");
     if (!bus) { setErr("Vui lòng chọn xe cabin."); return; }
     if (cabinCovered < people) { setErr(`Chỗ nằm trên xe mới đủ ${cabinCovered}/${people} người — thêm cabin đơn/đôi.`); return; }
+    if (cbDouble > bus.doubleAvailable) { setErr(bus.doubleAvailable > 0 ? `Xe chỉ còn ${bus.doubleAvailable} cabin đôi.` : "Xe này không còn cabin đôi — chọn cabin đơn."); return; }
+    if (cbSingle > bus.seatsAvailable) { setErr(`Xe chỉ còn ${bus.seatsAvailable} cabin đơn.`); return; }
     if (!name.trim()) { setErr("Vui lòng nhập họ tên."); return; }
     if (!/^0\d{9}$/.test(phone.replace(/\s/g, ""))) { setErr("Số điện thoại chưa đúng (10 số, bắt đầu bằng 0)."); return; }
     setSubmitting(true);
@@ -346,6 +386,8 @@ function ComboPlanCard({
           returnTripId: bus.returnTripId,
           origin: origin || null,
           people,
+          adults,
+          childrenAges,
           cabinSingle: cbSingle,
           cabinDouble: cbDouble,
           customerName: name.trim(),
@@ -410,6 +452,11 @@ function ComboPlanCard({
                   +{plan.extraGuests} khách ở ghép · phụ thu {vnd(plan.extraCost)}
                 </span>
               )}
+              {freeChildren > 0 && (
+                <span className="rounded-full bg-[oklch(0.95_0.04_155)] px-2.5 py-0.5 text-xs font-bold text-[oklch(0.4_0.1_155)]">
+                  +{freeChildren} trẻ dưới {home.childFreeUnderAge} tuổi · miễn phí, ở cùng
+                </span>
+              )}
             </div>
           </div>
 
@@ -472,11 +519,15 @@ function ComboPlanCard({
           {/* Chọn xe */}
           <div className="flex flex-col gap-2">
             <div className="text-xs font-extrabold uppercase tracking-wide text-gray-500">Xe cabin khứ hồi</div>
-            {buses.length === 0 ? (
-              <div className="rounded-xl bg-gray-50 px-3 py-2 text-sm text-gray-500">Chưa có nhà xe mở cả 2 chiều cho ngày này.</div>
+            {usableBuses.length === 0 ? (
+              <div className="rounded-xl bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                {buses.length === 0
+                  ? "Chưa có nhà xe mở cả 2 chiều cho ngày này."
+                  : `Chưa có nhà xe còn đủ ${people} chỗ cho ngày này.`}
+              </div>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {buses.map((b) => {
+                {usableBuses.map((b) => {
                   const on = b.serviceId === bus?.serviceId;
                   const low = b.seatsAvailable <= 5;
                   return (
@@ -519,7 +570,7 @@ function ComboPlanCard({
               {hasStrike && <span className="text-base font-semibold text-gray-400 line-through">{vnd(ppOld!)}</span>}
               <span className="text-[30px] font-extrabold leading-tight tracking-[-0.03em] text-sunset-600">{vnd(pricePerPerson)}</span>
             </div>
-            <div className="mt-0.5 text-[13px] font-semibold text-gray-500">≈ {vnd(total)} cho {people} người</div>
+            <div className="mt-0.5 text-[13px] font-semibold text-gray-500">≈ {vnd(total)} cho {people} người{freeChildren > 0 ? ` (+${freeChildren} trẻ miễn phí)` : ""}</div>
           </div>
           <div className="flex flex-col gap-1.5 border-t border-dashed border-[oklch(0.88_0.02_70)] pt-2.5 text-xs leading-relaxed text-gray-500">
             <div className="flex justify-between gap-2">
@@ -604,6 +655,13 @@ function ComboPlanCard({
                     <div className="flex justify-between gap-2"><span className="text-gray-500">Điểm đón</span><span className="font-bold text-ink">{origin}</span></div>
                   )}
                   <div className="flex justify-between gap-2"><span className="text-gray-500">Ngày</span><span className="font-bold text-ink">{checkIn} → {checkOut} · {nights} đêm</span></div>
+                  <div className="flex justify-between gap-2">
+                    <span className="text-gray-500">Khách</span>
+                    <span className="text-right font-bold text-ink">
+                      {adults} người lớn{childrenAges.length > 0 ? ` · ${childrenAges.length} trẻ (${childrenAges.join(", ")} tuổi)` : ""}
+                      {freeChildren > 0 && <span className="font-bold text-forest-700"> · {freeChildren} miễn phí</span>}
+                    </span>
+                  </div>
                   <div className="mt-1 flex justify-between gap-2 border-t border-gray-200 pt-1.5"><span className="text-gray-500">Trọn gói</span><span className="text-right font-extrabold text-sunset-600">{hasStrike && <span className="mr-1.5 text-xs font-semibold text-gray-400 line-through">{vnd(ppOld!)}</span>}{vnd(pricePerPerson)}/khách · {vnd(total)} / {people} người</span></div>
                 </div>
 

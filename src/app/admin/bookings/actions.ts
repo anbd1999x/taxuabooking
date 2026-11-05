@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { BookingStatus, PaymentStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { getSession, requireAdmin } from "@/lib/auth";
 import { toNumber, formatPrice } from "@/lib/format";
 import { bookingStatusSchema } from "@/lib/validation";
 import { generateBookingCode } from "@/lib/utils";
@@ -95,13 +95,31 @@ export async function setBookingPaymentStep(formData: FormData): Promise<void> {
  * COMPLETED, hoặc CANCELLED (trả phòng). ADMIN & chủ dịch vụ (đơn của mình).
  */
 export async function advanceBookingStatus(formData: FormData): Promise<void> {
+  await advanceBookingStatusResult(formData);
+}
+
+/**
+ * Như advanceBookingStatus nhưng TRẢ LỖI thay vì ném (vd phòng đã kín khi xác nhận)
+ * — để giao diện hiện thông báo rõ ràng thay vì trang lỗi (prod ẩn message lỗi ném ra).
+ */
+export async function advanceBookingStatusResult(formData: FormData): Promise<{ error?: string }> {
   const id = formData.get("id") ? String(formData.get("id")) : "";
   const status = String(formData.get("status") ?? "");
-  if (!id || !["NEW", "CONTACTING", "CONFIRMED", "COMPLETED", "CANCELLED"].includes(status)) return;
+  if (!id || !["NEW", "CONTACTING", "CONFIRMED", "COMPLETED", "CANCELLED"].includes(status)) return { error: "Dữ liệu không hợp lệ." };
   const role = await canManage(id);
-  if (!role) return;
+  if (!role) return { error: "Không có quyền thao tác đơn này." };
   const newStatus = status as BookingStatus;
 
+  try {
+    await advanceTx(id, role, newStatus);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Có lỗi xảy ra." };
+  }
+  for (const p of [...REVALIDATE, `/admin/bookings/${id}`]) revalidatePath(p);
+  return {};
+}
+
+async function advanceTx(id: string, role: BookingRole, newStatus: BookingStatus): Promise<void> {
   await prisma.$transaction(async (tx) => {
     const booking = await tx.bookingRequest.findUnique({ where: { id } });
     if (!booking) return;
@@ -120,7 +138,6 @@ export async function advanceBookingStatus(formData: FormData): Promise<void> {
     }
     await tx.bookingRequest.update({ where: { id }, data: { status: newStatus, inventoryApplied } });
   });
-  for (const p of [...REVALIDATE, `/admin/bookings/${id}`]) revalidatePath(p);
 }
 
 /**
@@ -431,8 +448,11 @@ export async function duplicateBooking(formData: FormData): Promise<void> {
       endDate: b.endDate,
       nights: b.nights,
       quantity: b.quantity,
+      adults: b.adults,
+      childrenAges: b.childrenAges,
       roomTypeId: b.roomTypeId,
       roomId: b.roomId,
+      roomIds: b.roomIds, // combo ghép nhiều phòng — thiếu thì bản sao chỉ giữ 1 phòng
       cabinTripId: b.cabinTripId,
       cabinReturnTripId: b.cabinReturnTripId,
       seatsSingle: b.seatsSingle,
@@ -444,6 +464,7 @@ export async function duplicateBooking(formData: FormData): Promise<void> {
       busAmount: b.busAmount,
       ctvId: b.ctvId,
       commissionAmount: b.commissionAmount,
+      roomCommission: b.roomCommission,
       needsConfirmation: true,
     },
   });
@@ -515,6 +536,7 @@ export async function updateBookingStatus(
   _prev: BookingActionState,
   formData: FormData,
 ): Promise<BookingActionState> {
+  await requireAdmin();
   const parsed = bookingStatusSchema.safeParse({
     id: formData.get("id"),
     status: formData.get("status"),

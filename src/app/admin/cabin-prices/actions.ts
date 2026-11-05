@@ -1,5 +1,6 @@
 "use server";
 
+import { requireAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
@@ -24,6 +25,7 @@ export async function upsertCabinPrice(
   _prev: CabinPriceState,
   formData: FormData,
 ): Promise<CabinPriceState> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId")) ?? null; // null = bảng giá chung
   const pickupPoint = s(formData.get("pickupPoint"));
@@ -55,6 +57,7 @@ export async function upsertCabinPrice(
 }
 
 export async function deleteCabinPrice(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   if (id) await prisma.cabinPriceRow.delete({ where: { id } });

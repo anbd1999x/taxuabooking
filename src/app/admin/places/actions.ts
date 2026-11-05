@@ -1,5 +1,6 @@
 "use server";
 
+import { requireAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { toDTO, type PlaceInput, type PlaceDTO } from "./place-dto";
@@ -37,6 +38,7 @@ function revalidate(slug?: string) {
 
 /** Lưu (tạo/sửa) một quán. Trả về bản ghi đã lưu cho client cập nhật tại chỗ. */
 export async function savePlace(input: PlaceInput): Promise<ActionState & { place?: PlaceDTO }> {
+  await requireAdmin();
   const name = clean(input.name);
   const kind = input.kind === "CAFE" ? "CAFE" : input.kind === "RESTAURANT" ? "RESTAURANT" : "";
   const area = clean(input.area);
@@ -99,6 +101,7 @@ export async function savePlace(input: PlaceInput): Promise<ActionState & { plac
 
 /** Bật/tắt hiển thị một quán. */
 export async function togglePlacePublished(id: string, published: boolean): Promise<ActionState> {
+  await requireAdmin();
   if (!id) return { error: "Thiếu quán." };
   try {
     await prisma.place.update({ where: { id }, data: { published } });
@@ -111,6 +114,7 @@ export async function togglePlacePublished(id: string, published: boolean): Prom
 
 /** Thao tác hàng loạt: hiện / ẩn / xoá nhiều quán. */
 export async function bulkPlaces(ids: string[], op: "show" | "hide" | "delete"): Promise<ActionState> {
+  await requireAdmin();
   const list = (ids ?? []).filter(Boolean);
   if (!list.length) return { error: "Chưa chọn quán nào." };
   try {
@@ -125,6 +129,7 @@ export async function bulkPlaces(ids: string[], op: "show" | "hide" | "delete"):
 
 /** Xoá một quán. */
 export async function removePlace(id: string): Promise<ActionState> {
+  await requireAdmin();
   if (!id) return { error: "Thiếu quán." };
   try {
     await prisma.place.delete({ where: { id } });
@@ -138,6 +143,7 @@ export async function removePlace(id: string): Promise<ActionState> {
 // ── Đánh giá quán (PlaceReview) ─────────────────────────────────────────────
 
 export async function approvePlaceReview(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = typeof formData.get("id") === "string" ? (formData.get("id") as string) : "";
   if (!id) return;
   await prisma.placeReview.update({ where: { id }, data: { approved: true } }).catch(() => {});
@@ -145,6 +151,7 @@ export async function approvePlaceReview(formData: FormData): Promise<void> {
 }
 
 export async function deletePlaceReview(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = typeof formData.get("id") === "string" ? (formData.get("id") as string) : "";
   if (!id) return;
   await prisma.placeReview.delete({ where: { id } }).catch(() => {});

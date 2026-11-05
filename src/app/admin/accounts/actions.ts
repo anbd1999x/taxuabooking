@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { hashPassword } from "@/lib/auth";
+import { hashPassword, requireAdmin } from "@/lib/auth";
 
 export interface AccountState {
   ok?: boolean;
@@ -24,6 +24,7 @@ function money(v: FormDataEntryValue | null): number | null {
 }
 
 export async function createAccount(_prev: AccountState, formData: FormData): Promise<AccountState> {
+  await requireAdmin();
   const username = s(formData.get("username"))?.toLowerCase();
   const password = s(formData.get("password"));
   const name = s(formData.get("name"));
@@ -61,6 +62,7 @@ export async function createAccount(_prev: AccountState, formData: FormData): Pr
 }
 
 export async function toggleAccountActive(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   if (!id) return;
   const u = await prisma.adminUser.findUnique({ where: { id } });
@@ -71,6 +73,7 @@ export async function toggleAccountActive(formData: FormData): Promise<void> {
 
 /** Đặt mức hoa hồng cố định/đơn cho một CTV (admin). Rỗng = không có (0). */
 export async function setCtvCommission(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   if (!id) return;
   const u = await prisma.adminUser.findUnique({ where: { id } });
@@ -80,6 +83,7 @@ export async function setCtvCommission(formData: FormData): Promise<void> {
 }
 
 export async function resetAccountPassword(_prev: AccountState, formData: FormData): Promise<AccountState> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   const password = s(formData.get("password"));
   if (!id || !password || password.length < 4) return { error: "Mật khẩu tối thiểu 4 ký tự." };
@@ -91,6 +95,7 @@ export async function resetAccountPassword(_prev: AccountState, formData: FormDa
 }
 
 export async function deleteAccount(formData: FormData): Promise<void> {
+  await requireAdmin();
   const id = s(formData.get("id"));
   if (!id) return;
   const u = await prisma.adminUser.findUnique({ where: { id } });

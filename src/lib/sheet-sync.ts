@@ -27,6 +27,7 @@ export interface SheetSyncResult {
   matchedRooms: number;
   unmatchedRows: string[]; // nhãn hàng trong sheet không khớp phòng nào
   missingRooms: string[]; // phòng trong app không thấy trong sheet
+  unknownValues?: string[]; // nội dung ô không nhận ra (khoá cho an toàn) — cần chủ sheet sửa/ghi rõ
   days: number;
   changes: number; // số ô (phòng × ngày) đổi trạng thái trong lần chạy này
   syncedTabs: string[]; // tên các tab (tháng) đã đồng bộ
@@ -192,19 +193,33 @@ function yearForMonth(mo: number, ref: Date): number {
 
 /** Phân loại trạng thái từ nội dung ô. Ô trống = AVAILABLE. */
 function cellStatus(raw: string): RoomStatus {
+  return classifyCell(raw).status;
+}
+
+/**
+ * Như cellStatus, kèm cờ `known` = false khi ô có chữ LẠ (không khớp từ khoá nào)
+ * — vẫn khoá "cho an toàn" nhưng được báo lại cho admin để bổ sung/sửa sheet.
+ */
+function classifyCell(raw: string): { status: RoomStatus; known: boolean } {
   const t = norm(raw);
-  if (!t) return "AVAILABLE";
+  const ok = (status: RoomStatus) => ({ status, known: true });
+  if (!t) return ok("AVAILABLE");
+  // "Checkin" = khách ở đêm đó → kiểm tra TRƯỚC "checkout": ô đổi khách cùng ngày
+  // ("Check out / Check in") vẫn có khách ở đêm đó, không được coi là trống.
+  if (/check ?in/.test(t) || /(^| )in$/.test(t)) return ok("BOOKED");
   // "Checkout" = khách trả phòng buổi sáng → đêm đó phòng trống (chủ sheet cũng
-  // không tính vào tỉ lệ đặt). "Checkin" = khách ở đêm đó.
-  if (/check ?out/.test(t) || t === "out") return "AVAILABLE";
-  if (/check ?in/.test(t) || t === "in") return "BOOKED";
-  if (/(dat|chot|book|full|kin|het|day|sold)/.test(t)) return "BOOKED";
-  if (/(cho|wait|hold|giu|pending)/.test(t)) return "PENDING";
-  if (/(dong|close|khoa|nghi|off|bao tri|khong ban|ngung ban|ngung)/.test(t)) return "CLOSED";
+  // không tính vào tỉ lệ đặt).
+  if (/check ?out/.test(t) || t === "out") return ok("AVAILABLE");
+  // Khách huỷ / ghi rõ còn phòng → trống (trước đây rơi vào nhánh "chữ lạ" = khoá).
+  if (/\b(huy|cancel|cancelled|canceled)\b/.test(t) && !/chua huy/.test(t)) return ok("AVAILABLE");
+  if (/^con( trong| phong)?$/.test(t)) return ok("AVAILABLE");
+  if (/(dat|chot|book|full|kin|het|day|sold)/.test(t)) return ok("BOOKED");
+  if (/(cho|wait|hold|giu|pending)/.test(t)) return ok("PENDING");
+  if (/(dong|close|khoa|nghi|off|bao tri|khong ban|ngung ban|ngung)/.test(t)) return ok("CLOSED");
   // Chủ sheet ghi rõ còn trống (thay vì để ô trống).
-  if (/\b(trong|available|avail|free|empty|ok)\b/.test(t)) return "AVAILABLE";
+  if (/\b(trong|available|avail|free|empty|ok)\b/.test(t)) return ok("AVAILABLE");
   // Ô có chữ lạ nhưng không trống → coi như không bán được (an toàn).
-  return "BOOKED";
+  return { status: "BOOKED", known: false };
 }
 
 /** Thứ trong tuần từ ô "Thứ 2"/"Thứ Hai"/"CN"/"Chủ nhật"... (0 = CN, như getUTCDay). */
@@ -412,7 +427,10 @@ function detectDateBlocks(rows: string[][], ref: Date): DateBlock[] {
     }
     if (cells.length > 0) candidates.push({ row: r, cells });
   }
-  const strong = candidates.filter((c) => c.cells.length >= 3);
+  // Hàng tiêu đề ngày thật có ngày TĂNG DẦN theo cột (cách nhau ≤ số cột). Hàng thống
+  // kê kiểu tỉ số "5/12", "3/12", "7/12" (≤12 phòng) cũng parse được thành ngày nhưng
+  // lộn xộn → loại, tránh bị nhận làm khối ngày thứ 2 rồi gán ngày sai cho phòng.
+  const strong = candidates.filter((c) => c.cells.length >= 3 && looksLikeDateHeader(c.cells, ref));
   if (strong.length === 0) return [];
 
   // Gom hàng tiêu đề theo "chữ ký" bộ cột.
@@ -469,6 +487,19 @@ function detectDateBlocks(rows: string[][], ref: Date): DateBlock[] {
   }
   blocks.sort((a, b) => a.headerRow - b.headerRow);
   return blocks;
+}
+
+/** ≥80% cặp ô ngày kề nhau có ngày tăng và khoảng cách ngày ≤ khoảng cách cột. */
+function looksLikeDateHeader(cells: { col: number; dm: DayMonth }[], ref: Date): boolean {
+  const { dateCols } = buildDateCols(cells, ref);
+  if (dateCols.length < 3) return false;
+  let good = 0;
+  for (let i = 1; i < dateCols.length; i++) {
+    const dayDiff = Math.round((dateCols[i].date.getTime() - dateCols[i - 1].date.getTime()) / DAY_MS);
+    const colDiff = dateCols[i].col - dateCols[i - 1].col;
+    if (dayDiff > 0 && dayDiff <= colDiff) good++;
+  }
+  return good / (dateCols.length - 1) >= 0.8;
 }
 
 /**
@@ -930,14 +961,17 @@ export async function syncServiceSheet(
     const entries: SheetEntry[] = [];
     const matchedRoomIds = new Set<string>();
     const unmatched = new Set<string>();
+    const unknownValues = new Set<string>(); // nội dung ô lạ (bị khoá "cho an toàn") để báo admin
     const syncedTabs: string[] = [];
     const skippedTabs: string[] = [];
     let anyCalendarTab = false; // có ít nhất 1 tab nhận diện được là lịch
+    let fetchFailed = false; // có tab tải không được → KHÔNG dọn khoá cũ (tránh mở nhầm)
 
     // 2) Tải song song rồi duyệt từng tab (kết quả giữ đúng thứ tự tab).
     const tabGrids = await Promise.all(tabs.map((t) => fetchTabGrid(id, t.gid)));
     for (let ti = 0; ti < tabs.length; ti++) {
       const tab = tabs[ti];
+      if (!tabGrids[ti]) fetchFailed = true; // tải lỗi (mạng/Google chặn) ≠ tab không phải lịch
       const detected = tabGrids[ti] ? detectLayout(tabGrids[ti]!, ref) : null;
       if (!detected) {
         skippedTabs.push(tab.name);
@@ -959,7 +993,10 @@ export async function syncServiceSheet(
         const firstDateCol = Math.min(...dateCols.map((d) => d.col));
         const rStart = multi ? block.headerRow + 1 : 0;
         const rEnd = multi ? (blocks[bi + 1]?.headerRow ?? rows.length) : rows.length;
-        const seenInBlock = new Set<string>();
+        // Phòng → hàng được chọn trong khối. Hàng khớp CHÍNH XÁC tên phòng thắng hàng
+        // khớp gần đúng (vd hàng nhãn nhóm "FAMILY" khớp nhầm "Family 1" nằm phía trên
+        // hàng thật "Family 1") — trước đây hàng gặp trước thắng, hàng thật bị bỏ qua.
+        const picked = new Map<string, { room: RoomRef; r: number; exact: boolean }>();
         for (let r = rStart; r < rEnd; r++) {
           if (r === block.headerRow) continue;
           const row = rows[r]; // nhãn/tên phòng đọc từ lưới raw (ô gộp = ô đầu, như cũ)
@@ -974,9 +1011,13 @@ export async function syncServiceSheet(
           }
           if (candidates.length === 0) continue;
           let room: RoomRef | null = null;
+          let exact = false;
           for (const cand of candidates) {
             room = matchRoom(roomByName, allRooms, cand);
-            if (room) break;
+            if (room) {
+              exact = roomByName.get(norm(cand))?.id === room.id;
+              break;
+            }
           }
           if (!room) {
             // Nhãn tiêu đề/nhãn tháng (vd hàng thứ ghi "Tháng 7/2026" ở cột đầu) → bỏ qua êm.
@@ -999,12 +1040,18 @@ export async function syncServiceSheet(
             if (hasBooking) unmatched.add(candidates[0]);
             continue;
           }
-          if (seenInBlock.has(room.id)) continue;
-          seenInBlock.add(room.id);
+          const prev = picked.get(room.id);
+          if (!prev || (!prev.exact && exact)) picked.set(room.id, { room, r, exact });
+        }
+        for (const { room, r } of picked.values()) {
           seenInTab.add(room.id);
           matchedRoomIds.add(room.id);
+          const dataRow = data[r];
           for (const dc of dateCols) {
-            entries.push({ room, date: dc.date, status: cellStatus(dataRow[dc.col] ?? "") });
+            const raw = dataRow[dc.col] ?? "";
+            const { status, known } = classifyCell(raw);
+            if (!known && dc.date >= ref && unknownValues.size < 20) unknownValues.add(raw.trim());
+            entries.push({ room, date: dc.date, status });
           }
         }
       }
@@ -1073,6 +1120,25 @@ export async function syncServiceSheet(
       }
     }
 
+    // Dọn KHOÁ CŨ của sheet: ngày (từ hôm nay) của phòng ĐÃ KHỚP mà sheet không còn
+    // phủ nữa (tab tháng bị xoá, hàng đổi vị trí...) → trước đây bị khoá vĩnh viễn.
+    // Chỉ làm khi MỌI tab tải được, để lỗi mạng tạm thời không mở nhầm phòng.
+    // Phòng không còn khớp hàng nào thì giữ nguyên (đã báo "thiếu phòng").
+    if (!fetchFailed && matchedRoomIds.size > 0) {
+      const stale = await prisma.roomDayStatus.findMany({
+        where: { roomId: { in: [...matchedRoomIds] }, note: SHEET_TAG, bookingId: null, date: { gte: ref } },
+        select: { id: true, roomId: true, date: true },
+      });
+      const roomType = new Map(allRooms.map((rm) => [rm.id, rm.roomTypeId]));
+      for (const x of stale) {
+        const dk = toDateKey(x.date);
+        if (dedupedByKey.has(`${x.roomId}|${dk}`)) continue;
+        deleteIds.push(x.id);
+        reopens++;
+        mark(affectedTypes, roomType.get(x.roomId)!, dk);
+      }
+    }
+
     await prisma.$transaction([
       prisma.roomDayStatus.deleteMany({ where: { id: { in: deleteIds } } }),
       // skipDuplicates: nếu một đơn thật vừa chiếm (roomId, date) giữa lúc đọc và ghi
@@ -1097,7 +1163,8 @@ export async function syncServiceSheet(
     if (source === "MANUAL" || changes > 0) {
       const warns =
         (unmatched.size ? ` · ⚠ ${unmatched.size} dòng không khớp` : "") +
-        (missing.length ? ` · ⚠ thiếu ${missing.length} phòng` : "");
+        (missing.length ? ` · ⚠ thiếu ${missing.length} phòng` : "") +
+        (unknownValues.size ? ` · ⚠ ô không nhận ra (đang khoá): ${[...unknownValues].slice(0, 5).map((v) => `"${v}"`).join(", ")}` : "");
       await prisma.sheetSyncLog
         .create({ data: { serviceId, ok: true, source, summary: summary + warns, changes } })
         .catch(() => {});
@@ -1110,6 +1177,7 @@ export async function syncServiceSheet(
       matchedRooms: matchedRoomIds.size,
       unmatchedRows: [...unmatched],
       missingRooms: missing,
+      unknownValues: [...unknownValues],
       days: totalDays,
       changes,
       syncedTabs,

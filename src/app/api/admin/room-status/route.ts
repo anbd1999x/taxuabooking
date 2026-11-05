@@ -63,7 +63,9 @@ export async function POST(request: Request) {
     await prisma.roomDayStatus.upsert({
       where: { roomId_date: { roomId, date: d } },
       create: { roomId, date: d, status: status as RoomStatus },
-      update: { status: status as RoomStatus, bookingId: null },
+      // note: null → ô thành KHOÁ TAY của admin; nếu giữ note "SHEET" cũ thì lần đồng
+      // bộ sau (sheet để trống) sẽ tự mở lại, làm mất khoá tay.
+      update: { status: status as RoomStatus, bookingId: null, note: null },
     });
   }
 

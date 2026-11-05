@@ -60,6 +60,7 @@ export function ComboSearch({
   initialFrom = "",
   initialTo = "",
   initialPeople = 2,
+  initialKids = [],
   initialPrice = "",
   initialFilters = [],
   initialKind = "all",
@@ -69,6 +70,8 @@ export function ComboSearch({
   initialFrom?: string;
   initialTo?: string;
   initialPeople?: number;
+  /** Tuổi từng trẻ (link cũ không có → mảng rỗng). */
+  initialKids?: number[];
   initialPrice?: string;
   initialFilters?: string[];
   initialKind?: string;
@@ -80,7 +83,8 @@ export function ComboSearch({
   const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState(initialTo);
   const [origin, setOrigin] = useState(initialOrigin);
-  const [people, setPeople] = useState(initialPeople);
+  const [people, setPeople] = useState(initialPeople); // người lớn
+  const [childAges, setChildAges] = useState<number[]>(initialKids); // tuổi từng trẻ
   const [price, setPrice] = useState(initialPrice);
   const [filters, setFilters] = useState<Set<string>>(new Set(initialFilters));
   const [kind, setKind] = useState(initialKind);
@@ -99,6 +103,7 @@ export function ComboSearch({
     p.set("from", from || todayKey());
     p.set("to", to || "");
     p.set("people", String(Math.max(1, people)));
+    if (childAges.length) p.set("kids", childAges.join("-"));
     if (origin) p.set("origin", origin);
     if (price) p.set("price", price);
     if (filters.size) p.set("f", [...filters].join(","));
@@ -153,11 +158,11 @@ export function ComboSearch({
           <DateField value={to} min={from || todayKey()} onChange={setTo} className={inp} displayClassName="text-[15px] font-bold text-ink" ariaLabel="Ngày về" />
         </label>
         <div className={cell}>
-          <span className={lab}>Số người</span>
+          <span className={lab}>Người lớn</span>
           <div className="flex items-center gap-2.5 pt-0.5">
             <button
               type="button"
-              aria-label="Giảm số người"
+              aria-label="Giảm người lớn"
               onClick={() => setPeople(Math.max(1, people - 1))}
               className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-lg bg-white font-bold text-ink shadow-sm transition hover:bg-forest-50"
             >
@@ -169,17 +174,51 @@ export function ComboSearch({
               value={people}
               onChange={setPeople}
               className="w-10 border-0 bg-transparent p-0 text-center text-[15px] font-extrabold text-ink outline-none"
-              ariaLabel="Số người"
+              ariaLabel="Người lớn"
             />
             <button
               type="button"
-              aria-label="Tăng số người"
+              aria-label="Tăng người lớn"
               onClick={() => setPeople(Math.min(20, people + 1))}
               className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-lg bg-white font-bold text-ink shadow-sm transition hover:bg-forest-50"
             >
               +
             </button>
           </div>
+        </div>
+        <div className={cell}>
+          <span className={lab}>Trẻ em</span>
+          <select
+            value={childAges.length}
+            onChange={(e) => {
+              const n = Number(e.target.value);
+              setChildAges((arr) => Array.from({ length: n }, (_, i) => arr[i] ?? 6));
+            }}
+            className={inp}
+          >
+            {Array.from({ length: 11 }, (_, i) => i).map((n) => (
+              <option key={n} value={n}>{n === 0 ? "Không có trẻ" : `${n} trẻ`}</option>
+            ))}
+          </select>
+          {childAges.length > 0 && (
+            <div className="mt-1 flex flex-wrap gap-1">
+              {childAges.map((age, i) => (
+                <input
+                  key={i}
+                  type="number"
+                  min={0}
+                  max={17}
+                  value={age}
+                  aria-label={`Tuổi bé ${i + 1}`}
+                  onChange={(e) => {
+                    const v = Math.max(0, Math.min(17, parseInt(e.target.value || "0", 10) || 0));
+                    setChildAges((arr) => arr.map((x, j) => (j === i ? v : x)));
+                  }}
+                  className="w-11 rounded border border-gray-200 px-1 py-0.5 text-center text-xs font-bold text-ink outline-none"
+                />
+              ))}
+            </div>
+          )}
         </div>
         <label className={cell}>
           <span className={lab}>Giá mong muốn / khách</span>

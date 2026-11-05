@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "./prisma";
-import { parseDateOnly, toDateKey } from "./dates";
+import { parseDateOnly, toDateKey, today } from "./dates";
 import { parseIcsBusyNights } from "./ical";
 import { syncRoomTypeAvailability } from "./room-availability";
 
@@ -17,7 +17,7 @@ export async function syncIcalSource(sourceId: string): Promise<IcalSyncResult> 
   const src = await prisma.roomIcalSource.findUnique({ where: { id: sourceId }, include: { room: { select: { id: true, roomTypeId: true } } } });
   if (!src) return { sourceId, label: "", ok: false, count: 0, error: "Không tìm thấy nguồn." };
   const tag = `OTA#${src.id}`;
-  const todayKey = toDateKey(new Date());
+  const todayKey = toDateKey(today());
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 15000);

@@ -30,7 +30,9 @@ import {
   parseDateOnly,
   toDateKey,
   addDays,
+  today,
 } from "./dates";
+import { checkWeekendPolicy } from "./weekend-policy";
 import { toNumber } from "./format";
 
 /**
@@ -428,8 +430,11 @@ async function getHomestayCardsImpl(fromKey?: string | null, toKey?: string | nu
     let status: HomestayCardStatus = "none";
     let freeRooms = 0;
     if (hasDates) {
+      // Kỳ vi phạm chính sách bán cuối tuần (vd chỉ ở đêm T7 khi home không bán lẻ T7)
+      // → coi như không còn phòng nào cho kỳ này (trước đây vẫn hiện "còn phòng").
+      const policyBlocked = !s.contactOnly && checkWeekendPolicy(s.weekendPolicy, nights) != null;
       // Homestay "chỉ liên hệ" (không quản lý lịch) → luôn hiện còn chỗ khi tìm kiếm.
-      freeRooms = s.contactOnly ? rooms.length : rooms.filter((r) => !occupied.has(r.id)).length;
+      freeRooms = policyBlocked ? 0 : s.contactOnly ? rooms.length : rooms.filter((r) => !occupied.has(r.id)).length;
       status = freeRooms === 0 ? "full" : freeRooms <= 2 ? "low" : "ok";
     }
 
@@ -500,6 +505,8 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
 
   return list.flatMap((s) => {
     const cat = /bungalow/i.test(`${s.title} ${s.area ?? ""}`) ? "Bungalow" : "Homestay";
+    // Kỳ vi phạm chính sách bán cuối tuần → mọi phòng của home coi như không bán được.
+    const policyBlocked = hasDates && !s.contactOnly && checkWeekendPolicy(s.weekendPolicy, nights) != null;
     return s.roomTypes.flatMap((rt) => {
       // Tính thông tin thô từng phòng.
       const raw = rt.rooms.map((r) => {
@@ -524,7 +531,7 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
           stayOld: stay ? stay.strikeTotal : null,
           cover: firstImageUrl(r.images) ?? firstImageUrl(rt.images) ?? (rt.imageUrl && !VIDEO_URL_RE.test(rt.imageUrl) ? rt.imageUrl : null) ?? s.images[0]?.url ?? null,
           // Homestay "chỉ liên hệ" không quản lý lịch → coi như luôn trống khi tìm kiếm.
-          free: s.contactOnly || !occupied.has(r.id),
+          free: !policyBlocked && (s.contactOnly || !occupied.has(r.id)),
         };
       });
 
@@ -570,6 +577,8 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
           cat,
           status,
           freeRooms: hasDates ? freeCount : g.length,
+          // Bị ẩn vì kỳ vi phạm chính sách bán cuối tuần (không phải hết phòng) — để báo lý do.
+          policyBlocked,
           // Tổng cả kỳ của phòng đại diện (chỉ khi có ngày) — thẻ hiện số này + giá gạch.
           stayTotal: first.stayTotal,
           stayOld: first.stayOld,
@@ -663,7 +672,7 @@ export async function getCabinWeek(): Promise<{
   tripsByDay: Record<string, CabinTripLite[]>;
   defaultDateKey: string;
 }> {
-  const start = parseDateOnly(toDateKey(new Date()));
+  const start = today();
   const end = addDays(start, 6);
 
   const trips = await prisma.cabinTrip.findMany({

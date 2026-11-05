@@ -45,3 +45,14 @@ export async function getSession(): Promise<SessionPayload | null> {
   if (!token) return null;
   return verifySessionToken(token);
 }
+
+/**
+ * Chốt quyền cho server action CHỈ DÀNH CHO ADMIN. Server action là endpoint công
+ * khai (gọi được bằng action ID từ bất kỳ route nào) — middleware /admin KHÔNG bảo
+ * vệ chúng, nên mọi action quản trị phải tự gọi hàm này ở dòng đầu.
+ */
+export async function requireAdmin(): Promise<SessionPayload> {
+  const s = await getSession();
+  if (!s || s.role !== "ADMIN") throw new Error("Không có quyền thực hiện thao tác này.");
+  return s;
+}

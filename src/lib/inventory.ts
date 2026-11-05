@@ -47,13 +47,16 @@ export async function adjustInventory(
       }
       const nextSingle = Math.max(0, trip.seatsAvailable + direction * nSingle);
       const nextDouble = Math.max(0, trip.seatsDoubleAvailable + direction * nDouble);
+      // "Tạm dừng" (admin) = SOLD_OUT trong khi VẪN còn chỗ → giữ nguyên tạm dừng,
+      // không để việc huỷ/xác nhận đơn tự mở bán lại chuyến.
+      const paused = trip.status === "SOLD_OUT" && trip.seatsAvailable + trip.seatsDoubleAvailable > 0;
       // Tình trạng chung theo tổng chỗ còn của cả hai pool.
       await tx.cabinTrip.update({
         where: { id: trip.id },
         data: {
           seatsAvailable: nextSingle,
           seatsDoubleAvailable: nextDouble,
-          status: statusFromCount(nextSingle + nextDouble),
+          status: paused ? "SOLD_OUT" : statusFromCount(nextSingle + nextDouble),
         },
       });
     }

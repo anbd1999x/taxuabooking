@@ -14,9 +14,15 @@ export function toDateKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-/** Hôm nay tại 00:00 UTC. */
+/** Lệch múi giờ Việt Nam (UTC+7, không đổi giờ mùa hè). */
+const VN_OFFSET_MS = 7 * 3_600_000;
+
+/**
+ * "Hôm nay" THEO GIỜ VIỆT NAM, biểu diễn tại 00:00 UTC (khớp cột @db.Date).
+ * Trước đây lấy theo UTC nên 0h–7h sáng giờ VN vẫn bị coi là ngày hôm qua.
+ */
 export function today(): Date {
-  return parseDateOnly(toDateKey(new Date()));
+  return parseDateOnly(toDateKey(new Date(Date.now() + VN_OFFSET_MS)));
 }
 
 export function addDays(date: Date, days: number): Date {

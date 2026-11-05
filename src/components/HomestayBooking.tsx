@@ -361,7 +361,9 @@ export function HomestayBooking({
 
   // ----- Thẻ phòng theo kỳ đã chọn -----
   const roomView = rooms.map((r, i) => {
-    const free = nN > 0 && nights.every((d) => !occ[i].has(keyOf(d)));
+    const roomFree = nN > 0 && nights.every((d) => !occ[i].has(keyOf(d)));
+    // Kỳ vi phạm chính sách bán cuối tuần (vd chỉ đêm T7) → không phòng nào đặt được.
+    const free = roomFree && !policyWarn;
     // Kỳ có ít nhất 1 đêm không công khai giá (IB) → không tính tổng được.
     const ib = nN > 0 && nights.some((d) => nightPrice(r, d) == null);
     const stayPrice = nN > 0 && !ib ? nights.reduce((a, d) => a + (nightPrice(r, d) ?? 0), 0) : null;
@@ -383,6 +385,7 @@ export function HomestayBooking({
     let status: string, tone: "ok" | "low" | "full" | "idle";
     if (contactOnly) { status = "Nhắn để hỏi"; tone = "idle"; }
     else if (!nN) { status = "Chọn ngày"; tone = "idle"; }
+    else if (roomFree && policyWarn) { status = "Không bán lẻ cuối tuần"; tone = "full"; }
     else if (!free) { status = "Hết phòng"; tone = "full"; }
     else { status = "Còn phòng"; tone = "ok"; }
     return { r, i, free, ib, stayPrice, stayStrike, wdP, weP, status, tone };
@@ -573,6 +576,11 @@ export function HomestayBooking({
                 ? "Giá tham khảo từng phòng bên dưới — nhắn tin để nhận thông tin phòng trống & giữ phòng."
                 : nN ? `Giá & tình trạng cho ${nN} đêm · ${dname(ci!)} → ${dname(coEff!)}.` : "Chọn ngày để xem giá và phòng trống cho cả kỳ ở."}
             </p>
+            {!contactOnly && policyWarn && (
+              <div className="mt-2 rounded-xl bg-amber-50 px-3.5 py-3 text-[13px] font-medium leading-relaxed text-amber-800">
+                ⚠️ {policyWarn}
+              </div>
+            )}
           </div>
           <div className="flex flex-col gap-3">
             {roomView.map((v) => {
@@ -695,7 +703,7 @@ export function HomestayBooking({
                                 : "bg-forest-100 text-forest-800 hover:bg-forest-200",
                           ].join(" ")}
                         >
-                          {!v.free ? "Hết phòng" : isSel ? "Đã chọn ✓" : "Chọn phòng"}
+                          {!v.free ? (v.tone === "full" ? v.status : "Hết phòng") : isSel ? "Đã chọn ✓" : "Chọn phòng"}
                         </button>
                         )}
                       </div>

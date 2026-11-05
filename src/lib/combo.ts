@@ -6,7 +6,10 @@ import { toNumber } from "./format";
 import { roomPricing, priceForDay, stayStrike, roomCommissionForNights } from "./availability";
 import { generateBookingCode } from "./utils";
 import { checkWeekendPolicy } from "./weekend-policy";
+import { payingChildren, partyLabel, DEFAULT_CHILD_FREE_UNDER } from "./occupancy";
 import type { ComboBookingInput } from "./validation";
+import { cabinAllocation, busCostPerPerson } from "./combo-pricing";
+export { cabinAllocation, busCostPerPerson } from "./combo-pricing";
 
 /** Giảm giá cố định cho mỗi combo (mỗi khách). */
 export const COMBO_DISCOUNT = 25000;
@@ -84,6 +87,8 @@ export interface ComboBusOption {
   fareOrigin: string | null;
   /** Số chỗ đơn còn ít nhất giữa 2 chiều. */
   seatsAvailable: number;
+  /** Số buồng ĐÔI còn ít nhất giữa 2 chiều (0 = không còn/không bán đôi). */
+  doubleAvailable: number;
   /** Dữ liệu XEM NHANH trong trang combo (không rời phễu đặt). */
   images: string[];
   outboundStops: ComboRouteStop[];
@@ -194,6 +199,8 @@ export interface ComboRoomOption {
   cover: string | null;
   featured: boolean; // Nổi bật → ưu tiên lên đầu kết quả combo
   priorityOrder: number; // thứ tự ưu tiên trong nhóm Nổi bật (số lớn hơn lên trước)
+  /** Trẻ DƯỚI tuổi này miễn phí (không tính sức chứa/giá) — cấu hình theo từng home. */
+  childFreeUnderAge: number;
   roomTypeId: string;
   roomId: string;
   roomName: string;
@@ -259,9 +266,13 @@ export interface ComboStayPlan {
   amenityScore: number;
 }
 
-/** Giá combo mỗi khách của một PHƯƠNG ÁN (tiền phòng là TỔNG cả đoàn). */
-export function planPricePerPerson(totalRoomCost: number, communal: boolean, people: number, fare: number): number {
-  return Math.max(0, Math.round(totalRoomCost / people) + fare - (communal ? 0 : COMBO_DISCOUNT));
+/**
+ * Giá combo mỗi khách của một PHƯƠNG ÁN (tiền phòng là TỔNG cả đoàn).
+ * `busPerPerson` = tiền xe MỖI KHÁCH theo cách xếp buồng thực tế (busCostPerPerson),
+ * KHÔNG phải vé khứ hồi trần — đoàn lẻ có người nằm buồng riêng (2×vé) nên đắt hơn.
+ */
+export function planPricePerPerson(totalRoomCost: number, communal: boolean, people: number, busPerPerson: number): number {
+  return Math.max(0, Math.round(totalRoomCost / people) + busPerPerson - (communal ? 0 : COMBO_DISCOUNT));
 }
 
 /** Một homestay cùng các phương án ghép phòng khả dụng (cho thẻ combo v3). */
@@ -275,6 +286,12 @@ export interface ComboHomeOption {
   featured: boolean; // Nổi bật → ưu tiên lên đầu kết quả combo
   priorityOrder: number; // thứ tự ưu tiên trong nhóm Nổi bật (số lớn hơn lên trước)
   amenities: string[]; // nhãn tiện ích để hiển thị
+  /** Trẻ DƯỚI tuổi này miễn phí ở home này. */
+  childFreeUnderAge: number;
+  /** Số khách TÍNH PHÍ ở home này = người lớn + trẻ ≥ ngưỡng (quyết định ghép phòng + chia giá). */
+  billable: number;
+  /** Số trẻ MIỄN PHÍ ở home này (dưới ngưỡng) — đi/ngủ cùng, không tính tiền. */
+  freeChildren: number;
   rooms: ComboRoomOption[]; // mọi phòng trống khớp tiêu chí (tham khảo)
   /** Phương án ghép phòng đủ chỗ cho cả đoàn, rẻ nhất trước (tối đa 3). */
   plans: ComboStayPlan[];
@@ -287,7 +304,12 @@ export interface ComboSearchResult {
   checkIn: string;
   checkOut: string;
   nights: number;
+  /** TỔNG số khách (người lớn + mọi trẻ, kể cả trẻ miễn phí) — để hiển thị tóm tắt. */
   people: number;
+  /** Người lớn. */
+  adults: number;
+  /** Tuổi từng trẻ (số tính phí/miễn phí xét theo ngưỡng của từng home). */
+  childrenAges: number[];
   /** Điểm xuất phát khách đã chọn (null = không chọn → giá chuyến mặc định). */
   origin: string | null;
   budget: number | null;
@@ -515,7 +537,11 @@ export function buildStayPlans(rooms: ComboRoomOption[], people: number): ComboS
 export async function findComboMatches(input: {
   fromKey: string;
   toKey: string;
+  /** Người lớn (nếu không truyền adults thì dùng people làm số người lớn — link cũ). */
   people: number;
+  adults?: number | null;
+  /** Tuổi từng trẻ; trẻ dưới ngưỡng miễn phí của mỗi home không tính phí/sức chứa. */
+  childrenAges?: number[] | null;
   /** Điểm xuất phát (điểm đón) — giá vé lấy theo bảng giá chặng của nhà xe. */
   origin?: string | null;
   budget: number | null;
@@ -529,7 +555,12 @@ export async function findComboMatches(input: {
   const { fromKey, toKey, filters } = input;
   const origin = input.origin?.trim() || null;
   const roomKind = input.roomKind ?? "all";
-  const people = Math.max(1, Math.floor(input.people) || 1);
+  // Người lớn + trẻ em. Số khách TÍNH PHÍ (billable) xét RIÊNG theo ngưỡng miễn phí của từng home.
+  const adults = Math.max(1, Math.floor(input.adults ?? input.people) || 1);
+  const childrenAges = (input.childrenAges ?? []).filter((a) => Number.isFinite(a) && a >= 0);
+  const totalPeople = adults + childrenAges.length;
+  // Số tính phí tối thiểu (mọi trẻ đều miễn phí) để lọc sơ bộ danh sách xe — từng thẻ lọc tiếp theo home.
+  const minBillable = adults;
   const priceMax = input.priceMax && input.priceMax > 0 ? input.priceMax : null;
   const priceMin = input.priceMin && input.priceMin > 0 ? input.priceMin : null;
   // Chọn khoảng giá → neo sắp xếp vào mép khoảng (ưu tiên combo sát mức đã chọn).
@@ -549,7 +580,9 @@ export async function findComboMatches(input: {
     checkIn: toDateKey(checkIn),
     checkOut: toDateKey(checkOut),
     nights: nights.length,
-    people,
+    people: totalPeople,
+    adults,
+    childrenAges,
     origin,
     budget,
     priceMax,
@@ -560,12 +593,17 @@ export async function findComboMatches(input: {
     findBuses(from, to, origin),
     findRooms(nights, filters, roomKind),
   ]);
-  // Xe phải còn đủ chỗ (cabin đơn) cho cả đoàn ở cả hai chiều.
-  const buses = allBuses.filter((b) => b.seatsAvailable >= people);
+  // Lọc sơ bộ: xe còn đủ chỗ cho ít nhất số người lớn (từng thẻ lọc tiếp theo số tính phí của home).
+  const buses = allBuses.filter((b) => cabinAllocation(minBillable, b.seatsAvailable, b.doubleAvailable) != null);
 
   // Gom phòng theo homestay rồi SINH PHƯƠNG ÁN GHÉP PHÒNG đủ chỗ cho cả đoàn
   // (10 người → "5× Phòng đơn" / "4× Phòng đôi + 2× Phòng đơn" / dorm...).
-  const cheapestFare = buses.length ? Math.min(...buses.map((b) => b.farePerPerson)) : 0;
+  // Tiền xe/khách RẺ NHẤT cho đoàn `n` người, theo cách xếp buồng thực tế của từng xe
+  // (đoàn lẻ có người nằm buồng riêng = 2×vé) — khớp đúng giá khi bấm đặt.
+  const cheapestBusFor = (n: number) => {
+    const costs = buses.map((b) => busCostPerPerson(b, n)).filter((c): c is number => c != null);
+    return costs.length ? Math.min(...costs) : 0;
+  };
   const FEAT: [keyof ComboRoomFeatures, string][] = [
     ["cloudView", "⛅ View mây"],
     ["hasBathtub", "🛁 Bồn tắm"],
@@ -577,17 +615,21 @@ export async function findComboMatches(input: {
   for (const r of rooms) {
     let h = homeMap.get(r.serviceId);
     if (!h) {
-      h = { serviceId: r.serviceId, slug: r.slug, title: r.title, area: r.area, distanceKm: r.distanceKm, cover: r.cover, featured: r.featured, priorityOrder: r.priorityOrder, amenities: [], rooms: [], plans: [], bestPricePerPerson: 0 };
+      // Số tính phí của home = người lớn + trẻ TỪ ngưỡng miễn phí của chính home đó.
+      const billable = adults + payingChildren(childrenAges, r.childFreeUnderAge);
+      h = { serviceId: r.serviceId, slug: r.slug, title: r.title, area: r.area, distanceKm: r.distanceKm, cover: r.cover, featured: r.featured, priorityOrder: r.priorityOrder, amenities: [], childFreeUnderAge: r.childFreeUnderAge, billable, freeChildren: childrenAges.length - payingChildren(childrenAges, r.childFreeUnderAge), rooms: [], plans: [], bestPricePerPerson: 0 };
       homeMap.set(r.serviceId, h);
     }
     h.rooms.push(r);
   }
   const homes: ComboHomeOption[] = [];
   for (const h of homeMap.values()) {
-    let plans = buildStayPlans(h.rooms, people);
+    // Ghép phòng + chia giá theo SỐ TÍNH PHÍ của home (trẻ miễn phí ở cùng, không chiếm chỗ tính phí).
+    let plans = buildStayPlans(h.rooms, h.billable);
+    const cheapestBus = cheapestBusFor(h.billable);
     // Lọc khoảng giá theo phương án rẻ nhất có thể (xe rẻ nhất): ngoài khoảng → ẩn.
     if ((priceMax != null || priceMin != null) && buses.length > 0) {
-      plans = plans.filter((p) => inRange(planPricePerPerson(p.roomCost, p.communal, people, cheapestFare)));
+      plans = plans.filter((p) => inRange(planPricePerPerson(p.roomCost, p.communal, h.billable, cheapestBus)));
     }
     if (plans.length === 0) continue;
     const amen = new Set<string>();
@@ -598,7 +640,7 @@ export async function findComboMatches(input: {
     }
     h.amenities = [...amen];
     h.plans = plans;
-    h.bestPricePerPerson = Math.min(...plans.map((p) => planPricePerPerson(p.roomCost, p.communal, people, cheapestFare)));
+    h.bestPricePerPerson = Math.min(...plans.map((p) => planPricePerPerson(p.roomCost, p.communal, h.billable, cheapestBus)));
     homes.push(h);
   }
   // Ưu tiên: homestay Nổi bật (+ thứ tự ưu tiên) lên đầu, rồi mới tới giá (gần ngân sách).
@@ -649,8 +691,8 @@ async function findBuses(from: Date, to: Date, origin: string | null): Promise<C
     const outbound = s.cabinTrips.find((t) => t.direction === "OUTBOUND");
     const ret = s.cabinTrips.find((t) => t.direction === "RETURN");
     if (!outbound || !ret) continue;
-    const okOut = BOOKABLE.includes(outbound.status) && outbound.seatsAvailable > 0;
-    const okRet = BOOKABLE.includes(ret.status) && ret.seatsAvailable > 0;
+    const okOut = BOOKABLE.includes(outbound.status) && outbound.seatsAvailable + outbound.seatsDoubleAvailable > 0;
+    const okRet = BOOKABLE.includes(ret.status) && ret.seatsAvailable + ret.seatsDoubleAvailable > 0;
     if (!okOut || !okRet) continue;
     let fare = (toNumber(outbound.price) ?? 0) + (toNumber(ret.price) ?? 0);
     let fareOrigin: string | null = null;
@@ -685,6 +727,7 @@ async function findBuses(from: Date, to: Date, origin: string | null): Promise<C
       farePerPerson: fare,
       fareOrigin,
       seatsAvailable: Math.min(outbound.seatsAvailable, ret.seatsAvailable),
+      doubleAvailable: Math.min(outbound.seatsDoubleAvailable, ret.seatsDoubleAvailable),
       images: s.images.map((i) => i.url).filter((u) => !VIDEO_URL_RE.test(u)),
       outboundStops: stopsOf("OUTBOUND"),
       returnStops: stopsOf("RETURN"),
@@ -729,7 +772,11 @@ async function findRooms(
   });
 
   // Tất cả phòng con khớp tiêu chí.
-  const allRooms = services.flatMap((s) =>
+  const allRooms = services
+    // Kỳ vi phạm chính sách bán cuối tuần của home (vd chỉ đêm T7) → không ghép combo
+    // (trước đây vẫn hiện kết quả rồi mới báo lỗi khi gửi đơn).
+    .filter((s) => checkWeekendPolicy(s.weekendPolicy, nights) == null)
+    .flatMap((s) =>
     s.roomTypes.flatMap((rt) =>
       rt.rooms.map((room) => ({ s, rt, room })),
     ),
@@ -755,6 +802,9 @@ async function findRooms(
     if (!free) continue;
     const kind = roomKindOf(room.capacity, rt.name);
     if (roomKind !== "all" && kind !== roomKind) continue;
+    // Đêm nào giá ≤ 0 (IB / chưa nhập giá) → không ghép combo (trước đây đêm đó bị tính 0đ).
+    const pr = roomPricing(room);
+    if (nights.some((d) => priceForDay(d, pr, null) <= 0)) continue;
     const { total: roomCost, strikeTotal: roomCostOld } = stayStrike(nights, room);
     if (roomCost <= 0) continue;
     out.push({
@@ -766,6 +816,7 @@ async function findRooms(
       cover: firstImageUrl(room.images) ?? (rt.imageUrl && !VIDEO_URL_RE.test(rt.imageUrl) ? rt.imageUrl : null) ?? s.images[0]?.url ?? null,
       featured: s.featured,
       priorityOrder: s.priorityOrder,
+      childFreeUnderAge: s.childFreeUnderAge ?? DEFAULT_CHILD_FREE_UNDER,
       roomTypeId: rt.id,
       roomId: room.id,
       roomName: `${rt.name} · ${room.name}`,
@@ -807,7 +858,9 @@ export async function createComboBooking(
   input: ComboBookingInput,
   ctvId?: string | null,
 ): Promise<CreateComboBookingResult> {
-  const people = Math.max(1, Math.floor(input.people) || 1);
+  // Người lớn + tuổi từng trẻ. Số khách TÍNH PHÍ tính lại theo ngưỡng miễn phí của CHÍNH home này.
+  const adults = Math.max(1, Math.floor(input.adults ?? input.people) || 1);
+  const childrenAges = (input.childrenAges ?? []).filter((a) => Number.isFinite(a) && a >= 0);
   const from = parseDateOnly(input.fromKey); // ngày đi
   const to = parseDateOnly(input.toKey); // ngày về = check-out
   const checkIn = addDays(from, 1);
@@ -828,21 +881,44 @@ export async function createComboBooking(
   ) {
     throw new Error("Phòng homestay không hợp lệ.");
   }
+  // Số khách TÍNH PHÍ ở home này (trẻ dưới ngưỡng miễn phí ở cùng, không tính). `people` dùng
+  // cho mọi phép tính chỗ/giá bên dưới; trẻ miễn phí chỉ hiện trong nhãn.
+  const freeUnder = svc.childFreeUnderAge ?? DEFAULT_CHILD_FREE_UNDER;
+  const paidKids = payingChildren(childrenAges, freeUnder);
+  const freeKids = childrenAges.length - paidKids;
+  const people = adults + paidKids;
   const policyNote = checkWeekendPolicy(svc.weekendPolicy, nights);
   if (policyNote) throw new Error(policyNote);
   const outbound = await prisma.cabinTrip.findUnique({ where: { id: input.outboundTripId } });
   const ret = await prisma.cabinTrip.findUnique({ where: { id: input.returnTripId } });
   if (!outbound || outbound.direction !== "OUTBOUND") throw new Error("Chuyến đi không hợp lệ.");
   if (!ret || ret.direction !== "RETURN") throw new Error("Chuyến về không hợp lệ.");
+  // Chuyến phải đúng ngày đã chọn, cùng một nhà xe đang đăng, và đang mở bán.
+  if (toDateKey(outbound.departureDate) !== input.fromKey || toDateKey(ret.departureDate) !== input.toKey) {
+    throw new Error("Chuyến xe không khớp ngày đi/về đã chọn — vui lòng tìm lại.");
+  }
+  if (outbound.serviceId !== ret.serviceId) throw new Error("Chuyến đi và chuyến về phải cùng một nhà xe.");
+  const busService = await prisma.service.findFirst({
+    where: { id: outbound.serviceId, category: "CABIN", published: true },
+    select: { id: true },
+  });
+  if (!busService) throw new Error("Nhà xe không còn nhận đặt.");
+  if (!BOOKABLE.includes(outbound.status) || !BOOKABLE.includes(ret.status)) {
+    throw new Error("Chuyến xe đã hết chỗ hoặc tạm dừng bán — vui lòng chọn chuyến khác.");
+  }
 
   // Tính tiền TỪNG phòng trong phương án phía server.
   const costs = roomList.map((r) => {
     const pricing = roomPricing(r);
     let c = 0;
-    for (const d of nights) c += priceForDay(d, pricing, null);
+    for (const d of nights) {
+      const p = priceForDay(d, pricing, null);
+      // Đêm giá ≤ 0 (IB/chưa nhập) → không tự tính được (trước đây cộng 0đ cho đêm đó).
+      if (p <= 0) throw new Error(`Phòng ${r.name} chưa có giá đêm ${toDateKey(d)} — vui lòng liên hệ để báo giá.`);
+      c += p;
+    }
     return c;
   });
-  if (costs.some((c) => c <= 0)) throw new Error("Có phòng chưa cập nhật giá cho khoảng ngày này.");
   const communalFlags = roomList.map((r) => isCommunalRoom(r.roomType.name, r.name));
   const communal = communalFlags.every(Boolean);
   if (!communal && communalFlags.some(Boolean)) {
@@ -909,13 +985,22 @@ export async function createComboBooking(
   // Chỗ nằm xe cabin: mỗi BUỒNG round-trip = 2×vé khứ hồi (fare). Nằm ghép (đôi) = 2 người/buồng
   // (= fare/người, như cũ); nằm riêng (đơn) = 1 người/buồng (= 2×fare/người). Client cũ (0/0) →
   // tự xếp tối đa ghép đôi, người lẻ nằm riêng.
+  const singleAvail = Math.min(outbound.seatsAvailable, ret.seatsAvailable);
+  const doubleAvail = Math.min(outbound.seatsDoubleAvailable, ret.seatsDoubleAvailable);
   let nDouble = input.cabinDouble ?? 0;
   let nSingle = input.cabinSingle ?? 0;
   if (nSingle + nDouble === 0) {
-    nDouble = Math.floor(people / 2);
-    nSingle = people - nDouble * 2;
+    // Client cũ: tự xếp theo số buồng còn thật (chuyến không bán đôi → toàn buồng đơn).
+    const a = cabinAllocation(people, singleAvail, doubleAvail);
+    if (!a) throw new Error("Xe không còn đủ chỗ cho cả đoàn.");
+    ({ nSingle, nDouble } = a);
   }
   if (nSingle + nDouble * 2 < people) throw new Error("Chỗ nằm trên xe chưa đủ cho cả đoàn.");
+  // Kiểm tra số buồng còn ở CẢ 2 chiều (tránh nhận đơn rồi xác nhận mới báo thiếu chỗ).
+  if (nDouble > doubleAvail) {
+    throw new Error(doubleAvail > 0 ? `Xe chỉ còn ${doubleAvail} cabin đôi.` : "Chuyến này không còn/không bán cabin đôi — vui lòng chọn cabin đơn.");
+  }
+  if (nSingle > singleAvail) throw new Error(`Xe chỉ còn ${singleAvail} cabin đơn.`);
   const roomShare = Math.round(roomCost / people);
   const busAmount = 2 * fare * (nSingle + nDouble); // mỗi buồng (đơn hoặc đôi) = 2×fare
   const total = Math.max(0, roomShare * people + busAmount - (communal ? 0 : COMBO_DISCOUNT * people));
@@ -944,7 +1029,8 @@ export async function createComboBooking(
   const selectionLabel =
     `Combo: xe ${outbound.operatorName || busSvc?.title || "cabin"} (đi ${toDateKey(outbound.departureDate)} ${outbound.departureTime}, ` +
     `về ${toDateKey(ret.departureDate)} ${ret.departureTime}${origin ? `, đón tại ${origin}` : ""}) + ${svc.title} · ${roomsLabel}, ` +
-    `${nights.length} đêm (${toDateKey(checkIn)}→${toDateKey(to)}) · ${people} người` +
+    `${nights.length} đêm (${toDateKey(checkIn)}→${toDateKey(to)}) · ${partyLabel(adults, childrenAges)}` +
+    (freeKids > 0 ? ` (${freeKids} trẻ miễn phí, ở cùng)` : "") +
     ` · xe nằm: ${[nDouble ? `${nDouble} cabin đôi` : null, nSingle ? `${nSingle} cabin đơn` : null].filter(Boolean).join(" + ")}`;
 
   let code = generateBookingCode();
@@ -969,6 +1055,8 @@ export async function createComboBooking(
       endDate: to,
       nights: nights.length,
       quantity: people,
+      adults,
+      childrenAges,
       roomTypeId: roomList[0].roomTypeId,
       roomId: roomList[0].id,
       roomIds: roomList.map((r) => r.id),

@@ -8,6 +8,7 @@ import {
   enumerateDays,
   toDateKey,
   nightsBetween,
+  today,
 } from "./dates";
 import {
   aggregateStay,
@@ -257,6 +258,12 @@ export async function createBooking(
 
   const kind = CATEGORIES[service.category].availabilityKind;
   const qty = input.quantity;
+
+  // Không nhận đặt cho ngày đã qua; giới hạn độ dài kỳ để tránh dữ liệu rác.
+  if (input.useDate < toDateKey(today())) throw new Error("Ngày sử dụng đã qua — vui lòng chọn ngày khác.");
+  if (input.endDate && nightsBetween(parseDateOnly(input.useDate), parseDateOnly(input.endDate)) > 60) {
+    throw new Error("Kỳ đặt tối đa 60 ngày.");
+  }
   // Homestay đặt theo từng phòng cụ thể → mỗi yêu cầu là 1 phòng.
   let bookingQty = qty;
 
@@ -286,7 +293,9 @@ export async function createBooking(
     // Lựa chọn là một PHÒNG cụ thể (id = roomId). Hỗ trợ cả roomTypeId cũ để tương thích.
     const pickId = input.roomId ?? input.roomTypeId;
     const opt = computed.stayOptions.find((o) => o.id === pickId);
-    if (opt) {
+    // Có danh sách phòng mà id gửi lên không khớp → không tạo đơn "trống" (không phòng, không giá).
+    if (!opt) throw new Error("Phòng đã chọn không hợp lệ — vui lòng tải lại trang và chọn lại phòng.");
+    {
       roomId = opt.id;
       const room = await prisma.room.findUnique({
         where: { id: opt.id },
@@ -315,6 +324,7 @@ export async function createBooking(
     }
   } else if (computed?.kind === "rental" && computed.stayOptions) {
     const opt = computed.stayOptions.find((o) => o.id === input.rentalVehicleId);
+    if (!opt && computed.stayOptions.length > 0) throw new Error("Loại xe đã chọn không hợp lệ — vui lòng chọn lại.");
     if (opt) {
       rentalVehicleId = opt.id;
       selectionLabel = opt.name;
@@ -324,6 +334,7 @@ export async function createBooking(
     }
   } else if (computed?.kind === "trip" && computed.tripOptions) {
     const opt = computed.tripOptions.find((o) => o.id === input.cabinTripId);
+    if (!opt && computed.tripOptions.length > 0) throw new Error("Chuyến đã chọn không hợp lệ — vui lòng chọn lại.");
     if (opt) {
       cabinTripId = opt.id;
       selectionLabel = `${opt.label} · ${opt.departureTime}`;
