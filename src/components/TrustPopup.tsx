@@ -1,55 +1,94 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { OFFICIAL_SITES, telHref, zaloHref, type TrustPopupConfig, type TrustPerson } from "@/lib/trust-popup";
+import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
+import { CATEGORY_LIST } from "@/lib/constants";
+import type { TrustPopupConfig } from "@/lib/trust-popup";
+import { CommitmentIntro, FiveKhongBlock, PeopleColumn, PromisesBlock } from "@/components/trust/parts";
 
-/** Key localStorage: khách tick "không hiện lại trong 7 ngày". */
+/** Key localStorage: khách đóng popup → không hiện lại trong 7 ngày. */
 const HIDE_KEY = "txb-trust-popup";
+/** Key sessionStorage: khách đã bấm xem 1 dịch vụ → không làm phiền nữa trong phiên. */
+const VIEW_KEY = "txb-viewed-service";
 const HIDE_MS = 7 * 864e5;
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  const last = parts[parts.length - 1]?.[0] ?? "";
-  const first = parts[0]?.[0] ?? "";
-  return (first + last).toUpperCase() || "?";
+const CAT_SLUGS = new Set(CATEGORY_LIST.map((c) => c.slug));
+
+/** Đường dẫn là trang CHI TIẾT dịch vụ (vd /homestay/abc, /xe-cabin/abc) → coi như "đã xem dịch vụ". */
+function isServiceDetail(path: string): boolean {
+  const segs = path.split("/").filter(Boolean);
+  return segs.length >= 2 && CAT_SLUGS.has(segs[0]);
 }
 
 export function TrustPopup({ config }: { config: TrustPopupConfig }) {
   const [open, setOpen] = useState(false);
-  const [hide, setHide] = useState(false);
   const [wide, setWide] = useState(true);
+  const pathname = usePathname();
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Khách bấm xem 1 dịch vụ (kể cả điều hướng SPA trong lúc đang chờ): đánh dấu
+  // đã xem + đóng popup nếu lỡ hiện → không làm phiền nữa.
+  useEffect(() => {
+    if (isServiceDetail(pathname)) {
+      try {
+        sessionStorage.setItem(VIEW_KEY, "1");
+      } catch {
+        /* chế độ riêng tư */
+      }
+      setOpen(false);
+    }
+  }, [pathname]);
 
   useEffect(() => {
     if (!config.enabled || config.people.length === 0) return;
     setWide(window.innerWidth >= 720);
     const onResize = () => setWide(window.innerWidth >= 720);
     window.addEventListener("resize", onResize);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") close();
+    };
+    window.addEventListener("keydown", onKey);
 
-    // Hiện mỗi lần TẢI TRANG (F5 / mở trực tiếp URL). Chuyển trang bằng link nội
-    // bộ (SPA) không mount lại component nên không hiện lại — đúng ý "chuyển trang
-    // không hiện lại". Chỉ bỏ qua khi khách đã tick "không hiện lại 7 ngày".
-    let show = true;
+    // Quy tắc hiện popup:
+    //  - KHÔNG hiện ngay khi tải trang.
+    //  - Sau 5–8 giây mới hiện (nếu đủ điều kiện).
+    //  - Đã đóng trong 7 ngày → bỏ qua.
+    //  - Đã bấm xem dịch vụ trong phiên → bỏ qua.
+    //  - Vào thẳng trang chi tiết dịch vụ → bỏ qua (khách đang xem dịch vụ rồi).
+    let skip = false;
     try {
       const t = Number(localStorage.getItem(HIDE_KEY));
-      if (t && Date.now() - t < HIDE_MS) show = false;
+      if (t && Date.now() - t < HIDE_MS) skip = true;
+      if (sessionStorage.getItem(VIEW_KEY) === "1") skip = true;
     } catch {
       /* chế độ riêng tư: vẫn hiện bình thường */
     }
-    if (show) setOpen(true);
+    if (typeof window !== "undefined" && isServiceDetail(window.location.pathname)) skip = true;
 
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
+    if (!skip) {
+      const delay = 5000 + Math.floor(Math.random() * 3000); // 5–8 giây
+      timer.current = setTimeout(() => {
+        let viewed = false;
+        try {
+          viewed = sessionStorage.getItem(VIEW_KEY) === "1";
+        } catch {
+          /* bỏ qua */
+        }
+        if (!viewed) setOpen(true);
+      }, delay);
+    }
+
     return () => {
+      if (timer.current) clearTimeout(timer.current);
       window.removeEventListener("resize", onResize);
       window.removeEventListener("keydown", onKey);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config.enabled, config.people.length]);
 
   function close() {
     try {
-      if (hide) localStorage.setItem(HIDE_KEY, String(Date.now()));
+      localStorage.setItem(HIDE_KEY, String(Date.now()));
     } catch {
       /* bỏ qua */
     }
@@ -155,224 +194,14 @@ export function TrustPopup({ config }: { config: TrustPopupConfig }) {
           ×
         </div>
 
-        {/* TRÁI: người thật */}
-        <div
-          style={{
-            position: "relative",
-            background: "linear-gradient(170deg, oklch(0.36 0.07 160), oklch(0.24 0.05 165))",
-            color: "white",
-            padding: wide ? "36px 28px" : "30px 16px 20px",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 18,
-            textAlign: "center",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 800,
-              letterSpacing: ".14em",
-              textTransform: "uppercase",
-              color: "oklch(0.85 0.1 70)",
-            }}
-          >
-            Xin chào, tụi mình là
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: wide ? 12 : 10,
-              width: "100%",
-              maxWidth: 340,
-            }}
-          >
-            {config.people.map((u, i) => (
-              <PersonCard key={i} u={u} wide={wide} />
-            ))}
-          </div>
-          <div
-            style={{
-              fontSize: 13,
-              lineHeight: 1.55,
-              color: "oklch(0.88 0.03 160)",
-              maxWidth: 300,
-            }}
-          >
-            Hai đứa mình trực tiếp nghe máy, tư vấn và giữ chỗ cho từng khách. Liên hệ ai cũng được.
-          </div>
-
-          {/* Website chính thức duy nhất */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 8,
-              width: "100%",
-              maxWidth: 340,
-              paddingTop: 14,
-              borderTop: "1px solid oklch(1 0 0 / .14)",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 800,
-                letterSpacing: ".12em",
-                textTransform: "uppercase",
-                color: "oklch(0.85 0.1 70)",
-              }}
-            >
-              Website chính thức duy nhất
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, width: "100%" }}>
-              {OFFICIAL_SITES.map((name) => (
-                <a
-                  key={name}
-                  href={`https://${name}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-white transition-colors hover:bg-[oklch(0.95_0.03_155)]"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: "10px 8px",
-                    borderRadius: 999,
-                    color: "oklch(0.29 0.055 160)",
-                    fontSize: 14,
-                    fontWeight: 800,
-                    textDecoration: "none",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {name}
-                </a>
-              ))}
-            </div>
-            <div style={{ fontSize: 11, lineHeight: 1.5, color: "oklch(0.82 0.03 160)" }}>
-              Ngoài {OFFICIAL_SITES.length} địa chỉ này đều là giả mạo.
-            </div>
-          </div>
-        </div>
+        {/* TRÁI: người thật + website */}
+        <PeopleColumn people={config.people} wide={wide} />
 
         {/* PHẢI: cam kết */}
         <div style={{ padding: wide ? "36px 32px 28px" : "20px 18px calc(18px + env(safe-area-inset-bottom))", display: "flex", flexDirection: "column", gap: 16 }}>
-          <div>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-                fontSize: 12,
-                fontWeight: 800,
-                letterSpacing: ".08em",
-                textTransform: "uppercase",
-                padding: "5px 10px",
-                borderRadius: 999,
-                background: "oklch(0.95 0.04 155)",
-                color: "oklch(0.38 0.1 155)",
-              }}
-            >
-              ✓ Cam kết uy tín
-            </div>
-            <h2
-              style={{
-                margin: "10px 0 0",
-                fontSize: "clamp(24px,3.2vw,32px)",
-                fontWeight: 800,
-                letterSpacing: "-.025em",
-                lineHeight: 1.12,
-              }}
-            >
-              Website thật, người thật, không scam.
-            </h2>
-            <div style={{ fontSize: 14, lineHeight: 1.6, color: "oklch(0.45 0.02 160)", marginTop: 8 }}>
-              Tụi mình dám cam kết bằng tiền thật, ghi rõ ra đây để bạn yên tâm đặt dịch vụ.
-            </div>
-          </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            <PromiseRow
-              amount="100 triệu"
-              sub="100.000.000đ"
-              amountColor="oklch(0.58 0.18 42)"
-              subColor="oklch(0.5 0.1 50)"
-              bg="oklch(0.97 0.03 70)"
-              border="1.5px solid oklch(0.88 0.08 65)"
-            >
-              <b>Nếu ai chứng minh được tụi mình scam</b>, tụi mình trao thưởng 100.000.000 đồng.
-            </PromiseRow>
-            <PromiseRow
-              amount="10 triệu"
-              sub="10.000.000đ"
-              amountColor="oklch(0.42 0.11 155)"
-              subColor="oklch(0.45 0.08 155)"
-              bg="oklch(0.97 0.02 155)"
-              border="1.5px solid oklch(0.86 0.06 155)"
-            >
-              <span style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
-                <span>
-                  <b>Nếu giá tụi mình chốt bill cho bạn cao hơn giá niêm yết</b> của chính nhà xe, homestay, tụi mình đền 10.000.000 đồng.
-                </span>
-                <span style={{ fontSize: 12, lineHeight: 1.5, color: "oklch(0.45 0.03 155)" }}>
-                  Cam kết tính theo giá chốt bill qua Zalo. Giá hiển thị trên web chỉ để tham khảo, có thể chưa kịp cập nhật khi chủ dịch vụ vừa đổi giá.
-                </span>
-              </span>
-            </PromiseRow>
-          </div>
-
-          {five.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                <span style={{ fontSize: 20, fontWeight: 800, letterSpacing: "-.02em", color: "oklch(0.29 0.055 160)" }}>
-                  Cam kết {five.length} Không
-                </span>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "oklch(0.5 0.02 160)" }}>của Tà Xùa Booking</span>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-                {five.map((t, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      padding: "9px 10px",
-                      borderRadius: 12,
-                      background: "oklch(0.97 0.006 160)",
-                      fontSize: 13,
-                      fontWeight: 700,
-                      lineHeight: 1.3,
-                    }}
-                  >
-                    <span
-                      style={{
-                        width: 22,
-                        height: 22,
-                        flex: "none",
-                        borderRadius: "50%",
-                        background: "oklch(0.29 0.055 160)",
-                        color: "white",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: 11,
-                        fontWeight: 800,
-                      }}
-                    >
-                      {i + 1}
-                    </span>
-                    {t}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <CommitmentIntro showSub={wide} />
+          <PromisesBlock termsHref="/cam-ket" />
+          <FiveKhongBlock five={five} />
 
           <div style={{ flex: 1 }} />
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -393,145 +222,12 @@ export function TrustPopup({ config }: { config: TrustPopupConfig }) {
             >
               Tôi đã hiểu, xem dịch vụ →
             </button>
-            <label
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                fontSize: 12,
-                color: "oklch(0.5 0.02 160)",
-                cursor: "pointer",
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={hide}
-                onChange={(e) => setHide(e.target.checked)}
-                style={{ accentColor: "oklch(0.35 0.08 160)" }}
-              />
-              Không hiện lại trong 7 ngày
-            </label>
+            <div style={{ textAlign: "center", fontSize: 12, color: "oklch(0.5 0.02 160)" }}>
+              Đóng lại sẽ không hiện lại trong 7 ngày.
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function PersonCard({ u, wide }: { u: TrustPerson; wide: boolean }) {
-  const av = wide ? 96 : 72;
-  const tel = telHref(u);
-  const zalo = zaloHref(u);
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 10,
-        padding: wide ? "16px 10px 14px" : "12px 8px 10px",
-        borderRadius: 20,
-        background: "oklch(1 0 0 / .08)",
-        border: "1px solid oklch(1 0 0 / .14)",
-        minWidth: 0,
-      }}
-    >
-      <div
-        style={{
-          width: av,
-          height: av,
-          borderRadius: "50%",
-          overflow: "hidden",
-          border: "4px solid white",
-          boxShadow: "0 10px 24px -8px oklch(0.1 0.03 160 / .6)",
-          flex: "none",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "oklch(0.5 0.08 160)",
-          fontSize: av * 0.36,
-          fontWeight: 800,
-          color: "white",
-        }}
-      >
-        {u.avatar ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={u.avatar} alt={u.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-        ) : (
-          initials(u.name)
-        )}
-      </div>
-      <div style={{ minWidth: 0, width: "100%" }}>
-        <div style={{ fontSize: 16, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{u.name}</div>
-        <div style={{ fontSize: 12, fontWeight: 600, color: "oklch(0.85 0.03 160)", marginTop: 2, whiteSpace: "nowrap" }}>{u.phone}</div>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6, width: "100%" }}>
-        <a
-          href={u.facebook || "#"}
-          target="_blank"
-          rel="noopener noreferrer"
-          title={`Facebook ${u.name}`}
-          style={{ height: 38, borderRadius: 12, background: "oklch(0.5 0.16 255)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, textDecoration: "none" }}
-        >
-          f
-        </a>
-        <a
-          href={zalo || "#"}
-          target="_blank"
-          rel="noopener noreferrer"
-          title={`Zalo ${u.name}`}
-          style={{ height: 38, borderRadius: 12, background: "oklch(0.6 0.14 245)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, textDecoration: "none" }}
-        >
-          Zalo
-        </a>
-        <a
-          href={tel || "#"}
-          title={`Gọi ${u.name}`}
-          style={{ height: 38, borderRadius: 12, background: "oklch(0.68 0.18 45)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, textDecoration: "none" }}
-        >
-          ☎
-        </a>
-      </div>
-    </div>
-  );
-}
-
-function PromiseRow({
-  amount,
-  sub,
-  amountColor,
-  subColor,
-  bg,
-  border,
-  children,
-}: {
-  amount: string;
-  sub: string;
-  amountColor: string;
-  subColor: string;
-  bg: string;
-  border: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "auto minmax(0,1fr)",
-        gap: 14,
-        alignItems: "center",
-        padding: 16,
-        borderRadius: 18,
-        background: bg,
-        border,
-      }}
-    >
-      <div style={{ textAlign: "center", minWidth: 96 }}>
-        <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1, color: amountColor }}>{amount}</div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: subColor, marginTop: 3 }}>{sub}</div>
-      </div>
-      <div style={{ fontSize: 14, lineHeight: 1.5 }}>{children}</div>
     </div>
   );
 }
