@@ -38,17 +38,28 @@ export function BackgroundMusic() {
         () => {}, // vẫn bị chặn → chờ tương tác kế tiếp
       );
     };
-    const onFirst = () => {
-      start();
-      remove();
-    };
-    const evts = ["pointerdown", "keydown", "touchstart"] as const;
-    const remove = () => evts.forEach((e) => window.removeEventListener(e, onFirst));
+    // Chỉ các sự kiện này mới được trình duyệt tính là "kích hoạt người dùng" cho phép
+    // phát tiếng: trên điện thoại là touchend/click (KHÔNG phải touchstart/pointerdown).
+    // Giữ bộ nghe tới khi phát THÀNH CÔNG — lần chạm đầu bị từ chối vẫn thử lại lần sau.
+    const evts = ["click", "touchend", "pointerup", "keydown"] as const;
+    const remove = () => evts.forEach((e) => window.removeEventListener(e, onGesture, true));
+    function onGesture() {
+      if (!a || !a.paused) return remove();
+      a.volume = VOLUME;
+      a.play().then(
+        () => {
+          setPlaying(true);
+          remove();
+        },
+        () => {},
+      );
+    }
 
     // Thử phát ngay (được phép nếu khách đã tương tác với site trước đó); không được thì chờ.
     a.play().then(
       () => setPlaying(true),
-      () => evts.forEach((e) => window.addEventListener(e, onFirst, { once: true, passive: true })),
+      // capture: bắt cả khi phần tử con chặn lan truyền sự kiện (vd nút đóng popup).
+      () => evts.forEach((e) => window.addEventListener(e, onGesture, { capture: true, passive: true })),
     );
 
     // Ẩn tab → dừng; quay lại → phát tiếp (nếu đang phát trước đó).
