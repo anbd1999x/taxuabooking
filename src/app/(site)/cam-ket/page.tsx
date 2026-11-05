@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getSettings } from "@/lib/queries";
 import { parseTrustPopup, TRUST_POPUP_KEY, OFFICIAL_SITES } from "@/lib/trust-popup";
 import { CommitmentIntro, FiveKhongBlock, PeopleColumn, PromisesBlock } from "@/components/trust/parts";
@@ -30,44 +31,24 @@ export default async function CommitmentPage() {
           <PeopleColumn people={config.people} wide />
           <div className="flex flex-col gap-4 p-6 sm:p-9">
             <CommitmentIntro showSub />
-            <PromisesBlock termsHref="#dieu-kien" />
+            <PromisesBlock termsHref="/cam-ket/dieu-khoan" />
             <FiveKhongBlock five={config.fiveRules} />
           </div>
         </div>
 
-        {/* Điều kiện áp dụng */}
-        <section id="dieu-kien" className="mx-auto mt-8 max-w-3xl scroll-mt-20">
-          <h2 className="text-xl font-extrabold tracking-tight text-forest-800 sm:text-2xl">Điều kiện áp dụng</h2>
-          <div className="mt-4 flex flex-col gap-4 text-[15px] leading-relaxed text-gray-700">
-            <div className="rounded-2xl border border-black/5 bg-white p-5">
-              <div className="font-bold text-forest-800">1. Bồi thường đến 100.000.000đ — cam kết minh bạch</div>
-              <p className="mt-1.5">
-                Áp dụng khi có bằng chứng Tà Xùa Booking (qua kênh chính thức) nhận tiền của khách mà{" "}
-                <b>không cung cấp dịch vụ</b> đã thoả thuận và không hoàn lại tiền. Bằng chứng gồm: nội dung chốt đơn qua
-                Zalo, biên lai/chuyển khoản, và mã đơn do hệ thống cấp.
-              </p>
-            </div>
-            <div className="rounded-2xl border border-black/5 bg-white p-5">
-              <div className="font-bold text-forest-800">2. Đền 10.000.000đ — không bán cao hơn giá gốc</div>
-              <p className="mt-1.5">
-                Áp dụng khi giá tụi mình <b>chốt bill qua Zalo</b> cao hơn <b>giá niêm yết của chính nhà xe/homestay</b>{" "}
-                trong <b>cùng ngày</b> cho cùng loại phòng/vé. Giá chốt qua Zalo là giá cuối cùng, không tăng thêm sau khi
-                bạn đồng ý. Giá hiển thị trên web chỉ để tham khảo, có thể chưa kịp cập nhật khi chủ dịch vụ vừa đổi giá.
-              </p>
-            </div>
-            <div className="rounded-2xl border border-black/5 bg-white p-5">
-              <div className="font-bold text-forest-800">3. Kênh chính thức</div>
-              <p className="mt-1.5">
-                Mọi cam kết chỉ áp dụng cho giao dịch qua website chính thức{" "}
-                <b>{OFFICIAL_SITES.join(", ")}</b> và Zalo/điện thoại của hai người phụ trách ở trên. Ngoài các địa chỉ
-                này đều là giả mạo, Tà Xùa Booking không chịu trách nhiệm.
-              </p>
-            </div>
-            <p className="text-sm text-gray-500">
-              Có thắc mắc về cam kết? Nhắn Zalo cho tụi mình ở phần trên — hai đứa trực tiếp trả lời.
-            </p>
-          </div>
-        </section>
+        {/* Xem điều khoản đầy đủ */}
+        <div className="mx-auto mt-6 flex max-w-3xl flex-col items-center gap-3 text-center">
+          <Link
+            href="/cam-ket/dieu-khoan"
+            className="inline-flex items-center gap-1.5 rounded-full bg-forest-800 px-6 py-3 text-sm font-extrabold text-white transition hover:bg-forest-900"
+          >
+            Xem điều khoản cam kết đầy đủ →
+          </Link>
+          <p className="text-sm text-gray-500">
+            Mọi cam kết chỉ áp dụng cho giao dịch qua website chính thức <b>{OFFICIAL_SITES.join(", ")}</b> và Zalo/điện
+            thoại của hai người phụ trách ở trên. Ngoài các địa chỉ này đều là giả mạo.
+          </p>
+        </div>
       </div>
     </div>
   );
