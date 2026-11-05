@@ -168,20 +168,39 @@ async function getCabinOperatorsImpl(
       orderBy: [{ featured: "desc" }, { title: "asc" }],
       include: {
         images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 1 },
-        cabinTrips: { where: { direction: "OUTBOUND", departureDate: { gte: today() } }, orderBy: { price: "asc" }, take: 1 },
+        // Giá chuyến sắp tới (cả 2 chiều) — chỉ dùng khi nhà xe chưa có bảng giá chặng.
+        cabinTrips: {
+          where: { departureDate: { gte: today() }, price: { gt: 0 } },
+          select: { direction: true, price: true },
+        },
         cabinPriceRows: true,
       },
     });
     return svcs.flatMap((s): CabinOperatorCard[] => {
-      let fromPrice = s.cabinTrips[0] ? toNumber(s.cabinTrips[0].price) : null;
+      // Chưa tìm: giá "từ" = VÉ KHỨ HỒI/khách THẤP NHẤT.
       const rows: FareRow[] = s.cabinPriceRows.length ? s.cabinPriceRows : generalRows;
-      if (s.contactOnly) {
-        // Nhà xe chỉ nhắn tin: luôn hiện, giá = khứ hồi theo bảng giá chặng (thiếu → "Liên hệ").
-        fromPrice = rows.length ? roundTripFareFor(rows, origin ?? DEFAULT_PICKUP) : null;
-      } else if (rows.length) {
-        // Giá chặng 1 chiều/khách theo điểm đón (mặc định Hà Nội) — khớp giá lúc đặt.
-        if (origin && !hasOriginFare(rows, origin)) return []; // bảng giá không khai điểm đón này
-        fromPrice = legFareFor(rows, origin ?? DEFAULT_PICKUP, "OUTBOUND");
+      let fromPrice: number | null = null;
+      if (rows.length) {
+        if (origin) {
+          // Đã chọn điểm đón → khứ hồi của chặng đó (bảng không khai điểm này thì ẩn, trừ nhà xe chỉ nhắn tin).
+          if (!s.contactOnly && !hasOriginFare(rows, origin)) return [];
+          fromPrice = roundTripFareFor(rows, origin);
+        } else {
+          // Chưa chọn điểm đón → khứ hồi rẻ nhất trong các chặng của bảng giá.
+          const fares = [...new Set(rows.map((r) => r.pickupPoint))]
+            .map((p) => roundTripFareFor(rows, p))
+            .filter((x): x is number => x != null && x > 0);
+          fromPrice = fares.length ? Math.min(...fares) : null;
+        }
+      } else {
+        // Chưa có bảng giá chặng → chuyến đi rẻ nhất + chuyến về rẻ nhất sắp tới.
+        const minOf = (d: "OUTBOUND" | "RETURN") => {
+          const ps = s.cabinTrips.filter((t) => t.direction === d).map((t) => toNumber(t.price) ?? 0).filter((x) => x > 0);
+          return ps.length ? Math.min(...ps) : null;
+        };
+        const o = minOf("OUTBOUND");
+        const r = minOf("RETURN");
+        fromPrice = o != null && r != null ? o + r : null;
       }
       return [{
         id: s.id,
