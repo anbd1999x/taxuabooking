@@ -3,6 +3,7 @@ import { Footer } from "@/components/Footer";
 import { VisitTracker } from "@/components/VisitTracker";
 import { SearchLoadingOverlay } from "@/components/useSearchNav";
 import { TrustPopup } from "@/components/TrustPopup";
+import { BackgroundMusic } from "@/components/BackgroundMusic";
 import { getSettings } from "@/lib/queries";
 import { getCustomer } from "@/lib/customer";
 import { parseTrustPopup, TRUST_POPUP_KEY } from "@/lib/trust-popup";
@@ -23,6 +24,7 @@ export default async function SiteLayout({
       <Header customerName={customer?.name ?? null} />
       <main className="flex-1">{children}</main>
       <Footer settings={settings} />
+      <BackgroundMusic />
     </>
   );
 }
