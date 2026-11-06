@@ -342,7 +342,18 @@ export function HomestayList({
   // Số người TÍNH PHÍ cần chứa = người lớn + trẻ TỪ ngưỡng miễn phí của home đó.
   const partyEmpty = adults === 0 && childAges.length === 0;
   const occFor = (x: HomestayCard) => adults + childAges.filter((a) => a >= x.childFreeUnderAge).length;
-  const fitsGuests = (x: HomestayCard) => partyEmpty || x.capacity * x.freeRooms >= occFor(x);
+  // Sức chứa còn trống tính theo CẢ HOMESTAY (cộng mọi thẻ của home): đoàn đông có thể
+  // ghép nhiều phòng khác hạng/khác thẻ (vd T9 + T10 mỗi phòng 4 khách = 8 khách) —
+  // trước đây xét từng thẻ riêng nên đoàn 5+ người bị ẩn hết dù home vẫn đủ chỗ.
+  const homeFreeCap = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const x of all) {
+      if (hasDates && x.status === "full") continue;
+      m.set(x.slug, (m.get(x.slug) ?? 0) + x.capacity * x.freeRooms);
+    }
+    return m;
+  }, [all, hasDates]);
+  const fitsGuests = (x: HomestayCard) => partyEmpty || (homeFreeCap.get(x.slug) ?? 0) >= occFor(x);
   const preFiltered = all.filter(
     (x) =>
       (type === "all" || x.cat === type) &&
