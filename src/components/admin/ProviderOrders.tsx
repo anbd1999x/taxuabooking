@@ -69,6 +69,7 @@ const NEXT: Partial<Record<POStatus, [string, "held" | "pay" | "complete", strin
 };
 
 const TAB_DEFS: { k: string; name: string; f: (o: ProviderOrderVM) => boolean; dot?: string }[] = [
+  { k: "all", name: "Tất cả", f: () => true, dot: G },
   { k: "todo", name: "Cần xử lý", f: (o) => o.st === "new" || o.st === "held", dot: "oklch(0.68 0.18 45)" },
   { k: "new", name: "Mới", f: (o) => o.st === "new" },
   { k: "held", name: "Đã giữ phòng", f: (o) => o.st === "held" },
@@ -76,7 +77,6 @@ const TAB_DEFS: { k: string; name: string; f: (o: ProviderOrderVM) => boolean; d
   { k: "paid", name: "Đã thanh toán đủ", f: (o) => o.st === "paid" },
   { k: "done", name: "Hoàn thành", f: (o) => o.st === "done" },
   { k: "cancel", name: "Đã huỷ", f: (o) => o.st === "cancel" },
-  { k: "all", name: "Tất cả", f: () => true, dot: G },
 ];
 
 export function ProviderOrders({
@@ -92,7 +92,7 @@ export function ProviderOrders({
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
-  const [tab, setTab] = useState("todo");
+  const [tab, setTab] = useState("all");
   const [src, setSrc] = useState<"all" | "web" | "ctv">("all");
   const [range, setRange] = useState<"all" | "week" | "month">("all");
   const [sort, setSort] = useState<"date" | "new" | "due">("date");
