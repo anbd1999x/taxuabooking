@@ -1,0 +1,492 @@
+"use client";
+
+import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import type { ServiceCategory } from "@prisma/client";
+import { cabinSeatTotal } from "@/lib/combo-pricing";
+import {
+  createAdminBooking,
+  quoteAdminBooking,
+  quoteCabinFare,
+  type AdminQuote,
+} from "@/app/admin/bookings/new/actions";
+
+type Kind = "stay" | "trip" | "rental" | "transport";
+
+interface Props {
+  categories: { key: ServiceCategory; label: string; kind: Kind }[];
+  services: { id: string; title: string; category: ServiceCategory; published: boolean }[];
+  ctvs: { id: string; name: string }[];
+  todayKey: string;
+}
+
+const STATUS_OPTS = [
+  { v: "NEW", l: "Mới", c: "oklch(0.6 0.14 250)" },
+  { v: "CONTACTING", l: "Đang liên hệ", c: "oklch(0.7 0.15 80)" },
+  { v: "CONFIRMED", l: "Đã xác nhận", c: "oklch(0.55 0.13 155)" },
+  { v: "COMPLETED", l: "Hoàn thành", c: "oklch(0.5 0.03 160)" },
+  { v: "CANCELLED", l: "Đã huỷ", c: "oklch(0.6 0.2 25)" },
+] as const;
+
+const PAY_OPTS = [
+  { v: "UNPAID", l: "Chưa thu" },
+  { v: "DEPOSITED", l: "Đã cọc" },
+  { v: "PAID", l: "Đã thanh toán đủ" },
+] as const;
+
+const fmt = (n: number) => n.toLocaleString("vi-VN");
+const digits = (s: string) => Number(s.replace(/[^\d]/g, "")) || 0;
+const fmtInput = (s: string) => {
+  const n = s.replace(/[^\d]/g, "");
+  return n ? fmt(Number(n)) : "";
+};
+
+const card = "rounded-2xl border border-gray-200 bg-white p-4 sm:p-5";
+const label = "mb-1 block text-[13px] font-bold text-gray-600";
+const input =
+  "w-full min-w-0 rounded-lg border-[1.5px] border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-ink focus:border-forest-500 focus:outline-none";
+const chip = (on: boolean) =>
+  `cursor-pointer whitespace-nowrap rounded-full border-[1.5px] px-3.5 py-2 text-sm font-bold ${
+    on ? "border-forest-700 bg-forest-700 text-white" : "border-gray-200 bg-white text-ink hover:bg-gray-50"
+  }`;
+
+export default function AdminCreateBooking({ categories, services, ctvs, todayKey }: Props) {
+  const [state, formAction, submitting] = useActionState(createAdminBooking, {});
+  const [cat, setCat] = useState<ServiceCategory>(categories[0]?.key ?? "HOMESTAY");
+  const [serviceId, setServiceId] = useState("");
+  const [from, setFrom] = useState(todayKey);
+  const [to, setTo] = useState("");
+  const [qty, setQty] = useState(2);
+  const [shared, setShared] = useState(2);
+  const [solo, setSolo] = useState(0);
+
+  const [quote, setQuote] = useState<AdminQuote | null>(null);
+  const [loading, startQuote] = useTransition();
+  const [pick, setPick] = useState("");
+  const [outId, setOutId] = useState("");
+  const [retId, setRetId] = useState("");
+  const [fare, setFare] = useState<number | null>(null);
+
+  const [price, setPrice] = useState("");
+  const [priceTouched, setPriceTouched] = useState(false);
+  const [status, setStatus] = useState("CONFIRMED");
+  const [pay, setPay] = useState("UNPAID");
+  const [collected, setCollected] = useState("");
+
+  const kind: Kind = categories.find((c) => c.key === cat)?.kind ?? "transport";
+  const isCabin = cat === "CABIN";
+  const hasEnd = isCabin || kind === "stay" || kind === "rental";
+  const list = useMemo(() => services.filter((s) => s.category === cat), [services, cat]);
+
+  // Đổi danh mục → bỏ chọn dịch vụ cũ.
+  useEffect(() => {
+    setServiceId("");
+    setQuote(null);
+  }, [cat]);
+
+  // Tải lựa chọn + giá mỗi khi đổi dịch vụ / ngày / số lượng.
+  useEffect(() => {
+    if (!serviceId || !from) return;
+    startQuote(async () => {
+      const q = await quoteAdminBooking(serviceId, from, to || null, isCabin ? 1 : qty);
+      setQuote(q);
+      setPick((p) => (q.items?.some((i) => i.id === p) ? p : ""));
+      setOutId((p) => (q.outbound?.some((i) => i.id === p) ? p : (q.outbound?.[0]?.id ?? "")));
+      setRetId((p) => (q.returns?.some((i) => i.id === p) ? p : (q.returns?.[0]?.id ?? "")));
+    });
+  }, [serviceId, from, to, qty, isCabin]);
+
+  // Cabin: giá/khách theo chuyến đã chọn (bảng giá chặng của nhà xe).
+  useEffect(() => {
+    if (!isCabin || !serviceId || !outId) {
+      setFare(null);
+      return;
+    }
+    let live = true;
+    quoteCabinFare(serviceId, outId, retId || null).then((f) => live && setFare(f));
+    return () => {
+      live = false;
+    };
+  }, [isCabin, serviceId, outId, retId]);
+
+  // Giá gợi ý (server tính) — tự điền vào ô Tổng tiền cho tới khi admin sửa tay.
+  const suggested = useMemo<number | null>(() => {
+    if (!quote) return null;
+    if (isCabin) return fare != null ? cabinSeatTotal(fare, shared, solo) : null;
+    if (quote.items?.length) {
+      const it = quote.items.find((i) => i.id === pick);
+      if (!it || it.price == null) return null;
+      return kind === "rental" ? it.price * qty : it.price;
+    }
+    return quote.fixedPrice != null ? quote.fixedPrice * (kind === "transport" ? 1 : qty) : null;
+  }, [quote, isCabin, fare, shared, solo, pick, kind, qty]);
+
+  useEffect(() => {
+    if (!priceTouched) setPrice(suggested != null ? fmt(suggested) : "");
+  }, [suggested, priceTouched]);
+
+  const total = digits(price);
+  const paid = pay === "PAID" ? total : pay === "DEPOSITED" ? digits(collected) : 0;
+  const remain = Math.max(0, total - paid);
+  const pickedItem = quote?.items?.find((i) => i.id === pick);
+  const holds = status === "CONFIRMED" || status === "COMPLETED";
+
+  // Chọn phòng/xe đang kín ⇒ mặc định coi là nhập bù đơn cũ (không trừ tồn lần nữa).
+  const [skipInv, setSkipInv] = useState(false);
+  const pickedFull = Boolean(pickedItem && !pickedItem.bookable);
+  useEffect(() => {
+    setSkipInv(pickedFull);
+  }, [pick, pickedFull]);
+
+  return (
+    <form action={formAction} className="grid gap-4 lg:grid-cols-[1fr_340px]">
+      <div className="flex min-w-0 flex-col gap-4">
+        {/* 1. Dịch vụ */}
+        <section className={card}>
+          <h2 className="mb-3 text-base font-extrabold text-ink">1. Dịch vụ</h2>
+          <div className="mb-3 flex flex-wrap gap-2">
+            {categories.map((c) => (
+              <button key={c.key} type="button" onClick={() => setCat(c.key)} className={chip(cat === c.key)}>
+                {c.label}
+              </button>
+            ))}
+          </div>
+          <label className={label}>Chọn {categories.find((c) => c.key === cat)?.label.toLowerCase()}</label>
+          <select
+            name="serviceId"
+            value={serviceId}
+            onChange={(e) => setServiceId(e.target.value)}
+            className={input}
+            required
+          >
+            <option value="">— Chọn —</option>
+            {list.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.title}
+                {s.published ? "" : " (đang ẩn)"}
+              </option>
+            ))}
+          </select>
+          {list.length === 0 && <p className="mt-2 text-sm text-gray-500">Chưa có dịch vụ nào trong danh mục này.</p>}
+        </section>
+
+        {/* 2. Ngày & lựa chọn */}
+        <section className={card}>
+          <h2 className="mb-3 text-base font-extrabold text-ink">2. Ngày & lựa chọn</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <div>
+              <label className={label}>{isCabin ? "Ngày đi" : kind === "stay" ? "Nhận phòng" : "Ngày sử dụng"}</label>
+              <input type="date" name="useDate" value={from} onChange={(e) => setFrom(e.target.value)} className={input} required />
+            </div>
+            {hasEnd && (
+              <div>
+                <label className={label}>{isCabin ? "Ngày về (bỏ trống = 1 chiều)" : kind === "stay" ? "Trả phòng" : "Ngày trả"}</label>
+                <input
+                  type="date"
+                  name="endDate"
+                  value={to}
+                  min={from}
+                  onChange={(e) => setTo(e.target.value)}
+                  className={input}
+                />
+              </div>
+            )}
+            {isCabin ? (
+              <>
+                <div>
+                  <label className={label}>Khách nằm ghép</label>
+                  <input type="number" name="shared" min={0} value={shared} onChange={(e) => setShared(Math.max(0, +e.target.value))} className={input} />
+                </div>
+                <div>
+                  <label className={label}>Khách nằm riêng (×2 giá)</label>
+                  <input type="number" name="solo" min={0} value={solo} onChange={(e) => setSolo(Math.max(0, +e.target.value))} className={input} />
+                </div>
+              </>
+            ) : (
+              <div>
+                <label className={label}>{kind === "stay" ? "Số khách" : kind === "rental" ? "Số xe" : "Số lượng"}</label>
+                <input type="number" name="quantity" min={1} value={qty} onChange={(e) => setQty(Math.max(1, +e.target.value))} className={input} />
+              </div>
+            )}
+          </div>
+
+          {!serviceId ? (
+            <p className="mt-3 text-sm text-gray-500">Chọn dịch vụ để xem phòng / chuyến / giá.</p>
+          ) : loading && !quote ? (
+            <p className="mt-3 text-sm text-gray-500">Đang tải…</p>
+          ) : quote ? (
+            <div className={`mt-4 ${loading ? "opacity-60" : ""}`}>
+              {quote.error && <p className="mb-2 text-sm font-semibold text-amber-700">{quote.error}</p>}
+              {quote.policyNote && <p className="mb-2 text-sm font-semibold text-amber-700">⚠ {quote.policyNote}</p>}
+
+              {quote.items && quote.items.length > 0 && (
+                <>
+                  <label className={label}>
+                    {kind === "stay" ? `Chọn phòng · ${quote.nights} đêm` : `Chọn loại xe · ${quote.nights} ngày`}
+                  </label>
+                  <input type="hidden" name={kind === "stay" ? "roomId" : "rentalVehicleId"} value={pick} />
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {quote.items.map((it) => {
+                      const on = pick === it.id;
+                      return (
+                        <button
+                          key={it.id}
+                          type="button"
+                          onClick={() => setPick(it.id)}
+                          className={`flex items-start justify-between gap-2 rounded-xl border-[1.5px] p-3 text-left ${
+                            on ? "border-forest-700 bg-forest-50" : "border-gray-200 bg-white hover:bg-gray-50"
+                          }`}
+                        >
+                          <span className="min-w-0">
+                            <span className="block text-sm font-bold text-ink">{it.name}</span>
+                            <span className="text-xs text-gray-500">
+                              {it.note} ·{" "}
+                              <span className={it.bookable ? "font-bold text-emerald-700" : "font-bold text-red-600"}>
+                                {it.bookable ? "Còn trống" : "Đã kín / chưa cập nhật"}
+                              </span>
+                            </span>
+                          </span>
+                          <span className="whitespace-nowrap text-sm font-extrabold text-ink">
+                            {it.price != null ? fmt(it.price) + "đ" : "—"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {pickedFull && (
+                    <p className="mt-2 text-sm font-semibold text-amber-700">
+                      Phòng này đang kín — vẫn tạo được đơn để ghi nhận (đã tự bật “Nhập bù đơn cũ”, lịch phòng giữ nguyên).
+                    </p>
+                  )}
+                </>
+              )}
+
+              {isCabin && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className={label}>Chuyến đi</label>
+                    <select name="cabinTripId" value={outId} onChange={(e) => setOutId(e.target.value)} className={input}>
+                      <option value="">— Không gán chuyến —</option>
+                      {quote.outbound?.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.label} · còn {t.seatsAvailable}
+                        </option>
+                      ))}
+                    </select>
+                    {quote.outbound?.length === 0 && (
+                      <p className="mt-1 text-xs text-amber-700">Ngày này chưa mở bán chuyến đi — đơn sẽ không trừ vé.</p>
+                    )}
+                  </div>
+                  {to && (
+                    <div>
+                      <label className={label}>Chuyến về</label>
+                      <select name="cabinReturnTripId" value={retId} onChange={(e) => setRetId(e.target.value)} className={input}>
+                        <option value="">— Không gán chuyến —</option>
+                        {quote.returns?.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.label} · còn {t.seatsAvailable}
+                          </option>
+                        ))}
+                      </select>
+                      {quote.returns?.length === 0 && (
+                        <p className="mt-1 text-xs text-amber-700">Ngày về chưa mở bán chuyến.</p>
+                      )}
+                    </div>
+                  )}
+                  {fare != null && (
+                    <p className="text-sm text-gray-600 sm:col-span-2">
+                      Giá vé: <b>{fmt(fare)}đ</b>/khách {retId ? "khứ hồi" : "1 chiều"} (nằm riêng ×2)
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : null}
+        </section>
+
+        {/* 3. Khách hàng */}
+        <section className={card}>
+          <h2 className="mb-3 text-base font-extrabold text-ink">3. Khách hàng</h2>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className={label}>Tên khách *</label>
+              <input name="customerName" className={input} required />
+            </div>
+            <div>
+              <label className={label}>Số điện thoại *</label>
+              <input name="phone" inputMode="tel" className={input} required />
+            </div>
+            <div>
+              <label className={label}>CTV đặt hộ (nếu có)</label>
+              <select name="ctvId" className={input} defaultValue="">
+                <option value="">— Không —</option>
+                {ctvs.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="sm:col-span-2">
+              <label className={label}>Ghi chú của khách (điểm đón, yêu cầu…)</label>
+              <textarea name="note" rows={2} className={input} />
+            </div>
+          </div>
+        </section>
+      </div>
+
+      {/* Cột phải: trạng thái + tiền */}
+      <div className="flex flex-col gap-4 lg:sticky lg:top-4 lg:self-start">
+        <section className={card}>
+          <h2 className="mb-3 text-base font-extrabold text-ink">Trạng thái đơn</h2>
+          <input type="hidden" name="status" value={status} />
+          <div className="flex flex-wrap gap-2">
+            {STATUS_OPTS.map((s) => (
+              <button
+                key={s.v}
+                type="button"
+                onClick={() => setStatus(s.v)}
+                className={chip(status === s.v)}
+                style={status === s.v ? { background: s.c, borderColor: s.c } : undefined}
+              >
+                {s.l}
+              </button>
+            ))}
+          </div>
+          {holds && (
+            <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-lg bg-gray-50 p-2.5 text-sm">
+              <input
+                type="checkbox"
+                name="skipInventory"
+                checked={skipInv}
+                onChange={(e) => setSkipInv(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-forest-700"
+              />
+              <span>
+                <b>Nhập bù đơn cũ — không trừ tồn</b>
+                <span className="block text-xs text-gray-500">
+                  Dùng cho đơn đã nhận trước đây, phòng/vé đã đánh dấu kín sẵn. Cho phép đặt cả phòng đã kín.
+                </span>
+              </span>
+            </label>
+          )}
+          <p className="mt-2 text-xs text-gray-500">
+            {!holds
+              ? "Chưa giữ chỗ — xác nhận sau ở trang đơn."
+              : skipInv
+                ? "Chỉ ghi nhận đơn, lịch phòng/vé giữ nguyên."
+                : "Sẽ giữ chỗ ngay (trừ phòng/vé/xe) khi tạo."}
+          </p>
+        </section>
+
+        <section className={card}>
+          <h2 className="mb-3 text-base font-extrabold text-ink">Thanh toán</h2>
+          <label className={label}>Tổng tiền khách trả</label>
+          <input
+            name="price"
+            value={price}
+            inputMode="numeric"
+            onChange={(e) => {
+              setPriceTouched(true);
+              setPrice(fmtInput(e.target.value));
+            }}
+            placeholder="Để trống = chờ báo giá"
+            className={input}
+          />
+          {suggested != null && (
+            <p className="mt-1 text-xs text-gray-500">
+              Giá hệ thống: {fmt(suggested)}đ
+              {priceTouched && digits(price) !== suggested && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPriceTouched(false);
+                    setPrice(fmt(suggested));
+                  }}
+                  className="ml-2 font-bold text-forest-700 underline"
+                >
+                  Dùng giá này
+                </button>
+              )}
+            </p>
+          )}
+
+          <input type="hidden" name="paymentStatus" value={pay} />
+          <div className="mt-3 flex flex-wrap gap-2">
+            {PAY_OPTS.map((p) => (
+              <button key={p.v} type="button" onClick={() => setPay(p.v)} className={chip(pay === p.v)}>
+                {p.l}
+              </button>
+            ))}
+          </div>
+
+          {pay === "DEPOSITED" && (
+            <div className="mt-3">
+              <label className={label}>Số tiền đã cọc</label>
+              <input
+                name="amountCollected"
+                value={collected}
+                inputMode="numeric"
+                onChange={(e) => setCollected(fmtInput(e.target.value))}
+                className={input}
+                required
+              />
+              {total > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  {[30, 50].map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setCollected(fmt(Math.round((total * p) / 100 / 1000) * 1000))}
+                      className="rounded-full border-[1.5px] border-gray-200 px-2.5 py-1 text-xs font-bold text-gray-700 hover:bg-gray-100"
+                    >
+                      Cọc {p}%
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {pay === "PAID" && <input type="hidden" name="amountCollected" value={price} />}
+          {pay !== "UNPAID" && (
+            <div className="mt-3">
+              <label className={label}>Hình thức</label>
+              <select name="payMethod" className={input}>
+                <option>Chuyển khoản</option>
+                <option>Tiền mặt</option>
+                <option>CTV thu hộ</option>
+              </select>
+            </div>
+          )}
+
+          <dl className="mt-4 space-y-1 border-t border-dashed border-gray-200 pt-3 text-sm">
+            <div className="flex justify-between">
+              <dt className="text-gray-500">Tổng</dt>
+              <dd className="font-bold">{total ? fmt(total) + "đ" : "—"}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-gray-500">Đã thu</dt>
+              <dd className="font-bold text-emerald-700">{fmt(paid)}đ</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-gray-500">Còn phải thu</dt>
+              <dd className="font-extrabold text-sunset-600">{fmt(remain)}đ</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section className={card}>
+          <label className={label}>Ghi chú nội bộ</label>
+          <textarea name="adminNote" rows={2} className={input} />
+          {state.error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{state.error}</p>}
+          <button
+            type="submit"
+            disabled={submitting || !serviceId}
+            className="mt-3 w-full rounded-full bg-sunset-500 px-4 py-3 text-sm font-extrabold text-white hover:bg-sunset-600 disabled:opacity-50"
+          >
+            {submitting ? "Đang tạo…" : "Tạo đơn"}
+          </button>
+        </section>
+      </div>
+    </form>
+  );
+}

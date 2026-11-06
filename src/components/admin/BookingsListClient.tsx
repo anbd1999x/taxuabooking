@@ -232,9 +232,8 @@ export default function BookingsListClient({ rows: all, totalInDb }: { rows: Boo
             Xuất Excel
           </button>
           <Link
-            href="/"
-            target="_blank"
-            title="Mở website, đặt hộ khách — đơn sẽ hiện ở danh sách này"
+            href="/admin/bookings/new"
+            title="Nhập đơn khách gọi/nhắn trực tiếp: chọn dịch vụ, trạng thái, tiền cọc"
             className="whitespace-nowrap rounded-full bg-sunset-500 px-4 py-2.5 text-sm font-bold text-white hover:bg-sunset-600"
           >
             + Tạo đơn hộ khách

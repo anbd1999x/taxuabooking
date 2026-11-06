@@ -308,6 +308,22 @@ function journeyFare(rows: FareRow[], origin: string, roundTrip: boolean): numbe
   return roundTrip ? roundTripFareFor(rows, origin) : legFareFor(rows, origin, "OUTBOUND");
 }
 
+/**
+ * Giá MỖI KHÁCH (nằm ghép) cho hành trình đi (+ về) của nhà xe — cùng quy tắc với
+ * `createCabinBooking`: bảng giá chặng nếu có, không thì cộng giá chuyến. null = chưa có giá.
+ */
+export async function cabinJourneyFare(
+  serviceId: string,
+  legs: { price: unknown }[],
+  roundTrip: boolean,
+  origin: string = DEFAULT_PICKUP,
+): Promise<number | null> {
+  const rows = await fareRowsFor(serviceId);
+  if (rows.length) return journeyFare(rows, origin, roundTrip);
+  const prices = legs.map((t) => toNumber(t.price as never) ?? 0);
+  return prices.length && prices.every((p) => p > 0) ? prices.reduce((a, b) => a + b, 0) : null;
+}
+
 export interface CabinFareOption {
   origin: string;
   /** Giá MỖI KHÁCH khi nằm chung (buồng = 2 × fare). */
