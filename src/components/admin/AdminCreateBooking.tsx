@@ -8,6 +8,7 @@ import {
   quoteAdminBooking,
   quoteCabinFare,
   type AdminQuote,
+  type CabinFareQuote,
 } from "@/app/admin/bookings/new/actions";
 
 type Kind = "stay" | "trip" | "rental" | "transport";
@@ -52,11 +53,11 @@ const chip = (on: boolean) =>
   }`;
 
 /**
- * Ô nhập tiền: ĐANG GÕ chỉ hiện số thô (không chèn dấu chấm) — chèn định dạng giữa lúc gõ
- * làm bàn phím điện thoại / bộ gõ tiếng Việt lệch con trỏ và nhân đôi ký tự (600000 → 660000).
- * Rời ô mới định dạng "600.000"; dưới ô luôn có dòng xem trước số tiền.
+ * Ô nhập tiền CÓ ĐIỀU KHIỂN (giá gợi ý tự điền) — cùng nguyên tắc với `MoneyInput`:
+ * ĐANG GÕ chỉ hiện số thô (chèn dấu chấm giữa lúc gõ làm bàn phím điện thoại / bộ gõ
+ * tiếng Việt nhân đôi ký tự: 600000 → 660000); rời ô mới định dạng "600.000".
  */
-function MoneyInput({
+function MoneyField({
   name,
   value,
   onChange,
@@ -89,7 +90,7 @@ function MoneyInput({
         onChange={(e) => onChange(e.target.value.replace(/[^\d]/g, ""))}
         className={`${input} ${readOnly ? "bg-gray-50" : ""}`}
       />
-      {focused && raw && <p className="mt-0.5 text-xs font-semibold text-gray-500">= {fmt(Number(raw))}đ</p>}
+      {focused && !readOnly && raw && <p className="mt-0.5 text-xs font-semibold text-gray-500">= {fmt(Number(raw))}đ</p>}
     </>
   );
 }
@@ -192,17 +193,34 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
 
   // Cabin / combo: giá/khách theo chuyến đã chọn (bảng giá chặng của nhà xe).
   const fareSvc = isCombo ? busId : serviceId;
+  // Tuyến (điểm xuất phát) — danh sách + giá theo bảng giá chặng của nhà xe đang chọn.
+  const [fareQuote, setFareQuote] = useState<CabinFareQuote | null>(null);
+  const [origin, setOrigin] = useState("Hà Nội");
   useEffect(() => {
     if (!(isCabin || isCombo) || !fareSvc || !outId) {
-      setFare(null);
+      setFareQuote(null);
       return;
     }
     let live = true;
-    quoteCabinFare(fareSvc, outId, retId || null).then((f) => live && setFare(f));
+    quoteCabinFare(fareSvc, outId, retId || null).then((q) => {
+      if (!live) return;
+      setFareQuote(q);
+      // Giữ tuyến đang chọn nếu nhà xe có; không thì ưu tiên Hà Nội, rồi tuyến đầu tiên.
+      setOrigin((o) =>
+        q.options.some((x) => x.origin === o)
+          ? o
+          : (q.options.find((x) => x.origin.toLowerCase() === "hà nội")?.origin ?? q.options[0]?.origin ?? o),
+      );
+    });
     return () => {
       live = false;
     };
   }, [isCabin, isCombo, fareSvc, outId, retId]);
+  useEffect(() => {
+    if (!fareQuote) setFare(null);
+    else if (fareQuote.options.length) setFare(fareQuote.options.find((x) => x.origin === origin)?.fare ?? null);
+    else setFare(fareQuote.fallback);
+  }, [fareQuote, origin]);
 
   // Combo: gợi ý tiền phòng / tiền xe / giảm giá — tự điền cho tới khi admin sửa tay.
   const comboRoomSuggest = useMemo(() => {
@@ -466,10 +484,38 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
                       )}
                     </div>
                   )}
+                  <div className="sm:col-span-2">
+                    <label className={label}>Tuyến / điểm xuất phát</label>
+                    {fareQuote && fareQuote.options.length > 0 ? (
+                      <select name="origin" value={origin} onChange={(e) => setOrigin(e.target.value)} className={input}>
+                        {fareQuote.options.map((o) => (
+                          <option key={o.origin} value={o.origin}>
+                            {o.origin} ⇄ Tà Xùa · {fmt(o.fare)}đ/khách {retId ? "khứ hồi" : "1 chiều"}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <>
+                        <input
+                          name="origin"
+                          value={origin}
+                          onChange={(e) => setOrigin(e.target.value)}
+                          placeholder="VD: Hà Nội"
+                          className={input}
+                        />
+                        {outId && fareQuote && (
+                          <p className="mt-1 text-xs text-gray-500">Nhà xe chưa có bảng giá chặng — giá tính theo giá chuyến.</p>
+                        )}
+                      </>
+                    )}
+                  </div>
                   {fare != null && (
                     <p className="text-sm text-gray-600 sm:col-span-2">
-                      Giá vé: <b>{fmt(fare)}đ</b>/khách {retId ? "khứ hồi" : "1 chiều"} (nằm riêng ×2)
+                      Giá vé: <b>{fmt(fare)}đ</b>/khách {retId ? "khứ hồi" : "1 chiều"} từ {origin} (nằm riêng ×2)
                     </p>
+                  )}
+                  {outId && fareQuote && fare == null && (
+                    <p className="text-sm font-semibold text-amber-700 sm:col-span-2">Chưa có giá cho tuyến này — nhập tiền tay.</p>
                   )}
                 </div>
           )}
@@ -575,7 +621,7 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
               ).map(([k, name, l, v, set, sug]) => (
                 <div key={k} className={k === "discount" ? "col-span-2" : ""}>
                   <label className={label}>{l}</label>
-                  <MoneyInput
+                  <MoneyField
                     name={name}
                     value={v}
                     onChange={(val) => {
@@ -597,7 +643,7 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
             </div>
           )}
           <label className={label}>Tổng tiền khách trả</label>
-          <MoneyInput
+          <MoneyField
             name="price"
             value={price}
             readOnly={isCombo}
@@ -638,7 +684,7 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
           {pay === "DEPOSITED" && (
             <div className="mt-3">
               <label className={label}>Số tiền đã cọc</label>
-              <MoneyInput name="amountCollected" value={collected} onChange={setCollected} required />
+              <MoneyField name="amountCollected" value={collected} onChange={setCollected} required />
               {total > 0 && (
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                   {[30, 50].map((p) => (

@@ -7,6 +7,7 @@ import { formatPrice, formatDate, formatDateTime, toNumber } from "@/lib/format"
 import { today } from "@/lib/dates";
 import { SITE } from "@/lib/site";
 import { ActionForm } from "@/components/admin/ActionForm";
+import { MoneyInput } from "@/components/admin/MoneyInput";
 import {
   CopyChip,
   StatusPanel,
@@ -657,17 +658,17 @@ export default async function BookingDetailPage({
                       </label>
                       <label>
                         <span className={l}>Tổng tiền khách trả (đ)</span>
-                        <input name="referencePrice" inputMode="numeric" defaultValue={money(b.referencePrice)} placeholder="Trống = chờ báo giá" className={f} />
+                        <MoneyInput name="referencePrice" defaultValue={money(b.referencePrice)} placeholder="Trống = chờ báo giá" className={f} />
                       </label>
                       {b.category === "COMBO" && (
                         <>
                           <label>
                             <span className={l}>Tiền phòng (→ homestay)</span>
-                            <input name="roomAmount" inputMode="numeric" defaultValue={money(b.roomAmount)} className={f} />
+                            <MoneyInput name="roomAmount" defaultValue={money(b.roomAmount)} className={f} />
                           </label>
                           <label>
                             <span className={l}>Tiền vé xe (→ nhà xe)</span>
-                            <input name="busAmount" inputMode="numeric" defaultValue={money(b.busAmount)} className={f} />
+                            <MoneyInput name="busAmount" defaultValue={money(b.busAmount)} className={f} />
                           </label>
                         </>
                       )}

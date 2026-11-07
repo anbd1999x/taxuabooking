@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin, getSession } from "@/lib/auth";
 import { CATEGORIES, BOOKING_STATUS_META } from "@/lib/constants";
 import { computeAvailability } from "@/lib/booking";
-import { cabinJourneyFare } from "@/lib/cabin";
+import { cabinJourneyFare, getCabinFareOptions } from "@/lib/cabin";
 import { cabinSeatTotal } from "@/lib/combo-pricing";
 import { resolveCommission } from "@/lib/commission";
 import { adjustInventory, assignRoomsForBooking, statusHoldsInventory } from "@/lib/inventory";
@@ -110,15 +110,24 @@ export async function quoteAdminBooking(
   return { kind: "manual", nights: c.nights, fixedPrice: c.basePrice ?? null };
 }
 
-/** Giá MỖI KHÁCH nằm ghép cho chuyến đi (+ về) đã chọn — cùng quy tắc với đặt vé web. */
-export async function quoteCabinFare(serviceId: string, outId: string, retId: string | null): Promise<number | null> {
+export interface CabinFareQuote {
+  /** Điểm xuất phát (tuyến) + giá MỖI KHÁCH nằm ghép theo bảng giá chặng của nhà xe. */
+  options: { origin: string; fare: number }[];
+  /** Nhà xe chưa có bảng giá chặng → giá theo chuyến (đi + về); null = chưa có giá. */
+  fallback: number | null;
+}
+
+/** Tuyến (điểm xuất phát) + giá/khách cho chuyến đi (+ về) đã chọn — cùng quy tắc với đặt vé web. */
+export async function quoteCabinFare(serviceId: string, outId: string, retId: string | null): Promise<CabinFareQuote> {
   await requireAdmin();
+  const roundTrip = Boolean(retId);
+  const { hasTable, options } = await getCabinFareOptions(serviceId, roundTrip);
+  if (hasTable) return { options, fallback: null };
   const trips = await prisma.cabinTrip.findMany({
     where: { serviceId, id: { in: [outId, ...(retId ? [retId] : [])] } },
     select: { price: true },
   });
-  if (!trips.length) return null;
-  return cabinJourneyFare(serviceId, trips, Boolean(retId));
+  return { options: [], fallback: trips.length ? await cabinJourneyFare(serviceId, trips, roundTrip) : null };
 }
 
 /* ============================ Tạo đơn ============================ */
@@ -164,6 +173,8 @@ export async function createAdminBooking(
   const status = str(fd, "status") as BookingStatus;
   const paymentStatus = str(fd, "paymentStatus") as PaymentStatus;
   const ctvId = str(fd, "ctvId") || null;
+  // Điểm xuất phát (tuyến) của khách — quyết định giá chặng cabin; mặc định như web.
+  const origin = str(fd, "origin") || "Hà Nội";
 
   if (!serviceId) return { error: "Chọn dịch vụ." };
   if (!customerName) return { error: "Nhập tên khách." };
@@ -246,7 +257,7 @@ export async function createAdminBooking(
     const roomSuggest = rooms.length && rooms.every((o) => o.pricePerUnit != null)
       ? rooms.reduce((n, o) => n + (o.pricePerUnit ?? 0), 0)
       : null;
-    const fare = outbound ? await cabinJourneyFare(bus.id, [outbound, ...(ret ? [ret] : [])], Boolean(ret)) : null;
+    const fare = outbound ? await cabinJourneyFare(bus.id, [outbound, ...(ret ? [ret] : [])], Boolean(ret), origin) : null;
     const busSuggest = fare == null ? null : cabinSeatTotal(fare, shared, solo);
     roomAmount = money(fd, "roomAmount") ?? roomSuggest;
     busAmount = money(fd, "busAmount") ?? busSuggest;
@@ -276,7 +287,7 @@ export async function createAdminBooking(
         (ret ? `, về ${toDateKey(ret.departureDate)} ${ret.departureTime}` : "")
       : "chưa gán chuyến";
     selectionLabel =
-      `Combo: xe ${bus.title} (${busWhen}) · ${rooms.map((o) => o.name).join(", ") || "chưa chọn phòng"} · ` +
+      `Combo: xe ${bus.title} từ ${origin} (${busWhen}) · ${rooms.map((o) => o.name).join(", ") || "chưa chọn phòng"} · ` +
       `${nights ?? 0} đêm (${checkInKey}→${endDateRaw}) · ${people} khách · xe: ${tickets}`;
   } else if (service.category === "CABIN") {
     const shared = int(fd, "shared");
@@ -301,7 +312,7 @@ export async function createAdminBooking(
       seatsSingle = people;
       seatsDouble = 0;
       endDate = ret ? toDateKey(ret.departureDate) : endDate;
-      const fare = await cabinJourneyFare(serviceId, [outbound, ...(ret ? [ret] : [])], Boolean(ret));
+      const fare = await cabinJourneyFare(serviceId, [outbound, ...(ret ? [ret] : [])], Boolean(ret), origin);
       suggested = fare == null ? null : cabinSeatTotal(fare, shared, solo);
     }
     const tickets = [shared ? `${shared} khách nằm ghép` : null, solo ? `${solo} khách nằm riêng` : null]
@@ -312,7 +323,7 @@ export async function createAdminBooking(
         ? `đi ${toDateKey(outbound.departureDate)} ${outbound.departureTime}, về ${toDateKey(ret.departureDate)} ${ret.departureTime}`
         : `${toDateKey(outbound.departureDate)} ${outbound.departureTime}`
       : "chưa gán chuyến";
-    selectionLabel = `${ret || endDate ? "Khứ hồi" : "Một chiều"} · ${tickets} · ${when}`;
+    selectionLabel = `${ret || endDate ? "Khứ hồi" : "Một chiều"} từ ${origin} · ${tickets} · ${when}`;
   } else if (kind === "stay" || kind === "rental") {
     const pick = str(fd, kind === "stay" ? "roomId" : "rentalVehicleId");
     const c = await computeAvailability(serviceId, useDate, endDate, quantity);
