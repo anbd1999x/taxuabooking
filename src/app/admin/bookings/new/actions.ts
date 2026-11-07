@@ -24,6 +24,8 @@ export interface QuoteItem {
   price: number | null;
   bookable: boolean;
   note?: string;
+  /** Sức chứa (phòng) — để combo đếm đủ chỗ cho đoàn. */
+  capacity?: number;
 }
 
 export interface CabinTripItem {
@@ -99,6 +101,7 @@ export async function quoteAdminBooking(
         name: o.name,
         price: o.pricePerUnit,
         bookable: o.bookable,
+        capacity: o.capacity,
         note: c.kind === "stay" ? `${o.capacity} khách` : `còn ${o.availableUnits} xe`,
       })),
     };
@@ -191,8 +194,89 @@ export async function createAdminBooking(
   let selectionLabel: string | null = null;
   let suggested: number | null = null;
   let stayCommission: number | null = null;
+  // Combo (xe cabin + homestay) — ghi đè danh mục / tên / ngày / nhiều phòng / tách tiền.
+  const isCombo = str(fd, "mode") === "combo";
+  let category = service.category;
+  let serviceTitle = service.title;
+  let bookingUseDate = useDate;
+  let roomIds: string[] = [];
+  let roomAmount: number | null = null;
+  let busAmount: number | null = null;
+  let fixedQuantity: number | null = null;
+  let adults: number | null = null;
 
-  if (service.category === "CABIN") {
+  if (isCombo) {
+    // Ngày đi = đêm lên xe chiều đi → nhận phòng = ngày đi + 1; ngày về = trả phòng = ngày xe về.
+    const busId = str(fd, "busServiceId");
+    if (service.category !== "HOMESTAY" && service.category !== "BUNGALOW") return { error: "Chọn homestay cho combo." };
+    const bus = busId ? await prisma.service.findFirst({ where: { id: busId, category: "CABIN" } }) : null;
+    if (!bus) return { error: "Chọn nhà xe cho combo." };
+    if (!endDateRaw) return { error: "Chọn ngày về." };
+    const checkIn = parseDateOnly(useDate);
+    checkIn.setUTCDate(checkIn.getUTCDate() + 1);
+    const checkInKey = toDateKey(checkIn);
+    if (endDateRaw <= checkInKey) return { error: "Ngày về phải sau ngày nhận phòng (ngày đi + 1) ít nhất 1 đêm." };
+
+    const shared = int(fd, "shared");
+    const solo = int(fd, "solo");
+    const people = shared + solo;
+    if (people < 1) return { error: "Nhập số khách nằm ghép / nằm riêng." };
+
+    const outId = str(fd, "cabinTripId");
+    const retId = str(fd, "cabinReturnTripId");
+    const outbound = outId ? await prisma.cabinTrip.findFirst({ where: { id: outId, serviceId: bus.id, direction: "OUTBOUND" } }) : null;
+    const ret = retId ? await prisma.cabinTrip.findFirst({ where: { id: retId, serviceId: bus.id, direction: "RETURN" } }) : null;
+    if (outId && !outbound) return { error: "Chuyến đi không hợp lệ." };
+    if (retId && !ret) return { error: "Chuyến về không hợp lệ." };
+    if (ret && !outbound) return { error: "Chọn chuyến đi trước khi chọn chuyến về." };
+
+    const picked = [...new Set(fd.getAll("roomIds").map(String).filter(Boolean))];
+    const c = await computeAvailability(serviceId, checkInKey, endDateRaw, people);
+    const opts = c?.stayOptions ?? [];
+    if (opts.length && picked.length === 0) return { error: "Chọn ít nhất 1 phòng." };
+    const chosen = picked.map((pid) => opts.find((o) => o.id === pid));
+    if (chosen.some((o) => !o)) return { error: "Phòng đã chọn không hợp lệ — tải lại danh sách." };
+    const rooms = chosen as NonNullable<(typeof chosen)[number]>[];
+    const roomRows = rooms.length
+      ? await prisma.room.findMany({ where: { id: { in: picked } }, select: { id: true, roomTypeId: true } })
+      : [];
+
+    const roomSuggest = rooms.length && rooms.every((o) => o.pricePerUnit != null)
+      ? rooms.reduce((n, o) => n + (o.pricePerUnit ?? 0), 0)
+      : null;
+    const fare = outbound ? await cabinJourneyFare(bus.id, [outbound, ...(ret ? [ret] : [])], Boolean(ret)) : null;
+    const busSuggest = fare == null ? null : cabinSeatTotal(fare, shared, solo);
+    roomAmount = money(fd, "roomAmount") ?? roomSuggest;
+    busAmount = money(fd, "busAmount") ?? busSuggest;
+    const discount = money(fd, "discount") ?? 0;
+    suggested = roomAmount != null || busAmount != null ? Math.max(0, (roomAmount ?? 0) + (busAmount ?? 0) - discount) : null;
+
+    category = "COMBO";
+    serviceTitle = `Combo Tà Xùa: ${bus.title} + ${service.title}`;
+    bookingUseDate = checkInKey; // giữ phòng đúng các đêm [nhận phòng, trả phòng)
+    endDate = endDateRaw;
+    nights = c?.nights ?? null;
+    fixedQuantity = people;
+    adults = people;
+    roomIds = picked;
+    roomId = picked[0] ?? null;
+    roomTypeId = roomRows.find((r) => r.id === roomId)?.roomTypeId ?? null;
+    if (outbound) {
+      cabinTripId = outbound.id;
+      cabinReturnTripId = ret?.id ?? null;
+      seatsSingle = people;
+      seatsDouble = 0;
+    }
+    stayCommission = rooms.reduce((n, o) => n + (o.commission ?? 0), 0);
+    const tickets = [shared ? `${shared} nằm ghép` : null, solo ? `${solo} nằm riêng` : null].filter(Boolean).join(" + ");
+    const busWhen = outbound
+      ? `đi ${toDateKey(outbound.departureDate)} ${outbound.departureTime}` +
+        (ret ? `, về ${toDateKey(ret.departureDate)} ${ret.departureTime}` : "")
+      : "chưa gán chuyến";
+    selectionLabel =
+      `Combo: xe ${bus.title} (${busWhen}) · ${rooms.map((o) => o.name).join(", ") || "chưa chọn phòng"} · ` +
+      `${nights ?? 0} đêm (${checkInKey}→${endDateRaw}) · ${people} khách · xe: ${tickets}`;
+  } else if (service.category === "CABIN") {
     const shared = int(fd, "shared");
     const solo = int(fd, "solo");
     const people = shared + solo;
@@ -265,7 +349,11 @@ export async function createAdminBooking(
   const payMethod = str(fd, "payMethod") || "Chuyển khoản";
   const skipInventory = fd.get("skipInventory") === "on";
 
-  const commissionAmount = ctvId ? (roomId ? (stayCommission ?? 0) : await resolveCommission(serviceId, ctvId)) : 0;
+  const commissionAmount = ctvId
+    ? roomId || isCombo
+      ? (stayCommission ?? 0)
+      : await resolveCommission(serviceId, ctvId)
+    : 0;
 
   let code = generateBookingCode();
   for (let i = 0; i < 5; i++) {
@@ -279,20 +367,23 @@ export async function createAdminBooking(
       const b = await tx.bookingRequest.create({
         data: {
           code,
-          category: service.category,
+          category,
           serviceId,
-          serviceTitle: service.title,
+          serviceTitle,
           customerName,
           phone,
           note: str(fd, "note") || null,
           adminNote: str(fd, "adminNote") || null,
-          useDate: parseDateOnly(useDate),
+          useDate: parseDateOnly(bookingUseDate),
           endDate: endDate ? parseDateOnly(endDate) : null,
           nights,
-          quantity: roomId ? 1 : quantity,
-          adults: roomId ? quantity : null,
+          quantity: fixedQuantity ?? (roomId ? 1 : quantity),
+          adults: adults ?? (roomId ? quantity : null),
           roomTypeId,
           roomId,
+          roomIds,
+          roomAmount,
+          busAmount,
           rentalVehicleId,
           cabinTripId,
           cabinReturnTripId,

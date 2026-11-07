@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { CATEGORY_LIST } from "@/lib/constants";
+import { COMBO_DISCOUNT } from "@/lib/combo";
 import { toDateKey, today } from "@/lib/dates";
 import AdminCreateBooking from "@/components/admin/AdminCreateBooking";
 
@@ -43,6 +44,7 @@ export default async function NewAdminBookingPage() {
         }))}
         ctvs={ctvs.map((c) => ({ id: c.id, name: c.name || c.username }))}
         todayKey={toDateKey(today())}
+        comboDiscount={COMBO_DISCOUNT}
       />
     </div>
   );
