@@ -4,7 +4,7 @@ import type { BookingStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { CATEGORIES } from "@/lib/constants";
 import { formatPrice, formatDate, formatDateTime, toNumber } from "@/lib/format";
-import { today } from "@/lib/dates";
+import { addDays, today } from "@/lib/dates";
 import { SITE } from "@/lib/site";
 import { ActionForm } from "@/components/admin/ActionForm";
 import { MoneyInput } from "@/components/admin/MoneyInput";
@@ -705,10 +705,27 @@ export default async function BookingDetailPage({
                 <h2 className="mt-1 text-lg font-extrabold tracking-tight text-ink">{b.serviceTitle}</h2>
               </div>
               <div className="text-right">
-                <div className="text-xs text-gray-500">Dùng dịch vụ</div>
-                <div className="font-extrabold text-ink">
-                  {formatDate(b.useDate)}{b.endDate ? ` → ${formatDate(b.endDate)}` : ""}
-                </div>
+                {b.category === "COMBO" ? (
+                  // Combo: useDate lưu NGÀY NHẬN PHÒNG (giữ phòng đúng đêm) — hiển thị theo
+                  // ngày LÊN XE (chuyến đi, thiếu thì = nhận phòng − 1) để khớp lựa chọn của khách.
+                  <>
+                    <div className="text-xs text-gray-500">Lên xe → về</div>
+                    <div className="font-extrabold text-ink">
+                      {formatDate(outTrip?.departureDate ?? addDays(b.useDate, -1))}
+                      {b.endDate ? ` → ${formatDate(retTrip?.departureDate ?? b.endDate)}` : ""}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      Nhận phòng {formatDate(b.useDate)}{b.endDate ? ` · trả ${formatDate(b.endDate)}` : ""}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-xs text-gray-500">Dùng dịch vụ</div>
+                    <div className="font-extrabold text-ink">
+                      {formatDate(b.useDate)}{b.endDate ? ` → ${formatDate(b.endDate)}` : ""}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
             <div className="flex flex-col">
