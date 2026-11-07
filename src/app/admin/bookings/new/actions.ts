@@ -390,7 +390,12 @@ export async function createAdminBooking(
           customerName,
           phone,
           customerFacebook,
-          note: str(fd, "note") || null,
+          // Cabin/combo: ghi điểm đón (tuyến) vào ghi chú như đơn đặt web ("Đón: …") để trang
+          // chi tiết / tin nhắn nhà xe hiện đúng điểm đón thay vì điểm mặc định của chuyến.
+          note:
+            [str(fd, "note") || null, isCombo || service.category === "CABIN" ? `Đón: ${origin}` : null]
+              .filter(Boolean)
+              .join(" · ") || null,
           adminNote: str(fd, "adminNote") || null,
           useDate: parseDateOnly(bookingUseDate),
           endDate: endDate ? parseDateOnly(endDate) : null,

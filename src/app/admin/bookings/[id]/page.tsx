@@ -98,7 +98,12 @@ export default async function BookingDetailPage({
   // Ghi chú khách bị trộn thêm "Đón: … · Trả: … · Tạm tính: …" khi đặt cabin.
   // Tách ra: điểm đón/trả khách tự chọn + ghi chú thật (sạch cho phần hiển thị).
   const noteSegs = (b.note ?? "").split(" · ").map((s) => s.trim()).filter(Boolean);
-  const pickupChosen = noteSegs.find((s) => s.startsWith("Đón:"))?.slice(4).trim() || null;
+  // Điểm đón khách chọn: "Đón: …" trong ghi chú; đơn cũ tạo hộ chỉ ghi tuyến trong mô tả
+  // lựa chọn ("… từ Ninh Bình (…" / "… từ Ninh Bình · …") ⇒ đọc bù từ đó.
+  const pickupChosen =
+    noteSegs.find((s) => s.startsWith("Đón:"))?.slice(4).trim() ||
+    b.selectionLabel?.match(/\btừ ([^·(]+?)\s*(?:\(|·|$)/)?.[1]?.trim() ||
+    null;
   const dropChosen = noteSegs.find((s) => s.startsWith("Trả:"))?.slice(4).trim() || null;
   const customerNote =
     noteSegs
@@ -178,7 +183,8 @@ export default async function BookingDetailPage({
     const routeLines = [
       `${retTrip ? "Lượt đi · " : ""}${outPickup} → ${outTrip.dropoffPoint} · ${formatDate(outTrip.departureDate)} ${outTrip.departureTime}`,
       ...(retTrip
-        ? [`Lượt về · ${retTrip.pickupPoint} → ${retTrip.dropoffPoint} · ${formatDate(retTrip.departureDate)} ${retTrip.departureTime}`]
+        ? // Lượt về = ngược lượt đi: Tà Xùa → điểm khách xuống (điểm trả/đón đã chọn, thiếu thì theo chuyến).
+          [`Lượt về · ${outTrip.dropoffPoint} → ${dropChosen || pickupChosen || retTrip.dropoffPoint} · ${formatDate(retTrip.departureDate)} ${retTrip.departureTime}`]
         : []),
     ];
     parts.push({
