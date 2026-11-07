@@ -145,6 +145,7 @@ model Service {
   // Chiết khấu mặc định cho CẢ homestay (đ/phòng/đêm): dùng khi phòng (và ngày) không
   // khai riêng chiết khấu. null = không có fallback (chỉ dùng mức khai ở từng phòng).
   roomCommission Decimal?     @db.Decimal(12, 0)
+  busCommission  Decimal?     @db.Decimal(12, 0) // nhà xe cabin: chiết khấu cho sàn (đ / khách / chiều)
   weekendPolicy WeekendPolicy @default(NONE) // chính sách bán cuối tuần theo cụm (homestay)
   // Homestay: trẻ DƯỚI số tuổi này được MIỄN PHÍ (không tính người, không phụ thu);
   // từ tuổi này tính như 1 người (vào sức chứa + phụ thu người thêm nếu vượt chuẩn).
@@ -502,6 +503,8 @@ model BookingRequest {
   // Tiền chủ dịch vụ thực nhận = (tiền phòng bán ra) − roomCommission. Lưu cho MỌI đơn
   // homestay/combo (kể cả khách tự đặt), không chỉ đơn có CTV.
   roomCommission   Decimal?   @db.Decimal(12, 0)
+  // Chiết khấu NHÀ XE cho sàn (snapshot lúc đặt) = Service.busCommission × số khách × số chiều.
+  busCommission    Decimal?   @db.Decimal(12, 0)
   commissionPaid   Boolean    @default(false) // đã trả hoa hồng cho CTV chưa
   commissionPaidAt DateTime?
 

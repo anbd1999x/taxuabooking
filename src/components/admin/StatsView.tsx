@@ -40,8 +40,34 @@ export function StatsView({
         <Stat label="Còn thiếu" value={formatPrice(t.outstanding)} tone="warn" sub={`${t.awaiting} đơn chờ TT`} />
       </div>
 
+      {/* Doanh thu SÀN (chỉ admin): chiết khấu nhà xe + homestay − hoa hồng CTV. */}
+      {showProviders && (
+        <section className="mt-6">
+          <h2 className="text-lg font-semibold text-ink">Doanh thu sàn (chiết khấu)</h2>
+          <p className="mt-0.5 text-xs text-gray-500">
+            Đơn đã chốt (giữ chỗ / hoàn thành). Home: chiết khấu theo phòng/đêm · Nhà xe: chiết khấu theo khách/chiều (cài ở trang sửa nhà xe).
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
+            <Stat label="Chiết khấu homestay" value={formatPrice(t.homeDiscount)} />
+            <Stat label="Chiết khấu nhà xe" value={formatPrice(t.busDiscount)} />
+            <Stat label="Tổng chiết khấu thu về" value={formatPrice(t.homeDiscount + t.busDiscount)} tone="ok" />
+            <Stat
+              label="Hoa hồng CTV"
+              value={formatPrice(t.commission)}
+              sub={t.commissionUnpaid > 0 ? `chưa trả ${formatPrice(t.commissionUnpaid)}` : undefined}
+            />
+            <Stat
+              label="Lợi nhuận sàn"
+              value={formatPrice(t.platformProfit)}
+              sub="= chiết khấu − hoa hồng CTV"
+              tone={t.platformProfit >= 0 ? "ok" : "warn"}
+            />
+          </div>
+        </section>
+      )}
+
       <StatTable title="Theo cộng tác viên (CTV)" col="CTV" rows={stats.byCtv} />
-      {showProviders && <StatTable title="Theo chủ dịch vụ" col="Chủ dịch vụ" rows={stats.byProvider} />}
+      {showProviders && <StatTable title="Theo chủ dịch vụ" col="Chủ dịch vụ" rows={stats.byProvider} showPlatform />}
     </div>
   );
 }
@@ -56,7 +82,7 @@ function Stat({ label, value, sub, tone }: { label: string; value: string; sub?:
   );
 }
 
-function StatTable({ title, col, rows }: { title: string; col: string; rows: StatRow[] }) {
+function StatTable({ title, col, rows, showPlatform = false }: { title: string; col: string; rows: StatRow[]; showPlatform?: boolean }) {
   return (
     <section className="mt-8">
       <h2 className="text-lg font-semibold text-ink">{title}</h2>
@@ -72,11 +98,12 @@ function StatTable({ title, col, rows }: { title: string; col: string; rows: Sta
               <th className="px-3 py-3 text-right">Đã thu</th>
               <th className="px-3 py-3 text-right">Còn thiếu</th>
               <th className="px-3 py-3 text-right">HH chưa trả</th>
+              {showPlatform && <th className="px-3 py-3 text-right">CK cho sàn</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {rows.length === 0 ? (
-              <tr><td colSpan={8} className="py-8 text-center text-gray-500">Không có dữ liệu.</td></tr>
+              <tr><td colSpan={showPlatform ? 9 : 8} className="py-8 text-center text-gray-500">Không có dữ liệu.</td></tr>
             ) : (
               rows.map((r) => (
                 <tr key={r.id} className="hover:bg-gray-50">
@@ -88,6 +115,11 @@ function StatTable({ title, col, rows }: { title: string; col: string; rows: Sta
                   <td className="px-3 py-3 text-right text-forest-700">{formatPrice(r.collected)}</td>
                   <td className="px-3 py-3 text-right text-amber-700">{formatPrice(r.outstanding)}</td>
                   <td className="px-3 py-3 text-right">{r.commissionUnpaid > 0 ? formatPrice(r.commissionUnpaid) : "—"}</td>
+                  {showPlatform && (
+                    <td className="px-3 py-3 text-right font-semibold text-forest-700">
+                      {r.homeDiscount + r.busDiscount > 0 ? formatPrice(r.homeDiscount + r.busDiscount) : "—"}
+                    </td>
+                  )}
                 </tr>
               ))
             )}

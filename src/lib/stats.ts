@@ -2,7 +2,7 @@ import "server-only";
 import { prisma } from "./prisma";
 import { parseDateOnly, addDays } from "./dates";
 import { toNumber } from "./format";
-import { resolveRoomCommissions } from "./provider-commission";
+import { resolveBusCommissions, resolveRoomCommissions } from "./provider-commission";
 
 /** Một dòng thống kê (tổng, theo CTV, hoặc theo chủ dịch vụ). */
 export interface StatRow {
@@ -16,7 +16,11 @@ export interface StatRow {
   outstanding: number; // còn thiếu (doanh thu − đã thu)
   commission: number; // hoa hồng CTV (đơn đã chốt)
   commissionUnpaid: number; // hoa hồng chưa trả CTV
-  discount: number; // tổng chiết khấu từng căn đã trừ khỏi doanh thu (phạm vi chủ dịch vụ)
+  discount: number; // tổng chiết khấu đã trừ khỏi doanh thu (phạm vi chủ dịch vụ)
+  // ---- Doanh thu SÀN (admin) — chỉ đơn đã chốt ----
+  homeDiscount: number; // chiết khấu homestay cho sàn (theo phòng/đêm)
+  busDiscount: number; // chiết khấu nhà xe cho sàn (theo khách/chiều)
+  platformProfit: number; // lợi nhuận sàn = homeDiscount + busDiscount − hoa hồng CTV
 }
 
 export interface StatsResult {
@@ -26,7 +30,10 @@ export interface StatsResult {
 }
 
 function emptyRow(id: string, name: string): StatRow {
-  return { id, name, orders: 0, completed: 0, awaiting: 0, revenue: 0, collected: 0, outstanding: 0, commission: 0, commissionUnpaid: 0, discount: 0 };
+  return {
+    id, name, orders: 0, completed: 0, awaiting: 0, revenue: 0, collected: 0, outstanding: 0,
+    commission: 0, commissionUnpaid: 0, discount: 0, homeDiscount: 0, busDiscount: 0, platformProfit: 0,
+  };
 }
 
 type Bk = {
@@ -38,6 +45,7 @@ type Bk = {
   commissionAmount: unknown;
   commissionPaid: boolean;
   roomCommission: unknown; // chiết khấu từng căn (trừ khỏi doanh thu khi xem ở phạm vi chủ dịch vụ)
+  busCommission: unknown; // chiết khấu nhà xe (trừ khỏi doanh thu nhà xe ở phạm vi chủ dịch vụ)
 };
 
 /**
@@ -60,6 +68,8 @@ function comboSideView(
     commissionPaid: b.commissionPaid,
     // Chiết khấu từng căn chỉ thuộc phần tiền phòng (phía homestay); vé xe không có.
     roomCommission: side === "home" ? b.roomCommission : null,
+    // Chiết khấu nhà xe chỉ thuộc phần tiền vé (phía nhà xe).
+    busCommission: side === "bus" ? b.busCommission : null,
   };
 }
 
@@ -70,7 +80,9 @@ function comboSideView(
 function accumulate(row: StatRow, b: Bk, net = false) {
   if (b.status === "CANCELLED") return; // đơn huỷ không tính
   const gross = toNumber(b.referencePrice as never) ?? 0;
-  const discount = net ? toNumber(b.roomCommission as never) ?? 0 : 0;
+  const homeDisc = toNumber(b.roomCommission as never) ?? 0;
+  const busDisc = toNumber(b.busCommission as never) ?? 0;
+  const discount = net ? homeDisc + busDisc : 0;
   const price = Math.max(0, gross - discount); // thực nhận của đơn
   const rawCollected = toNumber(b.amountCollected as never) ?? 0;
   // Tiền đã thu quy về thực nhận: không vượt quá tiền thực nhận của đơn.
@@ -85,9 +97,13 @@ function accumulate(row: StatRow, b: Bk, net = false) {
     row.revenue += price;
     row.discount += discount;
     row.outstanding += Math.max(0, price - collected);
+    row.homeDiscount += homeDisc;
+    row.busDiscount += busDisc;
+    row.platformProfit += homeDisc + busDisc;
     if (b.ctvId) {
       const comm = toNumber(b.commissionAmount as never) ?? 0;
       row.commission += comm;
+      row.platformProfit -= comm;
       if (!b.commissionPaid) row.commissionUnpaid += comm;
     }
   }
@@ -141,6 +157,11 @@ export async function computeStats(fromKey: string, toKey: string, ownerId?: str
       commissionAmount: true,
       commissionPaid: true,
       roomCommission: true,
+      busCommission: true,
+      cabinReturnTripId: true,
+      quantity: true,
+      seatsSingle: true,
+      seatsDouble: true,
       roomId: true,
       roomIds: true,
       useDate: true,
@@ -149,11 +170,12 @@ export async function computeStats(fromKey: string, toKey: string, ownerId?: str
     },
   });
 
-  // Phạm vi chủ dịch vụ: thay roomCommission bằng giá trị hiệu lực (snapshot, hoặc tính
-  // bù cho đơn cũ chưa backfill) để tiền thực nhận đúng ngay.
-  if (ownerId) {
-    const disc = await resolveRoomCommissions(bookings);
-    for (const b of bookings) (b as { roomCommission: unknown }).roomCommission = disc.get(b.id) ?? 0;
+  // Thay chiết khấu home / nhà xe bằng giá trị hiệu lực (snapshot, hoặc tính bù cho đơn
+  // cũ chưa có snapshot) — để tiền thực nhận của chủ dịch vụ & doanh thu sàn đúng ngay.
+  const [roomDisc, busDisc] = await Promise.all([resolveRoomCommissions(bookings), resolveBusCommissions(bookings)]);
+  for (const b of bookings) {
+    (b as { roomCommission: unknown }).roomCommission = roomDisc.get(b.id) ?? 0;
+    (b as { busCommission: unknown }).busCommission = busDisc.get(b.id) ?? 0;
   }
 
   // Chủ nhà xe của các đơn combo (tra theo chuyến đi) — cho bảng theo chủ dịch vụ.

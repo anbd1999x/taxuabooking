@@ -438,6 +438,12 @@ export async function updateBookingInfo(
   const qtyData = isStay && b.category !== "COMBO" ? { adults: quantity } : { quantity, ...(b.adults != null ? { adults: quantity } : {}) };
   // Cabin giữ chỗ theo seatsSingle (= số khách) — đổi số khách thì đổi theo.
   const seatsData = b.cabinTripId && b.seatsDouble === 0 ? { seatsSingle: quantity } : {};
+  // Chiết khấu nhà xe tính theo đầu khách ⇒ đổi số khách thì quy đổi tỉ lệ theo snapshot cũ.
+  const oldBusComm = toNumber(b.busCommission);
+  const busCommData =
+    oldBusComm != null && b.cabinTripId && b.quantity > 0 && b.quantity !== quantity
+      ? { busCommission: Math.round((oldBusComm / b.quantity) * quantity) }
+      : {};
 
   const data: Prisma.BookingRequestUpdateInput = {
     customerName,
@@ -450,6 +456,7 @@ export async function updateBookingInfo(
     nights,
     ...qtyData,
     ...seatsData,
+    ...busCommData,
     referencePrice: money(formData.get("referencePrice")),
     ...(b.category === "COMBO"
       ? { roomAmount: money(formData.get("roomAmount")), busAmount: money(formData.get("busAmount")) }
@@ -576,6 +583,7 @@ export async function duplicateBooking(formData: FormData): Promise<void> {
       ctvId: b.ctvId,
       commissionAmount: b.commissionAmount,
       roomCommission: b.roomCommission,
+      busCommission: b.busCommission,
       needsConfirmation: true,
     },
   });

@@ -6,6 +6,7 @@ import { parseDateOnly, toDateKey, addDays, today } from "./dates";
 import { toNumber } from "./format";
 import { generateBookingCode } from "./utils";
 import { resolveCommission } from "./commission";
+import { busCommissionFor } from "./provider-commission";
 import { hasOriginFare, legFareFor, roundTripFareFor, type FareRow } from "./combo";
 import { cabinSeatTotal } from "./combo-pricing";
 import type { CabinBookingInput } from "./validation";
@@ -489,6 +490,7 @@ export async function createCabinBooking(
       needsConfirmation,
       ctvId: ctvId ?? null,
       commissionAmount: await resolveCommission(service.id, ctvId),
+      busCommission: busCommissionFor(service.busCommission, people, ret ? 2 : 1),
     },
   });
 

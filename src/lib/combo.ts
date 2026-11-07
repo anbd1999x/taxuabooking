@@ -9,6 +9,7 @@ import { checkWeekendPolicy } from "./weekend-policy";
 import { payingChildren, partyLabel, DEFAULT_CHILD_FREE_UNDER } from "./occupancy";
 import type { ComboBookingInput } from "./validation";
 import { cabinAllocation, busCostPerPerson } from "./combo-pricing";
+import { busCommissionFor } from "./provider-commission";
 export { cabinAllocation, busCostPerPerson } from "./combo-pricing";
 
 /** Giảm giá cố định cho mỗi combo (mỗi khách). */
@@ -1014,7 +1015,7 @@ export async function createComboBooking(
       .map((t) => `${t.names.length}× ${t.typeName} (${t.names.join(", ")})`)
       .join(" + ") + (extraGuests > 0 ? `, +${extraGuests} khách ở ghép (phụ thu ${extraCost.toLocaleString("vi-VN")}đ)` : "");
 
-  const busSvc = await prisma.service.findUnique({ where: { id: outbound.serviceId }, select: { title: true } });
+  const busSvc = await prisma.service.findUnique({ where: { id: outbound.serviceId }, select: { title: true, busCommission: true } });
   const selectionLabel =
     `Combo: xe ${outbound.operatorName || busSvc?.title || "cabin"} (đi ${toDateKey(outbound.departureDate)} ${outbound.departureTime}, ` +
     `về ${toDateKey(ret.departureDate)} ${ret.departureTime}${origin ? `, đón tại ${origin}` : ""}) + ${svc.title} · ${roomsLabel}, ` +
@@ -1063,6 +1064,7 @@ export async function createComboBooking(
       ctvId: ctvId ?? null,
       commissionAmount: ctvId ? comboRoomCommission : 0,
       roomCommission: comboRoomCommission,
+      busCommission: busCommissionFor(busSvc?.busCommission, people, 2),
     },
   });
 

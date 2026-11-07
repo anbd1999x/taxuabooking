@@ -33,6 +33,7 @@ interface Initial {
   ownerId?: string | null;
   ctvCommission?: number | null;
   roomCommission?: number | null;
+  busCommission?: number | null;
   weekendPolicy?: string | null;
   priorityOrder?: number | null;
   childFreeUnderAge?: number | null;
@@ -205,6 +206,15 @@ export function ServiceForm({
           <span className="text-sm font-medium text-gray-600">Hoa hồng CTV / đơn (đ)</span>
           <MoneyInput name="ctvCommission" defaultValue={initial.ctvCommission ?? ""} placeholder="Để trống = dùng mức mặc định của CTV" className={inputCls} />
           <span className="mt-1 block text-xs text-gray-400">Hoa hồng cố định mỗi đơn CTV đặt cho dịch vụ này. Để trống = dùng mức mặc định của từng CTV.</span>
+        </label>
+      )}
+
+      {/* Chiết khấu nhà xe cho sàn (doanh thu admin). */}
+      {cat === "CABIN" && (
+        <label className="block sm:max-w-sm">
+          <span className="text-sm font-medium text-gray-600">Chiết khấu cho sàn (đ / khách / chiều)</span>
+          <MoneyInput name="busCommission" defaultValue={initial.busCommission ?? ""} placeholder="VD: 50.000" className={inputCls} />
+          <span className="mt-1 block text-xs text-gray-400">Nhà xe chiết khấu cho sàn mỗi khách mỗi chiều — khứ hồi 2 khách = 4 × mức này. Tính vào doanh thu admin; tiền nhà xe thực nhận = tiền vé − chiết khấu. Để trống = 0.</span>
         </label>
       )}
 

@@ -138,6 +138,7 @@ export const serviceInputSchema = z.object({
   ownerId: z.string().optional().nullable(),
   ctvCommission: z.coerce.number().int().min(0).optional().nullable(),
   roomCommission: z.coerce.number().int().min(0).optional().nullable(),
+  busCommission: z.coerce.number().int().min(0).optional().nullable(),
   weekendPolicy: z.enum(["NONE", "FRI_SAT", "SAT_SUN", "FRI_SUN", "SAT_PAIRED"]).optional(),
   priorityOrder: z.coerce.number().int().optional().nullable(),
   childFreeUnderAge: z.coerce.number().int().min(0).max(18).optional().nullable(),

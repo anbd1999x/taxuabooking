@@ -111,3 +111,47 @@ export async function resolveRoomInfo(
   }
   return out;
 }
+
+/** Chiết khấu NHÀ XE cho sàn của 1 đơn = mức (đ/khách/chiều) × số khách × số chiều. */
+export function busCommissionFor(rate: unknown, people: number, legs: number): number | null {
+  const r = toNumber(rate as never);
+  if (r == null || r <= 0) return null;
+  return r * Math.max(0, people) * Math.max(0, legs);
+}
+
+/**
+ * Chiết khấu nhà xe hiệu lực của mỗi đơn có chuyến cabin (cabin / combo), map id → đồng.
+ * - Có snapshot `busCommission` ⇒ dùng luôn.
+ * - Đơn cũ (null) ⇒ TÍNH BÙ từ mức HIỆN TẠI của nhà xe chạy chuyến đi × số khách × số chiều.
+ */
+export async function resolveBusCommissions(
+  bookings: {
+    id: string;
+    busCommission: unknown;
+    cabinTripId: string | null;
+    cabinReturnTripId: string | null;
+    quantity: number;
+    seatsSingle: number | null;
+    seatsDouble: number | null;
+  }[],
+): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  const need = bookings.filter((b) => {
+    const snap = toNumber(b.busCommission as never);
+    if (snap != null) map.set(b.id, snap);
+    return snap == null && !!b.cabinTripId;
+  });
+  if (need.length) {
+    const trips = await prisma.cabinTrip.findMany({
+      where: { id: { in: [...new Set(need.map((b) => b.cabinTripId!))] } },
+      select: { id: true, service: { select: { busCommission: true } } },
+    });
+    const rate = new Map(trips.map((t) => [t.id, t.service.busCommission]));
+    for (const b of need) {
+      const people = b.quantity; // cabin/combo: quantity = số khách
+      const legs = b.cabinReturnTripId ? 2 : 1;
+      map.set(b.id, busCommissionFor(rate.get(b.cabinTripId!), people, legs) ?? 0);
+    }
+  }
+  return map;
+}

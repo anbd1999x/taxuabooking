@@ -14,6 +14,7 @@ import { adjustInventory, assignRoomsForBooking, statusHoldsInventory } from "@/
 import { isValidDateKey, parseDateOnly, toDateKey } from "@/lib/dates";
 import { formatPrice, toNumber } from "@/lib/format";
 import { generateBookingCode, normalizeFacebookUrl } from "@/lib/utils";
+import { busCommissionFor } from "@/lib/provider-commission";
 
 /* ============================ Báo giá / lựa chọn ============================ */
 
@@ -216,6 +217,7 @@ export async function createAdminBooking(
   let roomAmount: number | null = null;
   let busAmount: number | null = null;
   let fixedQuantity: number | null = null;
+  let busCommission: number | null = null; // chiết khấu nhà xe cho sàn (snapshot)
   let adults: number | null = null;
 
   if (isCombo) {
@@ -281,6 +283,7 @@ export async function createAdminBooking(
       seatsDouble = 0;
     }
     stayCommission = rooms.reduce((n, o) => n + (o.commission ?? 0), 0);
+    busCommission = busCommissionFor(bus.busCommission, people, 2);
     const tickets = [shared ? `${shared} nằm ghép` : null, solo ? `${solo} nằm riêng` : null].filter(Boolean).join(" + ");
     const busWhen = outbound
       ? `đi ${toDateKey(outbound.departureDate)} ${outbound.departureTime}` +
@@ -305,6 +308,7 @@ export async function createAdminBooking(
     if (ret && !outbound) return { error: "Chọn chuyến đi trước khi chọn chuyến về." };
 
     quantity = people;
+    busCommission = busCommissionFor(service.busCommission, people, retId || endDate ? 2 : 1);
     if (outbound) {
       // Có chuyến ⇒ giữ chỗ theo số khách ở kho vé thường (giống luồng đặt web).
       cabinTripId = outbound.id;
@@ -413,6 +417,7 @@ export async function createAdminBooking(
           ctvId,
           commissionAmount,
           roomCommission: roomId ? stayCommission : null,
+          busCommission,
           cancelReason: status === "CANCELLED" ? "Tạo đơn ở trạng thái huỷ" : null,
         },
       });
