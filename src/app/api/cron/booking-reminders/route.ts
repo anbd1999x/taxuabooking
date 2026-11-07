@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { runBookingReminders } from "@/lib/booking-reminders";
+import { runBookingReminders, runBookingRemindersLocked } from "@/lib/booking-reminders";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 /**
  * Nhắc lịch đơn (lên xe / xe về / nhận phòng thu tiền / checkout) qua Web Push tới admin.
- * Crontab VPS gọi mỗi 15 phút kèm ?key=<CRON_SECRET>. Mốc giờ & nội dung: src/lib/booking-reminders.ts.
+ * App TỰ chạy mỗi 5 phút (src/instrumentation.ts) — endpoint này để chạy tay / xem trước. Mốc giờ & nội dung: src/lib/booking-reminders.ts.
  * Thử: ?dry=1 (chỉ xem trước, không gửi) · ?at=2026-11-08T09:05:00%2B07:00 (giả lập thời điểm, chỉ khi dry).
  */
 export async function GET(request: Request) {
@@ -21,6 +21,7 @@ export async function GET(request: Request) {
   const at = dry && atRaw ? new Date(atRaw) : new Date();
   if (Number.isNaN(at.getTime())) return NextResponse.json({ error: "Tham số at không hợp lệ." }, { status: 400 });
 
-  const results = await runBookingReminders(at, dry);
+  // Gửi thật: dùng bản có khoá để không trùng với bộ hẹn giờ trong app (instrumentation).
+  const results = dry ? await runBookingReminders(at, true) : await runBookingRemindersLocked(at);
   return NextResponse.json({ at: at.toISOString(), dry, results });
 }

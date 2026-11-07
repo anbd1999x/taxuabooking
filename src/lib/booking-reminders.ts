@@ -152,3 +152,23 @@ function line(b: BookingRequest, time: string | undefined, showDue?: boolean): s
   ];
   return "• " + parts.filter(Boolean).join(" · ");
 }
+
+/** Khoá PostgreSQL riêng cho nhắc lịch (số bất kỳ, cố định). */
+const REMINDER_LOCK_KEY = 74_210_611;
+
+/**
+ * Chạy nhắc lịch với KHOÁ toàn cục (pg_try_advisory_xact_lock): production chạy nhiều bản
+ * app song song, mỗi bản đều có bộ hẹn giờ — chỉ bản lấy được khoá mới gửi, các bản còn
+ * lại bỏ lượt này (tránh 1 thông báo bắn 2 lần). Khoá tự nhả khi transaction kết thúc.
+ * Trả về null nếu bản khác đang chạy.
+ */
+export async function runBookingRemindersLocked(now = new Date()): Promise<ReminderResult[] | null> {
+  return prisma.$transaction(
+    async (tx) => {
+      const rows = await tx.$queryRaw<{ locked: boolean }[]>`SELECT pg_try_advisory_xact_lock(${REMINDER_LOCK_KEY}) AS locked`;
+      if (!rows[0]?.locked) return null;
+      return runBookingReminders(now, false);
+    },
+    { timeout: 120_000, maxWait: 10_000 },
+  );
+}
