@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "./prisma";
 import { parseDateOnly, addDays } from "./dates";
 import { toNumber } from "./format";
+import { comboSideCollected } from "./combo-pricing";
 import { resolveBusCommissions, resolveRoomCommissions } from "./provider-commission";
 
 /** Một dòng thống kê (tổng, theo CTV, hoặc theo chủ dịch vụ). */
@@ -62,7 +63,8 @@ function comboSideView(
     status: b.status,
     paymentStatus: b.paymentStatus,
     referencePrice: amount,
-    amountCollected: b.paymentStatus === "PAID" ? amount : 0,
+    // Đã cọc ⇒ bên này nhận 50% phần tiền của mình; thanh toán đủ ⇒ nhận đủ.
+    amountCollected: comboSideCollected(b.paymentStatus, toNumber(b.amountCollected as never), amount),
     ctvId: side === "home" ? b.ctvId : null,
     commissionAmount: side === "home" ? b.commissionAmount : null,
     commissionPaid: b.commissionPaid,

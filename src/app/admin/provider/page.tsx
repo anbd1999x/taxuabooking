@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { toNumber, formatPrice } from "@/lib/format";
+import { comboSideCollected } from "@/lib/combo-pricing";
 import { resolveRoomCommissions } from "@/lib/provider-commission";
 import { OrdersTable } from "../ctv/page";
 
@@ -28,7 +29,7 @@ export default async function ProviderHome() {
   // Chiết khấu hiệu lực mỗi đơn (snapshot, hoặc tính bù cho đơn cũ chưa backfill).
   const discMap = await resolveRoomCommissions(all);
   // Đơn combo: doanh thu phía homestay = PHẦN TIỀN PHÒNG (không gộp tiền vé xe);
-  // coi là đã thu khi khách thanh toán đủ (tiền combo do Tà Xùa Booking thu).
+  // đã thu = 50% phần tiền phòng khi khách đã cọc, đủ phần khi thanh toán đủ (sàn thu hộ).
   // Tiền chủ dịch vụ THỰC NHẬN = tiền bán ra − chiết khấu từng căn.
   const grossOf = (b: (typeof all)[number]) =>
     b.category === "COMBO" ? toNumber(b.roomAmount) ?? 0 : toNumber(b.referencePrice) ?? 0;
@@ -38,7 +39,10 @@ export default async function ProviderHome() {
   const discount = all.reduce((n, b) => n + discOf(b), 0);
   const collected = all.reduce((n, b) => {
     const net = netOf(b);
-    const raw = b.category === "COMBO" ? (b.paymentStatus === "PAID" ? net : 0) : toNumber(b.amountCollected) ?? 0;
+    const raw =
+      b.category === "COMBO"
+        ? comboSideCollected(b.paymentStatus, toNumber(b.amountCollected), grossOf(b), net)
+        : toNumber(b.amountCollected) ?? 0;
     return n + Math.min(raw, net); // tiền đã thu quy về thực nhận, không vượt quá
   }, 0);
 

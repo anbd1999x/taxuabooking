@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/format";
+import { comboSideCollected } from "@/lib/combo-pricing";
 import { toDateKey, today } from "@/lib/dates";
 import { resolveRoomInfo } from "@/lib/provider-commission";
 import { providerUnlocked } from "@/lib/booking-flow";
@@ -79,7 +80,7 @@ export default async function ProviderOrdersPage() {
       busLabel = "";
       busPrice = 0;
       const net0 = gross;
-      collected = b.paymentStatus === "PAID" ? net0 : 0;
+      collected = comboSideCollected(b.paymentStatus, toNumber(b.amountCollected), gross, net0);
     } else {
       const info = infoMap.get(b.id);
       gross = isCombo ? toNumber(b.roomAmount) ?? 0 : toNumber(b.referencePrice) ?? 0;
@@ -97,7 +98,9 @@ export default async function ProviderOrdersPage() {
       busLabel = isCombo ? b.selectionLabel ?? "Xe cabin trong combo" : "";
       busPrice = isCombo ? toNumber(b.busAmount) ?? 0 : 0;
       const net0 = Math.max(0, gross - discount);
-      collected = isCombo ? (b.paymentStatus === "PAID" ? net0 : 0) : Math.min(toNumber(b.amountCollected) ?? 0, net0);
+      collected = isCombo
+        ? comboSideCollected(b.paymentStatus, toNumber(b.amountCollected), gross, net0)
+        : Math.min(toNumber(b.amountCollected) ?? 0, net0);
     }
     const net = Math.max(0, gross - discount);
 

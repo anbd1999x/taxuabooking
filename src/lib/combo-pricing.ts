@@ -55,3 +55,28 @@ export function busCostPerPerson(
   if (!a) return null;
   return Math.round((2 * bus.farePerPerson * (a.nSingle + a.nDouble)) / people);
 }
+
+/** Tỉ lệ cọc combo: cọc = 50% tiền xe + 50% tiền phòng (mỗi bên nhận 50% phần của mình). */
+export const COMBO_DEPOSIT_RATE = 0.5;
+
+/**
+ * Tiền ĐÃ THU quy về MỘT BÊN của đơn combo (nhà xe: tiền vé, homestay: tiền phòng):
+ * - khách đã thanh toán đủ ⇒ bên đó nhận đủ phần của mình;
+ * - đã cọc (trạng thái Đã cọc hoặc có ghi nhận tiền) ⇒ 50% phần tiền của bên đó;
+ * - chưa thu ⇒ 0.
+ * `cap` (tuỳ chọn): không vượt quá số này (vd tiền thực nhận sau chiết khấu).
+ */
+export function comboSideCollected(
+  paymentStatus: string,
+  amountCollected: number | null | undefined,
+  sideAmount: number,
+  cap?: number,
+): number {
+  const v =
+    paymentStatus === "PAID"
+      ? sideAmount
+      : paymentStatus === "DEPOSITED" || (amountCollected ?? 0) > 0
+        ? Math.round(sideAmount * COMBO_DEPOSIT_RATE)
+        : 0;
+  return cap == null ? v : Math.min(v, cap);
+}
