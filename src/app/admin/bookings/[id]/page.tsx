@@ -18,6 +18,7 @@ import {
   toggleBookingHeld,
   duplicateBooking,
   setBookingCommissionPaid,
+  updateBookingInfo,
 } from "../actions";
 import { blockIp } from "../../ip-block/actions";
 import { geoForIps } from "@/lib/visits";
@@ -496,6 +497,16 @@ export default async function BookingDetailPage({
             >
               Zalo
             </a>
+            {b.customerFacebook && (
+              <a
+                href={b.customerFacebook}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="whitespace-nowrap rounded-full bg-[#1877f2] px-4 py-2.5 text-sm font-bold text-white hover:opacity-90"
+              >
+                Facebook
+              </a>
+            )}
             <CopyChip text={customerMsg} label="Chép tin nhắn cho khách" toast="Đã chép tin nhắn mẫu" className="border-[1.5px] py-2.5" />
             <CopyChip text={confirmMsg} label="Chép xác nhận chốt đơn" toast="Đã chép nội dung xác nhận gửi khách" className="border-[1.5px] border-forest-300 bg-forest-50 py-2.5 text-forest-700 hover:bg-forest-100" />
           </div>
@@ -549,6 +560,17 @@ export default async function BookingDetailPage({
               <div>
                 <div className="text-xs text-gray-500">Số điện thoại</div>
                 <a href={`tel:${phoneDigits}`} className="font-mono font-bold text-forest-700">{b.phone}</a>
+                {b.customerFacebook && (
+                  <a
+                    href={b.customerFacebook}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-0.5 block truncate text-xs font-semibold text-blue-600 underline"
+                    title={b.customerFacebook}
+                  >
+                    Facebook khách ↗
+                  </a>
+                )}
               </div>
               <div>
                 <div className="text-xs text-gray-500">Số khách</div>
@@ -586,6 +608,92 @@ export default async function BookingDetailPage({
                 <span className="text-xs italic text-gray-400">Không có (đơn tạo trước khi bật ghi IP, hoặc do admin/CTV nhập)</span>
               )}
             </div>
+
+            {/* Sửa thông tin đơn (admin) */}
+            <details className="group rounded-xl border-[1.5px] border-gray-200">
+              <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2.5 text-sm font-bold text-ink">
+                ✎ Sửa thông tin đơn
+                <span className="text-xs text-gray-400 group-open:rotate-180">▾</span>
+              </summary>
+              <ActionForm action={updateBookingInfo} className="grid gap-3 border-t border-gray-100 p-3 sm:grid-cols-2">
+                <input type="hidden" name="id" value={b.id} />
+                {(() => {
+                  const f = "w-full min-w-0 rounded-lg border-[1.5px] border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-ink";
+                  const l = "mb-1 block text-xs font-bold text-gray-500";
+                  const isStayOnly = Boolean(b.roomTypeId) && b.category !== "COMBO";
+                  const money = (v: unknown) => (toNumber(v as never) ?? "").toString();
+                  return (
+                    <>
+                      <label>
+                        <span className={l}>Tên khách</span>
+                        <input name="customerName" defaultValue={b.customerName} className={f} required />
+                      </label>
+                      <label>
+                        <span className={l}>Số điện thoại</span>
+                        <input name="phone" defaultValue={b.phone} inputMode="tel" className={f} required />
+                      </label>
+                      <label className="sm:col-span-2">
+                        <span className={l}>Link Facebook khách</span>
+                        <input
+                          name="customerFacebook"
+                          defaultValue={b.customerFacebook ?? ""}
+                          inputMode="url"
+                          autoComplete="off"
+                          placeholder="facebook.com/ten.khach"
+                          className={f}
+                        />
+                      </label>
+                      <label>
+                        <span className={l}>{b.roomTypeId ? "Nhận phòng" : "Ngày sử dụng / ngày đi"}</span>
+                        <input type="date" name="useDate" defaultValue={b.useDate.toISOString().slice(0, 10)} className={f} required />
+                      </label>
+                      <label>
+                        <span className={l}>{b.roomTypeId ? "Trả phòng" : "Ngày kết thúc / ngày về"}</span>
+                        <input type="date" name="endDate" defaultValue={b.endDate ? b.endDate.toISOString().slice(0, 10) : ""} className={f} />
+                      </label>
+                      <label>
+                        <span className={l}>{isStayOnly ? "Số khách" : "Số lượng / số khách"}</span>
+                        <input type="number" name="quantity" min={1} defaultValue={isStayOnly ? (b.adults ?? b.quantity) : b.quantity} className={f} required />
+                      </label>
+                      <label>
+                        <span className={l}>Tổng tiền khách trả (đ)</span>
+                        <input name="referencePrice" inputMode="numeric" defaultValue={money(b.referencePrice)} placeholder="Trống = chờ báo giá" className={f} />
+                      </label>
+                      {b.category === "COMBO" && (
+                        <>
+                          <label>
+                            <span className={l}>Tiền phòng (→ homestay)</span>
+                            <input name="roomAmount" inputMode="numeric" defaultValue={money(b.roomAmount)} className={f} />
+                          </label>
+                          <label>
+                            <span className={l}>Tiền vé xe (→ nhà xe)</span>
+                            <input name="busAmount" inputMode="numeric" defaultValue={money(b.busAmount)} className={f} />
+                          </label>
+                        </>
+                      )}
+                      <label className="sm:col-span-2">
+                        <span className={l}>Mô tả lựa chọn (phòng / chuyến / xe)</span>
+                        <textarea name="selectionLabel" rows={2} defaultValue={b.selectionLabel ?? ""} className={f} />
+                      </label>
+                      <label className="sm:col-span-2">
+                        <span className={l}>Ghi chú của khách</span>
+                        <textarea name="note" rows={2} defaultValue={b.note ?? ""} className={f} />
+                      </label>
+                      <div className="flex flex-wrap items-center justify-between gap-2 sm:col-span-2">
+                        <span className="text-xs text-gray-500">
+                          {b.inventoryApplied
+                            ? "Đơn đang giữ chỗ: đổi ngày/số lượng sẽ trả chỗ cũ và giữ lại theo thông tin mới."
+                            : "Đổi phòng/chuyến cụ thể: tạo đơn mới (Nhân bản) rồi huỷ đơn này."}
+                        </span>
+                        <button className="rounded-full bg-forest-700 px-5 py-2 text-sm font-bold text-white hover:bg-forest-800">
+                          Lưu thay đổi
+                        </button>
+                      </div>
+                    </>
+                  );
+                })()}
+              </ActionForm>
+            </details>
           </section>
 
           {/* Dịch vụ trong đơn */}

@@ -461,6 +461,7 @@ model BookingRequest {
 
   customerName    String
   phone           String
+  customerFacebook String? // link Facebook của khách (admin nhập khi đặt hộ / chăm sóc)
   note            String?
 
   useDate         DateTime      @db.Date // ngày đi / nhận phòng / nhận xe

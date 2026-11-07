@@ -7,10 +7,11 @@ import { prisma } from "@/lib/prisma";
 import { getSession, requireAdmin } from "@/lib/auth";
 import { toNumber, formatPrice } from "@/lib/format";
 import { bookingStatusSchema } from "@/lib/validation";
-import { generateBookingCode } from "@/lib/utils";
+import { generateBookingCode, normalizeFacebookUrl } from "@/lib/utils";
 import { BOOKING_STATUS_META } from "@/lib/constants";
 import { adjustInventory, assignRoomsForBooking, statusHoldsInventory } from "@/lib/inventory";
 import { canRoleAct, type BookingRole } from "@/lib/booking-flow";
+import { enumerateNights, isValidDateKey, parseDateOnly, toDateKey } from "@/lib/dates";
 
 export interface BookingActionState {
   ok?: boolean;
@@ -396,6 +397,115 @@ export async function addBookingNote(
   return { ok: true, message: "Đã thêm ghi chú" };
 }
 
+/**
+ * SỬA THÔNG TIN ĐƠN (chỉ ADMIN): khách (tên/SĐT/Facebook/ghi chú), ngày, số khách,
+ * mô tả lựa chọn, giá (+ tách tiền phòng/xe của combo). Đơn ĐANG GIỮ CHỖ mà đổi ngày/số
+ * lượng ⇒ trả chỗ theo thông tin cũ rồi giữ lại theo thông tin mới trong cùng transaction
+ * (không đủ chỗ ⇒ báo lỗi, không lưu gì). Ghi nhật ký các trường đã đổi.
+ */
+export async function updateBookingInfo(
+  _prev: BookingActionState,
+  formData: FormData,
+): Promise<BookingActionState> {
+  const session = await getSession();
+  if (session?.role !== "ADMIN") return { error: "Chỉ admin được sửa thông tin đơn." };
+  const id = String(formData.get("id") ?? "");
+  const get = (k: string) => String(formData.get(k) ?? "").trim();
+
+  const customerName = get("customerName").slice(0, 120);
+  const phone = get("phone");
+  const customerFacebook = normalizeFacebookUrl(get("customerFacebook"));
+  const useDateKey = get("useDate");
+  const endDateKey = get("endDate");
+  const quantity = parseInt(get("quantity"), 10);
+  if (!customerName) return { error: "Nhập tên khách." };
+  if (!/^[0-9+().\s-]{8,15}$/.test(phone)) return { error: "Số điện thoại không hợp lệ." };
+  if (customerFacebook === undefined) return { error: "Link Facebook không hợp lệ." };
+  if (!isValidDateKey(useDateKey)) return { error: "Ngày sử dụng không hợp lệ." };
+  if (endDateKey && (!isValidDateKey(endDateKey) || endDateKey < useDateKey)) {
+    return { error: "Ngày kết thúc phải từ ngày bắt đầu trở đi." };
+  }
+  if (!Number.isFinite(quantity) || quantity < 1 || quantity > 500) return { error: "Số lượng không hợp lệ." };
+
+  const b = await prisma.bookingRequest.findUnique({ where: { id } });
+  if (!b) return { error: "Không tìm thấy đơn." };
+
+  const useDate = parseDateOnly(useDateKey);
+  const endDate = endDateKey && endDateKey !== useDateKey ? parseDateOnly(endDateKey) : null;
+  const isStay = Boolean(b.roomTypeId);
+  const nights = isStay && endDate ? enumerateNights(useDate, endDate).length : b.nights;
+  // Homestay (đặt theo phòng): quantity = 1 phòng, số khách nằm ở adults.
+  const qtyData = isStay && b.category !== "COMBO" ? { adults: quantity } : { quantity, ...(b.adults != null ? { adults: quantity } : {}) };
+  // Cabin giữ chỗ theo seatsSingle (= số khách) — đổi số khách thì đổi theo.
+  const seatsData = b.cabinTripId && b.seatsDouble === 0 ? { seatsSingle: quantity } : {};
+
+  const data: Prisma.BookingRequestUpdateInput = {
+    customerName,
+    phone,
+    customerFacebook,
+    note: get("note").slice(0, 2000) || null,
+    selectionLabel: get("selectionLabel").slice(0, 1000) || null,
+    useDate,
+    endDate,
+    nights,
+    ...qtyData,
+    ...seatsData,
+    referencePrice: money(formData.get("referencePrice")),
+    ...(b.category === "COMBO"
+      ? { roomAmount: money(formData.get("roomAmount")), busAmount: money(formData.get("busAmount")) }
+      : {}),
+  };
+
+  // Các trường đổi → nhật ký.
+  const fmtD = (d: Date | null) => (d ? toDateKey(d) : "—");
+  const changes: string[] = [];
+  const diff = (label: string, a: unknown, c: unknown) => {
+    if (String(a ?? "") !== String(c ?? "")) changes.push(`${label}: ${a ?? "—"} → ${c ?? "—"}`);
+  };
+  diff("Tên", b.customerName, customerName);
+  diff("SĐT", b.phone, phone);
+  diff("Facebook", b.customerFacebook, customerFacebook);
+  diff("Ngày", fmtD(b.useDate), useDateKey);
+  diff("Đến ngày", fmtD(b.endDate), endDate ? endDateKey : "—");
+  diff("Số lượng", isStay && b.category !== "COMBO" ? b.adults : b.quantity, quantity);
+  diff("Lựa chọn", b.selectionLabel, data.selectionLabel);
+  diff("Ghi chú", b.note, data.note);
+  diff("Giá", toNumber(b.referencePrice), data.referencePrice);
+  if (b.category === "COMBO") {
+    diff("Tiền phòng", toNumber(b.roomAmount), data.roomAmount);
+    diff("Tiền xe", toNumber(b.busAmount), data.busAmount);
+  }
+  if (changes.length === 0) return { ok: true, message: "Không có thay đổi" };
+
+  const inventoryChanged =
+    b.inventoryApplied &&
+    (fmtD(b.useDate) !== useDateKey ||
+      fmtD(b.endDate) !== (endDate ? endDateKey : "—") ||
+      (!isStay && b.quantity !== quantity) ||
+      (b.cabinTripId != null && (b.seatsSingle ?? b.quantity) !== quantity));
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      if (inventoryChanged) {
+        // Trả chỗ theo thông tin CŨ…
+        if (b.roomTypeId) await assignRoomsForBooking(tx, b, false);
+        if (b.cabinTripId || b.rentalVehicleId) await adjustInventory(tx, b, +1);
+      }
+      const nb = await tx.bookingRequest.update({ where: { id }, data });
+      if (inventoryChanged) {
+        // …rồi giữ lại theo thông tin MỚI (thiếu chỗ ⇒ throw ⇒ rollback toàn bộ).
+        if (nb.roomTypeId) await assignRoomsForBooking(tx, nb, true);
+        if (nb.cabinTripId || nb.rentalVehicleId) await adjustInventory(tx, nb, -1);
+      }
+      await log(tx, id, "SYSTEM", "Sửa thông tin đơn", changes.join("\n"), await sessionName());
+    });
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Có lỗi xảy ra." };
+  }
+  revalidateDetail(id);
+  return { ok: true, message: inventoryChanged ? "Đã lưu & giữ chỗ lại theo ngày mới" : "Đã lưu thông tin đơn" };
+}
+
 /** Bật/tắt đánh dấu NHÀ CUNG CẤP ĐÃ GIỮ CHỖ (side: room = phòng/dịch vụ, bus = nhà xe). */
 export async function toggleBookingHeld(
   _prev: BookingActionState,
@@ -443,6 +553,7 @@ export async function duplicateBooking(formData: FormData): Promise<void> {
       serviceTitle: b.serviceTitle,
       customerName: b.customerName,
       phone: b.phone,
+      customerFacebook: b.customerFacebook,
       note: b.note,
       useDate: b.useDate,
       endDate: b.endDate,

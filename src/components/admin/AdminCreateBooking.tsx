@@ -488,6 +488,17 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
               <label className={label}>Số điện thoại *</label>
               <input name="phone" inputMode="tel" className={input} required />
             </div>
+            <div className="sm:col-span-2">
+              <label className={label}>Link Facebook khách (nếu có)</label>
+              <input
+                name="customerFacebook"
+                type="text"
+                inputMode="url"
+                autoComplete="off"
+                placeholder="facebook.com/ten.khach hoặc link tin nhắn"
+                className={input}
+              />
+            </div>
             <div>
               <label className={label}>CTV đặt hộ (nếu có)</label>
               <select name="ctvId" className={input} defaultValue="">

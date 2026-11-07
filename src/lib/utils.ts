@@ -27,3 +27,20 @@ export function generateBookingCode(): string {
   }
   return `TX-${s}`;
 }
+
+/**
+ * Chuẩn hoá link Facebook khách nhập tay: thêm https:// nếu thiếu, bỏ khoảng trắng.
+ * Rỗng ⇒ null; không phải URL hợp lệ ⇒ undefined (để báo lỗi).
+ */
+export function normalizeFacebookUrl(input: string | null | undefined): string | null | undefined {
+  const s = (input ?? "").trim();
+  if (!s) return null;
+  const withProto = /^https?:\/\//i.test(s) ? s : `https://${s.replace(/^\/+/, "")}`;
+  try {
+    const u = new URL(withProto);
+    if (!u.hostname.includes(".") || withProto.length > 500) return undefined;
+    return u.toString();
+  } catch {
+    return undefined;
+  }
+}

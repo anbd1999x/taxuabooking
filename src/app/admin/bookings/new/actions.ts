@@ -13,7 +13,7 @@ import { resolveCommission } from "@/lib/commission";
 import { adjustInventory, assignRoomsForBooking, statusHoldsInventory } from "@/lib/inventory";
 import { isValidDateKey, parseDateOnly, toDateKey } from "@/lib/dates";
 import { formatPrice, toNumber } from "@/lib/format";
-import { generateBookingCode } from "@/lib/utils";
+import { generateBookingCode, normalizeFacebookUrl } from "@/lib/utils";
 
 /* ============================ Báo giá / lựa chọn ============================ */
 
@@ -168,6 +168,8 @@ export async function createAdminBooking(
   if (!serviceId) return { error: "Chọn dịch vụ." };
   if (!customerName) return { error: "Nhập tên khách." };
   if (!/^[0-9+().\s-]{8,15}$/.test(phone)) return { error: "Số điện thoại không hợp lệ." };
+  const customerFacebook = normalizeFacebookUrl(str(fd, "customerFacebook"));
+  if (customerFacebook === undefined) return { error: "Link Facebook không hợp lệ." };
   if (!isValidDateKey(useDate)) return { error: "Chọn ngày sử dụng." };
   if (endDateRaw && (!isValidDateKey(endDateRaw) || endDateRaw < useDate)) return { error: "Ngày kết thúc phải từ ngày bắt đầu trở đi." };
   if (!STATUSES.includes(status)) return { error: "Trạng thái không hợp lệ." };
@@ -372,6 +374,7 @@ export async function createAdminBooking(
           serviceTitle,
           customerName,
           phone,
+          customerFacebook,
           note: str(fd, "note") || null,
           adminNote: str(fd, "adminNote") || null,
           useDate: parseDateOnly(bookingUseDate),
