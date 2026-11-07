@@ -51,6 +51,49 @@ const chip = (on: boolean) =>
     on ? "border-forest-700 bg-forest-700 text-white" : "border-gray-200 bg-white text-ink hover:bg-gray-50"
   }`;
 
+/**
+ * Ô nhập tiền: ĐANG GÕ chỉ hiện số thô (không chèn dấu chấm) — chèn định dạng giữa lúc gõ
+ * làm bàn phím điện thoại / bộ gõ tiếng Việt lệch con trỏ và nhân đôi ký tự (600000 → 660000).
+ * Rời ô mới định dạng "600.000"; dưới ô luôn có dòng xem trước số tiền.
+ */
+function MoneyInput({
+  name,
+  value,
+  onChange,
+  readOnly,
+  required,
+  placeholder,
+}: {
+  name: string;
+  value: string;
+  onChange: (v: string) => void;
+  readOnly?: boolean;
+  required?: boolean;
+  placeholder?: string;
+}) {
+  const [focused, setFocused] = useState(false);
+  const raw = value.replace(/[^\d]/g, "");
+  return (
+    <>
+      <input
+        name={name}
+        type="text"
+        inputMode="numeric"
+        autoComplete="off"
+        value={focused && !readOnly ? raw : fmtInput(value)}
+        readOnly={readOnly}
+        required={required}
+        placeholder={placeholder}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        onChange={(e) => onChange(e.target.value.replace(/[^\d]/g, ""))}
+        className={`${input} ${readOnly ? "bg-gray-50" : ""}`}
+      />
+      {focused && raw && <p className="mt-0.5 text-xs font-semibold text-gray-500">= {fmt(Number(raw))}đ</p>}
+    </>
+  );
+}
+
 function addDay(key: string): string {
   const d = new Date(key + "T00:00:00Z");
   d.setUTCDate(d.getUTCDate() + 1);
@@ -521,15 +564,13 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
               ).map(([k, name, l, v, set, sug]) => (
                 <div key={k} className={k === "discount" ? "col-span-2" : ""}>
                   <label className={label}>{l}</label>
-                  <input
+                  <MoneyInput
                     name={name}
                     value={v}
-                    inputMode="numeric"
-                    onChange={(e) => {
+                    onChange={(val) => {
                       setTouched((t) => ({ ...t, [k]: true }));
-                      set(fmtInput(e.target.value));
+                      set(val);
                     }}
-                    className={input}
                   />
                   {sug != null && touched[k] && digits(v) !== sug && (
                     <button
@@ -545,17 +586,15 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
             </div>
           )}
           <label className={label}>Tổng tiền khách trả</label>
-          <input
+          <MoneyInput
             name="price"
             value={price}
-            inputMode="numeric"
             readOnly={isCombo}
-            onChange={(e) => {
+            onChange={(val) => {
               setPriceTouched(true);
-              setPrice(fmtInput(e.target.value));
+              setPrice(val);
             }}
             placeholder="Để trống = chờ báo giá"
-            className={`${input} ${isCombo ? "bg-gray-50" : ""}`}
           />
           {isCombo && <p className="mt-1 text-xs text-gray-500">= tiền phòng + tiền vé − giảm giá</p>}
           {!isCombo && suggested != null && (
@@ -588,14 +627,7 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
           {pay === "DEPOSITED" && (
             <div className="mt-3">
               <label className={label}>Số tiền đã cọc</label>
-              <input
-                name="amountCollected"
-                value={collected}
-                inputMode="numeric"
-                onChange={(e) => setCollected(fmtInput(e.target.value))}
-                className={input}
-                required
-              />
+              <MoneyInput name="amountCollected" value={collected} onChange={setCollected} required />
               {total > 0 && (
                 <div className="mt-1.5 flex flex-wrap gap-1.5">
                   {[30, 50].map((p) => (
