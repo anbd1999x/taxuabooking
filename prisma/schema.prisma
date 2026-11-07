@@ -845,3 +845,15 @@ model FeedbackComment {
 
   @@index([feedbackId])
 }
+
+/// Nhắc lịch đã gửi (Web Push) cho từng đơn — chống gửi trùng khi cron chạy lặp.
+/// kind: CABIN_DEP_AM | CABIN_DEP_PM | CABIN_RET_AM | COMBO_DEP_AM | COMBO_DEP_PM | COMBO_CHECKIN_PAY | COMBO_CHECKOUT
+model BookingReminder {
+  id        String   @id @default(cuid())
+  bookingId String
+  kind      String
+  sentAt    DateTime @default(now())
+
+  @@unique([bookingId, kind])
+  @@index([sentAt])
+}
