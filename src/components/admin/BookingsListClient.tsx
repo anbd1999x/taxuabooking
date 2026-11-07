@@ -145,7 +145,8 @@ export default function BookingsListClient({ rows: all, totalInDb }: { rows: Boo
     const needle = q.trim().toLowerCase();
     const filtered = all.filter(
       (r) =>
-        (st === "all" || r.status === st) &&
+        // "Tất cả" ẩn đơn đã huỷ (xem ở ô "Đã huỷ"); đang tìm kiếm thì vẫn hiện để tra cứu.
+        (st === "all" ? r.status !== "CANCELLED" || !!needle : r.status === st) &&
         (cat === "all" || (cat === "HOMESTAY" ? r.cat === "HOMESTAY" || r.cat === "BUNGALOW" : r.cat === cat)) &&
         (pay === "all" || payKey(r) === pay) &&
         (src === "all" || (src === "ctv" ? !!r.ctvName : !r.ctvName)) &&

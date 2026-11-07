@@ -69,7 +69,8 @@ const NEXT: Partial<Record<POStatus, [string, "held" | "pay" | "complete", strin
 };
 
 const TAB_DEFS: { k: string; name: string; f: (o: ProviderOrderVM) => boolean; dot?: string }[] = [
-  { k: "all", name: "Tất cả", f: () => true, dot: G },
+  // "Tất cả" = mọi đơn TRỪ đã huỷ (đơn huỷ xem ở tab "Đã huỷ").
+  { k: "all", name: "Tất cả", f: (o) => o.st !== "cancel", dot: G },
   { k: "todo", name: "Cần xử lý", f: (o) => o.st === "new" || o.st === "held", dot: "oklch(0.68 0.18 45)" },
   { k: "new", name: "Mới", f: (o) => o.st === "new" },
   { k: "held", name: "Đã giữ phòng", f: (o) => o.st === "held" },
