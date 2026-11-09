@@ -666,7 +666,8 @@ function detectLayout(
   return monthlyT.length > 0 ? { rows: flipped, data: flippedData, blocks: monthlyT } : null;
 }
 
-type RoomRef = { id: string; name: string; roomTypeId: string };
+/** names = tên phòng + các bí danh trong sheet (Room.sheetAlias). */
+type RoomRef = { id: string; name: string; roomTypeId: string; names: string[] };
 type SheetEntry = { room: RoomRef; date: Date; status: RoomStatus };
 
 /**
@@ -698,8 +699,8 @@ function matchRoom(
       ambiguous = true;
     }
   };
-  for (const rm of rooms) {
-    const rn = norm(rm.name);
+  for (const rm of rooms) for (const rmName of rm.names) {
+    const rn = norm(rmName);
     if (!rn) continue;
     // 1) Nhãn CHỨA tên phòng nguyên vẹn ("DON VIP Shan 1" ⊃ "Shan 1").
     if (padded.includes(` ${rn} `)) {
@@ -935,7 +936,10 @@ export async function syncServiceSheet(
     select: {
       sheetUrl: true,
       roomTypes: {
-        select: { id: true, rooms: { select: { id: true, name: true, roomTypeId: true } } },
+        select: {
+          id: true,
+          rooms: { select: { id: true, name: true, roomTypeId: true, sheetAlias: true } },
+        },
       },
     },
   });
@@ -946,9 +950,16 @@ export async function syncServiceSheet(
   if (!id) return fail(serviceId, base, "Link Google Sheet không hợp lệ.", source);
 
   // Bảng tra phòng theo tên đã chuẩn hoá.
-  const allRooms = service.roomTypes.flatMap((rt) => rt.rooms);
+  const allRooms: RoomRef[] = service.roomTypes.flatMap((rt) =>
+    rt.rooms.map((rm) => ({
+      id: rm.id,
+      name: rm.name,
+      roomTypeId: rm.roomTypeId,
+      names: [rm.name, ...(rm.sheetAlias ?? "").split(/[,;\n]/).map((x) => x.trim()).filter(Boolean)],
+    })),
+  );
   const roomByName = new Map<string, RoomRef>();
-  for (const rm of allRooms) roomByName.set(norm(rm.name), rm);
+  for (const rm of allRooms) for (const n of rm.names) if (!roomByName.has(norm(n))) roomByName.set(norm(n), rm);
 
   const ref = today();
 

@@ -788,6 +788,8 @@ export async function upsertRoom(_prev: ActionState, formData: FormData): Promis
     // Sức chứa tối đa (0/trống = không nhận thêm). Phụ thu người thêm/check-in sớm/
     // check-out muộn đã chuyển lên cấu hình CHUNG của homestay (Service).
     maxCapacity: num(formData.get("maxCapacity")) || null,
+    // Tên khác trong Google Sheet lịch (sheet-sync khớp thêm theo các tên này).
+    sheetAlias: s(formData.get("sheetAlias")) ?? null,
     listPrice: num(formData.get("listPrice")) ?? 0,
     // 0 = không giảm giá → lưu null (0 thật sẽ làm giá hiệu lực = 0đ).
     salePrice: (num(formData.get("salePrice")) || null) as number | null,
@@ -881,6 +883,7 @@ export async function duplicateRoom(formData: FormData): Promise<void> {
       description: src.description,
       capacity: src.capacity,
       maxCapacity: src.maxCapacity,
+      sheetAlias: src.sheetAlias,
       listPrice: src.listPrice,
       salePrice: src.salePrice,
       priceMon: src.priceMon,

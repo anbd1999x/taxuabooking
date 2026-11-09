@@ -253,6 +253,9 @@ model Room {
   capacity    Int             @default(2)
   // Sức chứa tối đa (nhận thêm người kèm phụ thu). null = bằng capacity (không nhận thêm).
   maxCapacity Int?
+  // Tên khác của phòng trong Google Sheet lịch (cách nhau dấu phẩy/chấm phẩy) — sheet-sync
+  // khớp thêm theo các tên này (vd chủ nhà ghi "Vip Xoay 1" tháng này, "Vip360 1" tháng khác).
+  sheetAlias  String?
   // (Phụ thu người thêm / check-in sớm / check-out muộn đã chuyển lên cấp HOMESTAY — xem Service.)
   listPrice   Decimal         @default(0) @db.Decimal(12, 0)
   salePrice   Decimal?        @db.Decimal(12, 0)

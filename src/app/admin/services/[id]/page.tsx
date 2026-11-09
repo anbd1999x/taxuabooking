@@ -623,7 +623,8 @@ export default async function EditServicePage({
                                         💡 Để <b>0 / trống toàn bộ giá</b> (giá gốc, giá đang bán & giá theo thứ) = <b>không công khai giá</b>: phòng vẫn hiện khi khách tìm, nhưng web hiển thị <b>“IB để biết giá”</b> thay vì số tiền.
                                       </p>
                                       <L label="Tối đa (người)" cls="sm:col-span-3"><input name="maxCapacity" type="number" min={0} defaultValue={room.maxCapacity ?? ""} placeholder="= sức chứa" className={inp} /></L>
-                                      <p className="self-center text-[11px] leading-relaxed text-gray-400 sm:col-span-9">Phụ thu <b>người thêm / check-in sớm / check-out muộn</b> cấu hình <b>chung cho cả homestay</b> ở tab Thông tin.</p>
+                                      <L label="Tên khác trong sheet lịch" cls="sm:col-span-5"><input name="sheetAlias" defaultValue={room.sheetAlias ?? ""} placeholder="VD: Vip Xoay 1, Vip360 1" className={inp} /></L>
+                                      <p className="self-center text-[11px] leading-relaxed text-gray-400 sm:col-span-4">Phụ thu <b>người thêm / check-in sớm / check-out muộn</b> cấu hình <b>chung cho cả homestay</b> ở tab Thông tin.</p>
                                       <L label="Tiện ích (cách nhau dấu phẩy)" cls="sm:col-span-7"><input name="amenities" defaultValue={room.amenities ?? ""} placeholder="Wifi, Nóng lạnh, Ban công" className={inp} /></L>
                                       <L label="Mô tả ngắn" cls="sm:col-span-5"><input name="description" defaultValue={room.description ?? ""} className={inp} /></L>
                                       <RoomConDayPrices room={room} />
@@ -962,7 +963,8 @@ export default async function EditServicePage({
                           💡 Để <b>0 / trống toàn bộ giá</b> (giá gốc, giá đang bán & giá theo thứ) = <b>không công khai giá</b>: phòng vẫn hiện khi khách tìm, nhưng web hiển thị <b>“IB để biết giá”</b> thay vì số tiền.
                         </p>
                         <L label="Tối đa (người)" cls="sm:col-span-3"><input name="maxCapacity" type="number" min={0} defaultValue={room.maxCapacity ?? ""} placeholder="= sức chứa" className={inp} /></L>
-                        <p className="self-center text-[11px] leading-relaxed text-gray-400 sm:col-span-9">Phụ thu <b>người thêm / check-in sớm / check-out muộn</b> cấu hình <b>chung cho cả homestay</b> ở tab Thông tin.</p>
+                        <L label="Tên khác trong sheet lịch" cls="sm:col-span-5"><input name="sheetAlias" defaultValue={room.sheetAlias ?? ""} placeholder="VD: Vip Xoay 1, Vip360 1" className={inp} /></L>
+                        <p className="self-center text-[11px] leading-relaxed text-gray-400 sm:col-span-4">Phụ thu <b>người thêm / check-in sớm / check-out muộn</b> cấu hình <b>chung cho cả homestay</b> ở tab Thông tin.</p>
                         <L label="Tiện ích (cách nhau dấu phẩy)" cls="sm:col-span-7"><input name="amenities" defaultValue={room.amenities ?? ""} placeholder="Wifi, Nóng lạnh, Ban công" className={inp} /></L>
                         <L label="Mô tả ngắn" cls="sm:col-span-5"><input name="description" defaultValue={room.description ?? ""} className={inp} /></L>
                         <RoomConDayPrices room={room} />
