@@ -385,17 +385,18 @@ export function HomestayList({
   if (keepPriority) {
     const ranked = [...matched].sort((a, b) => prRank(b) - prRank(a) || bySort(a, b));
     // Nhóm ưu tiên hiện trước nhóm bình thường. Trong nhóm ưu tiên: mỗi home chỉ hiện TỐI ĐA
-    // 3 căn ở lượt đầu (tránh 1 home lố khi có nhiều home ưu tiên), các căn thừa dồn xuống
-    // CUỐI nhóm ưu tiên (vẫn trước danh sách bình thường). Chỉ 1 home ưu tiên → hiện hết căn của nó.
+    // PRIORITY_PER_HOME căn ở lượt đầu (tránh 1 home lố khi có nhiều home ưu tiên), các căn thừa
+    // dồn xuống CUỐI nhóm ưu tiên (vẫn trước danh sách bình thường). Chỉ 1 home ưu tiên → hiện hết căn của nó.
+    const PRIORITY_PER_HOME = 2;
     const perHome = new Map<string, number>();
-    const prioHead: HomestayCard[] = []; // tối đa 3 căn / home ưu tiên
+    const prioHead: HomestayCard[] = []; // tối đa PRIORITY_PER_HOME căn / home ưu tiên
     const prioTail: HomestayCard[] = []; // căn thừa của home ưu tiên (cuối nhóm ưu tiên)
     const normal: HomestayCard[] = []; // home không ưu tiên
     for (const x of ranked) {
       if (prRank(x) > 0) {
         const n = perHome.get(x.slug) ?? 0;
         perHome.set(x.slug, n + 1);
-        (n < 3 ? prioHead : prioTail).push(x);
+        (n < PRIORITY_PER_HOME ? prioHead : prioTail).push(x);
       } else {
         normal.push(x);
       }
