@@ -8,7 +8,7 @@ import { generateBookingCode } from "./utils";
 import { checkWeekendPolicy } from "./weekend-policy";
 import { payingChildren, partyLabel, DEFAULT_CHILD_FREE_UNDER } from "./occupancy";
 import type { ComboBookingInput } from "./validation";
-import { cabinAllocation, busCostPerPerson } from "./combo-pricing";
+import { cabinAllocation, busCostPerPerson, cabinSeatTotal } from "./combo-pricing";
 import { busCommissionFor } from "./provider-commission";
 export { cabinAllocation, busCostPerPerson } from "./combo-pricing";
 
@@ -267,8 +267,8 @@ export interface ComboStayPlan {
 
 /**
  * Giá combo mỗi khách của một PHƯƠNG ÁN (tiền phòng là TỔNG cả đoàn).
- * `busPerPerson` = tiền xe MỖI KHÁCH theo cách xếp buồng thực tế (busCostPerPerson),
- * KHÔNG phải vé khứ hồi trần — đoàn lẻ có người nằm buồng riêng (2×vé) nên đắt hơn.
+ * `busPerPerson` = tiền xe MỖI KHÁCH theo cách xếp mặc định (busCostPerPerson: cả đoàn nằm ghép
+ * = 1 vé khứ hồi/người; khách chọn nằm riêng khi đặt thì người đó ×2).
  */
 export function planPricePerPerson(totalRoomCost: number, communal: boolean, people: number, busPerPerson: number): number {
   return Math.max(0, Math.round(totalRoomCost / people) + busPerPerson - (communal ? 0 : COMBO_DISCOUNT));
@@ -980,19 +980,18 @@ export async function createComboBooking(
       fare = f;
     }
   }
-  // Chỗ nằm xe cabin: mỗi BUỒNG round-trip = 2×vé khứ hồi (fare). Nằm ghép (đôi) = 2 người/buồng
-  // (= fare/người, như cũ); nằm riêng (đơn) = 1 người/buồng (= 2×fare/người). Client cũ (0/0) →
-  // tự xếp tối đa ghép đôi, người lẻ nằm riêng.
+  // Chỗ nằm xe cabin — tính THEO NGƯỜI (giống /xe-cabin): nằm ghép (cabin đôi) = fare/người
+  // (đi lẻ nhà xe xếp ghép cùng khách khác); nằm riêng (cabin đơn, bao buồng) = 2×fare/người.
+  // cabinDouble/cabinSingle = SỐ KHÁCH mỗi cách nằm, tổng phải = số khách; lệch (client cũ) → cả đoàn ghép.
   // Chỗ trên xe = SỐ KHÁCH, trừ ở kho vé thường của cả 2 chiều (KHÔNG dùng kho "cabin đôi"
   // của trang /xe-cabin — nhiều chuyến không khai kho đó). Ghép/riêng chỉ ảnh hưởng GIÁ.
   const seatsAvail = Math.min(outbound.seatsAvailable, ret.seatsAvailable);
   if (seatsAvail < people) throw new Error(`Xe chỉ còn ${seatsAvail} chỗ — không đủ cho ${people} khách.`);
   let nDouble = input.cabinDouble ?? 0;
   let nSingle = input.cabinSingle ?? 0;
-  if (nSingle + nDouble === 0) ({ nSingle, nDouble } = cabinAllocation(people, seatsAvail)!);
-  if (nSingle + nDouble * 2 < people) throw new Error("Chỗ nằm trên xe chưa đủ cho cả đoàn.");
+  if (nSingle + nDouble !== people) ({ nSingle, nDouble } = cabinAllocation(people, seatsAvail)!);
   const roomShare = Math.round(roomCost / people);
-  const busAmount = 2 * fare * (nSingle + nDouble); // mỗi buồng (đơn hoặc đôi) = 2×fare
+  const busAmount = cabinSeatTotal(fare, nDouble, nSingle);
   const total = Math.max(0, roomShare * people + busAmount - (communal ? 0 : COMBO_DISCOUNT * people));
   // Tách tiền từng bên: bill về homestay = tiền phòng, bill về nhà xe = tiền vé.
   // (referencePrice = TỔNG khách trả, đã trừ giảm giá combo cho phòng thường.)
@@ -1021,7 +1020,7 @@ export async function createComboBooking(
     `về ${toDateKey(ret.departureDate)} ${ret.departureTime}${origin ? `, đón tại ${origin}` : ""}) + ${svc.title} · ${roomsLabel}, ` +
     `${nights.length} đêm (${toDateKey(checkIn)}→${toDateKey(to)}) · ${partyLabel(adults, childrenAges)}` +
     (freeKids > 0 ? ` (${freeKids} trẻ miễn phí, ở cùng)` : "") +
-    ` · xe nằm: ${[nDouble ? `${nDouble} cabin đôi` : null, nSingle ? `${nSingle} cabin đơn` : null].filter(Boolean).join(" + ")}`;
+    ` · xe nằm: ${[nDouble ? `${nDouble} khách nằm ghép (cabin đôi)` : null, nSingle ? `${nSingle} khách nằm riêng (cabin đơn)` : null].filter(Boolean).join(" + ")}`;
 
   let code = generateBookingCode();
   for (let i = 0; i < 5; i++) {
