@@ -47,7 +47,7 @@ const SHEET_TAG = "SHEET";
 
 // Nhãn hàng tiêu đề thường gặp (không phải tên phòng) → bỏ qua, không báo "không khớp".
 const HEADER_LABELS = new Set([
-  "ngay", "thu", "date", "day", "weekday", "phong", "room", "rooms", "ten phong",
+  "ngay", "thu", "t", "date", "day", "weekday", "phong", "room", "rooms", "ten phong",
   "stt", "loai phong", "note", "ghi chu", "tong", "total", "so phong",
   "so phong ban", "ti le lap", // cột/hàng thống kê trong sheet của chủ nhà
 ]);
@@ -213,9 +213,9 @@ function classifyCell(raw: string): { status: RoomStatus; known: boolean } {
   // Khách huỷ / ghi rõ còn phòng → trống (trước đây rơi vào nhánh "chữ lạ" = khoá).
   if (/\b(huy|cancel|cancelled|canceled)\b/.test(t) && !/chua huy/.test(t)) return ok("AVAILABLE");
   if (/^con( trong| phong)?$/.test(t)) return ok("AVAILABLE");
-  if (/(dat|chot|book|full|kin|het|day|sold)/.test(t)) return ok("BOOKED");
+  if (/(dat|chot|book|full|kin|het|day|sold)/.test(t) || /\bcoc\b/.test(t)) return ok("BOOKED"); // "Đã cọc"
   if (/(cho|wait|hold|giu|pending)/.test(t)) return ok("PENDING");
-  if (/(dong|close|khoa|nghi|off|bao tri|khong ban|ngung ban|ngung)/.test(t)) return ok("CLOSED");
+  if (/(dong|close|khoa|lock|nghi|off|bao tri|khong ban|ngung ban|ngung)/.test(t)) return ok("CLOSED");
   // Chủ sheet ghi rõ còn trống (thay vì để ô trống).
   if (/\b(trong|available|avail|free|empty|ok)\b/.test(t)) return ok("AVAILABLE");
   // Ô có chữ lạ nhưng không trống → coi như không bán được (an toàn).
