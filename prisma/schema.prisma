@@ -486,6 +486,10 @@ model BookingRequest {
   cabinReturnTripId String? // chuyến về (cabin khứ hồi)
   seatsSingle     Int? // số vé cabin đơn (mỗi chiều)
   seatsDouble     Int? // số vé cabin đôi (mỗi chiều)
+  /// Cách nằm xe cabin THEO NGƯỜI (đơn cabin & combo): số khách nằm ghép (cabin đôi, 1 vé/người)
+  /// và nằm riêng (cabin đơn, bao buồng = 2 vé/người). null = đơn cũ/đơn tạo hộ chưa ghi.
+  cabinShared     Int?
+  cabinSolo       Int?
   rentalVehicleId String?
   selectionLabel  String? // mô tả lựa chọn (loại phòng/chuyến/xe) dạng text
 

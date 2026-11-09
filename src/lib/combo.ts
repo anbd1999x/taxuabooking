@@ -1061,6 +1061,8 @@ export async function createComboBooking(
       // ghép/riêng đã ghi trong selectionLabel cho nhà xe.
       seatsSingle: people,
       seatsDouble: 0,
+      cabinShared: nDouble,
+      cabinSolo: nSingle,
       selectionLabel,
       referencePrice: total,
       roomAmount,

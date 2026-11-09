@@ -79,3 +79,64 @@ export function comboSideCollected(
         : 0;
   return cap == null ? v : Math.min(v, cap);
 }
+
+/* ===================== Cách nằm của một ĐƠN (hiển thị) ===================== */
+
+export interface CabinBerths {
+  /** Số khách nằm ghép — cabin đôi, 1 vé/người. */
+  shared: number;
+  /** Số khách nằm riêng — cabin đơn bao buồng, 2 vé/người. */
+  solo: number;
+}
+
+/**
+ * Cách nằm xe cabin của đơn: ưu tiên cột `cabinShared`/`cabinSolo`; đơn cũ chưa có cột thì
+ * đọc từ nhãn đã lưu ("1 khách nằm ghép (cabin đôi) + 1 khách nằm riêng …"). null = không rõ.
+ */
+export function bookingCabinBerths(b: {
+  cabinShared?: number | null;
+  cabinSolo?: number | null;
+  selectionLabel?: string | null;
+}): CabinBerths | null {
+  if (b.cabinShared != null || b.cabinSolo != null) {
+    const shared = Math.max(0, b.cabinShared ?? 0);
+    const solo = Math.max(0, b.cabinSolo ?? 0);
+    return shared + solo > 0 ? { shared, solo } : null;
+  }
+  const lbl = b.selectionLabel ?? "";
+  const sh = lbl.match(/(\d+) khách nằm ghép/);
+  const so = lbl.match(/(\d+) khách nằm riêng/);
+  if (!sh && !so) return null;
+  return { shared: sh ? Number(sh[1]) : 0, solo: so ? Number(so[1]) : 0 };
+}
+
+/** Nhãn ngắn: "1 cabin đôi (nằm ghép) + 1 cabin đơn (nằm riêng)". */
+export function cabinBerthsLabel(c: CabinBerths): string {
+  return [
+    c.shared ? `${c.shared} khách cabin đôi (nằm ghép)` : null,
+    c.solo ? `${c.solo} khách cabin đơn (nằm riêng)` : null,
+  ]
+    .filter(Boolean)
+    .join(" + ");
+}
+
+/**
+ * Chi tiết từng loại vé kèm tiền khi biết TỔNG tiền vé của đơn (giá/vé = tổng ÷ số vé quy đổi,
+ * nằm riêng = 2 vé/người). VD: "Cabin đôi · nằm ghép: 1 khách × 450.000đ = 450.000đ".
+ */
+export function cabinBerthLines(c: CabinBerths, busTotal: number | null | undefined): string[] {
+  const units = c.shared + 2 * c.solo;
+  const fare = busTotal && units > 0 ? Math.round(busTotal / units) : null;
+  const vnd = (n: number) => `${n.toLocaleString("vi-VN")}đ`;
+  const out: string[] = [];
+  if (c.shared)
+    out.push(
+      `Cabin đôi · nằm ghép: ${c.shared} khách` + (fare ? ` × ${vnd(fare)} = ${vnd(fare * c.shared)}` : ""),
+    );
+  if (c.solo)
+    out.push(
+      `Cabin đơn · nằm riêng (bao buồng): ${c.solo} khách` +
+        (fare ? ` × 2 × ${vnd(fare)} = ${vnd(2 * fare * c.solo)}` : ""),
+    );
+  return out;
+}

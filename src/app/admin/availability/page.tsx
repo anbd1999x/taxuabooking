@@ -9,6 +9,7 @@ import { MonthOverview } from "@/components/admin/MonthOverview";
 import { CabinMonth, type CabinDay } from "@/components/admin/CabinMonth";
 import { AvailabilityEditor } from "@/components/admin/AvailabilityEditor";
 import { toNumber } from "@/lib/format";
+import { bookingCabinBerths } from "@/lib/combo-pricing";
 import { parseDateOnly } from "@/lib/dates";
 import { roomPricing, priceForDay } from "@/lib/availability";
 
@@ -149,6 +150,14 @@ export default async function AvailabilityPage({
         name: b.customerName,
         phone: b.phone,
         seats: b.quantity,
+        berths: (() => {
+          const c = bookingCabinBerths(b);
+          return c
+            ? [c.shared ? `${c.shared} cabin đôi (nằm ghép)` : null, c.solo ? `${c.solo} cabin đơn (nằm riêng)` : null]
+                .filter(Boolean)
+                .join(" + ")
+            : null;
+        })(),
         status: (b.status === "CANCELLED" ? "cancel" : b.status === "NEW" ? "new" : "ok") as "new" | "ok" | "cancel",
         isCtv: Boolean(b.ctvId),
         srcLabel: b.ctvId ? b.ctv?.name ?? "CTV" : "Khách",

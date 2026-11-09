@@ -26,6 +26,7 @@ import { blockIp } from "../../ip-block/actions";
 import { geoForIps } from "@/lib/visits";
 import { regionLabel } from "@/lib/track-labels";
 import { bookingPax } from "@/lib/occupancy";
+import { bookingCabinBerths, cabinBerthsLabel, cabinBerthLines } from "@/lib/combo-pricing";
 import { parseSurcharges } from "@/lib/surcharges";
 
 export const dynamic = "force-dynamic";
@@ -175,16 +176,22 @@ export default async function BookingDetailPage({
     name: string;
     detail: string;
     routeLines: string[];
+    /** Chi tiết từng loại vé xe (cabin đôi/đơn) kèm tiền. */
+    ticketLines?: string[];
     chips: string[];
     price: number | null;
     heldSide: "room" | "bus";
     held: boolean;
   };
   const parts: Part[] = [];
-  const seatsLabel = [
-    b.seatsSingle ? `${b.seatsSingle} chỗ` : "",
-    b.seatsDouble ? `${b.seatsDouble} cabin đôi` : "",
-  ].filter(Boolean).join(" + ") || `${b.quantity} chỗ`;
+  // Cách nằm theo người: cabin đôi (nằm ghép) / cabin đơn (nằm riêng, ×2 giá).
+  const berths = bookingCabinBerths(b);
+  const seatsLabel = berths
+    ? cabinBerthsLabel(berths)
+    : [
+        b.seatsSingle ? `${b.seatsSingle} chỗ` : "",
+        b.seatsDouble ? `${b.seatsDouble} cabin đôi` : "",
+      ].filter(Boolean).join(" + ") || `${b.quantity} chỗ`;
 
   if (outTrip) {
     // Lộ trình từng lượt: điểm đón → điểm trả của chuyến + ngày giờ khởi hành.
@@ -202,11 +209,16 @@ export default async function BookingDetailPage({
       ic: "XE",
       icTone: "bg-sky-100 text-sky-700",
       name: `${outTrip.service.title}${retTrip ? " · Cabin khứ hồi" : " · Xe cabin"}`,
-      detail: seatsLabel,
+      detail: berths ? `${b.quantity} khách · ${cabinBerthsLabel(berths)}` : seatsLabel,
       routeLines,
+      ticketLines: berths
+        ? cabinBerthLines(berths, b.category === "COMBO" ? toNumber(b.busAmount) : price)
+        : undefined,
       chips: [
         retTrip ? "Khứ hồi" : "Một chiều",
         `${b.quantity} khách`,
+        ...(berths?.shared ? [`${berths.shared} cabin đôi`] : []),
+        ...(berths?.solo ? [`${berths.solo} cabin đơn`] : []),
         ...(dropChosen ? [`Trả khách: ${dropChosen}`] : []),
       ],
       price: b.category === "COMBO" ? toNumber(b.busAmount) : price,
@@ -299,7 +311,7 @@ export default async function BookingDetailPage({
 
   // Văn bản sao chép.
   const partLines = parts
-    .map((p) => `- ${p.name}: ${[...p.routeLines, p.detail].filter(Boolean).join(" · ")}`)
+    .map((p) => `- ${p.name}: ${[...p.routeLines, p.detail, ...(p.ticketLines ?? [])].filter(Boolean).join(" · ")}`)
     .join("\n");
   const summaryText =
     `Đơn ${b.code} · ${b.customerName} · ${b.phone} · ${b.quantity} khách\n${partLines}\n` +
@@ -765,6 +777,16 @@ export default async function BookingDetailPage({
                         </div>
                       )}
                       <div className="mt-0.5 text-[13px] leading-relaxed text-gray-500">{p.detail}</div>
+                      {p.ticketLines && p.ticketLines.length > 0 && (
+                        <div className="mt-1.5 flex flex-col gap-1 rounded-xl bg-sky-50 px-3 py-2">
+                          {p.ticketLines.map((t) => (
+                            <div key={t} className="flex items-start gap-1.5 text-[13px] font-semibold text-sky-900">
+                              <span className="flex-none">🎫</span>
+                              <span className="leading-snug">{t}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         {p.chips.map((c) => (
                           <span key={c} className="whitespace-nowrap rounded-full bg-forest-50 px-2.5 py-1 text-xs font-semibold text-forest-700">{c}</span>

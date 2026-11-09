@@ -6,6 +6,7 @@ import { toDateKey } from "@/lib/dates";
 import { SITE } from "@/lib/site";
 import { CATEGORIES } from "@/lib/constants";
 import { getSettings } from "@/lib/queries";
+import { bookingCabinBerths, cabinBerthsLabel, cabinBerthLines } from "@/lib/combo-pricing";
 import { TraCuuLookup, type LookupOrder, type LookupPart, type LookupStatus } from "@/components/TraCuuLookup";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ const STATUS_MAP: Record<BookingStatus, LookupStatus> = {
 
 /** Nhãn chip ở đầu thẻ + đơn vị số lượng theo loại dịch vụ. */
 const CAT_META: Record<ServiceCategory, { ic: string; unit: string }> = {
-  CABIN: { ic: "XE", unit: "vé" },
+  CABIN: { ic: "XE", unit: "khách" },
   HOMESTAY: { ic: "HS", unit: "phòng" },
   BUNGALOW: { ic: "HS", unit: "phòng" },
   MOTORBIKE: { ic: "XM", unit: "xe" },
@@ -94,17 +95,37 @@ export default async function LookupPage({
     const parts: LookupPart[] = [];
     const busAmount = toNumber(b.busAmount);
     const roomAmount = toNumber(b.roomAmount);
+    // Cách nằm xe cabin: cabin đôi (nằm ghép) / cabin đơn (nằm riêng, ×2 giá vé).
+    const berths = bookingCabinBerths(b);
     const comboLabel = b.selectionLabel?.replace(/^Combo:\s*/i, "");
     const plusAt = comboLabel?.indexOf(" + ") ?? -1;
     if (b.category === "COMBO" && comboLabel && plusAt > 0) {
       parts.push(
         // selectionLabel ghi "Combo: xe Nhà xe X (…)" → bỏ chữ "xe " thừa trước tên nhà xe.
-        { k: "XE", name: comboLabel.slice(0, plusAt).trim().replace(/^xe\s+/i, ""), d: null, price: busAmount },
-        { k: "HS", name: comboLabel.slice(plusAt + 3).trim(), d: null, price: roomAmount },
+        {
+          k: "XE",
+          name: comboLabel.slice(0, plusAt).trim().replace(/^xe\s+/i, ""),
+          d: berths ? `Vé khứ hồi · ${cabinBerthsLabel(berths)}` : null,
+          lines: berths ? cabinBerthLines(berths, busAmount) : undefined,
+          price: busAmount,
+        },
+        // Phần phòng: bỏ đuôi "· xe nằm: …" (đã hiện ở phần vé xe).
+        { k: "HS", name: comboLabel.slice(plusAt + 3).replace(/\s*·\s*xe nằm:.*$/i, "").trim(), d: null, price: roomAmount },
       );
     } else {
-      parts.push({ k: meta.ic, name: b.serviceTitle, d: b.selectionLabel, price: total });
+      parts.push({
+        k: meta.ic,
+        name: b.serviceTitle,
+        d: b.selectionLabel,
+        lines: b.category === "CABIN" && berths ? cabinBerthLines(berths, total) : undefined,
+        price: total,
+      });
     }
+    const berthsShort = berths
+      ? [berths.shared ? `${berths.shared} cabin đôi` : null, berths.solo ? `${berths.solo} cabin đơn` : null]
+          .filter(Boolean)
+          .join(" + ")
+      : "";
 
     const payTone = b.paymentStatus === "PAID" ? "paid" : b.paymentStatus === "DEPOSITED" ? "part" : "unpaid";
     const payLabel =
@@ -125,7 +146,9 @@ export default async function LookupPage({
       ic: meta.ic,
       title: b.serviceTitle,
       when: fmtRange(b.useDate, b.endDate),
-      pax: `${b.quantity} ${meta.unit}`,
+      pax:
+        `${b.quantity} ${meta.unit}` +
+        (berthsShort && (b.category === "CABIN" || b.category === "COMBO") ? ` (${berthsShort})` : ""),
       created: fmtD(b.createdAt),
       total,
       payLabel,

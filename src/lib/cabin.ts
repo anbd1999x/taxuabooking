@@ -463,6 +463,8 @@ export async function createCabinBooking(
       quantity: people,
       seatsSingle: people,
       seatsDouble: 0,
+      cabinShared: shared,
+      cabinSolo: solo,
       cabinTripId: outbound.id,
       cabinReturnTripId: ret?.id ?? null,
       selectionLabel,

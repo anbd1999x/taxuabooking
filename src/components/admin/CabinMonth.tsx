@@ -14,6 +14,8 @@ export interface CabinTicket {
   name: string;
   phone: string;
   seats: number;
+  /** Cách nằm: "1 cabin đôi + 1 cabin đơn" (null = không rõ). */
+  berths?: string | null;
   status: TicketStatus;
   srcLabel: string; // "CTV Hằng" | "Khách" | "Web"
   isCtv: boolean;
@@ -425,6 +427,9 @@ function DayPanel({
                             <a href={`tel:${b.phone}`} style={{ fontWeight: 600 }}>{b.phone}</a>
                             <span>· {b.code}</span>
                           </div>
+                          {b.berths && (
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "oklch(0.4 0.09 230)", marginTop: 3 }}>🎫 {b.berths}</div>
+                          )}
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, justifySelf: "end" }}>
                           <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: "nowrap" }}>{b.seats} vé</span>

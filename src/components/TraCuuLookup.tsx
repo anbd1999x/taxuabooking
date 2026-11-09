@@ -18,6 +18,8 @@ export interface LookupPart {
   k: string; // nhãn chip: XE / HS / CB...
   name: string;
   d: string | null;
+  /** Dòng chi tiết thêm (vd từng loại vé cabin đôi/đơn kèm tiền). */
+  lines?: string[];
   price: number | null;
 }
 
@@ -279,6 +281,16 @@ export function TraCuuLookup({
                               <div className="min-w-0">
                                 <div className="text-sm font-bold">{p.name}</div>
                                 {p.d && <div className="mt-0.5 text-[13px] leading-[1.5]" style={{ color: "oklch(0.45 0.02 160)" }}>{p.d}</div>}
+                                {p.lines && p.lines.length > 0 && (
+                                  <div className="mt-1.5 flex flex-col gap-1">
+                                    {p.lines.map((l) => (
+                                      <div key={l} className="flex items-start gap-1.5 text-[13px] font-semibold leading-[1.45]" style={{ color: "oklch(0.32 0.06 230)" }}>
+                                        <span className="flex-none">🎫</span>
+                                        <span>{l}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <div className="whitespace-nowrap text-right text-sm font-extrabold">{p.price != null ? vnd(p.price) : ""}</div>
