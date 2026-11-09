@@ -405,6 +405,10 @@ export async function createCabinBooking(
   let fare: number | null;
   if (rows.length) {
     fare = journeyFare(rows, origin, Boolean(ret));
+    // Nhà xe chỉ khai giá KHỨ HỒI mà khách đặt 1 chiều ⇒ không nhận trên web (widget đã mời nhắn Zalo).
+    if (fare == null && !ret) {
+      throw new Error("Nhà xe chỉ bán vé khứ hồi trên web — vé 1 chiều vui lòng nhắn Zalo để được báo giá.");
+    }
   } else {
     const legs = [outbound, ...(ret ? [ret] : [])].map((t) => toNumber(t.price) ?? 0);
     fare = legs.every((p) => p > 0) ? legs.reduce((a, b) => a + b, 0) : null;

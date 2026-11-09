@@ -525,7 +525,10 @@ export function CabinList({
                             )}
                           </>
                         ) : (
-                          <div className="text-[15px] font-bold text-gray-500">Liên hệ xác nhận giá</div>
+                          <div className="text-[15px] font-bold text-gray-500">
+                            {/* Tìm 1 chiều mà nhà xe chỉ khai giá khứ hồi ⇒ mời nhắn Zalo (trang đặt vé cũng báo như vậy). */}
+                            {searched && !to && !op.contactOnly ? "Vé 1 chiều: Nhắn Zalo" : "Liên hệ xác nhận giá"}
+                          </div>
                         )}
                       </div>
                       <span className="whitespace-nowrap rounded-full px-4 py-2.5 text-sm font-bold text-white transition group-hover:bg-sunset-500" style={{ background: full ? "oklch(0.6 0.01 160)" : TH.G }}>{cta}</span>

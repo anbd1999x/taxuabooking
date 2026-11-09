@@ -103,11 +103,14 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
       ? legPrices.reduce((a, b) => a + b, 0)
       : null;
   const total = fare == null ? null : cabinSeatTotal(fare, shared, solo);
+  // Nhà xe chỉ khai giá KHỨ HỒI mà khách chọn đi 1 chiều ⇒ không đặt trên web, mời nhắn Zalo.
+  const oneWayZalo = !roundTrip && hasFareTable && fare == null;
+  const zaloHref = zalo ? `https://zalo.me/${zalo}` : `tel:${phone.replace(/s/g, "")}`;
 
   // Thiếu giá chặng vẫn cho gửi yêu cầu (chờ báo giá) — không chặn khách, không tự bịa giá.
   // Ngày nhà xe đánh dấu HẾT VÉ (status SOLD_OUT) không nhận đặt.
   const soldOut = legs.some((t) => t?.status === "SOLD_OUT");
-  const bookable = Boolean(outTrip) && (!roundTrip || Boolean(retTrip)) && !soldOut && people >= 1 && shared + solo === people;
+  const bookable = Boolean(outTrip) && (!roundTrip || Boolean(retTrip)) && !soldOut && !oneWayZalo && people >= 1 && shared + solo === people;
 
   // ---- Điểm đón / trả (suy ra từ chuyến đi + điểm xuất phát khách chọn) ----
   const province = origin?.trim() || pickupProvince?.trim() || null;
@@ -309,7 +312,17 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
         <div className="px-[18px] pt-4">
           {/* STEP 1 — chọn vé */}
           {step === 1 && (
-            activeTrip ? (
+            oneWayZalo ? (
+              <div className="flex flex-col gap-2.5 rounded-2xl bg-sunset-50 p-4">
+                <div className="text-[15px] font-extrabold text-ink">Vé 1 chiều: nhắn Zalo để được báo giá</div>
+                <div className="text-[13px] leading-relaxed text-gray-600">
+                  Nhà xe chỉ bán vé khứ hồi trên web. Đi 1 chiều, bạn nhắn Zalo để nhà xe báo giá và giữ chỗ. Muốn đặt khứ hồi, hãy tìm lại với cả ngày đi và ngày về.
+                </div>
+                <a href={zaloHref} target="_blank" rel="noopener noreferrer" className="rounded-xl bg-sunset-500 py-3 text-center text-[15px] font-bold text-white hover:bg-sunset-600">
+                  💬 Nhắn Zalo
+                </a>
+              </div>
+            ) : activeTrip ? (
               <div className="flex flex-col gap-3">
                 {hasFareTable && fares.length > 0 && (
                   <label className="flex flex-col gap-1.5 text-[13px] font-bold text-ink">
@@ -503,10 +516,15 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
                 {`${people} khách · ${roundTrip ? "khứ hồi" : "1 chiều"}`}
               </div>
               <div className="whitespace-nowrap text-[22px] font-extrabold tracking-tight text-sunset-600">
-                {!bookable ? "—" : total == null ? "Chờ báo giá" : vnd(total)}
+                {oneWayZalo ? "Nhắn Zalo" : !bookable ? "—" : total == null ? "Chờ báo giá" : vnd(total)}
               </div>
             </div>
             {err && <p className="text-[13px] font-semibold text-red-600">{err}</p>}
+            {oneWayZalo ? (
+              <a href={zaloHref} target="_blank" rel="noopener noreferrer" className="rounded-xl bg-sunset-500 py-3 text-center text-[15px] font-bold text-white hover:bg-sunset-600">
+                💬 Nhắn Zalo
+              </a>
+            ) : (
             <div className="flex gap-2">
               {step > 1 && (
                 <button type="button" onClick={() => { setErr(null); setStep(step - 1); }} className="flex-none rounded-xl bg-[oklch(0.95_0.008_150)] px-3.5 py-3 text-sm font-bold text-ink">
@@ -528,6 +546,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
                 {submitting ? "Đang gửi..." : step === 3 ? "Gửi yêu cầu đặt" : "Tiếp tục"}
               </button>
             </div>
+            )}
             {step === 3 && <CommitmentLink />}
             <div className="grid grid-cols-2 gap-2">
               <a href={`tel:${phone.replace(/\s/g, "")}`} className="rounded-[10px] border border-gray-200 py-2.5 text-center text-[13px] font-bold text-forest-700">
