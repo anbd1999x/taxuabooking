@@ -22,7 +22,7 @@ import { checkWeekendPolicy } from "./weekend-policy";
 import { toNumber, formatPrice } from "./format";
 import { generateBookingCode } from "./utils";
 import { resolveCommission } from "./commission";
-import { billableOccupants, extraPersonCost, partyLabel, DEFAULT_CHILD_FREE_UNDER } from "./occupancy";
+import { billableOccupants, multiRoomExtraCost, partyLabel, DEFAULT_CHILD_FREE_UNDER } from "./occupancy";
 import type { BookingInput } from "./validation";
 
 export interface StayOption {
@@ -264,7 +264,7 @@ export async function createBooking(
   if (input.endDate && nightsBetween(parseDateOnly(input.useDate), parseDateOnly(input.endDate)) > 60) {
     throw new Error("Kỳ đặt tối đa 60 ngày.");
   }
-  // Homestay đặt theo từng phòng cụ thể → mỗi yêu cầu là 1 phòng.
+  // Homestay đặt theo từng phòng cụ thể → quantity = số phòng của đơn.
   let bookingQty = qty;
 
   let referencePrice: number | null = null;
@@ -273,6 +273,7 @@ export async function createBooking(
   let nights: number | null = null;
   let roomTypeId: string | null = null;
   let roomId: string | null = null;
+  let roomIdList: string[] = []; // homestay: mọi phòng của đơn (roomId = phòng đầu)
   let cabinTripId: string | null = null;
   let rentalVehicleId: string | null = null;
   let stayCommission = 0; // chiết khấu CTV theo phòng/đêm (homestay)
@@ -290,38 +291,60 @@ export async function createBooking(
   if (computed?.policyNote) throw new Error(computed.policyNote);
 
   if (computed?.kind === "stay" && computed.stayOptions) {
-    // Lựa chọn là một PHÒNG cụ thể (id = roomId). Hỗ trợ cả roomTypeId cũ để tương thích.
-    const pickId = input.roomId ?? input.roomTypeId;
-    const opt = computed.stayOptions.find((o) => o.id === pickId);
+    // Lựa chọn là một hoặc NHIỀU PHÒNG cụ thể cùng homestay (roomIds). Client cũ gửi roomId
+    // (hoặc roomTypeId rất cũ) → coi như 1 phòng.
+    const legacyId = input.roomId ?? input.roomTypeId;
+    const pickIds = [...new Set(input.roomIds?.length ? input.roomIds : legacyId ? [legacyId] : [])];
+    const opts = pickIds.map((id) => computed.stayOptions!.find((o) => o.id === id));
     // Có danh sách phòng mà id gửi lên không khớp → không tạo đơn "trống" (không phòng, không giá).
-    if (!opt) throw new Error("Phòng đã chọn không hợp lệ — vui lòng tải lại trang và chọn lại phòng.");
-    {
-      roomId = opt.id;
-      const room = await prisma.room.findUnique({
-        where: { id: opt.id },
-        select: { roomTypeId: true, capacity: true, maxCapacity: true },
-      });
-      roomTypeId = room?.roomTypeId ?? null;
-      nights = opt.count;
-      bookingQty = 1;
-      needsConfirmation = !opt.bookable;
-      stayCommission = opt.commission ?? 0;
-
-      // Người lớn / trẻ em: trẻ dưới ngưỡng miễn phí không tính người; từ ngưỡng tính như 1 người.
-      const freeUnder = service.childFreeUnderAge ?? DEFAULT_CHILD_FREE_UNDER;
-      bAdults = Math.max(1, input.adults ?? input.quantity ?? 1);
-      bChildrenAges = input.childrenAges ?? [];
-      const occupants = billableOccupants(bAdults, bChildrenAges, freeUnder);
-      const cap = room?.capacity ?? opt.capacity ?? 2;
-      const ec = extraPersonCost(occupants, cap, room?.maxCapacity, toNumber(service.extraPersonFee), opt.count);
-      if (ec.overCapacity) {
-        throw new Error(`Số khách (${occupants}) vượt sức chứa tối đa của phòng (${ec.max}). Vui lòng chọn phòng lớn hơn hoặc giảm số người.`);
-      }
-      referencePrice = opt.pricePerUnit != null ? opt.pricePerUnit + ec.cost : null;
-      selectionLabel =
-        `${opt.name} · ${partyLabel(bAdults, bChildrenAges)}` +
-        (ec.extraGuests > 0 ? ` · +${ec.extraGuests} khách phụ thu ${formatPrice(ec.cost)}` : "");
+    if (opts.length === 0 || opts.some((o) => !o)) {
+      throw new Error("Phòng đã chọn không hợp lệ — vui lòng tải lại trang và chọn lại phòng.");
     }
+    const picked = opts as StayOption[];
+    const roomRows = await prisma.room.findMany({
+      where: { id: { in: picked.map((o) => o.id) } },
+      select: { id: true, roomTypeId: true, capacity: true, maxCapacity: true },
+    });
+    const rowOf = new Map(roomRows.map((r) => [r.id, r]));
+    roomId = picked[0].id;
+    roomIdList = picked.map((o) => o.id);
+    roomTypeId = rowOf.get(picked[0].id)?.roomTypeId ?? null;
+    nights = picked[0].count;
+    bookingQty = picked.length;
+    // Có phòng nào không chắc trống → cả đơn chờ xác nhận.
+    needsConfirmation = picked.some((o) => !o.bookable);
+    stayCommission = picked.reduce((n, o) => n + (o.commission ?? 0), 0);
+
+    // Người lớn / trẻ em: trẻ dưới ngưỡng miễn phí không tính người; từ ngưỡng tính như 1 người.
+    // Đoàn chia vào các phòng đã chọn → sức chứa = tổng các phòng.
+    const freeUnder = service.childFreeUnderAge ?? DEFAULT_CHILD_FREE_UNDER;
+    bAdults = Math.max(1, input.adults ?? input.quantity ?? 1);
+    bChildrenAges = input.childrenAges ?? [];
+    const occupants = billableOccupants(bAdults, bChildrenAges, freeUnder);
+    const ec = multiRoomExtraCost(
+      occupants,
+      picked.map((o) => {
+        const row = rowOf.get(o.id);
+        return { capacity: row?.capacity ?? o.capacity ?? 2, maxCapacity: row?.maxCapacity };
+      }),
+      toNumber(service.extraPersonFee),
+      picked[0].count,
+    );
+    if (ec.overCapacity) {
+      throw new Error(
+        picked.length > 1
+          ? `Số khách (${occupants}) vượt sức chứa tối đa của ${picked.length} phòng đã chọn (${ec.max}). Vui lòng chọn thêm phòng hoặc giảm số người.`
+          : `Số khách (${occupants}) vượt sức chứa tối đa của phòng (${ec.max}). Vui lòng chọn phòng lớn hơn hoặc giảm số người.`,
+      );
+    }
+    // Có phòng không công khai giá (IB) → cả đơn không có giá tham khảo.
+    const roomsTotal = picked.every((o) => o.pricePerUnit != null)
+      ? picked.reduce((n, o) => n + (o.pricePerUnit ?? 0), 0)
+      : null;
+    referencePrice = roomsTotal != null ? roomsTotal + ec.cost : null;
+    selectionLabel =
+      `${picked.length > 1 ? `${picked.length} phòng: ` : ""}${picked.map((o) => o.name).join(" + ")} · ${partyLabel(bAdults, bChildrenAges)}` +
+      (ec.extraGuests > 0 ? ` · +${ec.extraGuests} khách phụ thu ${formatPrice(ec.cost)}` : "");
   } else if (computed?.kind === "rental" && computed.stayOptions) {
     const opt = computed.stayOptions.find((o) => o.id === input.rentalVehicleId);
     if (!opt && computed.stayOptions.length > 0) throw new Error("Loại xe đã chọn không hợp lệ — vui lòng chọn lại.");
@@ -387,6 +410,7 @@ export async function createBooking(
       childrenAges: bChildrenAges,
       roomTypeId,
       roomId,
+      roomIds: roomIdList,
       cabinTripId,
       rentalVehicleId,
       selectionLabel,

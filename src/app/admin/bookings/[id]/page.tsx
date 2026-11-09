@@ -24,6 +24,7 @@ import {
 import { blockIp } from "../../ip-block/actions";
 import { geoForIps } from "@/lib/visits";
 import { regionLabel } from "@/lib/track-labels";
+import { bookingPax } from "@/lib/occupancy";
 
 export const dynamic = "force-dynamic";
 
@@ -218,10 +219,10 @@ export default async function BookingDetailPage({
       icTone: "bg-forest-100 text-forest-700",
       name: stay,
       detail: isStay
-        ? `Nhận ${formatDate(b.useDate)} · Trả ${formatDate(b.endDate!)} · ${b.nights} đêm · ${b.quantity} người`
+        ? `Nhận ${formatDate(b.useDate)} · Trả ${formatDate(b.endDate!)} · ${b.nights} đêm · ${bookingPax(b)} người`
         : `${formatDate(b.useDate)}${b.endDate ? ` → ${formatDate(b.endDate)}` : ""} · SL ${b.quantity}${b.selectionLabel && !rooms.length ? ` · ${b.selectionLabel}` : ""}`,
       routeLines: [],
-      chips: isStay ? [...roomChips, `${b.nights} đêm`, `${b.quantity} người`] : [cat.shortLabel],
+      chips: isStay ? [...roomChips, `${b.nights} đêm`, `${bookingPax(b)} người`] : [cat.shortLabel],
       price: b.category === "COMBO" ? toNumber(b.roomAmount) : outTrip ? null : price,
       heldSide: "room",
       held: b.heldRoom,
@@ -581,7 +582,7 @@ export default async function BookingDetailPage({
               </div>
               <div>
                 <div className="text-xs text-gray-500">Số khách</div>
-                <div className="font-bold text-ink">{b.quantity} {b.category === "HOMESTAY" || b.category === "COMBO" ? "người" : ""}</div>
+                <div className="font-bold text-ink">{bookingPax(b)} {b.category === "HOMESTAY" || b.category === "COMBO" ? "người" : ""}</div>
               </div>
               <div>
                 <div className="text-xs text-gray-500">Ghi chú của khách</div>

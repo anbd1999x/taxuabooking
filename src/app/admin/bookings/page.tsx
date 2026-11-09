@@ -3,6 +3,7 @@ import { CATEGORIES } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { addDays } from "@/lib/dates";
 import BookingsListClient, { type BookingRow } from "@/components/admin/BookingsListClient";
+import { bookingPax } from "@/lib/occupancy";
 
 export const dynamic = "force-dynamic";
 
@@ -64,7 +65,7 @@ export default async function AdminBookingsPage() {
       useDate: startDate.toISOString().slice(0, 10),
       endDate: finishDate ? finishDate.toISOString().slice(0, 10) : null,
       qty: b.quantity,
-      paxLabel: paxUnit === "SL" ? `SL ${b.quantity}` : `${b.quantity} khách`,
+      paxLabel: paxUnit === "SL" ? `SL ${b.quantity}` : `${bookingPax(b)} khách`,
       price,
       collected,
       pay,

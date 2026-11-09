@@ -37,6 +37,8 @@ export const bookingInputSchema = z
     childrenAges: z.array(z.coerce.number().int().min(0).max(17)).max(20).optional(),
     roomTypeId: z.string().optional().nullable(),
     roomId: z.string().optional().nullable(),
+    // Homestay: đặt NHIỀU phòng cùng home trong 1 đơn (client cũ chỉ gửi roomId).
+    roomIds: z.array(z.string().min(1)).max(20).optional().nullable(),
     cabinTripId: z.string().optional().nullable(),
     rentalVehicleId: z.string().optional().nullable(),
     customerName: z
