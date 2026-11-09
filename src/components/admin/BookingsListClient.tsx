@@ -89,7 +89,16 @@ function isUrgent(r: BookingRow) {
   );
 }
 
-export default function BookingsListClient({ rows: all, totalInDb }: { rows: BookingRow[]; totalInDb: number }) {
+export default function BookingsListClient({
+  rows: all,
+  totalInDb,
+  filterLabel = null,
+}: {
+  rows: BookingRow[];
+  totalInDb: number;
+  /** Đang lọc phía server (vd theo chủ dịch vụ từ trang Thống kê) — hiện dải thông báo + nút bỏ lọc. */
+  filterLabel?: string | null;
+}) {
   const [q, setQ] = useState("");
   const [st, setSt] = useState<"all" | BookingStatus>("all");
   const [cat, setCat] = useState("all");
@@ -241,6 +250,15 @@ export default function BookingsListClient({ rows: all, totalInDb }: { rows: Boo
           </Link>
         </div>
       </div>
+
+      {filterLabel && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-forest-50 px-4 py-3 text-sm ring-1 ring-forest-200">
+          <span className="font-semibold text-forest-800">Đang lọc · {filterLabel}</span>
+          <Link href="/admin/bookings" className="rounded-full bg-white px-3 py-1 text-xs font-bold text-ink ring-1 ring-black/10 hover:bg-gray-50">
+            ✕ Bỏ lọc
+          </Link>
+        </div>
+      )}
 
       {/* Thẻ trạng thái */}
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">

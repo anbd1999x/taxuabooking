@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { formatPrice } from "@/lib/format";
 import type { StatRow, StatsResult } from "@/lib/stats";
 
@@ -67,7 +68,17 @@ export function StatsView({
       )}
 
       <StatTable title="Theo cộng tác viên (CTV)" col="CTV" rows={stats.byCtv} />
-      {showProviders && <StatTable title="Theo chủ dịch vụ" col="Chủ dịch vụ" rows={stats.byProvider} showPlatform />}
+      {showProviders && (
+        <StatTable
+          title="Theo chủ dịch vụ"
+          col="Chủ dịch vụ"
+          rows={stats.byProvider}
+          showPlatform
+          ordersHref={(r) =>
+            `/admin/bookings?${new URLSearchParams({ owner: r.id, from: fromKey, to: toKey }).toString()}`
+          }
+        />
+      )}
     </div>
   );
 }
@@ -82,7 +93,20 @@ function Stat({ label, value, sub, tone }: { label: string; value: string; sub?:
   );
 }
 
-function StatTable({ title, col, rows, showPlatform = false }: { title: string; col: string; rows: StatRow[]; showPlatform?: boolean }) {
+function StatTable({
+  title,
+  col,
+  rows,
+  showPlatform = false,
+  ordersHref,
+}: {
+  title: string;
+  col: string;
+  rows: StatRow[];
+  showPlatform?: boolean;
+  /** Có thì số ở cột "Đơn" là link tới danh sách đơn đã lọc. */
+  ordersHref?: (r: StatRow) => string;
+}) {
   return (
     <section className="mt-8">
       <h2 className="text-lg font-semibold text-ink">{title}</h2>
@@ -108,7 +132,19 @@ function StatTable({ title, col, rows, showPlatform = false }: { title: string; 
               rows.map((r) => (
                 <tr key={r.id} className="hover:bg-gray-50">
                   <td className="px-3 py-3 font-medium text-ink">{r.name}</td>
-                  <td className="px-3 py-3 text-center">{r.orders}</td>
+                  <td className="px-3 py-3 text-center">
+                    {ordersHref && r.orders > 0 ? (
+                      <Link
+                        href={ordersHref(r)}
+                        title="Xem các đơn này ở trang Yêu cầu đặt"
+                        className="font-semibold text-forest-700 underline decoration-dotted underline-offset-2 hover:text-forest-800"
+                      >
+                        {r.orders}
+                      </Link>
+                    ) : (
+                      r.orders
+                    )}
+                  </td>
                   <td className="px-3 py-3 text-center text-forest-700">{r.completed}</td>
                   <td className="px-3 py-3 text-center text-amber-700">{r.awaiting}</td>
                   <td className="px-3 py-3 text-right font-semibold">{formatPrice(r.revenue)}</td>

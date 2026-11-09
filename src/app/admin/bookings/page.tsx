@@ -1,23 +1,76 @@
 import { prisma } from "@/lib/prisma";
 import { CATEGORIES } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
-import { addDays } from "@/lib/dates";
+import { addDays, parseDateOnly } from "@/lib/dates";
+import type { Prisma } from "@prisma/client";
 import BookingsListClient, { type BookingRow } from "@/components/admin/BookingsListClient";
 import { bookingPax } from "@/lib/occupancy";
+import { bookingCabinBerths } from "@/lib/combo-pricing";
 
 export const dynamic = "force-dynamic";
 
 /** Số đơn gần nhất nạp vào danh sách (lọc/sắp xếp chạy phía client). */
 const TAKE = 400;
 
-export default async function AdminBookingsPage() {
+function str(v: string | string[] | undefined) {
+  return Array.isArray(v) ? v[0] : v;
+}
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Lọc theo CHỦ DỊCH VỤ (+ khoảng ngày tạo đơn) — link từ bảng "Theo chủ dịch vụ" ở trang
+ * Thống kê. Khớp đúng cách đếm của `computeStats`: đơn của dịch vụ họ sở hữu (combo tính
+ * cho chủ homestay) + đơn combo đi qua CHUYẾN ĐI của nhà xe họ. owner="_none" = chưa gán chủ.
+ */
+async function ownerFilter(owner: string): Promise<Prisma.BookingRequestWhereInput> {
+  const ownerId = owner === "_none" ? null : owner;
+  const trips = await prisma.cabinTrip.findMany({
+    where: { service: { ownerId, category: "CABIN" } },
+    select: { id: true },
+  });
+  const tripIds = trips.map((t) => t.id);
+  const OR: Prisma.BookingRequestWhereInput[] = [{ service: { ownerId } }];
+  if (tripIds.length) OR.push({ category: "COMBO", cabinTripId: { in: tripIds } });
+  if (!ownerId) OR.push({ serviceId: null }, { category: "COMBO", cabinTripId: null });
+  return { OR };
+}
+
+export default async function AdminBookingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const owner = str(sp.owner)?.trim() || null;
+  const fromKey = str(sp.from);
+  const toKey = str(sp.to);
+  const where: Prisma.BookingRequestWhereInput = {};
+  let filterLabel: string | null = null;
+  if (owner) {
+    Object.assign(where, await ownerFilter(owner));
+    const ownerName =
+      owner === "_none"
+        ? "Chưa gán chủ dịch vụ"
+        : (await prisma.adminUser.findUnique({ where: { id: owner }, select: { name: true } }))?.name ?? "Chủ dịch vụ";
+    const fmt = (k: string) => `${k.slice(8, 10)}/${k.slice(5, 7)}/${k.slice(0, 4)}`;
+    const created: Prisma.DateTimeFilter = {};
+    if (fromKey && DATE_RE.test(fromKey)) created.gte = parseDateOnly(fromKey);
+    if (toKey && DATE_RE.test(toKey)) created.lt = addDays(parseDateOnly(toKey), 1);
+    if (created.gte || created.lt) where.createdAt = created;
+    const rangeLabel =
+      created.gte && created.lt ? ` · tạo từ ${fmt(fromKey!)} đến ${fmt(toKey!)}` : "";
+    filterLabel = `Chủ dịch vụ: ${ownerName}${rangeLabel}`;
+  }
+
   const [bookings, totalInDb] = await Promise.all([
     prisma.bookingRequest.findMany({
+      where,
       orderBy: { createdAt: "desc" },
-      take: TAKE,
+      // Đang lọc theo chủ dịch vụ ⇒ lấy đủ đơn để khớp số ở trang Thống kê.
+      ...(owner ? {} : { take: TAKE }),
       include: { ctv: { select: { name: true } } },
     }),
-    prisma.bookingRequest.count(),
+    prisma.bookingRequest.count({ where }),
   ]);
 
   // Ngày LÊN XE / XE VỀ thực của đơn có chuyến cabin (cabin + combo) — lấy từ CabinTrip.
@@ -35,8 +88,14 @@ export default async function AdminBookingsPage() {
     const chips: string[] = [];
     if (b.selectionLabel) chips.push(b.selectionLabel);
     if (b.nights) chips.push(`${b.nights} đêm`);
-    if (b.seatsSingle) chips.push(`${b.seatsSingle} chỗ`);
-    if (b.seatsDouble) chips.push(`${b.seatsDouble} cabin đôi`);
+    const berths = bookingCabinBerths(b);
+    if (berths) {
+      if (berths.shared) chips.push(`${berths.shared} cabin đôi`);
+      if (berths.solo) chips.push(`${berths.solo} cabin đơn`);
+    } else {
+      if (b.seatsSingle) chips.push(`${b.seatsSingle} chỗ`);
+      if (b.seatsDouble) chips.push(`${b.seatsDouble} cabin đôi`);
+    }
     // Combo: useDate lưu NGÀY NHẬN PHÒNG (giữ phòng đúng đêm) → danh sách hiện theo NGÀY
     // LÊN XE / XE VỀ của chuyến trong đơn (chưa gán chuyến thì = nhận phòng − 1 / trả phòng).
     // Cabin: cũng ưu tiên ngày của chuyến (trùng useDate/endDate trong trường hợp thường).
@@ -76,5 +135,5 @@ export default async function AdminBookingsPage() {
     };
   });
 
-  return <BookingsListClient rows={rows} totalInDb={totalInDb} />;
+  return <BookingsListClient rows={rows} totalInDb={totalInDb} filterLabel={filterLabel} />;
 }
