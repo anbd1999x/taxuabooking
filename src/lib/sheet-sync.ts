@@ -213,7 +213,8 @@ function classifyCell(raw: string): { status: RoomStatus; known: boolean } {
   // Khách huỷ / ghi rõ còn phòng → trống (trước đây rơi vào nhánh "chữ lạ" = khoá).
   if (/\b(huy|cancel|cancelled|canceled)\b/.test(t) && !/chua huy/.test(t)) return ok("AVAILABLE");
   if (/^con( trong| phong)?$/.test(t)) return ok("AVAILABLE");
-  if (/(dat|chot|book|full|kin|het|day|sold)/.test(t) || /\bcoc\b/.test(t)) return ok("BOOKED"); // "Đã cọc"
+  // "Đã cọc" = đã đặt; "Chờ cọc" rơi xuống nhánh chờ bên dưới. "TOUR" = phòng giữ cho đoàn tour.
+  if (/(dat|chot|book|full|kin|het|day|sold)/.test(t) || /\bda coc\b/.test(t) || /\btour\b/.test(t)) return ok("BOOKED");
   if (/(cho|wait|hold|giu|pending)/.test(t)) return ok("PENDING");
   if (/(dong|close|khoa|lock|nghi|off|bao tri|khong ban|ngung ban|ngung)/.test(t)) return ok("CLOSED");
   // Chủ sheet ghi rõ còn trống (thay vì để ô trống).
@@ -666,9 +667,86 @@ function detectLayout(
   return monthlyT.length > 0 ? { rows: flipped, data: flippedData, blocks: monthlyT } : null;
 }
 
+/**
+ * Bố cục "SỔ ĐẶT PHÒNG": mỗi hàng 1 booking (Mã/Tên phòng · Check-in · Check-out · Huỷ...).
+ * Trả danh sách booking chưa huỷ (khoá các đêm [from, to)), hoặc null nếu tab không phải dạng này.
+ */
+type BookingLogRow = { label: string; from: Date; to: Date };
+const MAX_BOOKING_NIGHTS = 60; // chặn dòng gõ nhầm năm/tháng làm khoá cả năm
+
+function detectBookingLog(rows: string[][]): { bookings: BookingLogRow[]; rooms: string[] } | null {
+  for (let h = 0; h < Math.min(rows.length, 10); h++) {
+    const hdr = rows[h].map((c) => norm(c ?? ""));
+    const find = (re: RegExp) => hdr.findIndex((c) => re.test(c));
+    const cIn = find(/^(check ?in|ngay (den|nhan phong|nhan)|nhan phong)$/);
+    const cOut = find(/^(check ?out|ngay (di|tra phong|tra)|tra phong)$/);
+    const cRoom = find(/^(ma phong|ten phong|phong|room|ma can|can)$/);
+    if (cIn < 0 || cOut < 0 || cRoom < 0) continue;
+    const cCancel = find(/huy/);
+    const cStatus = find(/^trang thai$/);
+    const full = (raw: string): Date | null => {
+      const dm = parseDayMonth(raw ?? "");
+      return dm && dm.y ? safeDate(dm.y, dm.mo, dm.d) : null;
+    };
+    const bookings: BookingLogRow[] = [];
+    const rooms = new Set<string>();
+    for (const row of rows.slice(h + 1)) {
+      const label = (row[cRoom] ?? "").trim();
+      if (!label) continue;
+      rooms.add(label);
+      const from = full(row[cIn]);
+      const to = full(row[cOut]);
+      if (!from || !to || to <= from) continue;
+      if ((to.getTime() - from.getTime()) / 86400000 > MAX_BOOKING_NIGHTS) continue;
+      const cancel = cCancel >= 0 ? norm(row[cCancel] ?? "") : "";
+      const status = cStatus >= 0 ? norm(row[cStatus] ?? "") : "";
+      const cancelled = (/huy|cancel/.test(cancel) && !/chua huy|khong huy/.test(cancel)) || /\b(da huy|huy|cancel)/.test(status);
+      if (!cancelled) bookings.push({ label, from, to });
+    }
+    return { bookings, rooms: [...rooms] };
+  }
+  return null;
+}
+
 /** names = tên phòng + các bí danh trong sheet (Room.sheetAlias). */
 type RoomRef = { id: string; name: string; roomTypeId: string; names: string[] };
-type SheetEntry = { room: RoomRef; date: Date; status: RoomStatus };
+/** `checkout` = ô ghi thuần "Check out" (không kèm check in) — xem xử lý quy ước sau vòng tab. */
+type SheetEntry = { room: RoomRef; date: Date; status: RoomStatus; checkout?: boolean };
+
+/** Ô chỉ ghi "Check out" (không phải ô đổi khách "Check out / Check in"). */
+function isPureCheckout(raw: string): boolean {
+  const t = norm(raw);
+  return (/check ?out/.test(t) || t === "out") && !/check ?in/.test(t) && !/(^| )in$/.test(t);
+}
+
+/**
+ * Hai quy ước "Check out" trong sheet chủ nhà:
+ * - Mặc định: ô ngày khách TRẢ phòng (buổi sáng) ⇒ đêm đó trống.
+ * - "Ở xong": sau khi khách đi, chủ nhà đổi MỌI đêm khách đã ở thành "Check out" (vd Nhà của An)
+ *   ⇒ nhận diện khi có phòng ghi "Check out" ở 2 NGÀY LIỀN NHAU (quy ước mặc định không thể có).
+ * Sheet theo quy ước "ở xong": ô "Check out" của ngày ĐÃ QUA tính là ĐÃ ĐẶT (lịch quá khứ khớp
+ * sheet). Ngày từ hôm nay trở đi giữ quy tắc cũ — không ảnh hưởng tình trạng bán.
+ */
+function applyCheckoutAsStay(entries: SheetEntry[], ref: Date): number {
+  const days = new Map<string, Set<number>>();
+  for (const e of entries) {
+    if (!e.checkout) continue;
+    let set = days.get(e.room.id);
+    if (!set) days.set(e.room.id, (set = new Set()));
+    set.add(e.date.getTime());
+  }
+  const DAY = 86_400_000;
+  const stayStyle = [...days.values()].some((set) => [...set].some((t) => set.has(t + DAY)));
+  if (!stayStyle) return 0;
+  let n = 0;
+  for (const e of entries) {
+    if (e.checkout && e.date < ref && e.status === "AVAILABLE") {
+      e.status = "BOOKED";
+      n++;
+    }
+  }
+  return n;
+}
 
 /**
  * Khớp một nhãn trong sheet với phòng trong app. Thử khớp chính xác trước; nếu
@@ -1067,6 +1145,46 @@ export async function syncServiceSheet(
       const tab = tabs[ti];
       if (!tabGrids[ti]) fetchFailed = true; // tải lỗi (mạng/Google chặn) ≠ tab không phải lịch
       const detected = tabGrids[ti] ? detectLayout(tabGrids[ti]!, ref) : null;
+      // Không phải lưới lịch → thử bố cục "sổ đặt phòng" (mỗi hàng 1 booking).
+      const log = !detected && tabGrids[ti] ? detectBookingLog(tabGrids[ti]!.raw) : null;
+      if (log) {
+        anyCalendarTab = true;
+        const logRooms = new Map<string, RoomRef>();
+        for (const label of log.rooms) {
+          const room = matchRoom(roomByName, allRooms, label);
+          if (room) logRooms.set(room.id, room);
+          else if (log.bookings.some((b) => b.label === label && b.to > ref)) unmatched.add(label);
+        }
+        if (logRooms.size === 0) {
+          skippedTabs.push(tab.name);
+          continue;
+        }
+        // Đêm có booking → BOOKED (đẩy trước để thắng khi khử trùng lặp)...
+        const booked = new Set<string>();
+        let minT = ref.getTime();
+        let maxT = ref.getTime() + 180 * 86400000;
+        for (const b of log.bookings) {
+          const room = matchRoom(roomByName, allRooms, b.label);
+          if (!room) continue;
+          minT = Math.min(minT, b.from.getTime());
+          maxT = Math.max(maxT, b.to.getTime());
+          for (let t = b.from.getTime(); t < b.to.getTime(); t += 86400000) {
+            const k = `${room.id}|${t}`;
+            if (booked.has(k)) continue;
+            booked.add(k);
+            entries.push({ room, date: new Date(t), status: "BOOKED" });
+          }
+        }
+        // ...còn lại trong khoảng phủ → AVAILABLE, để booking bị huỷ/xoá khỏi sổ tự mở phòng.
+        for (const room of logRooms.values()) {
+          matchedRoomIds.add(room.id);
+          for (let t = minT; t <= maxT; t += 86400000) {
+            if (!booked.has(`${room.id}|${t}`)) entries.push({ room, date: new Date(t), status: "AVAILABLE" });
+          }
+        }
+        syncedTabs.push(tab.name);
+        continue;
+      }
       if (!detected) {
         skippedTabs.push(tab.name);
         continue;
@@ -1126,6 +1244,8 @@ export async function syncServiceSheet(
             // ô ngày không rỗng đều trùng đúng nhãn hàng → bỏ qua êm, không cảnh báo.
             const label = norm(candidates[0]);
             if (cells.length > 0 && cells.every((v) => norm(v) === label)) continue;
+            // Dòng chú thích nằm dưới tiêu đề tháng gộp ("THÁNG 11/2026" trải các cột ngày).
+            if (cells.length > 0 && cells.every((v) => parseMonthLabel(v))) continue;
             // Chỉ cảnh báo khi hàng có booking từ HÔM NAY trở đi — phòng chỉ còn
             // trong tab tháng đã qua (đã ngừng bán) không ảnh hưởng gì.
             const hasBooking = dateCols.some(
@@ -1145,7 +1265,7 @@ export async function syncServiceSheet(
             const raw = dataRow[dc.col] ?? "";
             const { status, known } = classifyCell(raw);
             if (!known && dc.date >= ref && unknownValues.size < 20) unknownValues.add(raw.trim());
-            entries.push({ room, date: dc.date, status });
+            entries.push({ room, date: dc.date, status, ...(isPureCheckout(raw) ? { checkout: true } : {}) });
           }
         }
       }
@@ -1159,6 +1279,9 @@ export async function syncServiceSheet(
         throw new Error("Không nhận diện được tab lịch nào trong sheet (thiếu hàng/cột ngày).");
       throw new Error("Không khớp được phòng nào. Hãy đảm bảo tên phòng trong sheet trùng tên phòng trong app.");
     }
+
+    // Sheet ghi "Check out" cho cả các đêm khách đã ở ⇒ quá khứ tính là đã đặt.
+    applyCheckoutAsStay(entries, ref);
 
     // Khử trùng lặp (tab trùng tháng): mỗi (phòng, ngày) lấy giá trị ở tab xuất hiện trước.
     const dedupedByKey = new Map<string, SheetEntry>();
