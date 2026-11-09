@@ -157,8 +157,8 @@ export default async function AvailabilityPage({
       const booked = Math.max(0, t.seatsTotal - t.seatsAvailable);
       const dir = {
         tripId: t.id,
-        // Tạm dừng = SOLD_OUT nhưng vẫn còn chỗ; hết chỗ tự nhiên vẫn coi là đang bán.
-        open: !(t.status === "SOLD_OUT" && t.seatsAvailable > 0),
+        // SOLD_OUT = admin đánh dấu HẾT VÉ (lịch luôn mở bán, số chỗ chỉ để thống kê).
+        open: t.status !== "SOLD_OUT",
         total: t.seatsTotal,
         booked,
         price: toNumber(t.price) ?? 0,

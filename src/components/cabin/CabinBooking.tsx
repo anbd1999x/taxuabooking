@@ -14,7 +14,7 @@ function vnd(n: number | null | undefined, fallback = "Liên hệ") {
 const STATE_META: Record<CabinDay["state"], { text: string; cls: string }> = {
   ok: { text: "Còn chỗ", cls: "text-forest-700" },
   low: { text: "Còn ít chỗ", cls: "text-sunset-600" },
-  full: { text: "Hết chỗ", cls: "text-gray-400" },
+  full: { text: "Hết vé", cls: "text-gray-400" },
   unk: { text: "Chưa cập nhật", cls: "text-gray-400" },
 };
 
@@ -105,7 +105,9 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
   const total = fare == null ? null : cabinSeatTotal(fare, shared, solo);
 
   // Thiếu giá chặng vẫn cho gửi yêu cầu (chờ báo giá) — không chặn khách, không tự bịa giá.
-  const bookable = Boolean(outTrip) && (!roundTrip || Boolean(retTrip)) && people >= 1 && shared + solo === people;
+  // Ngày nhà xe đánh dấu HẾT VÉ (status SOLD_OUT) không nhận đặt.
+  const soldOut = legs.some((t) => t?.status === "SOLD_OUT");
+  const bookable = Boolean(outTrip) && (!roundTrip || Boolean(retTrip)) && !soldOut && people >= 1 && shared + solo === people;
 
   // ---- Điểm đón / trả (suy ra từ chuyến đi + điểm xuất phát khách chọn) ----
   const province = origin?.trim() || pickupProvince?.trim() || null;
@@ -134,7 +136,9 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
       setErr(
         !outTrip || (roundTrip && !retTrip)
           ? "Ngày này chưa có chuyến. Hãy chọn ngày khác."
-          : "Vui lòng chọn số khách.",
+          : soldOut
+            ? "Nhà xe đã hết vé ngày này. Hãy chọn ngày khác."
+            : "Vui lòng chọn số khách.",
       );
       return;
     }

@@ -19,8 +19,8 @@ export interface CabinTicket {
   isCtv: boolean;
 }
 export interface CabinDir {
-  tripId: string | null; // null = chưa mở bán
-  open: boolean; // false = tạm dừng
+  tripId: string | null; // null = chưa có chuyến ⇒ đang bán mặc định (lịch luôn mở bán)
+  open: boolean; // false = admin đánh dấu HẾT VÉ (loại khỏi tìm kiếm cabin & combo)
   total: number;
   booked: number;
   price: number;
@@ -124,7 +124,7 @@ export function CabinMonth({
       seatsM += t.booked;
       ctvM += t.tickets.filter((b) => b.status !== "cancel" && b.isCtv).reduce((a, b) => a + b.seats, 0);
       newM += t.tickets.filter((b) => b.status === "new").length;
-      if (t.open && t.total - t.booked <= 3) tight = true;
+      if (!t.open) tight = true; // ngày có chiều đánh dấu hết vé
     }
     if (tight) tightDays++;
   }
@@ -133,8 +133,9 @@ export function CabinMonth({
   const firstOffset = days.length ? (dow(days[0]) + 6) % 7 : 0;
 
   const fill = (t: CabinDir | null) => {
-    if (!t) return { txt: compact ? "—" : "Chưa mở", fc: "oklch(0.65 0.01 160)", bar: "transparent", pct: "0%", track: "transparent" };
-    if (!t.open) return { txt: compact ? "×" : "Tạm dừng", fc: "oklch(0.45 0 0)", bar: "oklch(0.6 0 0)", pct: "100%", track: "oklch(0.93 0 0)" };
+    // Chưa có chuyến = đang bán mặc định (luôn còn chỗ).
+    if (!t) return { txt: compact ? "✓" : "Đang bán", fc: "oklch(0.45 0.1 155)", bar: "transparent", pct: "0%", track: "oklch(0.95 0.02 155)" };
+    if (!t.open) return { txt: compact ? "×" : "Hết vé", fc: "oklch(0.5 0.17 28)", bar: "oklch(0.62 0.16 28)", pct: "100%", track: "oklch(0.93 0.02 28)" };
     const free = t.total - t.booked;
     const c = free <= 0 ? "oklch(0.58 0.19 28)" : free <= 3 ? "oklch(0.66 0.16 55)" : "oklch(0.6 0.13 155)";
     return {
@@ -157,7 +158,7 @@ export function CabinMonth({
   const kpis = [
     { label: "Vé đã đặt trong tháng", v: String(seatsM), sub: `${ctvM} vé từ CTV · ${seatsM - ctvM} vé khách lẻ`, c: "oklch(0.22 0.03 160)", run: null as null | (() => void) },
     { label: "Yêu cầu mới cần gọi", v: String(newM), sub: firstNew ? `Bấm để mở ngày ${Number(firstNew.slice(8, 10))}` : "Không có yêu cầu mới", c: newM ? "oklch(0.58 0.17 45)" : "oklch(0.22 0.03 160)", run: firstNew ? () => pickDay(firstNew) : null },
-    { label: "Ngày sắp hết chỗ", v: String(tightDays), sub: "Còn 3 chỗ trở xuống", c: tightDays ? "oklch(0.55 0.19 28)" : "oklch(0.22 0.03 160)", run: null },
+    { label: "Ngày hết vé", v: String(tightDays), sub: "Ẩn khỏi tìm kiếm cabin & combo", c: tightDays ? "oklch(0.55 0.19 28)" : "oklch(0.22 0.03 160)", run: null },
   ];
 
   const cellH = tiny ? (dir === "both" ? 72 : 58) : mobile ? 86 : 104;
@@ -170,6 +171,8 @@ export function CabinMonth({
         <div style={{ minWidth: 120, textAlign: "center", fontSize: 16, fontWeight: 800 }}>{monthLabel}</div>
         <div onClick={() => router.push(`/admin/availability?service=${serviceId}&month=${nextMonth}`)} style={navBtn}>›</div>
       </div>
+
+      <BulkSoldOut busy={busy} call={call} defaultFrom={todayKey ?? days[0] ?? ""} />
 
       {/* KPIs */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,180px),1fr))", gap: 10 }}>
@@ -190,7 +193,9 @@ export function CabinMonth({
           ))}
         </div>
         <div style={{ display: "flex", gap: 14, flexWrap: "wrap", fontSize: 12, fontWeight: 600, color: "oklch(0.45 0.02 160)" }}>
+          <span><b>Đang bán</b> = mặc định luôn còn chỗ</span>
           <span><b>đặt/tổng</b> = vé đã đặt / tổng chỗ</span>
+          <span style={{ color: "oklch(0.5 0.17 28)" }}><b>Hết vé</b> = ẩn khỏi tìm kiếm cabin & combo</span>
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 8, height: 8, borderRadius: "50%", background: O }} />Có yêu cầu mới</span>
         </div>
       </div>
@@ -205,15 +210,15 @@ export function CabinMonth({
             {Array.from({ length: firstOffset }).map((_, i) => <div key={`b${i}`} style={{ visibility: "hidden" }} />)}
             {days.map((dk) => {
               const day = data[dk];
-              const allUn = dirKeys.every((k) => !day?.[k]);
+              const allClosed = dirKeys.every((k) => day?.[k] && !day[k]!.open);
               const newN = dirKeys.reduce((a, k) => a + (day?.[k]?.tickets.filter((b) => b.status === "new").length ?? 0), 0);
               const isToday = dk === todayKey;
               const on = sel === dk;
               return (
                 <div key={dk} onClick={() => pickDay(dk)} style={{
                   minWidth: 0, overflow: "hidden", minHeight: cellH, borderRadius: 14, padding: 8, display: "flex", flexDirection: "column", gap: 6, cursor: "pointer",
-                  background: allUn ? "oklch(0.985 0.003 150)" : "white",
-                  border: allUn ? "1px dashed oklch(0.82 0.01 160)" : isToday ? `1.5px solid ${O}` : "1px solid oklch(0.92 0.01 150)",
+                  background: allClosed ? "oklch(0.975 0.01 28)" : "white",
+                  border: isToday ? `1.5px solid ${O}` : allClosed ? "1px solid oklch(0.9 0.04 28)" : "1px solid oklch(0.92 0.01 150)",
                   boxShadow: on ? `0 0 0 2.5px ${G}` : "none",
                 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 4 }}>
@@ -308,8 +313,10 @@ function DayPanel({
       </div>
 
       {dirKeys.map((k) => {
-        const t = day[k];
         const meta = DIR_META[k];
+        // Chưa có chuyến ⇒ đang bán mặc định (chuyến thật tạo khi có vé / khi chỉnh).
+        const t: CabinDir = day[k] ?? { tripId: null, open: true, total: 0, booked: 0, price: 0, time: meta.defTime, route: "", tickets: [] };
+        const isDefault = !t.tripId;
         const free = t ? Math.max(0, t.total - t.booked) : 0;
         const pct = t && t.total ? Math.min(100, (t.booked / t.total) * 100) + "%" : "0%";
         return (
@@ -319,21 +326,24 @@ function DayPanel({
                 <div style={{ fontSize: 16, fontWeight: 800 }}>{meta.title} · {t?.time ?? meta.defTime}</div>
                 <div style={{ fontSize: 12, color: M, marginTop: 2 }}>{t?.route ?? ""}</div>
               </div>
-              {t && (
-                <div onClick={() => !busy && call({ op: "saveTrip", date: dk, direction: k === "ve" ? "RETURN" : "OUTBOUND", open: !t.open })}
-                  style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", color: t.open ? "oklch(0.38 0.1 155)" : "oklch(0.45 0.02 160)" }}>
-                  <span>{t.open ? "Đang bán" : "Tạm dừng"}</span>
-                  <span style={{ width: 38, height: 22, borderRadius: 11, background: t.open ? "oklch(0.6 0.13 155)" : "oklch(0.8 0.005 160)", position: "relative" }}>
-                    <span style={{ position: "absolute", top: 3, left: t.open ? 19 : 3, width: 16, height: 16, borderRadius: "50%", background: "white" }} />
-                  </span>
-                </div>
-              )}
+              <div onClick={() => !busy && call({ op: "saveTrip", date: dk, direction: k === "ve" ? "RETURN" : "OUTBOUND", open: !t.open })}
+                title={t.open ? "Bấm để đánh dấu HẾT VÉ (ẩn khỏi tìm kiếm)" : "Bấm để mở bán lại"}
+                style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 8, fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", color: t.open ? "oklch(0.38 0.1 155)" : "oklch(0.5 0.17 28)" }}>
+                <span>{t.open ? "Đang bán" : "Hết vé"}</span>
+                <span style={{ width: 38, height: 22, borderRadius: 11, background: t.open ? "oklch(0.6 0.13 155)" : "oklch(0.75 0.08 28)", position: "relative" }}>
+                  <span style={{ position: "absolute", top: 3, left: t.open ? 19 : 3, width: 16, height: 16, borderRadius: "50%", background: "white" }} />
+                </span>
+              </div>
             </div>
 
-            {!t ? (
-              <div style={{ padding: 14, borderRadius: 14, border: "1px dashed oklch(0.78 0.01 160)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <div style={{ fontSize: 14, color: "oklch(0.42 0.02 160)" }}>Chưa mở bán. Khách thấy “Chưa cập nhật”.</div>
-                <div onClick={() => !busy && call({ op: "saveTrip", date: dk, direction: k === "ve" ? "RETURN" : "OUTBOUND", open: true })} style={{ cursor: "pointer", fontSize: 14, fontWeight: 700, padding: "9px 14px", borderRadius: 10, background: G, color: "white", whiteSpace: "nowrap" }}>Mở bán 22 chỗ</div>
+            {!t.open && (
+              <div style={{ padding: "10px 12px", borderRadius: 12, background: "oklch(0.97 0.02 28)", fontSize: 13, color: "oklch(0.45 0.15 28)", fontWeight: 600 }}>
+                Ngày này đã đánh dấu hết vé — khách không thấy nhà xe khi tìm cabin / combo ngày này.
+              </div>
+            )}
+            {isDefault ? (
+              <div style={{ padding: "10px 12px", borderRadius: 12, background: "oklch(0.97 0.02 155)", fontSize: 13, color: "oklch(0.38 0.1 155)", lineHeight: 1.5 }}>
+                Đang bán mặc định, luôn còn chỗ. Giờ chạy & giá theo chuyến gần nhất / bảng giá chặng. Chưa có vé nào.
               </div>
             ) : (
               <>
@@ -360,6 +370,8 @@ function DayPanel({
                   </div>
                   <PriceField k={k} dk={dk} price={t.price} busy={busy} call={call} />
                 </div>
+              </>
+            )}
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4 }}>
                   <div>
@@ -429,8 +441,6 @@ function DayPanel({
                     ))}
                   </div>
                 )}
-              </>
-            )}
           </section>
         );
       })}
@@ -454,6 +464,60 @@ function PriceField({ k, dk, price, busy, call }: { k: "di" | "ve"; dk: string; 
     <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <div style={{ fontSize: 12, fontWeight: 600, color: M }}>Giá vé (nghìn đ)</div>
       <input value={v} disabled={busy} onChange={(e) => setV(e.target.value)} onBlur={save} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} inputMode="numeric" style={{ width: "100%", minWidth: 0, height: 44, fontSize: 16, fontWeight: 800, padding: "0 12px", borderRadius: 12, border: "1px solid oklch(0.88 0.01 150)", outline: "none" }} />
+    </div>
+  );
+}
+
+/** Đánh dấu HẾT VÉ (hoặc mở bán lại) cho một khoảng ngày — ngày hết vé bị loại khỏi tìm kiếm cabin & combo. */
+function BulkSoldOut({ busy, call, defaultFrom }: { busy: boolean; call: (p: Record<string, unknown>) => Promise<boolean>; defaultFrom: string }) {
+  const [openForm, setOpenForm] = useState(false);
+  const [from, setFrom] = useState(defaultFrom);
+  const [to, setTo] = useState(defaultFrom);
+  const [direction, setDirection] = useState<"BOTH" | "OUTBOUND" | "RETURN">("BOTH");
+  const [msg, setMsg] = useState("");
+  async function run(closed: boolean) {
+    setMsg("");
+    if (!from) { setMsg("Chọn ngày bắt đầu."); return; }
+    const end = to || from;
+    if (end < from) { setMsg("Ngày kết thúc phải từ ngày bắt đầu trở đi."); return; }
+    const ok = await call({ op: "bulkClose", from, to: end, direction, closed });
+    if (ok) setMsg(closed ? "Đã đánh dấu hết vé." : "Đã mở bán lại.");
+  }
+  const inp: React.CSSProperties = { height: 40, fontSize: 14, padding: "0 10px", borderRadius: 10, border: "1px solid oklch(0.88 0.01 150)", outline: "none", background: "white", minWidth: 0 };
+  return (
+    <div style={{ background: "white", border: "1px solid oklch(0.91 0.01 150)", borderRadius: 16, padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 800 }}>Ngày hết vé</div>
+          <div style={{ fontSize: 12, color: M }}>Lịch luôn mở bán, không cần tạo chuyến. Thêm ngày hết vé để ẩn nhà xe khỏi tìm kiếm cabin & combo.</div>
+        </div>
+        <div onClick={() => setOpenForm(!openForm)} style={{ cursor: "pointer", fontSize: 13, fontWeight: 700, padding: "8px 12px", borderRadius: 10, background: openForm ? "oklch(0.955 0.006 150)" : "oklch(0.95 0.04 28)", color: openForm ? G : "oklch(0.48 0.16 28)", whiteSpace: "nowrap" }}>
+          {openForm ? "Đóng" : "+ Thêm ngày hết vé"}
+        </div>
+      </div>
+      {openForm && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-end" }}>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, fontWeight: 600, color: M }}>
+            Từ ngày
+            <input type="date" value={from} onChange={(e) => { setFrom(e.target.value); if (!to || to < e.target.value) setTo(e.target.value); }} style={inp} />
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, fontWeight: 600, color: M }}>
+            Đến ngày
+            <input type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} style={inp} />
+          </label>
+          <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12, fontWeight: 600, color: M }}>
+            Chiều
+            <select value={direction} onChange={(e) => setDirection(e.target.value as typeof direction)} style={inp}>
+              <option value="BOTH">Cả đi & về</option>
+              <option value="OUTBOUND">Chiều đi</option>
+              <option value="RETURN">Chiều về</option>
+            </select>
+          </label>
+          <div onClick={() => !busy && run(true)} style={{ cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1, height: 40, display: "flex", alignItems: "center", fontSize: 14, fontWeight: 700, padding: "0 14px", borderRadius: 10, background: "oklch(0.58 0.18 28)", color: "white", whiteSpace: "nowrap" }}>Đánh dấu hết vé</div>
+          <div onClick={() => !busy && run(false)} style={{ cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1, height: 40, display: "flex", alignItems: "center", fontSize: 14, fontWeight: 700, padding: "0 14px", borderRadius: 10, background: "oklch(0.955 0.006 150)", color: G, whiteSpace: "nowrap" }}>Mở bán lại</div>
+          {msg && <div style={{ fontSize: 13, fontWeight: 600, color: "oklch(0.4 0.1 155)", alignSelf: "center" }}>{msg}</div>}
+        </div>
+      )}
     </div>
   );
 }

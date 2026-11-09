@@ -1,5 +1,4 @@
 import "server-only";
-import type { AvailabilityStatus } from "@prisma/client";
 import { prisma } from "./prisma";
 import { parseDateOnly, toDateKey, addDays, enumerateNights } from "./dates";
 import { toNumber } from "./format";
@@ -10,6 +9,7 @@ import { payingChildren, partyLabel, DEFAULT_CHILD_FREE_UNDER } from "./occupanc
 import type { ComboBookingInput } from "./validation";
 import { cabinAllocation, busCostPerPerson, cabinSeatTotal } from "./combo-pricing";
 import { busCommissionFor } from "./provider-commission";
+import { tripsOnDate, peekTrip, materializeTrip, OPEN_SEATS, type TripView } from "./cabin-trips";
 export { cabinAllocation, busCostPerPerson } from "./combo-pricing";
 
 /** Giảm giá cố định cho mỗi combo (mỗi khách). */
@@ -323,7 +323,6 @@ export interface ComboSearchResult {
   homes: ComboHomeOption[];
 }
 
-const BOOKABLE: AvailabilityStatus[] = ["AVAILABLE", "LIMITED"];
 
 // ---- Thuật toán ghép phòng cho cả đoàn ----
 
@@ -671,29 +670,24 @@ async function findBuses(from: Date, to: Date, origin: string | null): Promise<C
         images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 6 },
         cabinRoutes: { include: { stops: { orderBy: { sortOrder: "asc" } } } },
         cabinPriceRows: true,
-        cabinTrips: {
-          where: {
-            OR: [
-              { direction: "OUTBOUND", departureDate: from },
-              { direction: "RETURN", departureDate: to },
-            ],
-          },
-        },
       },
     }),
     // Bảng giá chung (serviceId=null) dùng cho nhà xe chưa có bảng giá riêng.
     origin ? prisma.cabinPriceRow.findMany({ where: { serviceId: null } }) : Promise.resolve([]),
   ]);
 
+  // Lịch cabin luôn mở bán: chuyến thật hoặc chuyến ảo mỗi ngày; ngày HẾT VÉ ⇒ loại nhà xe.
+  const ids = services.map((s) => s.id);
+  const [outMap, retMap] = await Promise.all([
+    tripsOnDate(ids, "OUTBOUND", from),
+    tripsOnDate(ids, "RETURN", to),
+  ]);
   const out: ComboBusOption[] = [];
   for (const s of services) {
-    const outbound = s.cabinTrips.find((t) => t.direction === "OUTBOUND");
-    const ret = s.cabinTrips.find((t) => t.direction === "RETURN");
-    if (!outbound || !ret) continue;
-    const okOut = BOOKABLE.includes(outbound.status) && outbound.seatsAvailable > 0;
-    const okRet = BOOKABLE.includes(ret.status) && ret.seatsAvailable > 0;
-    if (!okOut || !okRet) continue;
-    let fare = (toNumber(outbound.price) ?? 0) + (toNumber(ret.price) ?? 0);
+    const outbound: TripView | undefined = outMap.get(s.id);
+    const ret: TripView | undefined = retMap.get(s.id);
+    if (!outbound || !ret || outbound.closed || ret.closed) continue;
+    let fare = outbound.price + ret.price;
     let fareOrigin: string | null = null;
     if (origin) {
       // Giá theo điểm xuất phát: bảng giá riêng của nhà xe, thiếu thì bảng chung.
@@ -887,23 +881,28 @@ export async function createComboBooking(
   const people = adults + paidKids;
   const policyNote = checkWeekendPolicy(svc.weekendPolicy, nights);
   if (policyNote) throw new Error(policyNote);
-  const outbound = await prisma.cabinTrip.findUnique({ where: { id: input.outboundTripId } });
-  const ret = await prisma.cabinTrip.findUnique({ where: { id: input.returnTripId } });
-  if (!outbound || outbound.direction !== "OUTBOUND") throw new Error("Chuyến đi không hợp lệ.");
-  if (!ret || ret.direction !== "RETURN") throw new Error("Chuyến về không hợp lệ.");
-  // Chuyến phải đúng ngày đã chọn, cùng một nhà xe đang đăng, và đang mở bán.
-  if (toDateKey(outbound.departureDate) !== input.fromKey || toDateKey(ret.departureDate) !== input.toKey) {
+  // Chuyến có thể là chuyến ẢO (lịch luôn mở bán): kiểm tra bằng peekTrip trước, hợp lệ
+  // mới tạo chuyến thật để gắn vào đơn.
+  const outView = await peekTrip(input.outboundTripId);
+  const retView = await peekTrip(input.returnTripId);
+  if (!outView || outView.direction !== "OUTBOUND") throw new Error("Chuyến đi không hợp lệ.");
+  if (!retView || retView.direction !== "RETURN") throw new Error("Chuyến về không hợp lệ.");
+  // Chuyến phải đúng ngày đã chọn, cùng một nhà xe đang đăng, và không rơi vào ngày hết vé.
+  if (toDateKey(outView.departureDate) !== input.fromKey || toDateKey(retView.departureDate) !== input.toKey) {
     throw new Error("Chuyến xe không khớp ngày đi/về đã chọn — vui lòng tìm lại.");
   }
-  if (outbound.serviceId !== ret.serviceId) throw new Error("Chuyến đi và chuyến về phải cùng một nhà xe.");
+  if (outView.serviceId !== retView.serviceId) throw new Error("Chuyến đi và chuyến về phải cùng một nhà xe.");
   const busService = await prisma.service.findFirst({
-    where: { id: outbound.serviceId, category: "CABIN", published: true, contactOnly: false },
+    where: { id: outView.serviceId, category: "CABIN", published: true, contactOnly: false },
     select: { id: true },
   });
   if (!busService) throw new Error("Nhà xe không còn nhận đặt.");
-  if (!BOOKABLE.includes(outbound.status) || !BOOKABLE.includes(ret.status)) {
-    throw new Error("Chuyến xe đã hết chỗ hoặc tạm dừng bán — vui lòng chọn chuyến khác.");
+  if (outView.closed || retView.closed) {
+    throw new Error("Nhà xe đã hết vé ngày này — vui lòng chọn nhà xe hoặc ngày khác.");
   }
+  const outbound = await materializeTrip(input.outboundTripId);
+  const ret = await materializeTrip(input.returnTripId);
+  if (!outbound || !ret) throw new Error("Chuyến xe không hợp lệ — vui lòng tìm lại.");
 
   // Tính tiền TỪNG phòng trong phương án phía server.
   const costs = roomList.map((r) => {
@@ -985,8 +984,8 @@ export async function createComboBooking(
   // cabinDouble/cabinSingle = SỐ KHÁCH mỗi cách nằm, tổng phải = số khách; lệch (client cũ) → cả đoàn ghép.
   // Chỗ trên xe = SỐ KHÁCH, trừ ở kho vé thường của cả 2 chiều (KHÔNG dùng kho "cabin đôi"
   // của trang /xe-cabin — nhiều chuyến không khai kho đó). Ghép/riêng chỉ ảnh hưởng GIÁ.
-  const seatsAvail = Math.min(outbound.seatsAvailable, ret.seatsAvailable);
-  if (seatsAvail < people) throw new Error(`Xe chỉ còn ${seatsAvail} chỗ — không đủ cho ${people} khách.`);
+  // Lịch cabin luôn còn chỗ (ngày hết vé đã chặn ở trên) — không giới hạn theo số ghế.
+  const seatsAvail = Math.max(people, OPEN_SEATS);
   let nDouble = input.cabinDouble ?? 0;
   let nSingle = input.cabinSingle ?? 0;
   if (nSingle + nDouble !== people) ({ nSingle, nDouble } = cabinAllocation(people, seatsAvail)!);

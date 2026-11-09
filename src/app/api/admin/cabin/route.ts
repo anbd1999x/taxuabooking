@@ -2,23 +2,21 @@ import { NextResponse } from "next/server";
 import type { AvailabilityStatus, CabinDirection } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { parseDateOnly } from "@/lib/dates";
+import { parseDateOnly, addDays, toDateKey, isValidDateKey } from "@/lib/dates";
+import { ensureTripOnDate } from "@/lib/cabin-trips";
 import { adjustInventory, assignRoomsForBooking } from "@/lib/inventory";
 import { generateBookingCode } from "@/lib/utils";
 import { resolveCommission } from "@/lib/commission";
 
 export const dynamic = "force-dynamic";
 
-const DEFAULT_TIME: Record<CabinDirection, string> = { OUTBOUND: "21:00", RETURN: "12:00" };
-
-// "Tạm dừng" = SOLD_OUT khi VẪN còn chỗ (seatsAvailable > 0) → phân biệt với
-// chuyến đang bán mà hết chỗ (SOLD_OUT + seatsAvailable 0, do adjustInventory).
-function statusForOpen(open: boolean, free: number): AvailabilityStatus {
-  if (!open) return "SOLD_OUT"; // tạm dừng (giữ nguyên seatsAvailable > 0)
-  if (free <= 0) return "SOLD_OUT";
-  if (free <= 3) return "LIMITED";
-  return "AVAILABLE";
+// Lịch cabin LUÔN MỞ BÁN (xem src/lib/cabin-trips.ts): ngày chưa có chuyến = đang bán.
+// SOLD_OUT = admin đánh dấu HẾT VÉ ⇒ ngày đó bị loại khỏi tìm kiếm cabin & combo.
+// Số chỗ chỉ để thống kê, không quyết định trạng thái.
+function statusForOpen(open: boolean): AvailabilityStatus {
+  return open ? "AVAILABLE" : "SOLD_OUT";
 }
+const MAX_BULK_DAYS = 400;
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -56,32 +54,11 @@ export async function POST(request: Request) {
 
       let trip = await prisma.cabinTrip.findFirst({ where: { serviceId, departureDate: dateObj, direction } });
 
-      // Tạo mới (mở bán) nếu chưa có.
+      // Ngày chưa có chuyến (đang bán mặc định) ⇒ tạo chuyến thật từ mẫu để lưu chỉnh sửa
+      // (đánh dấu hết vé / đổi giá / tổng chỗ). Giá trị gửi lên áp ở bước cập nhật bên dưới.
       if (!trip) {
-        if (body.open === false) return NextResponse.json({ ok: true });
-        const ref = await prisma.cabinTrip.findFirst({
-          where: { serviceId, direction },
-          orderBy: { departureDate: "desc" },
-        });
-        const total = Number(body.seatsTotal) > 0 ? Math.floor(Number(body.seatsTotal)) : ref?.seatsTotal || 22;
-        const price = Number(body.price) > 0 ? Math.floor(Number(body.price)) : ref ? Number(ref.price) : 0;
-        trip = await prisma.cabinTrip.create({
-          data: {
-            serviceId,
-            operatorName: ref?.operatorName ?? service.title,
-            route: ref?.route ?? service.area ?? "Hà Nội → Tà Xùa",
-            direction,
-            departureDate: dateObj,
-            departureTime: ref?.departureTime ?? DEFAULT_TIME[direction],
-            pickupPoint: ref?.pickupPoint ?? "",
-            dropoffPoint: ref?.dropoffPoint ?? "",
-            price,
-            seatsTotal: total,
-            seatsAvailable: total,
-            status: "AVAILABLE",
-          },
-        });
-        return NextResponse.json({ ok: true, tripId: trip.id });
+        trip = await ensureTripOnDate(serviceId, direction, date);
+        if (!trip) return NextResponse.json({ error: "Không tạo được chuyến cho ngày này." }, { status: 400 });
       }
 
       // Cập nhật chuyến đã có. "Đã đặt" = tổng − còn trống (theo tồn kho thực).
@@ -92,16 +69,14 @@ export async function POST(request: Request) {
       }
       const free = Math.max(0, total - booked);
       const price = body.price != null ? Math.max(0, Math.floor(Number(body.price))) : Number(trip.price);
-      const open = body.open != null ? Boolean(body.open) : !(trip.status === "SOLD_OUT" && trip.seatsAvailable + trip.seatsDoubleAvailable > 0);
+      const open = body.open != null ? Boolean(body.open) : trip.status !== "SOLD_OUT";
       await prisma.cabinTrip.update({
         where: { id: trip.id },
         data: {
           price,
           seatsTotal: total,
           seatsAvailable: free,
-          // Tình trạng tính theo TỔNG chỗ còn của cả 2 pool (đơn + đôi) — hết đơn
-          // nhưng còn cabin đôi thì vẫn đang bán.
-          status: statusForOpen(open, free + trip.seatsDoubleAvailable),
+          status: statusForOpen(open),
         },
       });
       return NextResponse.json({ ok: true, tripId: trip.id });
@@ -120,10 +95,9 @@ export async function POST(request: Request) {
       if (!/^0\d{9}$/.test(phone)) return NextResponse.json({ error: "Số điện thoại 10 số, bắt đầu bằng 0." }, { status: 400 });
 
       if (!(await assertOwn(serviceId))) return NextResponse.json({ error: "Nhà xe không thuộc quyền của bạn." }, { status: 403 });
-      const trip = await prisma.cabinTrip.findFirst({ where: { serviceId, departureDate: parseDateOnly(date), direction } });
-      if (!trip) return NextResponse.json({ error: "Chuyến chưa mở bán." }, { status: 400 });
-      const free = trip.seatsAvailable;
-      if (seats > free) return NextResponse.json({ error: `Chỉ còn ${Math.max(0, free)} chỗ trống.` }, { status: 400 });
+      // Lịch luôn mở bán: ngày chưa có chuyến ⇒ tạo từ mẫu; không giới hạn theo số ghế.
+      const trip = await ensureTripOnDate(serviceId, direction, date);
+      if (!trip) return NextResponse.json({ error: "Nhà xe không hợp lệ." }, { status: 400 });
 
       let code = generateBookingCode();
       for (let i = 0; i < 5; i++) {
@@ -156,6 +130,49 @@ export async function POST(request: Request) {
         await tx.bookingRequest.update({ where: { id: booking.id }, data: { inventoryApplied: true } });
       });
       return NextResponse.json({ ok: true, code });
+    }
+
+    // Đánh dấu HẾT VÉ (hoặc mở bán lại) cho một khoảng ngày, theo chiều đi / về / cả hai.
+    if (op === "bulkClose") {
+      const serviceId = String(body.serviceId);
+      const fromKey = String(body.from ?? "");
+      const toKey = String(body.to ?? "") || fromKey;
+      const closed = body.closed !== false;
+      const dirs: CabinDirection[] =
+        body.direction === "OUTBOUND" ? ["OUTBOUND"] : body.direction === "RETURN" ? ["RETURN"] : ["OUTBOUND", "RETURN"];
+      if (!isValidDateKey(fromKey) || !isValidDateKey(toKey) || toKey < fromKey) {
+        return NextResponse.json({ error: "Khoảng ngày không hợp lệ." }, { status: 400 });
+      }
+      const service = await prisma.service.findFirst({ where: { id: serviceId, category: "CABIN" }, select: { id: true } });
+      if (!service) return NextResponse.json({ error: "Nhà xe không tồn tại." }, { status: 404 });
+      if (!(await assertOwn(serviceId))) return NextResponse.json({ error: "Nhà xe không thuộc quyền của bạn." }, { status: 403 });
+      const keys: string[] = [];
+      for (let d = parseDateOnly(fromKey); toDateKey(d) <= toKey; d = addDays(d, 1)) {
+        keys.push(toDateKey(d));
+        if (keys.length > MAX_BULK_DAYS) {
+          return NextResponse.json({ error: `Tối đa ${MAX_BULK_DAYS} ngày mỗi lần.` }, { status: 400 });
+        }
+      }
+      let changed = 0;
+      for (const key of keys) {
+        for (const direction of dirs) {
+          if (closed) {
+            const trip = await ensureTripOnDate(serviceId, direction, key);
+            if (trip && trip.status !== "SOLD_OUT") {
+              await prisma.cabinTrip.update({ where: { id: trip.id }, data: { status: "SOLD_OUT" } });
+              changed++;
+            }
+          } else {
+            // Mở bán lại: chỉ cần gỡ đánh dấu ở chuyến đã có (ngày không có chuyến vốn đang bán).
+            const r = await prisma.cabinTrip.updateMany({
+              where: { serviceId, direction, departureDate: parseDateOnly(key), status: "SOLD_OUT" },
+              data: { status: "AVAILABLE" },
+            });
+            changed += r.count;
+          }
+        }
+      }
+      return NextResponse.json({ ok: true, changed });
     }
 
     if (op === "confirm" || op === "cancel") {

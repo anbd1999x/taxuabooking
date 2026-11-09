@@ -15,6 +15,15 @@ import { isValidDateKey, parseDateOnly, toDateKey } from "@/lib/dates";
 import { formatPrice, toNumber } from "@/lib/format";
 import { generateBookingCode, normalizeFacebookUrl } from "@/lib/utils";
 import { busCommissionFor } from "@/lib/provider-commission";
+import { tripsOnDate, peekTrip, materializeTrip, type TripView } from "@/lib/cabin-trips";
+import type { CabinDirection } from "@prisma/client";
+
+/** Chuyến thật của nhà xe theo id (id ảo ⇒ tạo chuyến thật cho ngày đó). Sai nhà xe/chiều ⇒ null. */
+async function resolveAdminTrip(id: string, serviceId: string, direction: CabinDirection) {
+  const v = await peekTrip(id);
+  if (!v || v.serviceId !== serviceId || v.direction !== direction) return null;
+  return materializeTrip(id);
+}
 
 /* ============================ Báo giá / lựa chọn ============================ */
 
@@ -71,19 +80,21 @@ export async function quoteAdminBooking(
       seatsAvailable: t.seatsAvailable,
       status: t.status,
     });
-    const [outbound, returns] = await Promise.all([
-      prisma.cabinTrip.findMany({
-        where: { serviceId, direction: "OUTBOUND", departureDate: parseDateOnly(from) },
+    // Lịch luôn mở bán: ngày chưa có chuyến ⇒ trả chuyến ẢO (tạo thật khi lưu đơn).
+    const listFor = async (direction: CabinDirection, key: string) => {
+      const real = await prisma.cabinTrip.findMany({
+        where: { serviceId, direction, departureDate: parseDateOnly(key) },
         orderBy: { departureTime: "asc" },
-      }),
-      to
-        ? prisma.cabinTrip.findMany({
-            where: { serviceId, direction: "RETURN", departureDate: parseDateOnly(to) },
-            orderBy: { departureTime: "asc" },
-          })
-        : Promise.resolve([]),
+      });
+      if (real.length) return real.map(map);
+      const v: TripView | undefined = (await tripsOnDate([serviceId], direction, parseDateOnly(key))).get(serviceId);
+      return v ? [map({ ...v, price: v.price })] : [];
+    };
+    const [outbound, returns] = await Promise.all([
+      listFor("OUTBOUND", from),
+      to ? listFor("RETURN", to) : Promise.resolve([] as CabinTripItem[]),
     ]);
-    return { kind: "trip", nights: 0, outbound: outbound.map(map), returns: returns.map(map) };
+    return { kind: "trip", nights: 0, outbound, returns };
   }
 
   const kind = CATEGORIES[service.category].availabilityKind;
@@ -124,11 +135,11 @@ export async function quoteCabinFare(serviceId: string, outId: string, retId: st
   const roundTrip = Boolean(retId);
   const { hasTable, options } = await getCabinFareOptions(serviceId, roundTrip);
   if (hasTable) return { options, fallback: null };
-  const trips = await prisma.cabinTrip.findMany({
-    where: { serviceId, id: { in: [outId, ...(retId ? [retId] : [])] } },
-    select: { price: true },
-  });
-  return { options: [], fallback: trips.length ? await cabinJourneyFare(serviceId, trips, roundTrip) : null };
+  // Id có thể là chuyến ảo (lịch luôn mở bán) ⇒ xem giá qua peekTrip, không tạo gì.
+  const views = (await Promise.all([outId, ...(retId ? [retId] : [])].map((id) => peekTrip(id)))).filter(
+    (v): v is TripView => v != null && v.serviceId === serviceId,
+  );
+  return { options: [], fallback: views.length ? await cabinJourneyFare(serviceId, views, roundTrip) : null };
 }
 
 /* ============================ Tạo đơn ============================ */
@@ -239,8 +250,8 @@ export async function createAdminBooking(
 
     const outId = str(fd, "cabinTripId");
     const retId = str(fd, "cabinReturnTripId");
-    const outbound = outId ? await prisma.cabinTrip.findFirst({ where: { id: outId, serviceId: bus.id, direction: "OUTBOUND" } }) : null;
-    const ret = retId ? await prisma.cabinTrip.findFirst({ where: { id: retId, serviceId: bus.id, direction: "RETURN" } }) : null;
+    const outbound = outId ? await resolveAdminTrip(outId, bus.id, "OUTBOUND") : null;
+    const ret = retId ? await resolveAdminTrip(retId, bus.id, "RETURN") : null;
     if (outId && !outbound) return { error: "Chuyến đi không hợp lệ." };
     if (retId && !ret) return { error: "Chuyến về không hợp lệ." };
     if (ret && !outbound) return { error: "Chọn chuyến đi trước khi chọn chuyến về." };
@@ -299,10 +310,8 @@ export async function createAdminBooking(
     if (people < 1) return { error: "Nhập số khách nằm ghép / nằm riêng." };
     const outId = str(fd, "cabinTripId");
     const retId = str(fd, "cabinReturnTripId");
-    const outbound = outId
-      ? await prisma.cabinTrip.findFirst({ where: { id: outId, serviceId, direction: "OUTBOUND" } })
-      : null;
-    const ret = retId ? await prisma.cabinTrip.findFirst({ where: { id: retId, serviceId, direction: "RETURN" } }) : null;
+    const outbound = outId ? await resolveAdminTrip(outId, serviceId, "OUTBOUND") : null;
+    const ret = retId ? await resolveAdminTrip(retId, serviceId, "RETURN") : null;
     if (outId && !outbound) return { error: "Chuyến đi không hợp lệ." };
     if (retId && !ret) return { error: "Chuyến về không hợp lệ." };
     if (ret && !outbound) return { error: "Chọn chuyến đi trước khi chọn chuyến về." };

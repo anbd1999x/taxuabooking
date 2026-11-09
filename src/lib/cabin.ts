@@ -1,6 +1,6 @@
 import "server-only";
 import { unstable_cache } from "next/cache";
-import type { AvailabilityStatus, CabinDirection, Prisma, ServiceCategory } from "@prisma/client";
+import type { AvailabilityStatus, CabinDirection, ServiceCategory } from "@prisma/client";
 import { prisma } from "./prisma";
 import { parseDateOnly, toDateKey, addDays, today } from "./dates";
 import { toNumber } from "./format";
@@ -10,9 +10,9 @@ import { busCommissionFor } from "./provider-commission";
 import { hasOriginFare, legFareFor, roundTripFareFor, type FareRow } from "./combo";
 import { cabinSeatTotal } from "./combo-pricing";
 import type { CabinBookingInput } from "./validation";
+import { tripsForDays, tripsOnDate, peekTrip, materializeTrip, type TripView } from "./cabin-trips";
 
 const WD = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
-const LOW_THRESHOLD = 5;
 /** Điểm đón mặc định khi khách không chọn (khớp mặc định của ô tìm kiếm). */
 const DEFAULT_PICKUP = "Hà Nội";
 
@@ -46,40 +46,26 @@ export interface CabinDirectionOptions {
   pickIndex: number;
 }
 
-function tripToAvail(t: {
-  id: string;
-  departureDate: Date;
-  departureTime: string;
-  status: AvailabilityStatus;
-  price: Prisma.Decimal | number;
-  seatsAvailable: number;
-  priceDouble: Prisma.Decimal | number | null;
-  seatsDoubleAvailable: number;
-  pickupPoint: string;
-  dropoffPoint: string;
-}): CabinTripAvail {
+/** Chuyến (thật hoặc ảo — xem cabin-trips.ts) → dữ liệu widget. Luôn còn chỗ trừ ngày hết vé. */
+function tripToAvail(t: TripView): CabinTripAvail {
   return {
     id: t.id,
     dateKey: toDateKey(t.departureDate),
     departureTime: t.departureTime,
     status: t.status,
-    priceSingle: toNumber(t.price) ?? 0,
+    priceSingle: t.price,
     singleAvailable: t.seatsAvailable,
-    priceDouble: toNumber(t.priceDouble),
-    doubleAvailable: t.seatsDoubleAvailable,
+    priceDouble: null,
+    doubleAvailable: 0,
     pickupPoint: t.pickupPoint,
     dropoffPoint: t.dropoffPoint,
   };
 }
 
+/** Lịch luôn mở bán: chỉ ngày admin đánh dấu HẾT VÉ là "full"; không có mẫu chuyến = "unk". */
 function dayState(trip: CabinTripAvail | null): DayState {
   if (!trip) return "unk";
-  if (trip.status === "SOLD_OUT") return "full";
-  if (trip.status === "NOT_UPDATED" || trip.status === "PENDING_CONFIRM") return "unk";
-  const free = trip.singleAvailable + trip.doubleAvailable;
-  if (free <= 0) return "full";
-  if (trip.status === "LIMITED" || free <= LOW_THRESHOLD) return "low";
-  return "ok";
+  return trip.status === "SOLD_OUT" ? "full" : "ok";
 }
 
 function label(d: Date) {
@@ -102,23 +88,13 @@ async function buildDirectionOptionsImpl(
 ): Promise<CabinDirectionOptions> {
   const anchor = anchorKey ? parseDateOnly(anchorKey) : today();
   const days: Date[] = Array.from({ length: span }, (_, i) => addDays(anchor, i));
-  const first = days[0];
-  const last = days[days.length - 1];
-
-  const trips = await prisma.cabinTrip.findMany({
-    where: { serviceId, direction, departureDate: { gte: first, lte: last } },
-    orderBy: [{ departureDate: "asc" }, { departureTime: "asc" }],
-  });
-  // Mỗi ngày lấy chuyến đầu tiên (một chuyến/đêm theo mô hình hiện tại).
-  const byDay = new Map<string, CabinTripAvail>();
-  for (const t of trips) {
-    const key = toDateKey(t.departureDate);
-    if (!byDay.has(key)) byDay.set(key, tripToAvail(t));
-  }
+  // Mỗi ngày: chuyến thật (nếu có) hoặc chuyến ảo đang mở bán — không cần tạo chuyến trước.
+  const byDay = await tripsForDays(serviceId, direction, days);
 
   const out: CabinDay[] = days.map((d) => {
     const l = label(d);
-    const trip = byDay.get(l.key) ?? null;
+    const tv = byDay.get(l.key);
+    const trip = tv ? tripToAvail(tv) : null;
     return { key: l.key, wd: l.wd, dd: l.dd, state: dayState(trip), trip };
   });
 
@@ -218,27 +194,28 @@ async function getCabinOperatorsImpl(
     });
   }
 
-  const or: Prisma.CabinTripWhereInput[] = [];
-  if (from) or.push({ direction: "OUTBOUND", departureDate: from });
-  if (to) or.push({ direction: "RETURN", departureDate: to });
-
   const services = await prisma.service.findMany({
     where: { category: "CABIN", published: true },
     orderBy: [{ featured: "desc" }, { title: "asc" }],
     include: {
       images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 1 },
-      cabinTrips: { where: { OR: or } },
       cabinPriceRows: true,
     },
   });
+  // Lịch luôn mở bán: mỗi nhà xe có chuyến (thật hoặc ảo) mọi ngày, trừ ngày đánh dấu hết vé.
+  const ids = services.filter((s) => !s.contactOnly).map((s) => s.id);
+  const [outMap, retMap] = await Promise.all([
+    from ? tripsOnDate(ids, "OUTBOUND", from) : Promise.resolve(new Map<string, TripView>()),
+    to ? tripsOnDate(ids, "RETURN", to) : Promise.resolve(new Map<string, TripView>()),
+  ]);
 
   const cards: CabinOperatorCard[] = [];
   for (const s of services) {
-    const outTrip = from ? s.cabinTrips.find((t) => t.direction === "OUTBOUND") ?? null : null;
-    const retTrip = to ? s.cabinTrips.find((t) => t.direction === "RETURN") ?? null : null;
-    // Chỉ giữ nhà xe có đủ (các) chiều đang tìm — trừ nhà xe "chỉ nhắn tin" (không quản lý lịch trên web).
-    if (!s.contactOnly && from && !outTrip) continue;
-    if (!s.contactOnly && to && !retTrip) continue;
+    const outTrip = from && !s.contactOnly ? outMap.get(s.id) ?? null : null;
+    const retTrip = to && !s.contactOnly ? retMap.get(s.id) ?? null : null;
+    // Ngày đi/về bị đánh dấu HẾT VÉ ⇒ loại nhà xe khỏi kết quả (trừ nhà xe "chỉ nhắn tin").
+    if (!s.contactOnly && from && (!outTrip || outTrip.closed)) continue;
+    if (!s.contactOnly && to && (!retTrip || retTrip.closed)) continue;
     const outbound = outTrip ? tripToAvail(outTrip) : null;
     const ret = retTrip ? tripToAvail(retTrip) : null;
 
@@ -386,16 +363,25 @@ export async function createCabinBooking(
     throw new Error("Nhà xe này không nhận đặt trước trên web — vui lòng nhắn Zalo để giữ chỗ.");
   }
 
-  const outbound = await prisma.cabinTrip.findFirst({
-    where: { id: input.outboundTripId, serviceId: service.id, direction: "OUTBOUND" },
-  });
-  if (!outbound) throw new Error("Chuyến đi không hợp lệ.");
+  // Chuyến có thể là chuyến ẢO (ngày chưa tạo chuyến — lịch luôn mở bán): kiểm tra trước
+  // bằng peekTrip, hợp lệ mới tạo chuyến thật để gắn vào đơn.
+  const outView = await peekTrip(input.outboundTripId);
+  if (!outView || outView.serviceId !== service.id || outView.direction !== "OUTBOUND") {
+    throw new Error("Chuyến đi không hợp lệ.");
+  }
+  const retView = input.returnTripId ? await peekTrip(input.returnTripId) : null;
+  if (input.returnTripId && (!retView || retView.serviceId !== service.id || retView.direction !== "RETURN")) {
+    throw new Error("Chuyến về không hợp lệ.");
+  }
+  // Ngày: không đặt chuyến đã chạy; chiều về không được trước chiều đi; ngày hết vé không bán.
+  if (outView.departureDate < today()) throw new Error("Chuyến đi đã qua ngày khởi hành.");
+  if (retView && retView.departureDate < outView.departureDate) throw new Error("Ngày về phải cùng hoặc sau ngày đi.");
+  if (outView.closed) throw new Error(`Ngày đi ${toDateKey(outView.departureDate)} nhà xe đã hết vé — vui lòng chọn ngày khác.`);
+  if (retView?.closed) throw new Error(`Ngày về ${toDateKey(retView.departureDate)} nhà xe đã hết vé — vui lòng chọn ngày khác.`);
 
-  const ret = input.returnTripId
-    ? await prisma.cabinTrip.findFirst({
-        where: { id: input.returnTripId, serviceId: service.id, direction: "RETURN" },
-      })
-    : null;
+  const outbound = await materializeTrip(input.outboundTripId);
+  if (!outbound) throw new Error("Chuyến đi không hợp lệ.");
+  const ret = input.returnTripId ? await materializeTrip(input.returnTripId) : null;
   if (input.returnTripId && !ret) throw new Error("Chuyến về không hợp lệ.");
 
   // Tính THEO NGƯỜI: shared = số khách NẰM GHÉP (đi lẻ thì nhà xe xếp ghép với khách khác),
@@ -408,11 +394,6 @@ export async function createCabinBooking(
     throw new Error(`Đã xếp ${people}/${input.people} khách — vui lòng xếp đủ chỗ nằm cho cả đoàn.`);
   }
 
-  // Ngày: không đặt chuyến đã chạy; chiều về không được trước chiều đi.
-  if (outbound.departureDate < today()) throw new Error("Chuyến đi đã qua ngày khởi hành.");
-  if (ret && ret.departureDate < outbound.departureDate) {
-    throw new Error("Ngày về phải cùng hoặc sau ngày đi.");
-  }
 
   // Giá chặng MỖI KHÁCH (server-authoritative): theo bảng giá chặng của nhà xe (thiếu thì
   // bảng chung) và điểm xuất phát; khứ hồi ưu tiên dòng "Khứ hồi", không có thì đi + về.
@@ -431,13 +412,8 @@ export async function createCabinBooking(
   // Nằm ghép: mỗi người 1 vé; nằm riêng: mỗi người 2 × giá vé.
   const total = fare == null ? null : cabinSeatTotal(fare, shared, solo);
 
-  // Chỗ trên xe tính theo SỐ KHÁCH ở kho vé thường (giống combo & "+ Thêm vé" của admin).
-  const legNeedsConfirm = (t: typeof outbound) =>
-    t.status === "NOT_UPDATED" ||
-    t.status === "PENDING_CONFIRM" ||
-    t.status === "SOLD_OUT" ||
-    people > t.seatsAvailable;
-  const needsConfirmation = fare == null || legNeedsConfirm(outbound) || (ret ? legNeedsConfirm(ret) : false);
+  // Lịch luôn mở bán (ngày hết vé đã bị chặn ở trên) ⇒ chỉ cần xác nhận khi chưa có giá.
+  const needsConfirmation = fare == null;
 
   const tickets = [
     shared ? `${shared} khách nằm ghép (cabin đôi)` : null,

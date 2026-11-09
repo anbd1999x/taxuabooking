@@ -44,7 +44,7 @@ const TH = {
 const ST: Record<CabinOperator["state"], { bg: string; fg: string; text: string }> = {
   ok: { bg: "oklch(0.95 0.05 155)", fg: "oklch(0.38 0.1 155)", text: "Còn chỗ" },
   low: { bg: "oklch(0.95 0.06 70)", fg: "oklch(0.48 0.15 50)", text: "Còn ít chỗ" },
-  full: { bg: "oklch(0.93 0 0)", fg: "oklch(0.42 0 0)", text: "Hết chỗ" },
+  full: { bg: "oklch(0.93 0 0)", fg: "oklch(0.42 0 0)", text: "Hết vé" },
   unk: { bg: "oklch(0.95 0.03 250)", fg: "oklch(0.42 0.1 250)", text: "Chưa cập nhật" },
 };
 

@@ -39,24 +39,14 @@ export async function adjustInventory(
     for (const tripId of tripIds) {
       const trip = await tx.cabinTrip.findUnique({ where: { id: tripId } });
       if (!trip) continue;
-      // Trừ chỗ: phải đủ chỗ thật — kẹp âm thầm sẽ làm lệch tồn khi huỷ (cộng lại dư).
-      if (direction === -1 && (trip.seatsAvailable < nSingle || trip.seatsDoubleAvailable < nDouble)) {
-        throw new Error(
-          `Chuyến ${toDateKey(trip.departureDate)} không đủ chỗ (còn ${trip.seatsAvailable} đơn / ${trip.seatsDoubleAvailable} đôi).`,
-        );
-      }
-      const nextSingle = Math.max(0, trip.seatsAvailable + direction * nSingle);
-      const nextDouble = Math.max(0, trip.seatsDoubleAvailable + direction * nDouble);
-      // "Tạm dừng" (admin) = SOLD_OUT trong khi VẪN còn chỗ → giữ nguyên tạm dừng,
-      // không để việc huỷ/xác nhận đơn tự mở bán lại chuyến.
-      const paused = trip.status === "SOLD_OUT" && trip.seatsAvailable + trip.seatsDoubleAvailable > 0;
-      // Tình trạng chung theo tổng chỗ còn của cả hai pool.
+      // Lịch cabin LUÔN CÒN CHỖ: số ghế chỉ để thống kê "đã đặt" — không chặn xác nhận và
+      // không tự đổi trạng thái (SOLD_OUT = admin đánh dấu HẾT VÉ, chỉ admin bật/tắt).
+      // Cho phép âm (đặt vượt tổng chỗ khai báo) để trừ/cộng luôn đối xứng khi huỷ.
       await tx.cabinTrip.update({
         where: { id: trip.id },
         data: {
-          seatsAvailable: nextSingle,
-          seatsDoubleAvailable: nextDouble,
-          status: paused ? "SOLD_OUT" : statusFromCount(nextSingle + nextDouble),
+          seatsAvailable: trip.seatsAvailable + direction * nSingle,
+          seatsDoubleAvailable: trip.seatsDoubleAvailable + direction * nDouble,
         },
       });
     }
