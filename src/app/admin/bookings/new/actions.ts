@@ -15,7 +15,7 @@ import { isValidDateKey, parseDateOnly, toDateKey } from "@/lib/dates";
 import { formatPrice, toNumber } from "@/lib/format";
 import { generateBookingCode, normalizeFacebookUrl } from "@/lib/utils";
 import { busCommissionFor } from "@/lib/provider-commission";
-import { tripsOnDate, peekTrip, materializeTrip, type TripView } from "@/lib/cabin-trips";
+import { tripsOnDate, peekTrip, materializeTrip, ensureTripOnDate, type TripView } from "@/lib/cabin-trips";
 import type { CabinDirection } from "@prisma/client";
 
 /** Chuyến thật của nhà xe theo id (id ảo ⇒ tạo chuyến thật cho ngày đó). Sai nhà xe/chiều ⇒ null. */
@@ -216,6 +216,9 @@ export async function createAdminBooking(
   let cabinReturnTripId: string | null = null;
   let seatsSingle: number | null = null;
   let seatsDouble: number | null = null;
+  // Cách nằm theo người (nằm ghép = cabin đôi / nằm riêng = cabin đơn) — hiển thị chi tiết đơn.
+  let cabinShared: number | null = null;
+  let cabinSolo: number | null = null;
   let selectionLabel: string | null = null;
   let suggested: number | null = null;
   let stayCommission: number | null = null;
@@ -250,11 +253,18 @@ export async function createAdminBooking(
 
     const outId = str(fd, "cabinTripId");
     const retId = str(fd, "cabinReturnTripId");
-    const outbound = outId ? await resolveAdminTrip(outId, bus.id, "OUTBOUND") : null;
-    const ret = retId ? await resolveAdminTrip(retId, bus.id, "RETURN") : null;
+    // Không chọn chuyến ⇒ TỰ GÁN chuyến của nhà xe theo ngày đi / ngày về (lịch cabin luôn
+    // mở bán). Đơn combo BẮT BUỘC gắn chuyến: thống kê/đơn của chủ nhà xe tra theo chuyến,
+    // thiếu chuyến thì phần tiền vé rơi vào "Chưa gán chủ dịch vụ".
+    const outbound = outId
+      ? await resolveAdminTrip(outId, bus.id, "OUTBOUND")
+      : await ensureTripOnDate(bus.id, "OUTBOUND", useDate);
+    const ret = retId
+      ? await resolveAdminTrip(retId, bus.id, "RETURN")
+      : await ensureTripOnDate(bus.id, "RETURN", endDateRaw);
     if (outId && !outbound) return { error: "Chuyến đi không hợp lệ." };
     if (retId && !ret) return { error: "Chuyến về không hợp lệ." };
-    if (ret && !outbound) return { error: "Chọn chuyến đi trước khi chọn chuyến về." };
+    if (!outbound || !ret) return { error: `Không tạo được chuyến xe của ${bus.title} cho ngày đi/về — kiểm tra lộ trình nhà xe.` };
 
     const picked = [...new Set(fd.getAll("roomIds").map(String).filter(Boolean))];
     const c = await computeAvailability(serviceId, checkInKey, endDateRaw, people);
@@ -287,19 +297,17 @@ export async function createAdminBooking(
     roomIds = picked;
     roomId = picked[0] ?? null;
     roomTypeId = roomRows.find((r) => r.id === roomId)?.roomTypeId ?? null;
-    if (outbound) {
-      cabinTripId = outbound.id;
-      cabinReturnTripId = ret?.id ?? null;
-      seatsSingle = people;
-      seatsDouble = 0;
-    }
+    cabinTripId = outbound.id;
+    cabinReturnTripId = ret.id;
+    seatsSingle = people;
+    seatsDouble = 0;
+    cabinShared = shared;
+    cabinSolo = solo;
     stayCommission = rooms.reduce((n, o) => n + (o.commission ?? 0), 0);
     busCommission = busCommissionFor(bus.busCommission, people, 2);
-    const tickets = [shared ? `${shared} nằm ghép` : null, solo ? `${solo} nằm riêng` : null].filter(Boolean).join(" + ");
-    const busWhen = outbound
-      ? `đi ${toDateKey(outbound.departureDate)} ${outbound.departureTime}` +
-        (ret ? `, về ${toDateKey(ret.departureDate)} ${ret.departureTime}` : "")
-      : "chưa gán chuyến";
+    const tickets = [shared ? `${shared} khách nằm ghép (cabin đôi)` : null, solo ? `${solo} khách nằm riêng (cabin đơn)` : null].filter(Boolean).join(" + ");
+    const busWhen =
+      `đi ${toDateKey(outbound.departureDate)} ${outbound.departureTime}, về ${toDateKey(ret.departureDate)} ${ret.departureTime}`;
     selectionLabel =
       `Combo: xe ${bus.title} từ ${origin} (${busWhen}) · ${rooms.map((o) => o.name).join(", ") || "chưa chọn phòng"} · ` +
       `${nights ?? 0} đêm (${checkInKey}→${endDateRaw}) · ${people} khách · xe: ${tickets}`;
@@ -310,13 +318,23 @@ export async function createAdminBooking(
     if (people < 1) return { error: "Nhập số khách nằm ghép / nằm riêng." };
     const outId = str(fd, "cabinTripId");
     const retId = str(fd, "cabinReturnTripId");
-    const outbound = outId ? await resolveAdminTrip(outId, serviceId, "OUTBOUND") : null;
-    const ret = retId ? await resolveAdminTrip(retId, serviceId, "RETURN") : null;
+    // Không chọn chuyến ⇒ tự gán chuyến theo ngày đi (+ ngày về nếu có) — lịch luôn mở bán,
+    // để vé hiện trên lịch nhà xe và được giữ chỗ như đơn đặt web.
+    const outbound = outId
+      ? await resolveAdminTrip(outId, serviceId, "OUTBOUND")
+      : await ensureTripOnDate(serviceId, "OUTBOUND", useDate);
+    const ret = retId
+      ? await resolveAdminTrip(retId, serviceId, "RETURN")
+      : endDate
+        ? await ensureTripOnDate(serviceId, "RETURN", endDate)
+        : null;
     if (outId && !outbound) return { error: "Chuyến đi không hợp lệ." };
     if (retId && !ret) return { error: "Chuyến về không hợp lệ." };
     if (ret && !outbound) return { error: "Chọn chuyến đi trước khi chọn chuyến về." };
 
     quantity = people;
+    cabinShared = shared;
+    cabinSolo = solo;
     busCommission = busCommissionFor(service.busCommission, people, retId || endDate ? 2 : 1);
     if (outbound) {
       // Có chuyến ⇒ giữ chỗ theo số khách ở kho vé thường (giống luồng đặt web).
@@ -421,6 +439,8 @@ export async function createAdminBooking(
           cabinReturnTripId,
           seatsSingle,
           seatsDouble,
+          cabinShared,
+          cabinSolo,
           selectionLabel,
           referencePrice: price,
           needsConfirmation: status === "NEW",
