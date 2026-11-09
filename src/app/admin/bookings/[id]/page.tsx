@@ -14,6 +14,7 @@ import {
   PaymentRecordForm,
   NoteForm,
   DeleteBookingButton,
+  SurchargePanel,
 } from "@/components/admin/BookingDetailClient";
 import {
   toggleBookingHeld,
@@ -25,6 +26,7 @@ import { blockIp } from "../../ip-block/actions";
 import { geoForIps } from "@/lib/visits";
 import { regionLabel } from "@/lib/track-labels";
 import { bookingPax } from "@/lib/occupancy";
+import { parseSurcharges } from "@/lib/surcharges";
 
 export const dynamic = "force-dynamic";
 
@@ -104,6 +106,8 @@ export default async function BookingDetailPage({
   const pickupChosen =
     noteSegs.find((s) => s.startsWith("Đón:"))?.slice(4).trim() ||
     b.selectionLabel?.match(/\btừ ([^·(]+?)\s*(?:\(|·|$)/)?.[1]?.trim() ||
+    // Đơn combo web cũ: "(đi …, về …, đón tại Hưng Yên)".
+    b.selectionLabel?.match(/đón tại ([^·()]+?)\s*(?:\)|·|$)/)?.[1]?.trim() ||
     null;
   const dropChosen = noteSegs.find((s) => s.startsWith("Trả:"))?.slice(4).trim() || null;
   const customerNote =
@@ -111,6 +115,11 @@ export default async function BookingDetailPage({
       .filter((s) => !s.startsWith("Đón:") && !s.startsWith("Trả:") && !s.startsWith("Tạm tính:"))
       .join(" · ") || null;
   const price = toNumber(b.referencePrice);
+  // Phụ thu: giá đơn ĐÃ GỒM phụ thu ⇒ giá đặt gốc = tổng − phụ thu.
+  const surcharges = parseSurcharges(b.surcharges);
+  const surchargeTotal = surcharges.reduce((n, s) => n + s.amount, 0);
+  const basePrice = price != null ? price - surchargeTotal : null;
+  const surchargeLines = surcharges.map((s) => `Phụ thu ${s.label}: +${formatPrice(s.amount)}`);
   const collected = toNumber(b.amountCollected) ?? 0;
   const due = price != null ? Math.max(0, price - collected) : null;
   const phoneDigits = b.phone.replace(/\D/g, "");
@@ -364,6 +373,7 @@ export default async function BookingDetailPage({
     }
     confirmLines.push(
       "",
+      ...surchargeLines,
       `Tổng số tiền: ${price != null ? formatPrice(price) : "Chờ xác nhận"}`,
       `Đã cọc: ${collected > 0 ? formatPrice(collected) : "Chưa cọc"}`,
       ...(due != null ? [`Còn lại thanh toán: ${formatPrice(due)}`] : []),
@@ -383,6 +393,7 @@ export default async function BookingDetailPage({
       `Giờ đón (chiều đi): ${formatDate(outTrip.departureDate)} ${outTrip.departureTime}`,
       ...(retTrip ? [`Giờ về (chiều về): ${formatDate(retTrip.departureDate)} ${retTrip.departureTime}`] : []),
       `Số khách: ${partyLabelStr}`,
+      ...surchargeLines,
       `Tổng số tiền: ${price != null ? formatPrice(price) : "Chờ xác nhận"}`,
       `Đã cọc: ${collected > 0 ? formatPrice(collected) : "Chưa cọc"}`,
       ...(due != null ? [`Còn thiếu (thanh toán khi lên xe): ${formatPrice(due)}`] : []),
@@ -402,6 +413,7 @@ export default async function BookingDetailPage({
         ? [`Nhận phòng: ${formatDate(b.useDate)}`, `Trả phòng: ${formatDate(b.endDate!)}`]
         : [`Ngày dùng: ${formatDate(b.useDate)}${b.endDate ? ` → ${formatDate(b.endDate)}` : ""}`]),
       `Số người: ${partyLabelStr}`,
+      ...surchargeLines,
       `Tổng số tiền: ${price != null ? formatPrice(price) : "Chờ xác nhận"}`,
       `Đã cọc: ${collected > 0 ? formatPrice(collected) : "Chưa cọc"}`,
       ...(due != null ? [`Còn lại thanh toán lúc nhận phòng: ${formatPrice(due)}`] : []),
@@ -784,8 +796,13 @@ export default async function BookingDetailPage({
                 </div>
               ))}
             </div>
+            <SurchargePanel id={b.id} items={surcharges} isCombo={b.category === "COMBO"} basePrice={basePrice} />
             <div className="flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 bg-gray-50 px-5 py-3.5 sm:px-6">
-              <div className="text-[13px] text-gray-500">Giá tham khảo tại thời điểm đặt · chưa gồm phụ thu nếu có</div>
+              <div className="text-[13px] text-gray-500">
+                {surcharges.length
+                  ? `Đã gồm ${surcharges.length} khoản phụ thu (+${formatPrice(surchargeTotal)})`
+                  : "Giá tại thời điểm đặt · chưa có phụ thu"}
+              </div>
               <div className="flex items-baseline gap-2">
                 <span className="text-[13px] text-gray-500">Tổng</span>
                 <span className="text-[22px] font-extrabold tracking-tight text-sunset-600">{formatPrice(price)}</span>
@@ -923,8 +940,8 @@ export default async function BookingDetailPage({
                       Gọi {su.phone}
                     </a>
                   )}
-                  {su.zalo && (
-                    <a href={`https://zalo.me/${su.zalo.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="whitespace-nowrap rounded-full bg-sunset-500 px-3 py-1.5 text-[13px] font-bold text-white hover:bg-sunset-600">
+                  {(su.zalo || su.phone) && (
+                    <a href={`https://zalo.me/${(su.zalo || su.phone || "").replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="whitespace-nowrap rounded-full bg-sunset-500 px-3 py-1.5 text-[13px] font-bold text-white hover:bg-sunset-600">
                       Zalo
                     </a>
                   )}

@@ -12,6 +12,7 @@ import { BOOKING_STATUS_META } from "@/lib/constants";
 import { adjustInventory, assignRoomsForBooking, statusHoldsInventory } from "@/lib/inventory";
 import { canRoleAct, type BookingRole } from "@/lib/booking-flow";
 import { enumerateNights, isValidDateKey, parseDateOnly, toDateKey } from "@/lib/dates";
+import { parseSurcharges, type BookingSurcharge } from "@/lib/surcharges";
 
 export interface BookingActionState {
   ok?: boolean;
@@ -398,6 +399,110 @@ export async function addBookingNote(
 }
 
 /**
+ * THÊM / XOÁ PHỤ THU (ADMIN & chủ dịch vụ của đơn). referencePrice ĐÃ GỒM phụ thu ⇒ thêm
+ * thì cộng, xoá thì trừ (combo: cộng/trừ cả phần tiền của bên được chọn) — nhờ vậy "còn
+ * thiếu", thanh toán, báo cáo… tự đúng mà không phải sửa nơi khác.
+ */
+export async function saveBookingSurcharge(
+  _prev: BookingActionState,
+  formData: FormData,
+): Promise<BookingActionState> {
+  const id = String(formData.get("id") ?? "");
+  const op = String(formData.get("op") ?? "add");
+  if (!id) return { error: "Thiếu mã đơn." };
+  const role = await canManage(id);
+  if (!role) return { error: "Không có quyền thao tác đơn này." };
+  const b = await prisma.bookingRequest.findUnique({
+    where: { id },
+    select: {
+      category: true,
+      referencePrice: true,
+      roomAmount: true,
+      busAmount: true,
+      surcharges: true,
+      amountCollected: true,
+      paymentStatus: true,
+      updatedAt: true,
+    },
+  });
+  if (!b) return { error: "Không tìm thấy đơn." };
+  const list = parseSurcharges(b.surcharges);
+  const isCombo = b.category === "COMBO";
+  // Combo do sàn điều phối (tách tiền 2 bên) ⇒ chỉ admin chỉnh phụ thu.
+  if (isCombo && role !== "ADMIN") return { error: "Đơn combo do sàn điều phối — liên hệ admin để thêm phụ thu." };
+  const price = toNumber(b.referencePrice);
+
+  let item: BookingSurcharge;
+  let next: BookingSurcharge[];
+  let sign: 1 | -1;
+  if (op === "remove") {
+    const sid = String(formData.get("sid") ?? "");
+    const found = list.find((s) => s.id === sid);
+    if (!found) return { error: "Không tìm thấy khoản phụ thu." };
+    item = found;
+    next = list.filter((s) => s.id !== sid);
+    sign = -1;
+  } else {
+    // Chưa có giá ⇒ cộng phụ thu sẽ biến tổng thành chỉ tiền phụ thu (sai) ⇒ bắt nhập giá trước.
+    if (price == null) return { error: "Đơn chưa có giá — sửa thông tin đơn để nhập giá trước khi thêm phụ thu." };
+    const label = String(formData.get("label") ?? "").trim().slice(0, 120) || "Phụ thu";
+    const amount = money(formData.get("amount"));
+    if (!amount) return { error: "Nhập số tiền phụ thu." };
+    const sideRaw = String(formData.get("side") ?? "");
+    const side = isCombo ? (sideRaw === "bus" ? "bus" : "room") : undefined;
+    item = { id: Math.random().toString(36).slice(2, 10), label, amount, ...(side ? { side } : {}) };
+    next = [...list, item];
+    sign = 1;
+  }
+
+  const delta = sign * item.amount;
+  // null giữ nguyên null: đơn chưa có giá / combo cũ chưa tách tiền 2 bên không bị ghi
+  // thành "chỉ tiền phụ thu" (comboSideView sẽ hiểu sai phần tiền của bên đó).
+  const bump = (v: unknown) => {
+    const n = toNumber(v as never);
+    return n == null ? undefined : Math.max(0, n + delta);
+  };
+  const newPrice = bump(b.referencePrice);
+  // Đồng bộ trạng thái thanh toán theo tổng mới (cùng quy tắc recordBookingPayment):
+  // đã thu đủ mà thêm phụ thu ⇒ về "Đã cọc"; xoá phụ thu làm số đã thu ≥ tổng ⇒ "Đã thu đủ".
+  const collected = toNumber(b.amountCollected) ?? 0;
+  let payData: Prisma.BookingRequestUpdateInput = {};
+  if (newPrice != null && collected > 0) {
+    const full = collected >= newPrice;
+    if (full && b.paymentStatus !== "PAID") payData = { paymentStatus: "PAID", paidAt: new Date() };
+    if (!full && b.paymentStatus === "PAID") payData = { paymentStatus: "DEPOSITED", paidAt: null };
+  }
+  const data: Prisma.BookingRequestUpdateInput = {
+    surcharges: next as unknown as Prisma.InputJsonValue,
+    ...(newPrice !== undefined ? { referencePrice: newPrice } : {}),
+    ...(isCombo && item.side === "bus" && bump(b.busAmount) !== undefined ? { busAmount: bump(b.busAmount) } : {}),
+    ...(isCombo && item.side !== "bus" && bump(b.roomAmount) !== undefined ? { roomAmount: bump(b.roomAmount) } : {}),
+    ...payData,
+  };
+  const sideTxt = isCombo ? (item.side === "bus" ? " (nhà xe)" : " (homestay)") : "";
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Khoá lạc quan theo updatedAt: 2 thao tác cùng lúc không đè mất phụ thu của nhau.
+      const r = await tx.bookingRequest.updateMany({ where: { id, updatedAt: b.updatedAt }, data: data as Prisma.BookingRequestUpdateManyMutationInput });
+      if (r.count === 0) throw new Error("Đơn vừa được cập nhật ở nơi khác — tải lại trang rồi thử lại.");
+      await log(
+      tx,
+      id,
+      "SYSTEM",
+      sign > 0 ? "Thêm phụ thu" : "Xoá phụ thu",
+      `${item.label}${sideTxt}: ${sign > 0 ? "+" : "−"}${formatPrice(item.amount)}` +
+        (payData.paymentStatus === "DEPOSITED" ? " · chuyển về Đã cọc (còn thiếu tiền phụ thu)" : ""),
+      await sessionName(),
+    );
+    });
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Có lỗi xảy ra." };
+  }
+  revalidateDetail(id);
+  return { ok: true, message: sign > 0 ? `Đã thêm phụ thu ${formatPrice(item.amount)}` : "Đã xoá phụ thu" };
+}
+
+/**
  * SỬA THÔNG TIN ĐƠN (chỉ ADMIN): khách (tên/SĐT/Facebook/ghi chú), ngày, số khách,
  * mô tả lựa chọn, giá (+ tách tiền phòng/xe của combo). Đơn ĐANG GIỮ CHỖ mà đổi ngày/số
  * lượng ⇒ trả chỗ theo thông tin cũ rồi giữ lại theo thông tin mới trong cùng transaction
@@ -580,6 +685,7 @@ export async function duplicateBooking(formData: FormData): Promise<void> {
       referencePrice: b.referencePrice,
       roomAmount: b.roomAmount,
       busAmount: b.busAmount,
+      surcharges: b.surcharges ?? [], // giá nhân bản đã gồm phụ thu ⇒ mang theo danh sách để khớp
       ctvId: b.ctvId,
       commissionAmount: b.commissionAmount,
       roomCommission: b.roomCommission,

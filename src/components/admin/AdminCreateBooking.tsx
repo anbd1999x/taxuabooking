@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { ServiceCategory } from "@prisma/client";
 import { cabinSeatTotal } from "@/lib/combo-pricing";
 import {
@@ -196,6 +196,17 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
   // Tuyến (điểm xuất phát) — danh sách + giá theo bảng giá chặng của nhà xe đang chọn.
   const [fareQuote, setFareQuote] = useState<CabinFareQuote | null>(null);
   const [origin, setOrigin] = useState("Hà Nội");
+  // Admin tự nhập điểm đón ngoài bảng giá chặng (VD Hưng Yên) ⇒ giữ nguyên, không ép về Hà Nội.
+  const [customOrigin, setCustomOrigin] = useState(false);
+  const originTouched = useRef(false);
+  const originRef = useRef(origin);
+  useEffect(() => {
+    originRef.current = origin;
+  }, [origin]);
+  const changeOrigin = (v: string) => {
+    originTouched.current = true;
+    setOrigin(v);
+  };
   useEffect(() => {
     if (!(isCabin || isCombo) || !fareSvc || !outId) {
       setFareQuote(null);
@@ -206,11 +217,20 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
       if (!live) return;
       setFareQuote(q);
       // Giữ tuyến đang chọn nếu nhà xe có; không thì ưu tiên Hà Nội, rồi tuyến đầu tiên.
-      setOrigin((o) =>
-        q.options.some((x) => x.origin === o)
-          ? o
-          : (q.options.find((x) => x.origin.toLowerCase() === "hà nội")?.origin ?? q.options[0]?.origin ?? o),
-      );
+      const cur = originRef.current;
+      const norm = (s: string) => s.trim().toLowerCase();
+      // Bảng giá nhà xe mới có cùng điểm (khác hoa/thường, khoảng trắng) ⇒ dùng tên theo bảng giá.
+      const same = q.options.find((x) => norm(x.origin) === norm(cur));
+      const known = Boolean(same);
+      if (same) {
+        if (same.origin !== cur) setOrigin(same.origin);
+        setCustomOrigin(false);
+      } else if (originTouched.current && cur.trim()) {
+        // Điểm admin đã gõ tay mà bảng giá không có ⇒ chuyển sang ô nhập tay, giữ nguyên.
+        if (q.options.length) setCustomOrigin(true);
+      } else if (!known) {
+        setOrigin(q.options.find((x) => x.origin.toLowerCase() === "hà nội")?.origin ?? q.options[0]?.origin ?? cur);
+      }
     });
     return () => {
       live = false;
@@ -486,25 +506,50 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
                   )}
                   <div className="sm:col-span-2">
                     <label className={label}>Tuyến / điểm xuất phát</label>
-                    {fareQuote && fareQuote.options.length > 0 ? (
-                      <select name="origin" value={origin} onChange={(e) => setOrigin(e.target.value)} className={input}>
+                    {fareQuote && fareQuote.options.length > 0 && !customOrigin ? (
+                      <select
+                        name="origin"
+                        value={origin}
+                        onChange={(e) => {
+                          if (e.target.value === "__custom") {
+                            setCustomOrigin(true);
+                            changeOrigin("");
+                          } else changeOrigin(e.target.value);
+                        }}
+                        className={input}
+                      >
                         {fareQuote.options.map((o) => (
                           <option key={o.origin} value={o.origin}>
                             {o.origin} ⇄ Tà Xùa · {fmt(o.fare)}đ/khách {retId ? "khứ hồi" : "1 chiều"}
                           </option>
                         ))}
+                        <option value="__custom">Điểm đón khác (nhập tay)…</option>
                       </select>
                     ) : (
                       <>
                         <input
                           name="origin"
                           value={origin}
-                          onChange={(e) => setOrigin(e.target.value)}
-                          placeholder="VD: Hà Nội"
+                          onChange={(e) => changeOrigin(e.target.value)}
+                          required
+                          placeholder="VD: Hưng Yên"
                           className={input}
                         />
-                        {outId && fareQuote && (
+                        {outId && fareQuote && fareQuote.options.length === 0 && (
                           <p className="mt-1 text-xs text-gray-500">Nhà xe chưa có bảng giá chặng — giá tính theo giá chuyến.</p>
+                        )}
+                        {fareQuote && fareQuote.options.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCustomOrigin(false);
+                              originTouched.current = false;
+                              setOrigin(fareQuote.options.find((x) => x.origin.toLowerCase() === "hà nội")?.origin ?? fareQuote.options[0].origin);
+                            }}
+                            className="mt-1 text-xs font-semibold text-forest-700 hover:underline"
+                          >
+                            ← Chọn từ bảng giá chặng
+                          </button>
                         )}
                       </>
                     )}

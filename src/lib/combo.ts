@@ -1036,7 +1036,9 @@ export async function createComboBooking(
       serviceTitle: `Combo Tà Xùa: ${busSvc?.title ?? "xe cabin"} + ${svc.title}`,
       customerName: input.customerName,
       phone: input.phone,
-      note: input.note ?? null,
+      // Ghi điểm đón vào ghi chú ("Đón: …") như đơn cabin/đơn tạo hộ để trang chi tiết đơn
+      // và tin nhắn xác nhận hiện đúng điểm đón khách chọn, không rơi về điểm mặc định của chuyến.
+      note: [input.note?.trim() || null, origin ? `Đón: ${origin}` : null].filter(Boolean).join(" · ") || null,
       // useDate = NGÀY NHẬN PHÒNG (đi xe đêm hôm trước) để giữ phòng đúng các đêm
       // [check-in, check-out). Ngày xe chạy nằm trong selectionLabel + cabinTripId.
       useDate: checkIn,

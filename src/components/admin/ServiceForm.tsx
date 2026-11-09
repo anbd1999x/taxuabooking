@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import type { ServiceCategory } from "@prisma/client";
 import { CATEGORY_LIST, AREA_OPTIONS } from "@/lib/constants";
 import { MoneyInput } from "@/components/admin/MoneyInput";
+import { ContactPhoneField } from "@/components/admin/ContactPhoneField";
 import type { ActionState } from "@/app/admin/services/actions";
 
 type Action = (prev: ActionState, fd: FormData) => Promise<ActionState>;
@@ -179,10 +180,7 @@ export function ServiceForm({
           <span className="text-sm font-medium text-gray-600">Người liên hệ</span>
           <input name="contactName" defaultValue={initial.contactName ?? ""} className={inputCls} />
         </label>
-        <label className="block">
-          <span className="text-sm font-medium text-gray-600">Điện thoại</span>
-          <input name="contactPhone" defaultValue={initial.contactPhone ?? ""} className={inputCls} />
-        </label>
+        <ContactPhoneField defaultValue={initial.contactPhone} className={inputCls} />
         <label className="block">
           <span className="text-sm font-medium text-gray-600">Zalo</span>
           <input name="contactZalo" defaultValue={initial.contactZalo ?? ""} className={inputCls} />

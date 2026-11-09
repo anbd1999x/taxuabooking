@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import type { ServiceCategory } from "@prisma/client";
 import { CATEGORIES, AREA_OPTIONS } from "@/lib/constants";
 import { MoneyInput } from "@/components/admin/MoneyInput";
+import { ContactPhoneField } from "@/components/admin/ContactPhoneField";
 import { createServiceFull, type ActionState } from "@/app/admin/services/actions";
 
 const inp =
@@ -90,10 +91,7 @@ export function ServiceCreateWizard({ category }: { category: ServiceCategory })
             <span className="text-sm font-medium text-gray-600">Người liên hệ</span>
             <input name="contactName" className={inp} />
           </label>
-          <label className="block">
-            <span className="text-sm font-medium text-gray-600">Điện thoại</span>
-            <input name="contactPhone" className={inp} />
-          </label>
+          <ContactPhoneField className={inp} />
           <label className="block">
             <span className="text-sm font-medium text-gray-600">Zalo</span>
             <input name="contactZalo" className={inp} />

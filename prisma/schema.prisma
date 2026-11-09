@@ -491,6 +491,9 @@ model BookingRequest {
   // Đơn COMBO: tách tiền từng bên — bill của bên nào chỉ hiển thị phần bên đó.
   roomAmount      Decimal?      @db.Decimal(12, 0) // phần tiền phòng (về homestay)
   busAmount       Decimal?      @db.Decimal(12, 0) // phần tiền vé khứ hồi (về nhà xe)
+  // Phụ thu admin thêm sau khi đặt: [{ id, label, amount, side? }] (side: "room" | "bus" — chỉ combo).
+  // referencePrice (và roomAmount/busAmount của combo) ĐÃ GỒM phụ thu: thêm/xoá phụ thu cộng/trừ thẳng vào đó.
+  surcharges      Json          @default("[]")
   needsConfirmation Boolean     @default(true) // tình trạng cần admin xác nhận lại
   inventoryApplied Boolean      @default(false) // đã trừ tồn (vé/phòng/xe) hay chưa
 

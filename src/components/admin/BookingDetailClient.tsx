@@ -8,8 +8,10 @@ import {
   recordBookingPayment,
   addBookingNote,
   deleteBooking,
+  saveBookingSurcharge,
   type BookingActionState,
 } from "@/app/admin/bookings/actions";
+import { SURCHARGE_PRESETS, type BookingSurcharge } from "@/lib/surcharges";
 
 /** Hiện toast theo kết quả server action {ok,error,message}. */
 function useResultToast(state: BookingActionState, onOk?: () => void) {
@@ -246,6 +248,158 @@ export function NoteForm({ id }: { id: string }) {
         ))}
       </div>
     </form>
+  );
+}
+
+/**
+ * PHỤ THU của đơn: danh sách khoản (xoá được) + form thêm. Tổng đơn đã gồm phụ thu,
+ * server cộng/trừ thẳng vào giá đơn (combo: vào phần tiền của bên được chọn).
+ */
+export function SurchargePanel({
+  id,
+  items,
+  isCombo,
+  basePrice,
+}: {
+  id: string;
+  items: BookingSurcharge[];
+  isCombo: boolean;
+  /** Giá trước phụ thu (null = chưa có giá). */
+  basePrice: number | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const [label, setLabel] = useState("");
+  const [amt, setAmt] = useState("");
+  const [state, action, pending] = useActionState<BookingActionState, FormData>(saveBookingSurcharge, {});
+  useResultToast(state, () => {
+    setLabel("");
+    setAmt("");
+    setOpen(false);
+  });
+  const [delState, delAction, delPending] = useActionState<BookingActionState, FormData>(saveBookingSurcharge, {});
+  useResultToast(delState);
+  const fmt = (n: number) => n.toLocaleString("vi-VN") + "đ";
+
+  return (
+    <div className="flex flex-col gap-2 border-t border-gray-100 px-5 py-3.5 sm:px-6">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-bold text-ink">Phụ thu</span>
+        {!open && basePrice == null && <span className="text-xs text-gray-400">Nhập giá đơn trước khi thêm phụ thu</span>}
+        {!open && basePrice != null && (
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="whitespace-nowrap rounded-full border-[1.5px] border-gray-200 px-3 py-1 text-xs font-bold text-gray-700 hover:bg-gray-50"
+          >
+            + Thêm phụ thu
+          </button>
+        )}
+      </div>
+
+      {items.length > 0 && (
+        <div className="flex flex-col gap-1 text-sm">
+          {basePrice != null && (
+            <div className="flex justify-between text-gray-500">
+              <span>Giá đặt</span>
+              <span>{fmt(basePrice)}</span>
+            </div>
+          )}
+          {items.map((s) => (
+            <div key={s.id} className="flex items-center justify-between gap-2">
+              <span className="min-w-0 text-gray-700">
+                {s.label}
+                {isCombo && (
+                  <span className="ml-1.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-[11px] font-semibold text-gray-500">
+                    {s.side === "bus" ? "Nhà xe" : "Homestay"}
+                  </span>
+                )}
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="font-semibold text-ink">+{fmt(s.amount)}</span>
+                <form
+                  action={delAction}
+                  onSubmit={(e) => {
+                    if (!confirm(`Xoá phụ thu "${s.label}"?`)) e.preventDefault();
+                  }}
+                >
+                  <input type="hidden" name="id" value={id} />
+                  <input type="hidden" name="op" value="remove" />
+                  <input type="hidden" name="sid" value={s.id} />
+                  <button
+                    disabled={delPending}
+                    title="Xoá phụ thu"
+                    className="rounded-full px-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                  >
+                    ✕
+                  </button>
+                </form>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+      {items.length === 0 && !open && <p className="text-[13px] text-gray-400">Chưa có phụ thu.</p>}
+
+      {open && (
+        <form action={action} className="flex flex-col gap-2 rounded-xl bg-gray-50 p-3">
+          <input type="hidden" name="id" value={id} />
+          <input type="hidden" name="op" value="add" />
+          <div className="flex flex-wrap gap-1.5">
+            {SURCHARGE_PRESETS.map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setLabel(p)}
+                className="whitespace-nowrap rounded-full border-[1.5px] border-gray-200 bg-white px-2.5 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-100"
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-col gap-1.5 sm:flex-row">
+            <input
+              name="label"
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              placeholder="Nội dung, VD: Thêm 1 người lớn"
+              className="min-w-0 flex-1 rounded-lg border-[1.5px] border-gray-200 bg-white px-3 py-2 text-sm"
+            />
+            <input
+              name="amount"
+              value={amt}
+              onChange={(e) => {
+                const d = e.target.value.replace(/\D/g, "");
+                setAmt(d ? Number(d).toLocaleString("vi-VN") : "");
+              }}
+              inputMode="numeric"
+              placeholder="Số tiền"
+              className="rounded-lg border-[1.5px] border-gray-200 bg-white px-3 py-2 text-sm font-bold sm:w-36"
+            />
+            {isCombo && (
+              <select name="side" defaultValue="room" className="rounded-lg border-[1.5px] border-gray-200 bg-white px-2 py-2 text-[13px] font-semibold">
+                <option value="room">Homestay</option>
+                <option value="bus">Nhà xe</option>
+              </select>
+            )}
+          </div>
+          <div className="flex gap-1.5">
+            <button
+              disabled={pending || !amt}
+              className="flex-1 rounded-full bg-forest-700 px-3 py-2 text-sm font-bold text-white hover:bg-forest-800 disabled:opacity-50"
+            >
+              Thêm vào đơn
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded-full border-[1.5px] border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-700 hover:bg-gray-100"
+            >
+              Huỷ
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
   );
 }
 
