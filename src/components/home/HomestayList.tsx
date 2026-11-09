@@ -387,7 +387,7 @@ export function HomestayList({
     // Nhóm ưu tiên hiện trước nhóm bình thường. Trong nhóm ưu tiên: mỗi home chỉ hiện TỐI ĐA
     // PRIORITY_PER_HOME căn ở lượt đầu (tránh 1 home lố khi có nhiều home ưu tiên), các căn thừa
     // dồn xuống CUỐI nhóm ưu tiên (vẫn trước danh sách bình thường). Chỉ 1 home ưu tiên → hiện hết căn của nó.
-    const PRIORITY_PER_HOME = 2;
+    const PRIORITY_PER_HOME = 1;
     const perHome = new Map<string, number>();
     const prioHead: HomestayCard[] = []; // tối đa PRIORITY_PER_HOME căn / home ưu tiên
     const prioTail: HomestayCard[] = []; // căn thừa của home ưu tiên (cuối nhóm ưu tiên)
