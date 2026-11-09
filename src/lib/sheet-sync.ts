@@ -914,6 +914,58 @@ async function fetchTabGrid(id: string, gid: string): Promise<SheetGrids | null>
  * (mỗi tab 1 tháng) từ 1 link và đồng bộ lần lượt; tab không phải lịch hoặc đã
  * qua sẽ bị bỏ qua.
  */
+/**
+ * Nguồn lịch dạng API JSON của website homestay (vd https://thacmaytaxua.vn/api/calendar/all)
+ * thay cho Google Sheet: `?month=&year=` → { success, calendar: [{ fullDateStr, rooms: {
+ * <id>: { sheetName, name, isBooked } } }] }.
+ */
+export function isCalendarApiUrl(url: string): boolean {
+  return /^https?:\/\/[^/]+\/api\/calendar\/all(?:[?#]|$)/i.test(url.trim());
+}
+
+const CALENDAR_API_MONTHS = 7; // tháng hiện tại + 6 tháng tới
+
+type CalendarApiDay = {
+  fullDateStr: string;
+  rooms?: Record<string, { sheetName?: string; name?: string; isBooked?: boolean }>;
+};
+
+/** Tải lịch từng tháng (song song). days = null khi tháng đó tải lỗi. */
+async function fetchCalendarApiMonths(
+  url: string,
+  ref: Date,
+): Promise<{ label: string; days: CalendarApiDay[] | null }[]> {
+  const base = new URL(url.trim());
+  const months = Array.from({ length: CALENDAR_API_MONTHS }, (_, i) => {
+    const d = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth() + i, 1));
+    return { mo: d.getUTCMonth() + 1, y: d.getUTCFullYear() };
+  });
+  return Promise.all(
+    months.map(async ({ mo, y }) => {
+      const label = `Tháng ${mo}/${y}`;
+      const u = new URL(base);
+      u.searchParams.set("month", String(mo));
+      u.searchParams.set("year", String(y));
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 20000);
+        const res = await fetch(u, {
+          signal: ctrl.signal,
+          headers: { "User-Agent": "Mozilla/5.0 TaXuaBooking calendar sync", Accept: "application/json" },
+          cache: "no-store",
+        });
+        clearTimeout(timer);
+        if (!res.ok) return { label, days: null };
+        const j = (await res.json()) as { success?: boolean; calendar?: CalendarApiDay[] };
+        if (j.success === false || !Array.isArray(j.calendar)) return { label, days: null };
+        return { label, days: j.calendar };
+      } catch {
+        return { label, days: null };
+      }
+    }),
+  );
+}
+
 export async function syncServiceSheet(
   serviceId: string,
   source: SheetSyncSource = "MANUAL",
@@ -946,8 +998,10 @@ export async function syncServiceSheet(
   if (!service) return { ...base, error: "Không tìm thấy homestay." };
   if (!service.sheetUrl) return { ...base, error: "Chưa có link Google Sheet." };
 
-  const id = extractSheetId(service.sheetUrl);
-  if (!id) return fail(serviceId, base, "Link Google Sheet không hợp lệ.", source);
+  // Nguồn lịch: Google Sheet (mặc định) hoặc API lịch JSON của website homestay.
+  const apiSource = isCalendarApiUrl(service.sheetUrl);
+  const id = apiSource ? "" : extractSheetId(service.sheetUrl);
+  if (id === null) return fail(serviceId, base, "Link Google Sheet không hợp lệ.", source);
 
   // Bảng tra phòng theo tên đã chuẩn hoá.
   const allRooms: RoomRef[] = service.roomTypes.flatMap((rt) =>
@@ -965,8 +1019,8 @@ export async function syncServiceSheet(
 
   try {
     // 1) Liệt kê mọi tab của spreadsheet. Không đọc được → chỉ dùng tab trong link.
-    let tabs = await listSheetTabs(id);
-    if (tabs.length === 0) tabs = [{ name: "(trang tính)", gid: extractGid(service.sheetUrl) }];
+    let tabs = apiSource ? [] : await listSheetTabs(id);
+    if (!apiSource && tabs.length === 0) tabs = [{ name: "(trang tính)", gid: extractGid(service.sheetUrl) }];
     tabs = tabs.slice(0, 36); // chặn trường hợp bất thường
 
     const entries: SheetEntry[] = [];
@@ -977,6 +1031,35 @@ export async function syncServiceSheet(
     const skippedTabs: string[] = [];
     let anyCalendarTab = false; // có ít nhất 1 tab nhận diện được là lịch
     let fetchFailed = false; // có tab tải không được → KHÔNG dọn khoá cũ (tránh mở nhầm)
+
+    // 2a) Nguồn API lịch: mỗi tháng = 1 "tab"; mỗi ngày × phòng → isBooked.
+    if (apiSource) {
+      for (const m of await fetchCalendarApiMonths(service.sheetUrl, ref)) {
+        if (!m.days) {
+          fetchFailed = true;
+          skippedTabs.push(m.label);
+          continue;
+        }
+        anyCalendarTab = true;
+        let seen = false;
+        for (const day of m.days) {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(day.fullDateStr ?? "")) continue;
+          const date = parseDateOnly(day.fullDateStr);
+          for (const rm of Object.values(day.rooms ?? {})) {
+            const room =
+              matchRoom(roomByName, allRooms, rm.sheetName ?? "") ?? matchRoom(roomByName, allRooms, rm.name ?? "");
+            if (!room) {
+              if (rm.isBooked && date >= ref) unmatched.add(rm.sheetName || rm.name || "?");
+              continue;
+            }
+            seen = true;
+            matchedRoomIds.add(room.id);
+            entries.push({ room, date, status: rm.isBooked ? "BOOKED" : "AVAILABLE" });
+          }
+        }
+        (seen ? syncedTabs : skippedTabs).push(m.label);
+      }
+    }
 
     // 2) Tải song song rồi duyệt từng tab (kết quả giữ đúng thứ tự tab).
     const tabGrids = await Promise.all(tabs.map((t) => fetchTabGrid(id, t.gid)));

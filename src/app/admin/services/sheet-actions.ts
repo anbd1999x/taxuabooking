@@ -3,7 +3,7 @@
 import { requireAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { sheetCsvUrl, syncServiceSheet } from "@/lib/sheet-sync";
+import { isCalendarApiUrl, sheetCsvUrl, syncServiceSheet } from "@/lib/sheet-sync";
 
 export interface SheetActionState {
   ok?: boolean;
@@ -21,8 +21,8 @@ export async function saveSheetUrl(_prev: SheetActionState, formData: FormData):
   const serviceId = s(formData.get("serviceId"));
   const url = s(formData.get("sheetUrl"));
   if (!serviceId) return { error: "Thiếu homestay." };
-  if (url && (!/^https:\/\/docs\.google\.com\//i.test(url) || !sheetCsvUrl(url))) {
-    return { error: "Link không phải Google Sheet hợp lệ (cần dạng https://docs.google.com/spreadsheets/d/...)." };
+  if (url && !isCalendarApiUrl(url) && (!/^https:\/\/docs\.google\.com\//i.test(url) || !sheetCsvUrl(url))) {
+    return { error: "Link không phải Google Sheet hợp lệ (cần dạng https://docs.google.com/spreadsheets/d/...) hoặc API lịch (…/api/calendar/all)." };
   }
   await prisma.service.update({
     where: { id: serviceId },
