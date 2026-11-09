@@ -532,20 +532,22 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
           cover: firstImageUrl(r.images) ?? firstImageUrl(rt.images) ?? (rt.imageUrl && !VIDEO_URL_RE.test(rt.imageUrl) ? rt.imageUrl : null) ?? s.images[0]?.url ?? null,
           // Homestay "chỉ liên hệ" không quản lý lịch → coi như luôn trống khi tìm kiếm.
           free: !policyBlocked && (s.contactOnly || !occupied.has(r.id)),
+          featured: r.featured, // phòng nổi bật → lên đầu trang tìm
         };
       });
 
-      // Gom các phòng GIỐNG NHAU (cùng hạng + giá + sức chứa + ảnh) thành 1 thẻ.
+      // Gom các phòng GIỐNG NHAU (cùng hạng + giá + sức chứa + ảnh + cờ nổi bật) thành 1 thẻ.
       const groups = new Map<string, typeof raw>();
       for (const c of raw) {
-        const key = `${c.price}|${c.priceOld ?? ""}|${c.capacity}|${c.cover ?? ""}`;
+        const key = `${c.price}|${c.priceOld ?? ""}|${c.capacity}|${c.cover ?? ""}|${c.featured ? 1 : 0}`;
         const g = groups.get(key);
         if (g) g.push(c);
         else groups.set(key, [c]);
       }
 
       return [...groups.values()].map((g) => {
-        const first = g[0];
+        // Phòng đại diện: ưu tiên phòng CÒN TRỐNG trong kỳ (link/giá cả kỳ đúng phòng đặt được).
+        const first = g.find((x) => x.free) ?? g[0];
         const freeCount = g.filter((x) => x.free).length;
         const status: HomestayCardStatus = hasDates ? (freeCount === 0 ? "full" : freeCount <= 2 ? "low" : "ok") : "none";
         return {
@@ -574,6 +576,7 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
           cover: first.cover,
           featured: s.featured,
           priorityOrder: s.priorityOrder,
+          roomFeatured: first.featured,
           cat,
           status,
           freeRooms: hasDates ? freeCount : g.length,

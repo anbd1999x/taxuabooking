@@ -30,6 +30,7 @@ export interface HomestayCard {
   cover: string | null;
   featured: boolean;
   priorityOrder: number;
+  roomFeatured?: boolean; // phòng được tick "Phòng nổi bật" → lên đầu danh sách
   cat: string; // "Homestay" | "Bungalow"
   status: "ok" | "low" | "full" | "none";
   freeRooms: number;
@@ -384,6 +385,8 @@ export function HomestayList({
   let items: HomestayCard[];
   if (keepPriority) {
     const ranked = [...matched].sort((a, b) => prRank(b) - prRank(a) || bySort(a, b));
+    // PHÒNG nổi bật (tick ở từng phòng) lên TRÊN CÙNG, hiện hết — giữ thứ tự ưu tiên của home.
+    const roomTop = ranked.filter((x) => x.roomFeatured);
     // Nhóm ưu tiên hiện trước nhóm bình thường. Trong nhóm ưu tiên: mỗi home chỉ hiện TỐI ĐA
     // PRIORITY_PER_HOME căn ở lượt đầu (tránh 1 home lố khi có nhiều home ưu tiên), các căn thừa
     // dồn xuống CUỐI nhóm ưu tiên (vẫn trước danh sách bình thường). Chỉ 1 home ưu tiên → hiện hết căn của nó.
@@ -393,6 +396,7 @@ export function HomestayList({
     const prioTail: HomestayCard[] = []; // căn thừa của home ưu tiên (cuối nhóm ưu tiên)
     const normal: HomestayCard[] = []; // home không ưu tiên
     for (const x of ranked) {
+      if (x.roomFeatured) continue; // đã nằm ở roomTop
       if (prRank(x) > 0) {
         const n = perHome.get(x.slug) ?? 0;
         perHome.set(x.slug, n + 1);
@@ -401,7 +405,7 @@ export function HomestayList({
         normal.push(x);
       }
     }
-    items = [...prioHead, ...prioTail, ...normal];
+    items = [...roomTop, ...prioHead, ...prioTail, ...normal];
   } else {
     // Đã lọc giá hoặc đổi sắp xếp → KHÔNG ưu tiên Nổi bật nữa: chỉ theo sắp xếp đã chọn
     // (riêng "Phù hợp nhất" thì xếp theo tên cho trung lập, không đẩy Nổi bật lên).
@@ -741,7 +745,9 @@ export function HomestayList({
                 <div className="pointer-events-none absolute left-3 right-3 top-3 flex justify-between gap-1.5">
                   <div className="flex gap-1.5">
                     <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[oklch(0.3_0.04_160)]">{s.cat}</span>
-                    {s.featured && <span className="rounded-full bg-sunset-500 px-2.5 py-1 text-xs font-bold text-white">Nổi bật</span>}
+                    {(s.roomFeatured || s.featured) && (
+                      <span className="rounded-full bg-sunset-500 px-2.5 py-1 text-xs font-bold text-white">{s.roomFeatured ? "⭐ Nổi bật" : "Nổi bật"}</span>
+                    )}
                   </div>
                   <span className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: STATUS[s.status].bg, color: STATUS[s.status].fg }}>{STATUS[s.status].text(s.freeRooms)}</span>
                 </div>
