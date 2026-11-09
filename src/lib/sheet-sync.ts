@@ -213,8 +213,8 @@ function classifyCell(raw: string): { status: RoomStatus; known: boolean } {
   // Khách huỷ / ghi rõ còn phòng → trống (trước đây rơi vào nhánh "chữ lạ" = khoá).
   if (/\b(huy|cancel|cancelled|canceled)\b/.test(t) && !/chua huy/.test(t)) return ok("AVAILABLE");
   if (/^con( trong| phong)?$/.test(t)) return ok("AVAILABLE");
-  // "Đã cọc" = đã đặt; "Chờ cọc" rơi xuống nhánh chờ bên dưới. "TOUR" = phòng giữ cho đoàn tour.
-  if (/(dat|chot|book|full|kin|het|day|sold)/.test(t) || /\bda coc\b/.test(t) || /\btour\b/.test(t)) return ok("BOOKED");
+  // "Đã cọc" = đã đặt; "Chờ cọc" rơi xuống nhánh chờ bên dưới. "TOUR" = phòng giữ cho đoàn tour. "CTV" = cộng tác viên đã đặt (Tà Xùa Retreat).
+  if (/(dat|chot|book|full|kin|het|day|sold)/.test(t) || /\bda coc\b/.test(t) || /\btour\b/.test(t) || /\bctv\b/.test(t)) return ok("BOOKED");
   if (/(cho|wait|hold|giu|pending)/.test(t)) return ok("PENDING");
   if (/(dong|close|khoa|lock|nghi|off|bao tri|khong ban|ngung ban|ngung)/.test(t)) return ok("CLOSED");
   // Chủ sheet ghi rõ còn trống (thay vì để ô trống).
