@@ -155,6 +155,24 @@ export function roundTripFareFor(rows: FareRow[], origin: string): number | null
   return null;
 }
 
+const COMBO_DEFAULT_ORIGIN = "Hà Nội";
+
+/**
+ * Giá vé KHỨ HỒI/khách cho combo — cùng quy tắc với trang /xe-cabin (`getCabinOperators`):
+ * - nhà xe có bảng giá chặng (riêng, thiếu thì chung): theo bảng, điểm đón = `origin`
+ *   (không chọn → "Hà Nội"); chọn điểm mà bảng không khai → null (nhà xe không đón ở đây);
+ *   không chọn điểm mà bảng thiếu dòng Hà Nội → lùi về giá chuyến.
+ * - chưa có bảng giá: giá chuyến đi + về.
+ * Chuyến ẢO của nhà xe chưa từng có chuyến thật mang giá 0 → chỉ còn bảng giá để tính.
+ */
+export function comboRoundTripFare(rows: FareRow[], origin: string | null, tripFare: number): number | null {
+  if (rows.length > 0) {
+    if (origin) return roundTripFareFor(rows, origin);
+    return roundTripFareFor(rows, COMBO_DEFAULT_ORIGIN) ?? (tripFare > 0 ? tripFare : null);
+  }
+  return tripFare > 0 ? tripFare : null;
+}
+
 /**
  * Danh sách ĐIỂM XUẤT PHÁT cho ô tìm combo: các điểm đón đã khai trong bảng
  * giá chặng (của nhà xe cabin đang đăng + bảng giá chung), theo thứ tự khai báo.
@@ -673,7 +691,7 @@ async function findBuses(from: Date, to: Date, origin: string | null): Promise<C
       },
     }),
     // Bảng giá chung (serviceId=null) dùng cho nhà xe chưa có bảng giá riêng.
-    origin ? prisma.cabinPriceRow.findMany({ where: { serviceId: null } }) : Promise.resolve([]),
+    prisma.cabinPriceRow.findMany({ where: { serviceId: null } }),
   ]);
 
   // Lịch cabin luôn mở bán: chuyến thật hoặc chuyến ảo mỗi ngày; ngày HẾT VÉ ⇒ loại nhà xe.
@@ -687,20 +705,11 @@ async function findBuses(from: Date, to: Date, origin: string | null): Promise<C
     const outbound: TripView | undefined = outMap.get(s.id);
     const ret: TripView | undefined = retMap.get(s.id);
     if (!outbound || !ret || outbound.closed || ret.closed) continue;
-    let fare = outbound.price + ret.price;
-    let fareOrigin: string | null = null;
-    if (origin) {
-      // Giá theo điểm xuất phát: bảng giá riêng của nhà xe, thiếu thì bảng chung.
-      const rows = s.cabinPriceRows.length ? s.cabinPriceRows : generalRows;
-      if (rows.length > 0) {
-        const f = roundTripFareFor(rows, origin);
-        if (f == null) continue; // bảng giá không khai chặng này → nhà xe không đón ở đây
-        fare = f;
-        fareOrigin = origin;
-      }
-      // Nhà xe chưa khai bảng giá chặng nào → giữ giá chuyến mặc định.
-    }
-    if (fare <= 0) continue;
+    // Giá theo bảng giá chặng (riêng của nhà xe, thiếu thì bảng chung), chưa có bảng → giá chuyến.
+    const rows = s.cabinPriceRows.length ? s.cabinPriceRows : generalRows;
+    const fare = comboRoundTripFare(rows, origin, outbound.price + ret.price);
+    if (fare == null || fare <= 0) continue; // không đón ở điểm này / chưa có giá
+    const fareOrigin: string | null = origin && rows.length > 0 ? origin : null;
     const stopsOf = (dir: "OUTBOUND" | "RETURN") =>
       (s.cabinRoutes.find((r) => r.direction === dir)?.stops ?? []).map((st) => ({
         time: st.time,
@@ -965,19 +974,15 @@ export async function createComboBooking(
   }
   // Giá vé khứ hồi: chọn điểm xuất phát thì TÍNH LẠI theo bảng giá chặng
   // (bảng riêng của nhà xe, thiếu thì bảng chung) — khớp với giá đã hiện ở trang tìm combo.
-  let fare = (toNumber(outbound.price) ?? 0) + (toNumber(ret.price) ?? 0);
   const origin = input.origin?.trim() || null;
-  if (origin) {
-    const allRows = await prisma.cabinPriceRow.findMany({
-      where: { OR: [{ serviceId: outbound.serviceId }, { serviceId: null }] },
-    });
-    const own = allRows.filter((r) => r.serviceId === outbound.serviceId);
-    const rows = own.length ? own : allRows.filter((r) => r.serviceId === null);
-    if (rows.length > 0) {
-      const f = roundTripFareFor(rows, origin);
-      if (f == null) throw new Error("Nhà xe chưa khai báo giá vé cho điểm đón này.");
-      fare = f;
-    }
+  const allRows = await prisma.cabinPriceRow.findMany({
+    where: { OR: [{ serviceId: outbound.serviceId }, { serviceId: null }] },
+  });
+  const own = allRows.filter((r) => r.serviceId === outbound.serviceId);
+  const rows = own.length ? own : allRows.filter((r) => r.serviceId === null);
+  const fare = comboRoundTripFare(rows, origin, (toNumber(outbound.price) ?? 0) + (toNumber(ret.price) ?? 0));
+  if (fare == null || fare <= 0) {
+    throw new Error(origin ? "Nhà xe chưa khai báo giá vé cho điểm đón này." : "Nhà xe chưa có giá vé.");
   }
   // Chỗ nằm xe cabin — tính THEO NGƯỜI (giống /xe-cabin): nằm ghép (cabin đôi) = fare/người
   // (đi lẻ nhà xe xếp ghép cùng khách khác); nằm riêng (cabin đơn, bao buồng) = 2×fare/người.
