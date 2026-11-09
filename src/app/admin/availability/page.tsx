@@ -43,7 +43,7 @@ export default async function AvailabilityPage({
   const ownerFilter = isProvider ? { ownerId: session!.sub } : {};
   const services = await prisma.service.findMany({
     where: { category: { in: ["HOMESTAY", "MOTORBIKE", "CABIN"] }, ...ownerFilter },
-    orderBy: [{ category: "asc" }, { title: "asc" }],
+    orderBy: [{ category: "asc" }, { featured: "desc" }, { priorityOrder: "desc" }, { title: "asc" }],
     select: { id: true, title: true, category: true },
   });
 

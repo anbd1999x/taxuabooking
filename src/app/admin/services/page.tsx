@@ -27,7 +27,8 @@ export default async function AdminServicesPage({
 
   const services = await prisma.service.findMany({
     where,
-    orderBy: { updatedAt: "desc" },
+    // Như trang tìm kiếm: Nổi bật trước, trong đó số ưu tiên LỚN lên trước; còn lại theo sửa gần nhất.
+    orderBy: [{ featured: "desc" }, { priorityOrder: "desc" }, { updatedAt: "desc" }],
     include: { _count: { select: { images: true } }, owner: { select: { name: true } } },
   });
 
@@ -123,6 +124,9 @@ export default async function AdminServicesPage({
                   </td>
                   <td className="px-4 py-3">
                     <ToggleBadge id={svc.id} field="featured" on={svc.featured} onText="Có" offText="Không" />
+                    {svc.featured && (
+                      <span className="ml-1.5 text-xs font-semibold text-gray-500" title="Số ưu tiên (lớn lên trước)">#{svc.priorityOrder}</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <Link href={`/admin/services/${svc.id}`} className="text-sm font-medium text-forest-700 hover:underline">Sửa</Link>
