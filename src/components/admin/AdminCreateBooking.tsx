@@ -5,6 +5,7 @@ import type { ServiceCategory } from "@prisma/client";
 import { cabinSeatTotal } from "@/lib/combo-pricing";
 import {
   createAdminBooking,
+  updateAdminBooking,
   quoteAdminBooking,
   quoteCabinFare,
   type AdminQuote,
@@ -20,6 +21,39 @@ interface Props {
   todayKey: string;
   /** Giảm giá combo mỗi khách (COMBO_DISCOUNT). */
   comboDiscount: number;
+  /** Có ⇒ chế độ SỬA ĐƠN: nạp sẵn dữ liệu đơn, lưu qua updateAdminBooking. */
+  edit?: EditInit;
+}
+
+/** Dữ liệu đơn hiện tại để nạp vào form sửa. */
+export interface EditInit {
+  bookingId: string;
+  cat: ServiceCategory;
+  serviceId: string;
+  busId: string;
+  from: string;
+  to: string;
+  qty: number;
+  shared: number;
+  solo: number;
+  pick: string;
+  pickIds: string[];
+  outId: string;
+  retId: string;
+  origin: string;
+  price: number | null;
+  roomAmt: number | null;
+  busAmt: number | null;
+  discount: number;
+  surchargeTotal: number;
+  customerName: string;
+  phone: string;
+  customerFacebook: string;
+  ctvId: string;
+  note: string;
+  adminNote: string;
+  /** Đơn đang giữ chỗ (đã trừ tồn) ⇒ lưu sẽ trả chỗ cũ & giữ lại theo lựa chọn mới. */
+  inventoryApplied: boolean;
 }
 
 const STATUS_OPTS = [
@@ -101,38 +135,39 @@ function addDay(key: string): string {
   return d.toISOString().slice(0, 10);
 }
 
-export default function AdminCreateBooking({ categories, services, ctvs, todayKey, comboDiscount }: Props) {
-  const [state, formAction, submitting] = useActionState(createAdminBooking, {});
-  const [cat, setCat] = useState<ServiceCategory>(categories[0]?.key ?? "HOMESTAY");
-  const [serviceId, setServiceId] = useState("");
-  const [from, setFrom] = useState(todayKey);
-  const [to, setTo] = useState("");
-  const [qty, setQty] = useState(2);
-  const [shared, setShared] = useState(2);
-  const [solo, setSolo] = useState(0);
+export default function AdminCreateBooking({ categories, services, ctvs, todayKey, comboDiscount, edit }: Props) {
+  const [state, formAction, submitting] = useActionState(edit ? updateAdminBooking : createAdminBooking, {});
+  const [cat, setCat] = useState<ServiceCategory>(edit?.cat ?? categories[0]?.key ?? "HOMESTAY");
+  const [serviceId, setServiceId] = useState(edit?.serviceId ?? "");
+  const [from, setFrom] = useState(edit?.from ?? todayKey);
+  const [to, setTo] = useState(edit?.to ?? "");
+  const [qty, setQty] = useState(edit?.qty ?? 2);
+  const [shared, setShared] = useState(edit?.shared ?? 2);
+  const [solo, setSolo] = useState(edit?.solo ?? 0);
 
   const [quote, setQuote] = useState<AdminQuote | null>(null);
   const [loading, startQuote] = useTransition();
-  const [pick, setPick] = useState("");
-  const [outId, setOutId] = useState("");
-  const [retId, setRetId] = useState("");
+  const [pick, setPick] = useState(edit?.pick ?? "");
+  const [outId, setOutId] = useState(edit?.outId ?? "");
+  const [retId, setRetId] = useState(edit?.retId ?? "");
   const [fare, setFare] = useState<number | null>(null);
 
-  const [price, setPrice] = useState("");
-  const [priceTouched, setPriceTouched] = useState(false);
+  const [price, setPrice] = useState(edit?.price != null ? fmt(edit.price) : "");
+  const [priceTouched, setPriceTouched] = useState(Boolean(edit));
   const [status, setStatus] = useState("CONFIRMED");
   const [pay, setPay] = useState("UNPAID");
   const [collected, setCollected] = useState("");
 
   // Combo = nhà xe cabin (chuyến đi/về) + homestay (1 hoặc nhiều phòng).
   const isCombo = cat === "COMBO";
-  const [busId, setBusId] = useState("");
+  const [busId, setBusId] = useState(edit?.busId ?? "");
   const [busQuote, setBusQuote] = useState<AdminQuote | null>(null);
-  const [pickIds, setPickIds] = useState<string[]>([]);
-  const [roomAmt, setRoomAmt] = useState("");
-  const [busAmt, setBusAmt] = useState("");
-  const [discount, setDiscount] = useState("");
-  const [touched, setTouched] = useState({ room: false, bus: false, discount: false });
+  const [pickIds, setPickIds] = useState<string[]>(edit?.pickIds ?? []);
+  const [roomAmt, setRoomAmt] = useState(edit?.roomAmt != null ? fmt(edit.roomAmt) : "");
+  const [busAmt, setBusAmt] = useState(edit?.busAmt != null ? fmt(edit.busAmt) : "");
+  const [discount, setDiscount] = useState(edit ? fmt(edit.discount) : "");
+  // Sửa đơn: giữ nguyên tiền đã chốt (không tự điền giá hệ thống) cho tới khi admin bấm "Dùng giá hệ thống".
+  const [touched, setTouched] = useState({ room: Boolean(edit), bus: Boolean(edit), discount: Boolean(edit) });
 
   const kind: Kind = categories.find((c) => c.key === cat)?.kind ?? "transport";
   const isCabin = cat === "CABIN";
@@ -141,10 +176,19 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
   const cabinList = useMemo(() => services.filter((s) => s.category === "CABIN"), [services]);
   const homeList = useMemo(() => services.filter((s) => s.category === "HOMESTAY"), [services]);
   const people = shared + solo;
+  // Homestay chọn được NHIỀU phòng (như đặt web) — dùng chung danh sách pickIds với combo.
+  const multi = isCombo || kind === "stay";
+  // Phòng đơn này đang giữ (khi sửa) — hiện "Đơn này đang giữ" thay vì "Đã kín".
+  const ownRooms = useMemo(() => new Set(edit?.inventoryApplied ? edit.pickIds : []), [edit]);
   const checkIn = useMemo(() => (from ? addDay(from) : ""), [from]);
 
-  // Đổi danh mục → bỏ chọn dịch vụ cũ.
+  // Đổi danh mục → bỏ chọn dịch vụ cũ (bỏ qua lần nạp đầu khi sửa đơn).
+  const catInit = useRef(Boolean(edit));
   useEffect(() => {
+    if (catInit.current) {
+      catInit.current = false;
+      return;
+    }
     setServiceId("");
     setBusId("");
     setQuote(null);
@@ -195,10 +239,10 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
   const fareSvc = isCombo ? busId : serviceId;
   // Tuyến (điểm xuất phát) — danh sách + giá theo bảng giá chặng của nhà xe đang chọn.
   const [fareQuote, setFareQuote] = useState<CabinFareQuote | null>(null);
-  const [origin, setOrigin] = useState("Hà Nội");
+  const [origin, setOrigin] = useState(edit?.origin || "Hà Nội");
   // Admin tự nhập điểm đón ngoài bảng giá chặng (VD Hưng Yên) ⇒ giữ nguyên, không ép về Hà Nội.
   const [customOrigin, setCustomOrigin] = useState(false);
-  const originTouched = useRef(false);
+  const originTouched = useRef(Boolean(edit?.origin));
   const originRef = useRef(origin);
   useEffect(() => {
     originRef.current = origin;
@@ -268,12 +312,17 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
     if (!quote) return null;
     if (isCabin) return fare != null ? cabinSeatTotal(fare, shared, solo) : null;
     if (quote.items?.length) {
+      if (kind === "stay") {
+        const its = pickIds.map((id) => quote.items?.find((i) => i.id === id));
+        if (!its.length || its.some((i) => !i || i.price == null)) return null;
+        return its.reduce((n, i) => n + (i!.price ?? 0), 0);
+      }
       const it = quote.items.find((i) => i.id === pick);
       if (!it || it.price == null) return null;
       return kind === "rental" ? it.price * qty : it.price;
     }
     return quote.fixedPrice != null ? quote.fixedPrice * (kind === "transport" ? 1 : qty) : null;
-  }, [isCombo, roomAmt, busAmt, discount, quote, isCabin, fare, shared, solo, pick, kind, qty]);
+  }, [isCombo, roomAmt, busAmt, discount, quote, isCabin, fare, shared, solo, pick, pickIds, kind, qty]);
 
   useEffect(() => {
     if (!priceTouched || isCombo) setPrice(suggested != null ? fmt(suggested) : "");
@@ -287,16 +336,17 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
 
   // Chọn phòng/xe đang kín ⇒ mặc định coi là nhập bù đơn cũ (không trừ tồn lần nữa).
   const [skipInv, setSkipInv] = useState(false);
-  const pickedFull = isCombo
-    ? pickIds.some((id) => quote?.items?.find((i) => i.id === id && !i.bookable))
+  const pickedFull = multi
+    ? pickIds.some((id) => !ownRooms.has(id) && quote?.items?.find((i) => i.id === id && !i.bookable))
     : Boolean(pickedItem && !pickedItem.bookable);
   useEffect(() => {
-    setSkipInv(pickedFull);
-  }, [pick, pickIds, pickedFull]);
+    if (!edit) setSkipInv(pickedFull);
+  }, [pick, pickIds, pickedFull, edit]);
   const tripQuote = isCombo ? busQuote : quote;
 
   return (
     <form action={formAction} className="grid gap-4 lg:grid-cols-[1fr_340px]">
+      {edit && <input type="hidden" name="bookingId" value={edit.bookingId} />}
       <div className="flex min-w-0 flex-col gap-4">
         {/* 1. Dịch vụ */}
         <section className={card}>
@@ -419,26 +469,25 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
               {quote.items && quote.items.length > 0 && (
                 <>
                   <label className={label}>
-                    {isCombo
-                      ? `Chọn phòng (chọn nhiều được) · ${quote.nights} đêm · đã chọn ${pickIds.length} phòng, ${pickIds.reduce((n, id) => n + (quote.items?.find((i) => i.id === id)?.capacity ?? 0), 0)}/${people} chỗ`
-                      : kind === "stay"
-                        ? `Chọn phòng · ${quote.nights} đêm`
-                        : `Chọn loại xe · ${quote.nights} ngày`}
+                    {multi
+                      ? `Chọn phòng (chọn nhiều được) · ${quote.nights} đêm · đã chọn ${pickIds.length} phòng, ${pickIds.reduce((n, id) => n + (quote.items?.find((i) => i.id === id)?.capacity ?? 0), 0)}/${isCombo ? people : qty} chỗ`
+                      : `Chọn loại xe · ${quote.nights} ngày`}
                   </label>
-                  {isCombo ? (
+                  {multi ? (
                     pickIds.map((id) => <input key={id} type="hidden" name="roomIds" value={id} />)
                   ) : (
-                    <input type="hidden" name={kind === "stay" ? "roomId" : "rentalVehicleId"} value={pick} />
+                    <input type="hidden" name="rentalVehicleId" value={pick} />
                   )}
                   <div className="grid gap-2 sm:grid-cols-2">
                     {quote.items.map((it) => {
-                      const on = isCombo ? pickIds.includes(it.id) : pick === it.id;
+                      const on = multi ? pickIds.includes(it.id) : pick === it.id;
+                      const own = ownRooms.has(it.id);
                       return (
                         <button
                           key={it.id}
                           type="button"
                           onClick={() =>
-                            isCombo
+                            multi
                               ? setPickIds((ps) => (ps.includes(it.id) ? ps.filter((p) => p !== it.id) : [...ps, it.id]))
                               : setPick(it.id)
                           }
@@ -450,8 +499,8 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
                             <span className="block text-sm font-bold text-ink">{it.name}</span>
                             <span className="text-xs text-gray-500">
                               {it.note} ·{" "}
-                              <span className={it.bookable ? "font-bold text-emerald-700" : "font-bold text-red-600"}>
-                                {it.bookable ? "Còn trống" : "Đã kín / chưa cập nhật"}
+                              <span className={it.bookable || own ? "font-bold text-emerald-700" : "font-bold text-red-600"}>
+                                {own ? "Đơn này đang giữ" : it.bookable ? "Còn trống" : "Đã kín / chưa cập nhật"}
                               </span>
                             </span>
                           </span>
@@ -462,7 +511,7 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
                       );
                     })}
                   </div>
-                  {pickedFull && (
+                  {pickedFull && !edit && (
                     <p className="mt-2 text-sm font-semibold text-amber-700">
                       Có phòng đang kín — vẫn tạo được đơn để ghi nhận (đã tự bật “Nhập bù đơn cũ”, lịch phòng giữ nguyên).
                     </p>
@@ -573,11 +622,11 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
               <label className={label}>Tên khách *</label>
-              <input name="customerName" className={input} required />
+              <input name="customerName" defaultValue={edit?.customerName} className={input} required />
             </div>
             <div>
               <label className={label}>Số điện thoại *</label>
-              <input name="phone" inputMode="tel" className={input} required />
+              <input name="phone" inputMode="tel" defaultValue={edit?.phone} className={input} required />
             </div>
             <div className="sm:col-span-2">
               <label className={label}>Link Facebook khách (nếu có)</label>
@@ -587,12 +636,13 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
                 inputMode="url"
                 autoComplete="off"
                 placeholder="facebook.com/ten.khach hoặc link tin nhắn"
+                defaultValue={edit?.customerFacebook}
                 className={input}
               />
             </div>
             <div>
               <label className={label}>CTV đặt hộ (nếu có)</label>
-              <select name="ctvId" className={input} defaultValue="">
+              <select name="ctvId" className={input} defaultValue={edit?.ctvId ?? ""}>
                 <option value="">— Không —</option>
                 {ctvs.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -603,7 +653,7 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
             </div>
             <div className="sm:col-span-2">
               <label className={label}>Ghi chú của khách (điểm đón, yêu cầu…)</label>
-              <textarea name="note" rows={2} className={input} />
+              <textarea name="note" rows={2} defaultValue={edit?.note} className={input} />
             </div>
           </div>
         </section>
@@ -611,6 +661,17 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
 
       {/* Cột phải: trạng thái + tiền */}
       <div className="flex flex-col gap-4 lg:sticky lg:top-4 lg:self-start">
+        {edit ? (
+          <section className={card}>
+            <h2 className="mb-2 text-base font-extrabold text-ink">Sửa đơn</h2>
+            <p className="text-sm text-gray-600">
+              Trạng thái và thanh toán giữ nguyên — đổi ở trang đơn.
+              {edit.inventoryApplied
+                ? " Đơn đang giữ chỗ: khi lưu sẽ trả phòng/vé cũ và giữ lại theo lựa chọn mới (thiếu chỗ ⇒ báo lỗi, không lưu gì)."
+                : " Đơn chưa giữ chỗ: chỉ cập nhật thông tin, không đụng lịch phòng/vé."}
+            </p>
+          </section>
+        ) : (
         <section className={card}>
           <h2 className="mb-3 text-base font-extrabold text-ink">Trạng thái đơn</h2>
           <input type="hidden" name="status" value={status} />
@@ -652,6 +713,7 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
                 : "Sẽ giữ chỗ ngay (trừ phòng/vé/xe) khi tạo."}
           </p>
         </section>
+        )}
 
         <section className={card}>
           <h2 className="mb-3 text-base font-extrabold text-ink">Thanh toán</h2>
@@ -699,6 +761,11 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
             placeholder="Để trống = chờ báo giá"
           />
           {isCombo && <p className="mt-1 text-xs text-gray-500">= tiền phòng + tiền vé − giảm giá</p>}
+          {edit && edit.surchargeTotal > 0 && (
+            <p className="mt-1 text-xs font-semibold text-amber-700">
+              Chưa gồm phụ thu {fmt(edit.surchargeTotal)}đ đã ghi ở đơn (tự cộng khi lưu).
+            </p>
+          )}
           {!isCombo && suggested != null && (
             <p className="mt-1 text-xs text-gray-500">
               Giá hệ thống: {fmt(suggested)}đ
@@ -717,6 +784,7 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
             </p>
           )}
 
+          {!edit && (<>
           <input type="hidden" name="paymentStatus" value={pay} />
           <div className="mt-3 flex flex-wrap gap-2">
             {PAY_OPTS.map((p) => (
@@ -758,6 +826,8 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
             </div>
           )}
 
+          </>)}
+          {!edit && (
           <dl className="mt-4 space-y-1 border-t border-dashed border-gray-200 pt-3 text-sm">
             <div className="flex justify-between">
               <dt className="text-gray-500">Tổng</dt>
@@ -772,18 +842,19 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
               <dd className="font-extrabold text-sunset-600">{fmt(remain)}đ</dd>
             </div>
           </dl>
+          )}
         </section>
 
         <section className={card}>
           <label className={label}>Ghi chú nội bộ</label>
-          <textarea name="adminNote" rows={2} className={input} />
+          <textarea name="adminNote" rows={2} defaultValue={edit?.adminNote} className={input} />
           {state.error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{state.error}</p>}
           <button
             type="submit"
             disabled={submitting || !serviceId}
             className="mt-3 w-full rounded-full bg-sunset-500 px-4 py-3 text-sm font-extrabold text-white hover:bg-sunset-600 disabled:opacity-50"
           >
-            {submitting ? "Đang tạo…" : "Tạo đơn"}
+            {submitting ? (edit ? "Đang lưu…" : "Đang tạo…") : edit ? "Lưu thay đổi" : "Tạo đơn"}
           </button>
         </section>
       </div>

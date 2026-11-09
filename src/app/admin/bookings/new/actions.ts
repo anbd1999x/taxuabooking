@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { BookingStatus, PaymentStatus } from "@prisma/client";
+import type { BookingStatus, PaymentStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, getSession } from "@/lib/auth";
 import { CATEGORIES, BOOKING_STATUS_META } from "@/lib/constants";
@@ -15,6 +15,7 @@ import { isValidDateKey, parseDateOnly, toDateKey } from "@/lib/dates";
 import { formatPrice, toNumber } from "@/lib/format";
 import { generateBookingCode, normalizeFacebookUrl } from "@/lib/utils";
 import { busCommissionFor } from "@/lib/provider-commission";
+import { parseSurcharges } from "@/lib/surcharges";
 import { tripsOnDate, peekTrip, materializeTrip, ensureTripOnDate, type TripView } from "@/lib/cabin-trips";
 import type { CabinDirection } from "@prisma/client";
 
@@ -164,29 +165,33 @@ function money(fd: FormData, k: string): number | null {
   return t ? Number(t) : null;
 }
 
-/**
- * ADMIN tạo đơn HỘ KHÁCH ngay trong trang quản trị: chọn dịch vụ + lựa chọn cụ thể,
- * đặt sẵn trạng thái xử lý & tiền đã thu. Trạng thái giữ chỗ (Đã xác nhận/Hoàn thành)
- * ⇒ trừ tồn ngay trong cùng transaction (thiếu chỗ ⇒ báo lỗi, không tạo đơn).
- */
-export async function createAdminBooking(
-  _prev: CreateAdminBookingState,
-  fd: FormData,
-): Promise<CreateAdminBookingState> {
-  await requireAdmin();
-  const session = await getSession();
-  const by = session?.name || session?.username || "Admin";
+/** Dữ liệu đơn dựng từ form tạo/sửa đơn hộ khách (chưa gồm mã đơn, trạng thái, thanh toán). */
+export type AdminBookingData = Omit<
+  Prisma.BookingRequestUncheckedCreateInput,
+  "code" | "status" | "paymentStatus" | "amountCollected" | "paidAt" | "needsConfirmation" | "cancelReason"
+>;
 
+/**
+ * Đọc & kiểm tra form đơn hộ khách (dùng chung TẠO và SỬA đơn): dịch vụ, ngày, phòng / chuyến
+ * xe / cách nằm / tuyến, khách, tiền — tính lại giá gợi ý, chiết khấu, nhãn lựa chọn phía server.
+ * `prev` (khi sửa): giữ trẻ em của đơn cũ (form chỉ nhập tổng số khách).
+ */
+async function buildAdminBookingData(
+  fd: FormData,
+  prev?: { quantity: number; adults: number | null; childrenAges: number[]; category: string } | null,
+): Promise<{ error: string } | { data: AdminBookingData; isCombo: boolean }> {
   const serviceId = str(fd, "serviceId");
   const customerName = str(fd, "customerName");
   const phone = str(fd, "phone");
   const useDate = str(fd, "useDate");
   const endDateRaw = str(fd, "endDate");
-  const status = str(fd, "status") as BookingStatus;
-  const paymentStatus = str(fd, "paymentStatus") as PaymentStatus;
   const ctvId = str(fd, "ctvId") || null;
   // Điểm xuất phát (tuyến) của khách — quyết định giá chặng cabin; mặc định như web.
   const origin = str(fd, "origin") || "Hà Nội";
+  // Sửa đơn: trẻ em của đơn cũ. Combo: quantity = số tính phí ⇒ trẻ tính phí = quantity − adults.
+  const childKids = prev?.childrenAges.length ?? 0;
+  const comboPayingKids =
+    prev && prev.category === "COMBO" && prev.adults != null ? Math.max(0, prev.quantity - prev.adults) : 0;
 
   if (!serviceId) return { error: "Chọn dịch vụ." };
   if (!customerName) return { error: "Nhập tên khách." };
@@ -195,8 +200,6 @@ export async function createAdminBooking(
   if (customerFacebook === undefined) return { error: "Link Facebook không hợp lệ." };
   if (!isValidDateKey(useDate)) return { error: "Chọn ngày sử dụng." };
   if (endDateRaw && (!isValidDateKey(endDateRaw) || endDateRaw < useDate)) return { error: "Ngày kết thúc phải từ ngày bắt đầu trở đi." };
-  if (!STATUSES.includes(status)) return { error: "Trạng thái không hợp lệ." };
-  if (!PAYMENTS.includes(paymentStatus)) return { error: "Tình trạng thanh toán không hợp lệ." };
 
   const service = await prisma.service.findUnique({ where: { id: serviceId } });
   if (!service) return { error: "Không tìm thấy dịch vụ." };
@@ -293,7 +296,7 @@ export async function createAdminBooking(
     endDate = endDateRaw;
     nights = c?.nights ?? null;
     fixedQuantity = people;
-    adults = people;
+    adults = Math.max(1, people - comboPayingKids);
     roomIds = picked;
     roomId = picked[0] ?? null;
     roomTypeId = roomRows.find((r) => r.id === roomId)?.roomTypeId ?? null;
@@ -355,22 +358,39 @@ export async function createAdminBooking(
         : `${toDateKey(outbound.departureDate)} ${outbound.departureTime}`
       : "chưa gán chuyến";
     selectionLabel = `${ret || endDate ? "Khứ hồi" : "Một chiều"} từ ${origin} · ${tickets} · ${when}`;
-  } else if (kind === "stay" || kind === "rental") {
-    const pick = str(fd, kind === "stay" ? "roomId" : "rentalVehicleId");
+  } else if (kind === "stay") {
+    // Homestay: chọn 1 hoặc NHIỀU phòng cùng home (giống đặt web nhiều phòng) — quantity = số
+    // phòng, số khách ở adults (trẻ em của đơn cũ giữ nguyên khi sửa).
+    const picked = [...new Set([...fd.getAll("roomIds").map(String), str(fd, "roomId")].filter(Boolean))];
     const c = await computeAvailability(serviceId, useDate, endDate, quantity);
     const opts = c?.stayOptions ?? [];
-    if (opts.length && !pick) return { error: kind === "stay" ? "Chọn phòng." : "Chọn loại xe." };
+    if (opts.length && picked.length === 0) return { error: "Chọn phòng." };
+    const chosen = picked.map((pid) => opts.find((o) => o.id === pid));
+    if (chosen.some((o) => !o)) return { error: "Phòng đã chọn không hợp lệ — tải lại danh sách." };
+    const rooms = chosen as NonNullable<(typeof chosen)[number]>[];
+    nights = c?.nights ?? null;
+    if (rooms.length) {
+      const first = await prisma.room.findUnique({ where: { id: rooms[0].id }, select: { roomTypeId: true } });
+      roomId = rooms[0].id;
+      roomTypeId = first?.roomTypeId ?? null;
+      roomIds = rooms.length > 1 ? rooms.map((o) => o.id) : [];
+      stayCommission = rooms.reduce((n, o) => n + (o.commission ?? 0), 0);
+      suggested = rooms.every((o) => o.pricePerUnit != null) ? rooms.reduce((n, o) => n + (o.pricePerUnit ?? 0), 0) : null;
+      fixedQuantity = rooms.length;
+      adults = Math.max(1, quantity - childKids);
+      selectionLabel = `${rooms.map((o) => o.name).join(" + ")} · ${quantity} khách`;
+    } else {
+      suggested = c?.basePrice != null ? c.basePrice * quantity : null;
+    }
+  } else if (kind === "rental") {
+    const pick = str(fd, "rentalVehicleId");
+    const c = await computeAvailability(serviceId, useDate, endDate, quantity);
+    const opts = c?.stayOptions ?? [];
+    if (opts.length && !pick) return { error: "Chọn loại xe." };
     const opt = opts.find((o) => o.id === pick);
     if (pick && !opt) return { error: "Lựa chọn không hợp lệ — tải lại danh sách." };
     nights = c?.nights ?? null;
-    if (opt && kind === "stay") {
-      const room = await prisma.room.findUnique({ where: { id: opt.id }, select: { roomTypeId: true } });
-      roomId = opt.id;
-      roomTypeId = room?.roomTypeId ?? null;
-      stayCommission = opt.commission ?? 0;
-      suggested = opt.pricePerUnit;
-      selectionLabel = `${opt.name} · ${quantity} khách`;
-    } else if (opt) {
+    if (opt) {
       rentalVehicleId = opt.id;
       suggested = opt.pricePerUnit != null ? opt.pricePerUnit * quantity : null;
       selectionLabel = `${opt.name} × ${quantity}`;
@@ -383,6 +403,78 @@ export async function createAdminBooking(
   }
 
   const price = money(fd, "price") ?? suggested;
+  const commissionAmount = ctvId
+    ? roomId || isCombo
+      ? (stayCommission ?? 0)
+      : await resolveCommission(serviceId, ctvId)
+    : 0;
+
+  return {
+    isCombo,
+    data: {
+      category,
+      serviceId,
+      serviceTitle,
+      customerName,
+      phone,
+      customerFacebook,
+      // Cabin/combo: ghi điểm đón (tuyến) vào ghi chú như đơn đặt web ("Đón: …") để trang
+      // chi tiết / tin nhắn nhà xe hiện đúng điểm đón thay vì điểm mặc định của chuyến.
+      note:
+        [str(fd, "note") || null, isCombo || service.category === "CABIN" ? `Đón: ${origin}` : null]
+          .filter(Boolean)
+          .join(" · ") || null,
+      adminNote: str(fd, "adminNote") || null,
+      useDate: parseDateOnly(bookingUseDate),
+      endDate: endDate ? parseDateOnly(endDate) : null,
+      nights,
+      quantity: fixedQuantity ?? (roomId ? 1 : quantity),
+      adults: adults ?? (roomId ? quantity : null),
+      ...(prev ? { childrenAges: prev.childrenAges } : {}),
+      roomTypeId,
+      roomId,
+      roomIds,
+      roomAmount,
+      busAmount,
+      rentalVehicleId,
+      cabinTripId,
+      cabinReturnTripId,
+      seatsSingle,
+      seatsDouble,
+      cabinShared,
+      cabinSolo,
+      selectionLabel,
+      referencePrice: price,
+      ctvId,
+      commissionAmount,
+      roomCommission: roomId ? stayCommission : null,
+      busCommission,
+    },
+  };
+}
+
+/**
+ * ADMIN tạo đơn HỘ KHÁCH ngay trong trang quản trị: chọn dịch vụ + lựa chọn cụ thể,
+ * đặt sẵn trạng thái xử lý & tiền đã thu. Trạng thái giữ chỗ (Đã xác nhận/Hoàn thành)
+ * ⇒ trừ tồn ngay trong cùng transaction (thiếu chỗ ⇒ báo lỗi, không tạo đơn).
+ */
+export async function createAdminBooking(
+  _prev: CreateAdminBookingState,
+  fd: FormData,
+): Promise<CreateAdminBookingState> {
+  await requireAdmin();
+  const session = await getSession();
+  const by = session?.name || session?.username || "Admin";
+  const status = str(fd, "status") as BookingStatus;
+  const paymentStatus = str(fd, "paymentStatus") as PaymentStatus;
+  if (!STATUSES.includes(status)) return { error: "Trạng thái không hợp lệ." };
+  if (!PAYMENTS.includes(paymentStatus)) return { error: "Tình trạng thanh toán không hợp lệ." };
+
+  const built = await buildAdminBookingData(fd);
+  if ("error" in built) return { error: built.error };
+  const { data } = built;
+  const price = data.referencePrice == null ? null : Number(data.referencePrice);
+
   let collected = money(fd, "amountCollected");
   if (paymentStatus === "UNPAID") collected = null;
   if (paymentStatus === "DEPOSITED" && !collected) return { error: "Nhập số tiền khách đã cọc." };
@@ -392,12 +484,6 @@ export async function createAdminBooking(
   }
   const payMethod = str(fd, "payMethod") || "Chuyển khoản";
   const skipInventory = fd.get("skipInventory") === "on";
-
-  const commissionAmount = ctvId
-    ? roomId || isCombo
-      ? (stayCommission ?? 0)
-      : await resolveCommission(serviceId, ctvId)
-    : 0;
 
   let code = generateBookingCode();
   for (let i = 0; i < 5; i++) {
@@ -411,47 +497,12 @@ export async function createAdminBooking(
       const b = await tx.bookingRequest.create({
         data: {
           code,
-          category,
-          serviceId,
-          serviceTitle,
-          customerName,
-          phone,
-          customerFacebook,
-          // Cabin/combo: ghi điểm đón (tuyến) vào ghi chú như đơn đặt web ("Đón: …") để trang
-          // chi tiết / tin nhắn nhà xe hiện đúng điểm đón thay vì điểm mặc định của chuyến.
-          note:
-            [str(fd, "note") || null, isCombo || service.category === "CABIN" ? `Đón: ${origin}` : null]
-              .filter(Boolean)
-              .join(" · ") || null,
-          adminNote: str(fd, "adminNote") || null,
-          useDate: parseDateOnly(bookingUseDate),
-          endDate: endDate ? parseDateOnly(endDate) : null,
-          nights,
-          quantity: fixedQuantity ?? (roomId ? 1 : quantity),
-          adults: adults ?? (roomId ? quantity : null),
-          roomTypeId,
-          roomId,
-          roomIds,
-          roomAmount,
-          busAmount,
-          rentalVehicleId,
-          cabinTripId,
-          cabinReturnTripId,
-          seatsSingle,
-          seatsDouble,
-          cabinShared,
-          cabinSolo,
-          selectionLabel,
-          referencePrice: price,
+          ...data,
           needsConfirmation: status === "NEW",
           status,
           paymentStatus,
           amountCollected: collected,
           paidAt: paymentStatus === "PAID" ? new Date() : null,
-          ctvId,
-          commissionAmount,
-          roomCommission: roomId ? stayCommission : null,
-          busCommission,
           cancelReason: status === "CANCELLED" ? "Tạo đơn ở trạng thái huỷ" : null,
         },
       });
@@ -495,6 +546,99 @@ export async function createAdminBooking(
   }
 
   for (const p of ["/admin/bookings", "/admin/reports", "/admin/provider/don", "/admin/availability", "/admin/ctv/don"]) {
+    revalidatePath(p);
+  }
+  redirect(`/admin/bookings/${id}`);
+}
+
+/* ============================ Sửa đơn ============================ */
+
+/**
+ * SỬA TOÀN BỘ ĐƠN (chỉ ADMIN) — cùng form với tạo đơn hộ khách: đổi được danh mục, homestay,
+ * phòng (nhiều phòng), nhà xe, chuyến đi/về, cách nằm, tuyến đón, ngày, số khách, khách, CTV,
+ * tiền. Trạng thái & thanh toán GIỮ NGUYÊN (đổi ở trang đơn). Đơn đang giữ chỗ ⇒ trả chỗ theo
+ * thông tin cũ rồi giữ lại theo thông tin mới trong CÙNG transaction (lỗi ⇒ không lưu gì).
+ * Giá nhập trong form là giá CHƯA gồm phụ thu — phụ thu đã ghi ở đơn được cộng lại.
+ */
+export async function updateAdminBooking(
+  _prev: CreateAdminBookingState,
+  fd: FormData,
+): Promise<CreateAdminBookingState> {
+  await requireAdmin();
+  const session = await getSession();
+  const by = session?.name || session?.username || "Admin";
+  const id = str(fd, "bookingId");
+  const old = await prisma.bookingRequest.findUnique({ where: { id } });
+  if (!old) return { error: "Không tìm thấy đơn." };
+
+  const built = await buildAdminBookingData(fd, old);
+  if ("error" in built) return { error: built.error };
+  const data = { ...built.data };
+  const surchargeTotal = parseSurcharges(old.surcharges).reduce((n, s) => n + s.amount, 0);
+  if (data.referencePrice != null && surchargeTotal) data.referencePrice = Number(data.referencePrice) + surchargeTotal;
+  // Hoa hồng CTV đã trả ⇒ giữ nguyên số đã trả.
+  if (old.commissionPaid && old.ctvId === data.ctvId) data.commissionAmount = old.commissionAmount;
+
+  // Nhật ký: các trường đổi.
+  const fmtD = (d: Date | string | null | undefined) => (d ? (typeof d === "string" ? d.slice(0, 10) : toDateKey(d)) : "—");
+  const num = (v: unknown) => (v == null ? null : Number(v));
+  const changes: string[] = [];
+  const diff = (label: string, a: unknown, c: unknown) => {
+    if (String(a ?? "") !== String(c ?? "")) changes.push(`${label}: ${a ?? "—"} → ${c ?? "—"}`);
+  };
+  diff("Dịch vụ", old.serviceTitle, data.serviceTitle);
+  diff("Lựa chọn", old.selectionLabel, data.selectionLabel);
+  diff("Ngày", fmtD(old.useDate), fmtD(data.useDate as Date));
+  diff("Đến ngày", fmtD(old.endDate), fmtD(data.endDate as Date | null));
+  diff("Số lượng", old.quantity, data.quantity);
+  diff("Khách", old.customerName, data.customerName);
+  diff("SĐT", old.phone, data.phone);
+  diff("Facebook", old.customerFacebook, data.customerFacebook);
+  diff("Ghi chú", old.note, data.note);
+  diff("Ghi chú nội bộ", old.adminNote, data.adminNote);
+  diff("CTV", old.ctvId ?? "—", data.ctvId ?? "—");
+  diff("Tổng tiền", num(old.referencePrice), num(data.referencePrice));
+  diff("Tiền phòng", num(old.roomAmount), num(data.roomAmount));
+  diff("Tiền xe", num(old.busAmount), num(data.busAmount));
+  const sameIds = (a: string[], b: string[]) => a.length === b.length && a.every((x) => b.includes(x));
+  const oldRooms = old.roomIds.length ? old.roomIds : old.roomId ? [old.roomId] : [];
+  const newRooms = (data.roomIds as string[] | undefined)?.length ? (data.roomIds as string[]) : data.roomId ? [data.roomId] : [];
+  if (!sameIds(oldRooms, newRooms)) changes.push(`Phòng: ${oldRooms.length} → ${newRooms.length} phòng (đã đổi)`);
+  if (old.cabinTripId !== data.cabinTripId || old.cabinReturnTripId !== data.cabinReturnTripId) changes.push("Chuyến xe: đã đổi");
+  if (changes.length === 0) return { error: "Không có thay đổi nào." };
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      if (old.inventoryApplied) {
+        // Trả chỗ theo thông tin CŨ…
+        if (old.roomTypeId) await assignRoomsForBooking(tx, old, false);
+        if (old.cabinTripId || old.rentalVehicleId) await adjustInventory(tx, old, +1);
+      }
+      const nb = await tx.bookingRequest.update({
+        where: { id },
+        data: {
+          ...data,
+          // Bỏ trống các tham chiếu cũ không còn dùng (đổi danh mục / bỏ chuyến…).
+          roomIds: data.roomIds ?? [],
+        },
+      });
+      if (old.inventoryApplied) {
+        // …rồi giữ lại theo thông tin MỚI (thiếu chỗ ⇒ throw ⇒ rollback toàn bộ).
+        if (nb.roomTypeId) await assignRoomsForBooking(tx, nb, true);
+        if (nb.cabinTripId || nb.rentalVehicleId) await adjustInventory(tx, nb, -1);
+        if (!nb.roomTypeId && !nb.cabinTripId && !nb.rentalVehicleId) {
+          await tx.bookingRequest.update({ where: { id }, data: { inventoryApplied: false } });
+        }
+      }
+      await tx.bookingLog.create({
+        data: { bookingId: id, kind: "SYSTEM", title: "Sửa đơn", body: changes.join("\n"), by },
+      });
+    });
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Có lỗi xảy ra." };
+  }
+
+  for (const p of ["/admin/bookings", "/admin/reports", "/admin/provider/don", "/admin/availability", "/admin/ctv/don", `/admin/bookings/${id}`]) {
     revalidatePath(p);
   }
   redirect(`/admin/bookings/${id}`);

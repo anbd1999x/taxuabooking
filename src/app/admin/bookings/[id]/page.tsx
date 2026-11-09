@@ -515,6 +515,13 @@ export default async function BookingDetailPage({
             )}
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link
+              href={`/admin/bookings/${b.id}/sua`}
+              title="Sửa mọi thông tin: dịch vụ, homestay & phòng, nhà xe & chuyến, cách nằm, ngày, khách, tiền"
+              className="flex items-center gap-2 whitespace-nowrap rounded-full border-[1.5px] border-forest-700 bg-white px-4 py-2.5 text-sm font-bold text-forest-700 transition hover:bg-forest-50"
+            >
+              ✎ Sửa đơn
+            </Link>
             <a
               href={`tel:${phoneDigits}`}
               className="flex items-center gap-2 whitespace-nowrap rounded-full bg-forest-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-sunset-500"
@@ -715,7 +722,7 @@ export default async function BookingDetailPage({
                         <span className="text-xs text-gray-500">
                           {b.inventoryApplied
                             ? "Đơn đang giữ chỗ: đổi ngày/số lượng sẽ trả chỗ cũ và giữ lại theo thông tin mới."
-                            : "Đổi phòng/chuyến cụ thể: tạo đơn mới (Nhân bản) rồi huỷ đơn này."}
+                            : "Sửa nhanh. Đổi homestay/phòng/nhà xe/chuyến: bấm “✎ Sửa đơn” ở đầu trang."}
                         </span>
                         <button className="rounded-full bg-forest-700 px-5 py-2 text-sm font-bold text-white hover:bg-forest-800">
                           Lưu thay đổi
