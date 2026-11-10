@@ -8,6 +8,7 @@ import { rateLimit, clientIp } from "@/lib/rate-limit";
 import { notifyNewBooking } from "@/lib/push";
 import { isIpBlocked, recordBookingSource, requestIp } from "@/lib/ip-block";
 import { ensureGeo } from "@/lib/visits";
+import { isInternalError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,10 @@ export async function POST(request: Request) {
       }
       return NextResponse.json({ error: "Vui lòng kiểm tra lại thông tin.", fieldErrors }, { status: 400 });
     }
-    const message = err instanceof Error ? err.message : "Có lỗi xảy ra, vui lòng thử lại.";
-    return NextResponse.json({ error: message }, { status: 400 });
+    if (!(err instanceof Error) || isInternalError(err)) {
+      console.error("createComboBooking error", err);
+      return NextResponse.json({ error: "Có lỗi xảy ra, vui lòng thử lại." }, { status: 500 });
+    }
+    return NextResponse.json({ error: err.message }, { status: 400 });
   }
 }

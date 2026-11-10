@@ -122,11 +122,16 @@ export async function advanceBookingStatusResult(formData: FormData): Promise<{ 
 }
 
 async function advanceTx(id: string, role: BookingRole, newStatus: BookingStatus): Promise<void> {
+  const by = await sessionName();
   await prisma.$transaction(async (tx) => {
     const booking = await tx.bookingRequest.findUnique({ where: { id } });
-    if (!booking) return;
+    if (!booking) throw new Error("Không tìm thấy yêu cầu.");
+    if (booking.status === newStatus) return;
     // Gate theo vai trò: chủ dịch vụ không xác nhận/hủy; chỉ hoàn thành đơn đã thu đủ.
-    if (!canRoleAct(role, booking.status, booking.paymentStatus, "status", newStatus)) return;
+    // (Trước đây trả về im lặng ⇒ giao diện báo thành công dù không đổi gì.)
+    if (!canRoleAct(role, booking.status, booking.paymentStatus, "status", newStatus)) {
+      throw new Error("Bạn không có quyền chuyển đơn sang trạng thái này.");
+    }
     const shouldHold = statusHoldsInventory(newStatus);
     let inventoryApplied = booking.inventoryApplied;
     if (shouldHold && !booking.inventoryApplied) {
@@ -138,7 +143,13 @@ async function advanceTx(id: string, role: BookingRole, newStatus: BookingStatus
       if (booking.cabinTripId || booking.rentalVehicleId) await adjustInventory(tx, booking, +1);
       inventoryApplied = false;
     }
-    await tx.bookingRequest.update({ where: { id }, data: { status: newStatus, inventoryApplied } });
+    // Như saveBookingStage/bulkUpdateBookingStatus: rời trạng thái Mới ⇒ bỏ cờ "Cần xác nhận lại"
+    // (trước đây đơn đã xác nhận từ thẻ quản lý vẫn hiện badge này) + ghi nhật ký.
+    await tx.bookingRequest.update({
+      where: { id },
+      data: { status: newStatus, inventoryApplied, needsConfirmation: newStatus === "NEW" ? booking.needsConfirmation : false },
+    });
+    await log(tx, id, "STATUS", `Chuyển sang ${BOOKING_STATUS_META[newStatus].label}`, null, by);
   });
 }
 
@@ -341,7 +352,7 @@ export async function recordBookingPayment(
 
   const b = await prisma.bookingRequest.findUnique({
     where: { id },
-    select: { referencePrice: true, amountCollected: true, status: true, paymentStatus: true },
+    select: { referencePrice: true, amountCollected: true, status: true, paymentStatus: true, updatedAt: true },
   });
   if (!b) return { error: "Không tìm thấy yêu cầu." };
   if (!canRoleAct(role, b.status, b.paymentStatus, "pay")) {
@@ -366,14 +377,17 @@ export async function recordBookingPayment(
   const total = collected + amount;
   const full = price != null && total >= price;
   const by = await sessionName();
-  await prisma.bookingRequest.update({
-    where: { id },
+  // Khoá lạc quan theo updatedAt (như saveBookingSurcharge): 2 lần ghi thu cùng lúc (bấm đúp,
+  // admin + chủ dịch vụ) trước đây cùng đọc số cũ ⇒ lần sau ĐÈ mất khoản thu của lần trước.
+  const r = await prisma.bookingRequest.updateMany({
+    where: { id, updatedAt: b.updatedAt },
     data: {
       amountCollected: total,
       paymentStatus: full ? "PAID" : "DEPOSITED",
       paidAt: full ? new Date() : null,
     },
   });
+  if (r.count === 0) return { error: "Đơn vừa được cập nhật ở nơi khác — tải lại trang rồi thử lại." };
   await log(
     prisma, id, "PAYMENT",
     `Thu ${formatPrice(amount)} · ${method}`,
@@ -538,7 +552,8 @@ export async function updateBookingInfo(
   const useDate = parseDateOnly(useDateKey);
   const endDate = endDateKey && endDateKey !== useDateKey ? parseDateOnly(endDateKey) : null;
   const isStay = Boolean(b.roomTypeId);
-  const nights = isStay && endDate ? enumerateNights(useDate, endDate).length : b.nights;
+  // Lưu trú không có ngày trả = 1 đêm (giữ phòng cũng tính useDate+1) — trước đây giữ số đêm cũ.
+  const nights = isStay ? (endDate ? enumerateNights(useDate, endDate).length : 1) : b.nights;
   // Homestay (đặt theo phòng): quantity = 1 phòng, số khách nằm ở adults.
   const qtyData = isStay && b.category !== "COMBO" ? { adults: quantity } : { quantity, ...(b.adults != null ? { adults: quantity } : {}) };
   // Cabin giữ chỗ theo seatsSingle (= số khách) — đổi số khách thì đổi theo.
@@ -795,7 +810,12 @@ export async function updateBookingStatus(
 
       await tx.bookingRequest.update({
         where: { id },
-        data: { status, adminNote: adminNote ?? null, inventoryApplied },
+        data: {
+          status,
+          adminNote: adminNote ?? null,
+          inventoryApplied,
+          needsConfirmation: status === "NEW" ? booking.needsConfirmation : false,
+        },
       });
     });
   } catch (err) {

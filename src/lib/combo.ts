@@ -1,6 +1,6 @@
 import "server-only";
 import { prisma } from "./prisma";
-import { parseDateOnly, toDateKey, addDays, enumerateNights } from "./dates";
+import { parseDateOnly, toDateKey, addDays, enumerateNights, today } from "./dates";
 import { toNumber } from "./format";
 import { roomPricing, priceForDay, stayStrike, roomCommissionForNights } from "./availability";
 import { generateBookingCode } from "./utils";
@@ -598,6 +598,8 @@ export async function findComboMatches(input: {
   const checkOut = to;
   const nights = enumerateNights(checkIn, checkOut);
   if (nights.length < 1) return null; // ngày về phải sau check-in ít nhất 1 đêm
+  // Ngày đi đã qua / kỳ quá dài: không ghép (đặt cũng bị từ chối) — tránh hiện phương án không đặt được.
+  if (from < today() || nights.length > 60) return null;
 
   const base: Omit<ComboSearchResult, "busCount" | "roomCount" | "planCount" | "buses" | "homes"> = {
     fromKey,
@@ -877,6 +879,9 @@ export async function createComboBooking(
   const checkIn = addDays(from, 1);
   const nights = enumerateNights(checkIn, to);
   if (nights.length < 1) throw new Error("Ngày về phải sau ngày nhận phòng ít nhất 1 đêm.");
+  // Cùng quy tắc đơn homestay/cabin: không nhận ngày đã qua, kỳ tối đa 60 đêm.
+  if (from < today()) throw new Error("Ngày đi đã qua — vui lòng chọn ngày khác.");
+  if (nights.length > 60) throw new Error("Kỳ đặt tối đa 60 đêm.");
 
   // Phương án có thể GHÉP NHIỀU PHÒNG (roomIds); client cũ chỉ gửi roomId đơn.
   const roomIds = [...new Set(input.roomIds?.length ? input.roomIds : input.roomId ? [input.roomId] : [])];

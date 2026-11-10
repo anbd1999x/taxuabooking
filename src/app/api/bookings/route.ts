@@ -8,6 +8,7 @@ import { rateLimit, clientIp } from "@/lib/rate-limit";
 import { notifyNewBooking } from "@/lib/push";
 import { isIpBlocked, recordBookingSource, requestIp } from "@/lib/ip-block";
 import { ensureGeo } from "@/lib/visits";
+import { isInternalError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
       );
     }
     // Lỗi nghiệp vụ có thông điệp rõ (vd chính sách bán cuối tuần) → trả cho khách.
-    if (err instanceof Error && err.message) {
+    if (err instanceof Error && err.message && !isInternalError(err)) {
       return NextResponse.json({ error: err.message }, { status: 400 });
     }
     console.error("createBooking error", err);

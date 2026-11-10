@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { normalizeVnPhone, vnPhoneError } from "./phone";
+import { isValidDateKey } from "./dates";
 
 // BUNGALOW đã gỡ khỏi danh mục chọn được (gộp vào HOMESTAY) — dữ liệu cũ đã migrate.
 const SERVICE_CATEGORIES = [
@@ -24,13 +25,15 @@ const phoneField = z
   })
   .transform(normalizeVnPhone);
 const dateKeyRegex = /^\d{4}-\d{2}-\d{2}$/;
+/** yyyy-mm-dd phải là NGÀY CÓ THẬT (regex không chặn 2026-02-31 → Date tự tràn sang 03/03, đơn lưu sai ngày). */
+const realDate = (v: string) => isValidDateKey(v);
 
 /** Dữ liệu khách gửi khi đặt dịch vụ. */
 export const bookingInputSchema = z
   .object({
     serviceId: z.string().min(1, "Thiếu dịch vụ."),
-    useDate: z.string().regex(dateKeyRegex, "Ngày không hợp lệ."),
-    endDate: z.string().regex(dateKeyRegex).optional().nullable(),
+    useDate: z.string().regex(dateKeyRegex, "Ngày không hợp lệ.").refine(realDate, "Ngày không hợp lệ."),
+    endDate: z.string().regex(dateKeyRegex).refine(realDate, "Ngày trả không hợp lệ.").optional().nullable(),
     quantity: z.coerce.number().int().min(1, "Số lượng tối thiểu là 1.").max(50),
     // Homestay: tách người lớn / trẻ em (tuổi) để tính phụ thu + hiện bill chính xác.
     adults: z.coerce.number().int().min(1).max(50).optional(),
@@ -84,8 +87,8 @@ export type CabinBookingInput = z.infer<typeof cabinBookingSchema>;
 /** Schema đặt combo (xe cabin khứ hồi + phòng homestay). */
 export const comboBookingSchema = z
   .object({
-    fromKey: z.string().regex(dateKeyRegex, "Ngày đi không hợp lệ."),
-    toKey: z.string().regex(dateKeyRegex, "Ngày về không hợp lệ."),
+    fromKey: z.string().regex(dateKeyRegex, "Ngày đi không hợp lệ.").refine(realDate, "Ngày đi không hợp lệ."),
+    toKey: z.string().regex(dateKeyRegex, "Ngày về không hợp lệ.").refine(realDate, "Ngày về không hợp lệ."),
     // Phương án ghép NHIỀU phòng gửi roomIds; client cũ gửi roomId đơn.
     roomId: z.string().min(1).optional().nullable(),
     roomIds: z.array(z.string().min(1)).max(10).optional().nullable(),

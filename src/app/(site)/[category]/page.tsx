@@ -82,7 +82,8 @@ export default async function CategoryPage({
     const to = str(sp.to);
     const origin = str(sp.origin)?.trim() || "";
     // `people` (link cũ) = số người lớn; `kids=5-8` = tuổi từng trẻ.
-    const adults = Math.max(1, Number(str(sp.people)) || 2);
+    // Tối đa 30 người lớn = giới hạn của form đặt combo (comboBookingSchema) — vượt thì phương án hiện ra nhưng không đặt được.
+    const adults = Math.min(30, Math.max(1, Math.floor(Number(str(sp.people))) || 2));
     const childrenAges = (str(sp.kids) ?? "")
       .split("-")
       .map((x) => parseInt(x, 10))
