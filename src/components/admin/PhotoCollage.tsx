@@ -434,6 +434,47 @@ function renderCollage(o: RenderOpts): RenderResult | null {
   return { box: card, items, origin: p };
 }
 
+// ---------- Lưu thẳng vào thư mục trên máy (File System Access API – Chrome/Edge máy tính) ----------
+type DirHandle = FileSystemDirectoryHandle & {
+  queryPermission?: (o: { mode: "readwrite" }) => Promise<PermissionState>;
+  requestPermission?: (o: { mode: "readwrite" }) => Promise<PermissionState>;
+};
+type DirPickerWindow = Window & { showDirectoryPicker?: (o?: { mode?: "readwrite"; id?: string }) => Promise<DirHandle> };
+const IDB_NAME = "taxua-collage", IDB_STORE = "kv", IDB_DIR_KEY = "saveDir";
+/** Nhớ thư mục đã chọn giữa các lần mở trang (IndexedDB giữ được handle; localStorage thì không). */
+function idb<T>(mode: IDBTransactionMode, run: (s: IDBObjectStore) => IDBRequest): Promise<T | undefined> {
+  return new Promise((resolve) => {
+    try {
+      const open = indexedDB.open(IDB_NAME, 1);
+      open.onupgradeneeded = () => open.result.createObjectStore(IDB_STORE);
+      open.onerror = () => resolve(undefined);
+      open.onsuccess = () => {
+        try {
+          const req = run(open.result.transaction(IDB_STORE, mode).objectStore(IDB_STORE));
+          req.onsuccess = () => resolve(req.result as T);
+          req.onerror = () => resolve(undefined);
+        } catch {
+          resolve(undefined);
+        }
+      };
+    } catch {
+      resolve(undefined);
+    }
+  });
+}
+/** Tên file chưa có trong thư mục: abc.png → abc-2.png → abc-3.png… (không ghi đè ảnh cũ). */
+async function freeName(dir: DirHandle, base: string, ext: string): Promise<string> {
+  for (let i = 1; i < 200; i++) {
+    const name = i === 1 ? `${base}.${ext}` : `${base}-${i}.${ext}`;
+    try {
+      await dir.getFileHandle(name);
+    } catch {
+      return name; // chưa tồn tại
+    }
+  }
+  return `${base}-${Date.now()}.${ext}`;
+}
+
 /** Mẫu bố cục đã lưu: chỉ thiết lập trình bày, không gồm ảnh / nội dung riêng của home. */
 interface Preset {
   id: string;
@@ -530,6 +571,9 @@ export function PhotoCollage({ homes, phone, domain, initialPresets = [] }: { ho
   const [uploading, setUploading] = useState(false);
   const [toast, setToast] = useState("");
   const [tick, setTick] = useState(0); // ảnh/font tải xong → vẽ lại
+  const [saveDir, setSaveDir] = useState<DirHandle | null>(null); // thư mục lưu đã chọn
+  const [dirSupported, setDirSupported] = useState(false);
+  const [saveCaption, setSaveCaption] = useState(false); // lưu kèm caption .txt vào thư mục
   const [fontCss, setFontCss] = useState(0); // stylesheet font Google tải xong → nạp lại font đang chọn
   const [hover, setHover] = useState<ItemKey | "block" | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -571,6 +615,13 @@ export function PhotoCollage({ homes, phone, domain, initialPresets = [] }: { ho
       document.head.appendChild(l);
     }
     document.fonts?.ready.then(() => setTick((n) => n + 1));
+    // Thư mục lưu đã chọn lần trước (chỉ trình duyệt hỗ trợ chọn thư mục).
+    if (typeof (window as DirPickerWindow).showDirectoryPicker === "function") {
+      idb<DirHandle>("readonly", (s) => s.get(IDB_DIR_KEY)).then((h) => {
+        setDirSupported(true);
+        if (h) setSaveDir(h);
+      });
+    }
     return () => clearTimeout(tt.current);
   }, []);
 
@@ -771,23 +822,69 @@ export function PhotoCollage({ homes, phone, domain, initialPresets = [] }: { ho
     toastMsg(failed ? `Đã thêm ${added.length} ảnh, lỗi ${failed} ảnh` : `Đã thêm ${added.length} ảnh vào kho của home`);
   }
 
-  function download() {
+  async function pickDir() {
+    const w = window as DirPickerWindow;
+    if (!w.showDirectoryPicker) return toastMsg("Trình duyệt này không hỗ trợ chọn thư mục — dùng Chrome/Edge trên máy tính");
+    try {
+      const h = await w.showDirectoryPicker({ mode: "readwrite", id: "taxua-collage" });
+      setSaveDir(h);
+      await idb("readwrite", (s) => s.put(h, IDB_DIR_KEY));
+      toastMsg(`Ảnh sẽ lưu vào thư mục “${h.name}”`);
+    } catch {
+      /* người dùng bấm Huỷ */
+    }
+  }
+  async function forgetDir() {
+    setSaveDir(null);
+    await idb("readwrite", (s) => s.delete(IDB_DIR_KEY));
+    toastMsg("Đã bỏ thư mục lưu — ảnh sẽ tải về thư mục Tải xuống");
+  }
+  const toBlob = (c: HTMLCanvasElement) =>
+    new Promise<Blob | null>((resolve) => {
+      try {
+        c.toBlob((b) => resolve(b), "image/png");
+      } catch {
+        resolve(null); // canvas bị "bẩn" do ảnh ngoài hệ thống
+      }
+    });
+  async function download() {
     if (selN < 2) return toastMsg("Chọn ít nhất 2 ảnh");
     const c = cvRef.current;
     if (!c) return;
-    try {
-      c.toBlob((b) => {
-        if (!b) return toastMsg("Không xuất được ảnh");
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(b);
-        a.download = `${slug(f.name) || "review"}-${fmt}.png`;
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-      }, "image/png");
-      toastMsg("Đang tải ảnh về máy");
-    } catch {
-      toastMsg("Có ảnh ngoài hệ thống chặn xuất file — hãy bỏ ảnh đó");
+    const b = await toBlob(c);
+    if (!b) return toastMsg("Không xuất được ảnh — có ảnh ngoài hệ thống, hãy bỏ ảnh đó");
+    const base = `${slug(f.name) || "review"}-${fmt}`;
+    // Có thư mục đã chọn → ghi thẳng vào đó (xin lại quyền nếu trình duyệt đã quên).
+    if (saveDir) {
+      try {
+        let perm = (await saveDir.queryPermission?.({ mode: "readwrite" })) ?? "granted";
+        if (perm !== "granted") perm = (await saveDir.requestPermission?.({ mode: "readwrite" })) ?? "denied";
+        if (perm === "granted") {
+          const name = await freeName(saveDir, base, "png");
+          const fh = await saveDir.getFileHandle(name, { create: true });
+          const wr = await fh.createWritable();
+          await wr.write(b);
+          await wr.close();
+          if (saveCaption) {
+            const tn = name.replace(/\.png$/, ".txt");
+            const th = await saveDir.getFileHandle(tn, { create: true });
+            const tw = await th.createWritable();
+            await tw.write(caption);
+            await tw.close();
+          }
+          return toastMsg(`Đã lưu “${name}”${saveCaption ? " + caption" : ""} vào thư mục “${saveDir.name}”`);
+        }
+        toastMsg("Chưa cấp quyền ghi thư mục — tải về thư mục Tải xuống");
+      } catch {
+        toastMsg("Không ghi được vào thư mục đã chọn — tải về thư mục Tải xuống");
+      }
     }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(b);
+    a.download = `${base}.png`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    if (!saveDir) toastMsg("Đang tải ảnh về máy");
   }
   function copyCaption() {
     (navigator.clipboard ? navigator.clipboard.writeText(caption) : Promise.reject()).then(
@@ -891,7 +988,7 @@ export function PhotoCollage({ homes, phone, domain, initialPresets = [] }: { ho
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={copyCaption} className="whitespace-nowrap rounded-full border-[1.5px] bg-white px-3.5 py-2.5 text-sm font-bold" style={{ borderColor: BORDER }}>Sao chép caption</button>
-          <button type="button" onClick={download} className="whitespace-nowrap rounded-full px-[18px] py-2.5 text-sm font-extrabold text-white" style={{ background: dlBg }}>Tải ảnh PNG</button>
+          <button type="button" onClick={download} className="whitespace-nowrap rounded-full px-[18px] py-2.5 text-sm font-extrabold text-white" style={{ background: dlBg }}>{saveDir ? "Lưu vào thư mục" : "Tải ảnh PNG"}</button>
         </div>
       </div>
 
@@ -1216,8 +1313,31 @@ export function PhotoCollage({ homes, phone, domain, initialPresets = [] }: { ho
             {selN < 2 && <div className="text-center text-[13px] font-semibold text-[oklch(0.48_0.15_50)]">Chọn ít nhất 2 ảnh để tải về.</div>}
             <div className="grid grid-cols-2 gap-2">
               <button type="button" onClick={copyCaption} className="rounded-full border-[1.5px] p-3 text-center text-sm font-bold" style={{ borderColor: BORDER }}>Sao chép caption</button>
-              <button type="button" onClick={download} className="rounded-full p-3 text-center text-sm font-extrabold text-white" style={{ background: dlBg }}>Tải ảnh PNG</button>
+              <button type="button" onClick={download} className="rounded-full p-3 text-center text-sm font-extrabold text-white" style={{ background: dlBg }}>
+                {saveDir ? "Lưu vào thư mục" : "Tải ảnh PNG"}
+              </button>
             </div>
+            {dirSupported ? (
+              <div className="flex flex-col gap-1.5 rounded-xl bg-[oklch(0.97_0.01_155)] px-3 py-2.5 text-[13px]">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="min-w-0 font-semibold text-[oklch(0.4_0.05_160)]">
+                    📁 {saveDir ? <>Lưu vào: <b className="text-[oklch(0.29_0.055_160)]">{saveDir.name}</b></> : "Chưa chọn thư mục — ảnh tải về thư mục Tải xuống"}
+                  </span>
+                  <span className="flex gap-3 font-bold">
+                    <button type="button" onClick={pickDir} className="text-[oklch(0.4_0.08_160)]">{saveDir ? "Đổi thư mục" : "Chọn thư mục lưu"}</button>
+                    {saveDir && <button type="button" onClick={forgetDir} className="text-[oklch(0.5_0.18_28)]">Bỏ</button>}
+                  </span>
+                </div>
+                {saveDir && (
+                  <label className="flex cursor-pointer items-center gap-2 text-[oklch(0.45_0.02_160)]">
+                    <input type="checkbox" checked={saveCaption} onChange={(e) => setSaveCaption(e.target.checked)} className="h-4 w-4 accent-[oklch(0.68_0.18_45)]" />
+                    Lưu kèm caption (.txt cùng tên ảnh)
+                  </label>
+                )}
+              </div>
+            ) : (
+              <div className="text-center text-[12px] text-[oklch(0.55_0.02_160)]">Chọn thư mục lưu riêng chỉ có trên Chrome/Edge máy tính — trình duyệt này tải về thư mục Tải xuống.</div>
+            )}
           </section>
           <section className="flex flex-col gap-2 rounded-[20px] border border-[oklch(0.92_0.01_160)] bg-white p-3.5">
             <div className="flex items-center justify-between gap-2">
