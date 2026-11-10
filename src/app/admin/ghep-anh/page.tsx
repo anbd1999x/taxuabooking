@@ -6,6 +6,7 @@ import { isCommunalRoom } from "@/lib/combo";
 import { toNumber } from "@/lib/format";
 import { SITE } from "@/lib/site";
 import { PhotoCollage, type CollageHome } from "@/components/admin/PhotoCollage";
+import { COLLAGE_PRESETS_KEY } from "./preset-key";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ function roomPrices(r: Parameters<typeof roomPricing>[0]): number[] {
  */
 export default async function CollagePage() {
   await requireAdmin();
-  const [services, settings, cabinRows] = await Promise.all([
+  const [services, settings, cabinRows, presetRow] = await Promise.all([
     prisma.service.findMany({
       where: { category: "HOMESTAY" },
       orderBy: [{ published: "desc" }, { title: "asc" }],
@@ -54,7 +55,16 @@ export default async function CollagePage() {
       },
       select: { serviceId: true, pickupPoint: true, price: true },
     }),
+    // Mẫu bố cục đã lưu (đọc thẳng DB, không qua cache cài đặt → lưu xong mở lại thấy ngay).
+    prisma.siteSetting.findUnique({ where: { key: COLLAGE_PRESETS_KEY } }),
   ]);
+  let presets: unknown[] = [];
+  try {
+    const v = JSON.parse(presetRow?.value ?? "[]");
+    if (Array.isArray(v)) presets = v;
+  } catch {
+    presets = [];
+  }
 
   const own = cabinRows.filter((r) => r.serviceId);
   const rows = own.length ? own : cabinRows;
@@ -152,6 +162,7 @@ export default async function CollagePage() {
   return (
     <PhotoCollage
       homes={homes}
+      initialPresets={presets}
       phone={settings.contactPhone || SITE.defaultPhone}
       domain={(process.env.NEXT_PUBLIC_SITE_URL || "https://taxuabooking.com").replace(/^https?:\/\//, "").replace(/\/$/, "")}
     />

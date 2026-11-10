@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { saveCollagePresets } from "@/app/admin/ghep-anh/actions";
 
 export interface CollagePhoto {
   id: string;
@@ -433,37 +434,103 @@ function renderCollage(o: RenderOpts): RenderResult | null {
   return { box: card, items, origin: p };
 }
 
-export function PhotoCollage({ homes, phone, domain }: { homes: CollageHome[]; phone: string; domain: string }) {
+/** Mẫu bố cục đã lưu: chỉ thiết lập trình bày, không gồm ảnh / nội dung riêng của home. */
+interface Preset {
+  id: string;
+  name: string;
+  isDefault?: boolean;
+  fmt: FmtKey; layout: string; style: string; theme: string;
+  cardFill: string; cardClear: number; priceFill: boolean;
+  colors: Partial<Record<ColorKey, string>>;
+  show: Record<ShowKey, boolean>;
+  labels: Labels;
+  titleFont: string; bodyFont: string;
+  scale: number; nameScale: number; widthPct: number;
+  pos: { x: number; y: number } | null;
+  offsets: Offsets;
+  dragMode: string;
+  unit: string; cUnit: string;
+}
+
+/** Đọc mẫu từ DB an toàn: thiếu/sai trường nào thì lấy mặc định trường đó. */
+function cleanPreset(raw: unknown, domain: string, phone: string): Preset | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const str = (v: unknown, d: string) => (typeof v === "string" ? v : d);
+  const num = (v: unknown, d: number) => (typeof v === "number" && Number.isFinite(v) ? v : d);
+  const obj = <T,>(v: unknown, d: T): T => (v && typeof v === "object" ? { ...d, ...(v as object) } : d);
+  const fmt = str(r.fmt, "pt");
+  const pos = r.pos && typeof r.pos === "object" ? (r.pos as { x: number; y: number }) : null;
+  return {
+    id: str(r.id, String(Date.now())),
+    name: str(r.name, "Mẫu"),
+    isDefault: r.isDefault === true,
+    fmt: (fmt in FMT ? fmt : "pt") as FmtKey,
+    layout: str(r.layout, "hero"),
+    style: str(r.style, "panel"),
+    theme: str(r.theme, "forest") in THEMES ? str(r.theme, "forest") : "forest",
+    cardFill: str(r.cardFill, "solid"),
+    cardClear: num(r.cardClear, 100),
+    priceFill: typeof r.priceFill === "boolean" ? r.priceFill : true,
+    colors: obj(r.colors, {}),
+    show: obj(r.show, { kicker: true, name: true, loc: true, pros: true, cons: true, single: true, combo: true, note: true, footer: true }),
+    labels: obj(r.labels, defaultLabels(domain, phone)),
+    titleFont: str(r.titleFont, ""),
+    bodyFont: str(r.bodyFont, ""),
+    scale: num(r.scale, 100),
+    nameScale: num(r.nameScale, 100),
+    widthPct: num(r.widthPct, 100),
+    pos: pos && typeof pos.x === "number" && typeof pos.y === "number" ? { x: pos.x, y: pos.y } : null,
+    offsets: obj(r.offsets, {}),
+    dragMode: str(r.dragMode, "item"),
+    unit: str(r.unit, "/đêm"),
+    cUnit: str(r.cUnit, "/người"),
+  };
+}
+
+export function PhotoCollage({ homes, phone, domain, initialPresets = [] }: { homes: CollageHome[]; phone: string; domain: string; initialPresets?: unknown[] }) {
+  const [presets, setPresets] = useState<Preset[]>(() =>
+    initialPresets.map((x) => cleanPreset(x, domain, phone)).filter((x): x is Preset => !!x),
+  );
+  // Mẫu mặc định → làm giá trị KHỞI TẠO cho mọi thiết lập (mở trang là đúng format đã lưu).
+  const [def] = useState<Preset | undefined>(() => presets.find((x) => x.isDefault));
+  const [presetName, setPresetName] = useState("");
+  const [activePreset, setActivePreset] = useState<string | null>(def?.id ?? null);
+  const [savingPreset, startSave] = useTransition();
   const first = homes.find((h) => h.photos.length >= 2) ?? homes[0];
   const [homeId, setHomeId] = useState(first?.id ?? "");
   const [sel, setSel] = useState<string[]>(() => (first ? first.photos.slice(0, 4).map((p) => p.id) : []));
   const [tag, setTag] = useState("all");
-  const [fmt, setFmt] = useState<FmtKey>("pt");
-  const [layout, setLayout] = useState("hero");
-  const [style, setStyle] = useState("panel");
-  const [theme, setTheme] = useState("forest");
-  const [cardFill, setCardFill] = useState("solid"); // thẻ nổi: "solid" = có nền | "none" = trong suốt
-  const [cardClear, setCardClear] = useState(100); // độ trong suốt nền thẻ khi "Trong suốt" (100 = không nền)
-  const [priceFill, setPriceFill] = useState(true); // nền ô giá lẻ / combo
-  const [colors, setColors] = useState<Partial<Record<ColorKey, string>>>({}); // màu chữ tự chọn (ghi đè màu theo nền)
-  const [offsets, setOffsets] = useState<Offsets>({}); // vị trí riêng từng mục (kéo thả)
-  const [dragMode, setDragMode] = useState("item"); // "item" = kéo từng mục | "block" = kéo cả khung
-  const [show, setShow] = useState<Record<ShowKey, boolean>>({ kicker: true, name: true, loc: true, pros: true, cons: true, single: true, combo: true, note: true, footer: true });
-  const [f, setF] = useState<Fields>(() => (first ? fillOf(first) : { name: "", loc: "", pros: "", cons: "", sMin: "", sMax: "", unit: "/đêm", cMin: "", cMax: "", cUnit: "/người" }));
-  const [labels, setLabels] = useState<Labels>(() => defaultLabels(domain, phone));
+  const [fmt, setFmt] = useState<FmtKey>(def?.fmt ?? "pt");
+  const [layout, setLayout] = useState(def?.layout ?? "hero");
+  const [style, setStyle] = useState(def?.style ?? "panel");
+  const [theme, setTheme] = useState(def?.theme ?? "forest");
+  const [cardFill, setCardFill] = useState(def?.cardFill ?? "solid"); // thẻ nổi: "solid" = có nền | "none" = trong suốt
+  const [cardClear, setCardClear] = useState(def?.cardClear ?? 100); // độ trong suốt nền thẻ khi "Trong suốt" (100 = không nền)
+  const [priceFill, setPriceFill] = useState(def?.priceFill ?? true); // nền ô giá lẻ / combo
+  const [colors, setColors] = useState<Partial<Record<ColorKey, string>>>(def?.colors ?? {}); // màu chữ tự chọn (ghi đè màu theo nền)
+  const [offsets, setOffsets] = useState<Offsets>(def?.offsets ?? {}); // vị trí riêng từng mục (kéo thả)
+  const [dragMode, setDragMode] = useState(def?.dragMode ?? "item"); // "item" = kéo từng mục | "block" = kéo cả khung
+  const [show, setShow] = useState<Record<ShowKey, boolean>>(def?.show ?? { kicker: true, name: true, loc: true, pros: true, cons: true, single: true, combo: true, note: true, footer: true });
+  const [f, setF] = useState<Fields>(() => {
+    const base = first ? fillOf(first) : { name: "", loc: "", pros: "", cons: "", sMin: "", sMax: "", unit: "/đêm", cMin: "", cMax: "", cUnit: "/người" };
+    return def ? { ...base, unit: def.unit, cUnit: def.cUnit } : base;
+  });
+  const [labels, setLabels] = useState<Labels>(() => def?.labels ?? defaultLabels(domain, phone));
   // Font & cỡ chữ
-  const [titleFont, setTitleFont] = useState("");
-  const [bodyFont, setBodyFont] = useState("");
-  const [scale, setScale] = useState(100); // % cỡ chữ toàn khung
-  const [nameScale, setNameScale] = useState(100); // % cỡ tên home (so với cỡ chung)
-  const [widthPct, setWidthPct] = useState(100); // % độ rộng khung chữ
+  const [titleFont, setTitleFont] = useState(def?.titleFont ?? "");
+  const [bodyFont, setBodyFont] = useState(def?.bodyFont ?? "");
+  const [scale, setScale] = useState(def?.scale ?? 100); // % cỡ chữ toàn khung
+  const [nameScale, setNameScale] = useState(def?.nameScale ?? 100); // % cỡ tên home (so với cỡ chung)
+  const [widthPct, setWidthPct] = useState(def?.widthPct ?? 100); // % độ rộng khung chữ
   // Vị trí khung chữ (góc trên-trái, toạ độ canvas). null = vị trí mặc định.
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(def?.pos ?? null);
   const [capEdit, setCapEdit] = useState<string | null>(null); // caption sửa tay (null = tự sinh)
   const [uploads, setUploads] = useState<Record<string, CollagePhoto[]>>({});
   const [uploading, setUploading] = useState(false);
   const [toast, setToast] = useState("");
   const [tick, setTick] = useState(0); // ảnh/font tải xong → vẽ lại
+  const [fontCss, setFontCss] = useState(0); // stylesheet font Google tải xong → nạp lại font đang chọn
   const [hover, setHover] = useState<ItemKey | "block" | null>(null);
   const [dragging, setDragging] = useState(false);
   const cvRef = useRef<HTMLCanvasElement>(null);
@@ -500,6 +567,7 @@ export function PhotoCollage({ homes, phone, domain }: { homes: CollageHome[]; p
       l.rel = "stylesheet";
       l.href = FONT_HREF;
       l.dataset.collageFonts = "1";
+      l.onload = () => setFontCss((n) => n + 1);
       document.head.appendChild(l);
     }
     document.fonts?.ready.then(() => setTick((n) => n + 1));
@@ -513,7 +581,7 @@ export function PhotoCollage({ homes, phone, domain }: { homes: CollageHome[]; p
     Promise.all(
       fams.flatMap((fam) => [500, 600, 700, 800].map((w) => document.fonts.load(`${w} 40px "${fam}"`, "Tà Xùa ữ đ"))),
     ).finally(() => setTick((n) => n + 1));
-  }, [titleFont, bodyFont]);
+  }, [titleFont, bodyFont, fontCss]);
 
 
   // ---------- vẽ canvas ----------
@@ -621,12 +689,62 @@ export function PhotoCollage({ homes, phone, domain }: { homes: CollageHome[]; p
     if (!h) return;
     setHomeId(id);
     setSel(h.photos.slice(0, 4).map((p) => p.id));
-    setF(fillOf(h));
+    setF((cur) => ({ ...fillOf(h), unit: cur.unit, cUnit: cur.cUnit })); // giữ đơn vị giá đang dùng
     setCapEdit(null);
     setTag("all");
   };
   const setField = (k: keyof Fields) => (e: { target: { value: string } }) => setF((cur) => ({ ...cur, [k]: e.target.value }));
   const setLabel = (k: keyof Labels) => (e: { target: { value: string } }) => setLabels((cur) => ({ ...cur, [k]: e.target.value }));
+
+  // ---------- mẫu bố cục (lưu DB, dùng lại lần sau) ----------
+  const snapshot = (): Omit<Preset, "id" | "name" | "isDefault"> => ({
+    fmt, layout, style, theme, cardFill, cardClear, priceFill, colors, show, labels,
+    titleFont, bodyFont, scale, nameScale, widthPct, pos, offsets, dragMode, unit: f.unit, cUnit: f.cUnit,
+  });
+  const persist = (next: Preset[], okMsg: string) => {
+    const prev = presets;
+    setPresets(next);
+    startSave(async () => {
+      const r = await saveCollagePresets(JSON.stringify(next));
+      if (r.error) { setPresets(prev); toastMsg(r.error); }
+      else toastMsg(okMsg);
+    });
+  };
+  const applyPreset = (pr: Preset) => {
+    setFmt(pr.fmt); setLayout(pr.layout); setStyle(pr.style); setTheme(pr.theme);
+    setCardFill(pr.cardFill); setCardClear(pr.cardClear); setPriceFill(pr.priceFill); setColors(pr.colors);
+    setShow(pr.show); setLabels(pr.labels); setTitleFont(pr.titleFont); setBodyFont(pr.bodyFont);
+    setScale(pr.scale); setNameScale(pr.nameScale); setWidthPct(pr.widthPct);
+    setPos(pr.pos); setOffsets(pr.offsets); setDragMode(pr.dragMode);
+    setF((cur) => ({ ...cur, unit: pr.unit, cUnit: pr.cUnit }));
+    setActivePreset(pr.id);
+    toastMsg(`Đã áp dụng mẫu “${pr.name}”`);
+  };
+  const saveNewPreset = () => {
+    const name = presetName.trim() || `Mẫu ${presets.length + 1}`;
+    const pr: Preset = { id: String(Date.now()), name, isDefault: presets.length === 0, ...snapshot() };
+    setPresetName("");
+    setActivePreset(pr.id);
+    persist([...presets, pr], `Đã lưu mẫu “${name}”${pr.isDefault ? " (mặc định khi mở trang)" : ""}`);
+  };
+  const overwritePreset = (id: string) => {
+    const old = presets.find((x) => x.id === id);
+    if (!old) return;
+    persist(presets.map((x) => (x.id === id ? { ...x, ...snapshot() } : x)), `Đã cập nhật mẫu “${old.name}”`);
+  };
+  const deletePreset = (id: string) => {
+    const old = presets.find((x) => x.id === id);
+    if (!old || !confirm(`Xoá mẫu “${old.name}”?`)) return;
+    if (activePreset === id) setActivePreset(null);
+    persist(presets.filter((x) => x.id !== id), `Đã xoá mẫu “${old.name}”`);
+  };
+  const toggleDefault = (id: string) => {
+    const on = !presets.find((x) => x.id === id)?.isDefault;
+    persist(
+      presets.map((x) => ({ ...x, isDefault: on && x.id === id })),
+      on ? "Mẫu này sẽ tự áp dụng mỗi khi mở trang" : "Đã bỏ mẫu mặc định",
+    );
+  };
 
   async function upload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = [...(e.target.files ?? [])];
@@ -779,6 +897,53 @@ export function PhotoCollage({ homes, phone, domain }: { homes: CollageHome[]; p
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)]">
         <div className="flex min-w-0 flex-col gap-3.5">
+          {/* Mẫu bố cục đã lưu */}
+          <section className={card}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-base font-extrabold">⭐ Mẫu bố cục đã lưu</div>
+              <span className="text-[12px] font-medium text-[oklch(0.5_0.02_160)]">Lưu khổ ảnh, bố cục, màu, font, cỡ chữ, chữ cố định & vị trí từng mục để dùng lại</span>
+            </div>
+            {presets.length > 0 ? (
+              <div className="flex flex-col gap-1.5">
+                {presets.map((pr) => {
+                  const on = activePreset === pr.id;
+                  return (
+                    <div key={pr.id} className="flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2" style={{ borderColor: on ? G : "oklch(0.92 0.01 160)", background: on ? "oklch(0.97 0.02 155)" : "white" }}>
+                      <button type="button" onClick={() => applyPreset(pr)} className="min-w-0 flex-1 truncate text-left text-sm font-bold" title="Áp dụng mẫu này">
+                        {pr.name}
+                        {pr.isDefault && <span className="ml-2 rounded-full bg-[oklch(0.68_0.18_45)] px-2 py-0.5 text-[11px] font-bold text-white">Mặc định</span>}
+                        <span className="ml-2 text-[12px] font-medium text-[oklch(0.5_0.02_160)]">{FMT[pr.fmt][2]} · {pr.style === "card" ? "Thẻ nổi" : "Khung dưới ảnh"}</span>
+                      </button>
+                      <div className="flex flex-wrap gap-1.5 text-[12px] font-bold">
+                        <button type="button" onClick={() => applyPreset(pr)} className="rounded-lg bg-[oklch(0.29_0.055_160)] px-2.5 py-1 text-white">Áp dụng</button>
+                        <button type="button" disabled={savingPreset} onClick={() => overwritePreset(pr.id)} className="rounded-lg border px-2.5 py-1" style={{ borderColor: BORDER }} title="Ghi đè mẫu này bằng thiết lập hiện tại">Lưu đè</button>
+                        <button type="button" disabled={savingPreset} onClick={() => toggleDefault(pr.id)} className="rounded-lg border px-2.5 py-1" style={{ borderColor: BORDER }} title="Tự áp dụng mẫu này mỗi khi mở trang">
+                          {pr.isDefault ? "Bỏ mặc định" : "Đặt mặc định"}
+                        </button>
+                        <button type="button" disabled={savingPreset} onClick={() => deletePreset(pr.id)} className="rounded-lg px-2 py-1 text-[oklch(0.5_0.18_28)]">Xoá</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-[13px] text-[oklch(0.5_0.02_160)]">Chưa có mẫu nào. Chỉnh bố cục ưng ý rồi bấm “Lưu mẫu” — mẫu đầu tiên sẽ tự là mặc định khi mở trang.</div>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <input
+                value={presetName}
+                onChange={(e) => setPresetName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); saveNewPreset(); } }}
+                placeholder="Tên mẫu, VD: Dọc 4:5 – thẻ trong suốt"
+                maxLength={60}
+                className="min-w-0 flex-1 rounded-xl border-[1.5px] border-[oklch(0.88_0.015_160)] px-3 py-2 text-sm font-semibold"
+              />
+              <button type="button" disabled={savingPreset} onClick={saveNewPreset} className="whitespace-nowrap rounded-xl px-4 py-2 text-sm font-extrabold text-white disabled:opacity-60" style={{ background: O }}>
+                {savingPreset ? "Đang lưu…" : "Lưu mẫu hiện tại"}
+              </button>
+            </div>
+          </section>
+
           {/* 1. Home & ảnh */}
           <section className={card}>
             <div className="flex flex-wrap items-center justify-between gap-2.5">
