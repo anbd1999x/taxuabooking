@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { saveCollagePresets } from "@/app/admin/ghep-anh/actions";
 
 export interface CollagePhoto {
@@ -142,14 +142,14 @@ interface RenderOpts {
   colors: Partial<Record<ColorKey, string>>;
   show: Record<ShowKey, boolean>; f: Fields; labels: Labels; single: string; combo: string;
   selPhotos: CollagePhoto[]; titleFont: string; bodyFont: string;
-  scale: number; nameScale: number; widthPct: number; pos: { x: number; y: number } | null; offsets: Offsets;
+  scale: number; nameScale: number; widthPct: number; maxLines: number; pos: { x: number; y: number } | null; offsets: Offsets;
   imgs: Record<string, HTMLImageElement>; baseFam: string; onImg: () => void;
 }
 interface RenderResult { box: Box; items: ItemBox[]; origin: { x: number; y: number } }
 
 /** Vẽ ảnh ghép lên canvas; trả về khung chữ + từng mục (toạ độ canvas) để kéo thả. */
 function renderCollage(o: RenderOpts): RenderResult | null {
-  const { c, fmt, theme, layout, style, cardFill, cardClear, priceFill, colors, show, f, labels, single, combo, selPhotos, titleFont, bodyFont, scale, nameScale, widthPct, pos, offsets, imgs, baseFam, onImg } = o;
+  const { c, fmt, theme, layout, style, cardFill, cardClear, priceFill, colors, show, f, labels, single, combo, selPhotos, titleFont, bodyFont, scale, nameScale, widthPct, maxLines, pos, offsets, imgs, baseFam, onImg } = o;
   if (!c) return null;
   const [W, H] = FMT[fmt];
   const T: Theme = { ...THEMES[theme], ...colors };
@@ -203,7 +203,7 @@ function renderCollage(o: RenderOpts): RenderResult | null {
     const k = k0 * (scale / 100);
     let cy = y;
     const items: ItemBox[] = [];
-    const Z = (v: number) => Math.round(v * k), sq = k0 < 0.75;
+    const Z = (v: number) => Math.round(v * k), sq = fmt === "sq";
     const txt = (t: string, xx: number, yy: number, col: string) => { if (draw) { ctx.fillStyle = col; ctx.fillText(t, xx, yy); } };
     /** Một mục: vẽ trong vùng (bx, y0, bw), dịch theo offset; body trả về y kết thúc. */
     const item = (key: ItemKey, bx: number, bw: number, y0: number, body: () => number) => {
@@ -242,7 +242,7 @@ function renderCollage(o: RenderOpts): RenderResult | null {
         return yy;
       });
     }
-    const lim = sq ? 2 : 3;
+    const lim = Math.max(1, maxLines); // số ý tối đa mỗi cột ưu / nhược (tự chỉnh)
     const pros = show.pros ? lines(f.pros).slice(0, lim) : [];
     const cons = show.cons ? lines(f.cons).slice(0, lim) : [];
     if (pros.length || cons.length) {
@@ -444,6 +444,9 @@ const IDB_NAME = "taxua-collage", IDB_STORE = "kv", IDB_DIR_KEY = "saveDir";
 /** Nhớ thư mục đã chọn giữa các lần mở trang (IndexedDB giữ được handle; localStorage thì không). */
 function idb<T>(mode: IDBTransactionMode, run: (s: IDBObjectStore) => IDBRequest): Promise<T | undefined> {
   return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(undefined), 2000); // IndexedDB bị chặn/treo → bỏ qua, không kẹt giao diện
+    const done = resolve;
+    resolve = (v) => { clearTimeout(timer); done(v); };
     try {
       const open = indexedDB.open(IDB_NAME, 1);
       open.onupgradeneeded = () => open.result.createObjectStore(IDB_STORE);
@@ -486,7 +489,7 @@ interface Preset {
   show: Record<ShowKey, boolean>;
   labels: Labels;
   titleFont: string; bodyFont: string;
-  scale: number; nameScale: number; widthPct: number;
+  scale: number; nameScale: number; widthPct: number; maxLines: number;
   pos: { x: number; y: number } | null;
   offsets: Offsets;
   dragMode: string;
@@ -521,6 +524,7 @@ function cleanPreset(raw: unknown, domain: string, phone: string): Preset | null
     scale: num(r.scale, 100),
     nameScale: num(r.nameScale, 100),
     widthPct: num(r.widthPct, 100),
+    maxLines: num(r.maxLines, 4),
     pos: pos && typeof pos.x === "number" && typeof pos.y === "number" ? { x: pos.x, y: pos.y } : null,
     offsets: obj(r.offsets, {}),
     dragMode: str(r.dragMode, "item"),
@@ -564,6 +568,7 @@ export function PhotoCollage({ homes, phone, domain, initialPresets = [] }: { ho
   const [scale, setScale] = useState(def?.scale ?? 100); // % cỡ chữ toàn khung
   const [nameScale, setNameScale] = useState(def?.nameScale ?? 100); // % cỡ tên home (so với cỡ chung)
   const [widthPct, setWidthPct] = useState(def?.widthPct ?? 100); // % độ rộng khung chữ
+  const [maxLines, setMaxLines] = useState(def?.maxLines ?? 4); // số ý tối đa mỗi cột ưu / nhược điểm
   // Vị trí khung chữ (góc trên-trái, toạ độ canvas). null = vị trí mặc định.
   const [pos, setPos] = useState<{ x: number; y: number } | null>(def?.pos ?? null);
   const [capEdit, setCapEdit] = useState<string | null>(null); // caption sửa tay (null = tự sinh)
@@ -572,7 +577,12 @@ export function PhotoCollage({ homes, phone, domain, initialPresets = [] }: { ho
   const [toast, setToast] = useState("");
   const [tick, setTick] = useState(0); // ảnh/font tải xong → vẽ lại
   const [saveDir, setSaveDir] = useState<DirHandle | null>(null); // thư mục lưu đã chọn
-  const [dirSupported, setDirSupported] = useState(false);
+  // Trình duyệt có hỗ trợ chọn thư mục không (đọc ngay, không chờ IndexedDB; server = false).
+  const dirSupported = useSyncExternalStore(
+    () => () => {},
+    () => typeof (window as DirPickerWindow).showDirectoryPicker === "function",
+    () => false,
+  );
   const [saveCaption, setSaveCaption] = useState(false); // lưu kèm caption .txt vào thư mục
   const [fontCss, setFontCss] = useState(0); // stylesheet font Google tải xong → nạp lại font đang chọn
   const [hover, setHover] = useState<ItemKey | "block" | null>(null);
@@ -618,7 +628,6 @@ export function PhotoCollage({ homes, phone, domain, initialPresets = [] }: { ho
     // Thư mục lưu đã chọn lần trước (chỉ trình duyệt hỗ trợ chọn thư mục).
     if (typeof (window as DirPickerWindow).showDirectoryPicker === "function") {
       idb<DirHandle>("readonly", (s) => s.get(IDB_DIR_KEY)).then((h) => {
-        setDirSupported(true);
         if (h) setSaveDir(h);
       });
     }
@@ -639,7 +648,7 @@ export function PhotoCollage({ homes, phone, domain, initialPresets = [] }: { ho
   useEffect(() => {
     layoutRef.current = renderCollage({
       c: cvRef.current, fmt, theme, layout, style, cardFill, cardClear, priceFill, colors, show, f, labels, single, combo, selPhotos,
-      titleFont, bodyFont, scale, nameScale, widthPct, pos, offsets, imgs: imgs.current, baseFam: baseFam.current,
+      titleFont, bodyFont, scale, nameScale, widthPct, maxLines, pos, offsets, imgs: imgs.current, baseFam: baseFam.current,
       onImg: () => setTick((n) => n + 1),
     });
     // Viền gợi ý mục đang rê/kéo trên lớp phủ riêng.
@@ -657,7 +666,7 @@ export function PhotoCollage({ homes, phone, domain, initialPresets = [] }: { ho
       g.strokeStyle = "#f08a3c";
       g.strokeRect(target.x - 8, target.y - 8, target.w + 16, target.h + 16);
     }
-  }, [fmt, theme, layout, style, cardFill, cardClear, priceFill, colors, show, f, labels, single, combo, selPhotos, titleFont, bodyFont, scale, nameScale, widthPct, pos, offsets, tick, hover]);
+  }, [fmt, theme, layout, style, cardFill, cardClear, priceFill, colors, show, f, labels, single, combo, selPhotos, titleFont, bodyFont, scale, nameScale, widthPct, maxLines, pos, offsets, tick, hover]);
 
   // ---------- kéo thả khung chữ trên canvas ----------
   const toCanvas = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -750,7 +759,7 @@ export function PhotoCollage({ homes, phone, domain, initialPresets = [] }: { ho
   // ---------- mẫu bố cục (lưu DB, dùng lại lần sau) ----------
   const snapshot = (): Omit<Preset, "id" | "name" | "isDefault"> => ({
     fmt, layout, style, theme, cardFill, cardClear, priceFill, colors, show, labels,
-    titleFont, bodyFont, scale, nameScale, widthPct, pos, offsets, dragMode, unit: f.unit, cUnit: f.cUnit,
+    titleFont, bodyFont, scale, nameScale, widthPct, maxLines, pos, offsets, dragMode, unit: f.unit, cUnit: f.cUnit,
   });
   const persist = (next: Preset[], okMsg: string) => {
     const prev = presets;
@@ -765,7 +774,7 @@ export function PhotoCollage({ homes, phone, domain, initialPresets = [] }: { ho
     setFmt(pr.fmt); setLayout(pr.layout); setStyle(pr.style); setTheme(pr.theme);
     setCardFill(pr.cardFill); setCardClear(pr.cardClear); setPriceFill(pr.priceFill); setColors(pr.colors);
     setShow(pr.show); setLabels(pr.labels); setTitleFont(pr.titleFont); setBodyFont(pr.bodyFont);
-    setScale(pr.scale); setNameScale(pr.nameScale); setWidthPct(pr.widthPct);
+    setScale(pr.scale); setNameScale(pr.nameScale); setWidthPct(pr.widthPct); setMaxLines(pr.maxLines);
     setPos(pr.pos); setOffsets(pr.offsets); setDragMode(pr.dragMode);
     setF((cur) => ({ ...cur, unit: pr.unit, cUnit: pr.cUnit }));
     setActivePreset(pr.id);
@@ -901,8 +910,7 @@ export function PhotoCollage({ homes, phone, domain, initialPresets = [] }: { ho
   ].filter((t) => t.n > 0 || t.key === "all");
   const lib = allPhotos.filter((p) => tag === "all" || p.tag === tag);
   const nL = (t: string) => lines(t).length;
-  const lim = fmt === "sq" ? 2 : 3;
-  const tooMany = (show.pros && nL(f.pros) > lim) || (show.cons && nL(f.cons) > lim);
+  const tooMany = (show.pros && nL(f.pros) > maxLines) || (show.cons && nL(f.cons) > maxLines);
   const [FW, FH, FN] = FMT[fmt];
   const dlBg = selN < 2 ? "oklch(0.7 0.02 160)" : O;
 
@@ -988,6 +996,15 @@ export function PhotoCollage({ homes, phone, domain, initialPresets = [] }: { ho
         </div>
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={copyCaption} className="whitespace-nowrap rounded-full border-[1.5px] bg-white px-3.5 py-2.5 text-sm font-bold" style={{ borderColor: BORDER }}>Sao chép caption</button>
+          <button
+            type="button"
+            onClick={pickDir}
+            title={dirSupported ? "Chọn thư mục trên máy để lưu ảnh" : "Chỉ có trên Chrome/Edge máy tính"}
+            className="flex max-w-[260px] items-center gap-1.5 whitespace-nowrap rounded-full border-[1.5px] bg-white px-3.5 py-2.5 text-sm font-bold"
+            style={{ borderColor: saveDir ? G : BORDER, color: saveDir ? G : undefined }}
+          >
+            📁 <span className="truncate">{saveDir ? saveDir.name : "Chọn thư mục lưu"}</span>
+          </button>
           <button type="button" onClick={download} className="whitespace-nowrap rounded-full px-[18px] py-2.5 text-sm font-extrabold text-white" style={{ background: dlBg }}>{saveDir ? "Lưu vào thư mục" : "Tải ảnh PNG"}</button>
         </div>
       </div>
@@ -1214,7 +1231,7 @@ export function PhotoCollage({ homes, phone, domain, initialPresets = [] }: { ho
             </p>
             {tooMany && (
               <div className="text-[13px] leading-normal text-[oklch(0.48_0.15_50)]">
-                {fmt === "sq" ? "Khổ vuông chỉ hiện 2 ưu điểm, 2 nhược điểm để ảnh chiếm nhiều chỗ hơn." : "Ảnh chỉ hiện tối đa 3 ưu điểm và 3 nhược điểm để chữ đủ to, dễ đọc."}
+                Ảnh đang hiện tối đa {maxLines} ý mỗi cột ưu / nhược điểm — tăng ở mục 4 “Số ý ưu/nhược tối đa” nếu muốn hiện thêm.
               </div>
             )}
           </section>
@@ -1225,7 +1242,7 @@ export function PhotoCollage({ homes, phone, domain, initialPresets = [] }: { ho
               <div className="text-base font-extrabold">4. Font, cỡ chữ & vị trí</div>
               <button
                 type="button"
-                onClick={() => { setTitleFont(""); setBodyFont(""); setScale(100); setNameScale(100); setWidthPct(100); setPos(null); setOffsets({}); }}
+                onClick={() => { setTitleFont(""); setBodyFont(""); setScale(100); setNameScale(100); setWidthPct(100); setMaxLines(4); setPos(null); setOffsets({}); }}
                 className="text-[13px] font-bold text-[oklch(0.4_0.08_160)]"
               >
                 Đặt lại mặc định
@@ -1238,6 +1255,11 @@ export function PhotoCollage({ homes, phone, domain, initialPresets = [] }: { ho
             {slider("Cỡ chữ", scale, setScale, 60, 160)}
             {slider("Cỡ tên home", nameScale, setNameScale, 50, 200)}
             {slider("Độ rộng khung chữ", widthPct, setWidthPct, 40, 100)}
+            <label className="grid items-center gap-2 sm:grid-cols-[120px_minmax(0,1fr)_48px]">
+              <span className="text-[13px] font-bold text-[oklch(0.45_0.02_160)]">Số ý ưu/nhược tối đa</span>
+              <input type="range" min={1} max={8} step={1} value={maxLines} onChange={(e) => setMaxLines(+e.target.value)} className="w-full accent-[oklch(0.68_0.18_45)]" />
+              <span className="text-right text-[13px] font-bold">{maxLines} ý</span>
+            </label>
             {seg("Kéo thả", dragMode, setDragMode, [["item", "Từng mục"], ["block", "Cả khung"]])}
             <div className="flex flex-col gap-2 rounded-xl bg-[oklch(0.97_0.01_155)] px-3 py-2.5 text-[13px]">
               <span className="font-semibold text-[oklch(0.4_0.05_160)]">
@@ -1336,7 +1358,9 @@ export function PhotoCollage({ homes, phone, domain, initialPresets = [] }: { ho
                 )}
               </div>
             ) : (
-              <div className="text-center text-[12px] text-[oklch(0.55_0.02_160)]">Chọn thư mục lưu riêng chỉ có trên Chrome/Edge máy tính — trình duyệt này tải về thư mục Tải xuống.</div>
+              <div className="rounded-xl bg-[oklch(0.97_0.03_80)] px-3 py-2.5 text-[13px] font-semibold text-[oklch(0.45_0.08_60)]">
+                📁 Trình duyệt này không cho chọn thư mục lưu (chỉ có trên <b>Chrome / Edge máy tính</b>) — ảnh sẽ tải về thư mục Tải xuống.
+              </div>
             )}
           </section>
           <section className="flex flex-col gap-2 rounded-[20px] border border-[oklch(0.92_0.01_160)] bg-white p-3.5">
