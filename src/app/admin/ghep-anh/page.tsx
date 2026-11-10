@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { getSettings } from "@/lib/queries";
 import { roomPricing } from "@/lib/availability";
-import { isCommunalRoom, COMBO_DISCOUNT } from "@/lib/combo";
+import { isCommunalRoom } from "@/lib/combo";
 import { toNumber } from "@/lib/format";
 import { SITE } from "@/lib/site";
 import { PhotoCollage, type CollageHome } from "@/components/admin/PhotoCollage";
@@ -86,17 +86,16 @@ export default async function CollagePage() {
     const sMin = all.length ? Math.min(...all) : 0;
     const sMax = all.length ? Math.max(...all) : 0;
 
-    // Giá combo/khách ≈ tiền phòng ÷ sức chứa + vé khứ hồi − giảm combo (như trang /combo);
-    // phòng cộng đồng: giá phòng (đã là giá/người) + vé; phòng tick "không giảm 25k" thì không trừ.
+    // Giá combo/khách trên ảnh review = tiền phòng ÷ sức chứa của phòng đó (phòng đôi ÷ 2,
+    // phòng 4 người ÷ 4…) + vé xe khứ hồi. Phòng cộng đồng: giá phòng đã là giá/người → giá + vé.
     const combos: number[] = [];
     if (fare > 0) {
       for (const { rt, r } of rooms) {
         const ps = roomPrices(r);
         if (!ps.length) continue;
         const communal = isCommunalRoom(rt.name, r.name);
-        const disc = communal || r.noComboDiscount ? 0 : COMBO_DISCOUNT;
         for (const p of [Math.min(...ps), Math.max(...ps)]) {
-          combos.push(Math.max(0, (communal ? p : Math.round(p / Math.max(1, r.capacity))) + fare - disc));
+          combos.push((communal ? p : Math.round(p / Math.max(1, r.capacity))) + fare);
         }
       }
     }

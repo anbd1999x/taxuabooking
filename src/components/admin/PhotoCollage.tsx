@@ -119,7 +119,7 @@ const defaultLabels = (domain: string, phone: string): Labels => ({
 type ItemKey = "kicker" | "name" | "loc" | "pros" | "cons" | "single" | "combo" | "note" | "footer";
 type ItemBox = Box & { key: ItemKey };
 type Offsets = Partial<Record<ItemKey, { x: number; y: number }>>;
-type ColorKey = "ink" | "sub" | "acc" | "pro" | "con" | "box";
+type ColorKey = "bg" | "ink" | "sub" | "acc" | "pro" | "con" | "box";
 const ITEM_NAMES: Record<ItemKey, string> = {
   kicker: "Dòng tiêu đề nhỏ", name: "Tên home", loc: "Vị trí", pros: "Ưu điểm", cons: "Nhược điểm",
   single: "Ô giá lẻ", combo: "Ô giá combo", note: "Ghi chú giá", footer: "Chân ảnh",
@@ -137,7 +137,7 @@ const lum = (hex: string) => {
 
 interface RenderOpts {
   c: HTMLCanvasElement | null;
-  fmt: FmtKey; theme: string; layout: string; style: string; cardFill: string; priceFill: boolean;
+  fmt: FmtKey; theme: string; layout: string; style: string; cardFill: string; cardClear: number; priceFill: boolean;
   colors: Partial<Record<ColorKey, string>>;
   show: Record<ShowKey, boolean>; f: Fields; labels: Labels; single: string; combo: string;
   selPhotos: CollagePhoto[]; titleFont: string; bodyFont: string;
@@ -148,10 +148,15 @@ interface RenderResult { box: Box; items: ItemBox[]; origin: { x: number; y: num
 
 /** Vẽ ảnh ghép lên canvas; trả về khung chữ + từng mục (toạ độ canvas) để kéo thả. */
 function renderCollage(o: RenderOpts): RenderResult | null {
-  const { c, fmt, theme, layout, style, cardFill, priceFill, colors, show, f, labels, single, combo, selPhotos, titleFont, bodyFont, scale, nameScale, widthPct, pos, offsets, imgs, baseFam, onImg } = o;
+  const { c, fmt, theme, layout, style, cardFill, cardClear, priceFill, colors, show, f, labels, single, combo, selPhotos, titleFont, bodyFont, scale, nameScale, widthPct, pos, offsets, imgs, baseFam, onImg } = o;
   if (!c) return null;
   const [W, H] = FMT[fmt];
   const T: Theme = { ...THEMES[theme], ...colors };
+  // Màu nền tự chọn → nền thẻ nổi (có nền) dùng cùng màu, hơi trong như theme có sẵn.
+  if (colors.bg) {
+    const n = parseInt(colors.bg.replace("#", ""), 16);
+    T.cardBg = `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},0.93)`;
+  }
   if (c.width !== W) c.width = W;
   if (c.height !== H) c.height = H;
   const ctx = c.getContext("2d");
@@ -411,10 +416,16 @@ function renderCollage(o: RenderOpts): RenderResult | null {
     ctx.fillStyle = T.cardBg; rr(card.x, card.y, card.w, card.h, 32); ctx.fill(); ctx.restore();
     items = info(p.x + cp, p.y + cp, cw - cp * 2, true, k).items;
   } else {
-    // Thẻ trong suốt (không nền) — chữ đọc được nhờ bóng đổ quanh chữ
-    // (chữ sáng → bóng tối, chữ tối → bóng sáng).
+    // Thẻ trong suốt: nền màu theme với độ trong suốt tuỳ chỉnh (100% = không nền).
+    // Chữ đọc được nhờ bóng đổ quanh chữ — nền càng trong, bóng càng đậm.
+    const a = Math.max(0, Math.min(1, 1 - cardClear / 100));
+    if (a > 0) {
+      ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = T.bg;
+      rr(card.x, card.y, card.w, card.h, 32); ctx.fill(); ctx.restore();
+    }
+    const sh = 0.25 + 0.65 * (1 - a);
     ctx.save();
-    ctx.shadowColor = lum(T.ink) > 0.55 ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.95)";
+    ctx.shadowColor = lum(T.ink) > 0.55 ? `rgba(0,0,0,${sh.toFixed(2)})` : `rgba(255,255,255,${Math.min(1, sh + 0.05).toFixed(2)})`;
     ctx.shadowBlur = 14; ctx.shadowOffsetY = 2;
     items = info(p.x + cp, p.y + cp, cw - cp * 2, true, k).items;
     ctx.restore();
@@ -432,6 +443,7 @@ export function PhotoCollage({ homes, phone, domain }: { homes: CollageHome[]; p
   const [style, setStyle] = useState("panel");
   const [theme, setTheme] = useState("forest");
   const [cardFill, setCardFill] = useState("solid"); // thẻ nổi: "solid" = có nền | "none" = trong suốt
+  const [cardClear, setCardClear] = useState(100); // độ trong suốt nền thẻ khi "Trong suốt" (100 = không nền)
   const [priceFill, setPriceFill] = useState(true); // nền ô giá lẻ / combo
   const [colors, setColors] = useState<Partial<Record<ColorKey, string>>>({}); // màu chữ tự chọn (ghi đè màu theo nền)
   const [offsets, setOffsets] = useState<Offsets>({}); // vị trí riêng từng mục (kéo thả)
@@ -507,7 +519,7 @@ export function PhotoCollage({ homes, phone, domain }: { homes: CollageHome[]; p
   // ---------- vẽ canvas ----------
   useEffect(() => {
     layoutRef.current = renderCollage({
-      c: cvRef.current, fmt, theme, layout, style, cardFill, priceFill, colors, show, f, labels, single, combo, selPhotos,
+      c: cvRef.current, fmt, theme, layout, style, cardFill, cardClear, priceFill, colors, show, f, labels, single, combo, selPhotos,
       titleFont, bodyFont, scale, nameScale, widthPct, pos, offsets, imgs: imgs.current, baseFam: baseFam.current,
       onImg: () => setTick((n) => n + 1),
     });
@@ -526,7 +538,7 @@ export function PhotoCollage({ homes, phone, domain }: { homes: CollageHome[]; p
       g.strokeStyle = "#f08a3c";
       g.strokeRect(target.x - 8, target.y - 8, target.w + 16, target.h + 16);
     }
-  }, [fmt, theme, layout, style, cardFill, priceFill, colors, show, f, labels, single, combo, selPhotos, titleFont, bodyFont, scale, nameScale, widthPct, pos, offsets, tick, hover]);
+  }, [fmt, theme, layout, style, cardFill, cardClear, priceFill, colors, show, f, labels, single, combo, selPhotos, titleFont, bodyFont, scale, nameScale, widthPct, pos, offsets, tick, hover]);
 
   // ---------- kéo thả khung chữ trên canvas ----------
   const toCanvas = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -796,19 +808,22 @@ export function PhotoCollage({ homes, phone, domain }: { homes: CollageHome[]; p
             {lib.length === 0 ? (
               <div className="rounded-xl bg-gray-50 p-4 text-center text-sm text-gray-500">Home này chưa có ảnh — bấm “+ Tải ảnh lên kho”.</div>
             ) : (
-              <div className="grid max-h-[460px] grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-2 overflow-y-auto pr-1">
+              // Mobile: 3 cột, cuộn theo trang (không cuộn lồng); desktop: lưới tự chia, khung cuộn riêng.
+              <div className="grid grid-cols-3 gap-2 sm:max-h-[460px] sm:grid-cols-[repeat(auto-fill,minmax(104px,1fr))] sm:overflow-y-auto sm:pr-1">
                 {lib.map((p) => {
                   const i = sel.indexOf(p.id);
                   return (
+                    // Ô vuông bằng padding-top 100% (aspect-ratio trên <button> không chạy ở Safari iOS →
+                    // ô dẹt về 0, ảnh chồng lên nhau).
                     <button
                       key={p.id}
                       type="button"
                       onClick={() => toggle(p.id)}
                       title={p.label}
-                      className="relative aspect-square overflow-hidden rounded-xl transition hover:scale-[.97]"
+                      className="relative block h-0 w-full overflow-hidden rounded-xl pt-[100%] transition hover:scale-[.97]"
                       style={{ outline: i >= 0 ? `3px solid ${O}` : "none", outlineOffset: -3 }}
                     >
-                      <span className="block h-full w-full bg-cover bg-center" style={{ backgroundImage: `url("${p.url}")` }} />
+                      <span className="absolute inset-0 bg-gray-100 bg-cover bg-center" style={{ backgroundImage: `url("${p.url}")` }} />
                       <span className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white text-xs font-extrabold text-white shadow" style={{ background: i >= 0 ? O : "oklch(0.2 0.02 160 / .35)" }}>
                         {i >= 0 ? i + 1 : ""}
                       </span>
@@ -851,8 +866,42 @@ export function PhotoCollage({ homes, phone, domain }: { homes: CollageHome[]; p
             {seg("Bố cục ảnh", layout, setLayout, [["hero", "Ảnh lớn trên"], ["mosaic", "Ảnh lớn trái"], ["grid", "Lưới đều"]])}
             {seg("Chữ", style, (k) => { setStyle(k); setPos(null); setOffsets({}); }, [["panel", "Khung dưới ảnh"], ["card", "Thẻ nổi trên ảnh"]])}
             {style === "card" && seg("Nền thẻ", cardFill, (k) => { setCardFill(k); setPriceFill(k === "solid"); }, [["solid", "Có nền"], ["none", "Trong suốt"]])}
+            {style === "card" && cardFill === "none" && (
+              <label className="grid items-center gap-2 sm:grid-cols-[90px_minmax(0,1fr)_48px]">
+                <span className="text-[13px] font-bold text-[oklch(0.45_0.02_160)]">Độ trong suốt</span>
+                <input type="range" min={0} max={100} step={5} value={cardClear} onChange={(e) => setCardClear(+e.target.value)} className="w-full accent-[oklch(0.68_0.18_45)]" />
+                <span className="text-right text-[13px] font-bold">{cardClear}%</span>
+              </label>
+            )}
             {seg("Nền ô giá", priceFill ? "on" : "off", (k) => setPriceFill(k === "on"), [["on", "Có nền ô"], ["off", "Không nền"]])}
-            {seg("Màu", theme, (k) => { setTheme(k); setColors({}); }, Object.entries(THEMES).map(([k, t]) => [k, t.name, t.bg]))}
+            <div className="grid items-center gap-2 sm:grid-cols-[90px_minmax(0,1fr)]">
+              <span className="text-[13px] font-bold text-[oklch(0.45_0.02_160)]">Màu nền</span>
+              <div className="flex flex-wrap gap-1.5">
+                {Object.entries(THEMES).map(([k, th]) => {
+                  const on = theme === k && !colors.bg;
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => { setTheme(k); setColors({}); }}
+                      className="flex items-center gap-1.5 whitespace-nowrap rounded-[10px] px-3 py-2 text-[13px] font-bold"
+                      style={{ background: on ? "oklch(0.96 0.02 155)" : "white", color: on ? G : "oklch(0.35 0.02 160)", border: `1.5px solid ${on ? G : "oklch(0.9 0.01 160)"}` }}
+                    >
+                      <span className="h-3.5 w-3.5 rounded-full border border-[oklch(0.85_0.01_160)]" style={{ background: th.bg }} />
+                      {th.name}
+                    </button>
+                  );
+                })}
+                {/* Màu nền tự chọn: giữ các màu chữ của bộ màu đang chọn, chỉ đổi nền. */}
+                <label
+                  className="flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-[10px] py-1 pl-1 pr-3 text-[13px] font-bold"
+                  style={{ background: colors.bg ? "oklch(0.96 0.02 155)" : "white", color: colors.bg ? G : "oklch(0.35 0.02 160)", border: `1.5px solid ${colors.bg ? G : "oklch(0.9 0.01 160)"}` }}
+                >
+                  <input type="color" value={colors.bg ?? THEMES[theme].bg} onChange={(e) => setColors((c) => ({ ...c, bg: e.target.value }))} className="h-7 w-7 cursor-pointer rounded-md border-0 bg-transparent p-0" />
+                  Tự chọn màu
+                </label>
+              </div>
+            </div>
             <div className="grid items-start gap-2 sm:grid-cols-[90px_minmax(0,1fr)]">
               <span className="pt-2 text-[13px] font-bold text-[oklch(0.45_0.02_160)]">Màu chữ</span>
               <div className="flex flex-col gap-2">
@@ -899,7 +948,7 @@ export function PhotoCollage({ homes, phone, domain }: { homes: CollageHome[]; p
               {priceBox("Giá combo · từ – đến", "cMin", "cMax", "cUnit", ["/người", "/nhóm", "/combo"], combo)}
             </div>
             <p className="text-[12px] leading-relaxed text-[oklch(0.55_0.02_160)]">
-              Giá lẻ lấy thấp nhất – cao nhất của các phòng (cả giá theo thứ). Giá combo ≈ tiền phòng ÷ sức chứa + vé cabin khứ hồi (Hà Nội) − giảm combo, giống cách tính ở trang Combo. Sửa tay nếu cần.
+              Giá lẻ lấy thấp nhất – cao nhất của các phòng (cả giá theo thứ). Giá combo/người = tiền phòng ÷ sức chứa của phòng (phòng đôi ÷ 2, phòng 4 người ÷ 4) + vé cabin khứ hồi từ Hà Nội (giá thấp nhất) — phòng cộng đồng: giá giường + vé. Sửa tay nếu cần.
             </p>
             {tooMany && (
               <div className="text-[13px] leading-normal text-[oklch(0.48_0.15_50)]">
