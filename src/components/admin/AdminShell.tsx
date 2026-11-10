@@ -28,6 +28,7 @@ const ADMIN_NAV: NavGroup[] = [
       { href: "/admin/services", label: "Quản lý dịch vụ" },
       { href: "/admin/places", label: "Nhà hàng & Cafe" },
       { href: "/admin/articles", label: "Bài viết (SEO)" },
+      { href: "/admin/ghep-anh", label: "Ghép ảnh review" },
       { href: "/admin/popup", label: "Popup uy tín" },
     ],
   },
