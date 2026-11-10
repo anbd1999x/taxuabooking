@@ -44,7 +44,7 @@ function vnd(n: number): string {
  * busPerPerson = tiền xe/khách theo cách xếp mặc định — cả đoàn nằm ghép (busCostPerPerson) — khớp giá khi đặt.
  */
 function planPP(plan: ComboStayPlan, people: number, busPerPerson: number): number {
-  return Math.max(0, Math.round(plan.roomCost / people) + busPerPerson - (plan.communal ? 0 : COMBO_DISCOUNT));
+  return Math.max(0, Math.round(plan.roomCost / people) + busPerPerson - (plan.noDiscount ? 0 : COMBO_DISCOUNT));
 }
 
 /** Một thẻ kết quả = một PHƯƠNG ÁN ghép phòng của một homestay. */
@@ -323,13 +323,13 @@ function ComboPlanCard({
   const roomShare = Math.round(plan.roomCost / people);
   const fare = bus?.farePerPerson ?? 0;
   const cabinCost = cabinSeatTotal(fare, cbDouble, cbSingle); // ghép = fare/người, riêng = 2×fare/người
-  const total = Math.max(0, roomShare * people + cabinCost - (plan.communal ? 0 : COMBO_DISCOUNT * people));
+  const total = Math.max(0, roomShare * people + cabinCost - (plan.noDiscount ? 0 : COMBO_DISCOUNT * people));
   const pricePerPerson = people > 0 ? Math.round(total / people) : 0;
   const diff = budget != null ? pricePerPerson - budget : null;
   // Giá gạch (niêm yết) trọn gói khi phòng có giảm theo ngày — chỉ phần phòng đổi.
   const totalOld =
     plan.roomCostOld != null
-      ? Math.max(0, Math.round(plan.roomCostOld / people) * people + cabinCost - (plan.communal ? 0 : COMBO_DISCOUNT * people))
+      ? Math.max(0, Math.round(plan.roomCostOld / people) * people + cabinCost - (plan.noDiscount ? 0 : COMBO_DISCOUNT * people))
       : null;
   const ppOld = totalOld != null && people > 0 ? Math.round(totalOld / people) : null;
   const hasStrike = ppOld != null && ppOld > pricePerPerson;
@@ -583,7 +583,7 @@ function ComboPlanCard({
               <span className="font-bold text-ink">{vnd(roomShare)}</span>
             </div>
             <div className="flex justify-between gap-2"><span>Vé khứ hồi{bus?.fareOrigin ? ` từ ${bus.fareOrigin}` : ""} / khách</span><span className="font-bold text-ink">{vnd(bus?.farePerPerson ?? 0)}</span></div>
-            {!plan.communal && (
+            {!plan.noDiscount && (
               <div className="flex justify-between gap-2"><span>Khuyến mãi combo</span><span className="font-bold text-forest-700">− {vnd(COMBO_DISCOUNT)}</span></div>
             )}
           </div>

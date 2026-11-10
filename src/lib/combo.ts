@@ -237,6 +237,8 @@ export interface ComboRoomOption {
   kind: Exclude<ComboRoomKind, "all">;
   /** Phòng cộng đồng: roomCost là giá MỖI NGƯỜI, không chia theo đoàn. */
   communal: boolean;
+  /** Admin tick "không giảm 25k khi đặt combo" cho phòng này. */
+  noComboDiscount: boolean;
   /** Dữ liệu XEM NHANH trong trang combo: ảnh (không video), mô tả, tiện ích phòng. */
   images: string[];
   description: string | null;
@@ -275,6 +277,11 @@ export interface ComboStayPlan {
   roomCostOld: number | null;
   /** Toàn giường cộng đồng (giá theo người → không trừ giảm giá combo). */
   communal: boolean;
+  /**
+   * KHÔNG trừ giảm giá combo (−25k/khách): giường cộng đồng, hoặc phương án có ít nhất
+   * một phòng admin tick "không giảm 25k khi đặt combo".
+   */
+  noDiscount: boolean;
   /** Số khách Ở GHÉP vượt sức chứa chuẩn (phòng đôi 2 người nhận tối đa 3...). 0 = không. */
   extraGuests: number;
   /** Tổng phụ thu cả kỳ cho số khách ở ghép (ĐÃ gộp vào roomCost). */
@@ -288,8 +295,8 @@ export interface ComboStayPlan {
  * `busPerPerson` = tiền xe MỖI KHÁCH theo cách xếp mặc định (busCostPerPerson: cả đoàn nằm ghép
  * = 1 vé khứ hồi/người; khách chọn nằm riêng khi đặt thì người đó ×2).
  */
-export function planPricePerPerson(totalRoomCost: number, communal: boolean, people: number, busPerPerson: number): number {
-  return Math.max(0, Math.round(totalRoomCost / people) + busPerPerson - (communal ? 0 : COMBO_DISCOUNT));
+export function planPricePerPerson(totalRoomCost: number, noDiscount: boolean, people: number, busPerPerson: number): number {
+  return Math.max(0, Math.round(totalRoomCost / people) + busPerPerson - (noDiscount ? 0 : COMBO_DISCOUNT));
 }
 
 /** Một homestay cùng các phương án ghép phòng khả dụng (cho thẻ combo v3). */
@@ -398,6 +405,7 @@ function makePlan(
     roomCost,
     roomCostOld: roomCostOld != null && roomCostOld > roomCost ? roomCostOld : null,
     communal,
+    noDiscount: communal || groups.some((g) => g.room.noComboDiscount),
     extraGuests,
     extraCost,
     amenityScore: wsum > 0 ? score / wsum : 0,
@@ -427,7 +435,8 @@ export function buildStayPlans(rooms: ComboRoomOption[], people: number): ComboS
   interface G { rep: ComboRoomOption; ids: string[]; names: string[]; rooms: ComboRoomOption[]; cap: number; capMax: number; extraStay: number; cost: number; costOld: number }
   const gm = new Map<string, G>();
   for (const r of normal) {
-    const k = `${r.roomTypeId}|${r.roomCost}|${r.capacity}|${r.maxCapacity}|${r.extraFeeStay}`;
+    // Tách nhóm theo cờ "không giảm combo" để khách đổi căn trong nhóm không làm lệch giá.
+    const k = `${r.roomTypeId}|${r.roomCost}|${r.capacity}|${r.maxCapacity}|${r.extraFeeStay}|${r.noComboDiscount ? 1 : 0}`;
     const g = gm.get(k);
     if (g) { g.ids.push(r.roomId); g.names.push(plainName(r)); g.rooms.push(r); }
     // costOld = giá gạch 1 phòng cả kỳ (null → dùng giá bán, để tổng gạch vẫn đúng).
@@ -645,7 +654,7 @@ export async function findComboMatches(input: {
     const cheapestBus = cheapestBusFor(h.billable);
     // Lọc khoảng giá theo phương án rẻ nhất có thể (xe rẻ nhất): ngoài khoảng → ẩn.
     if ((priceMax != null || priceMin != null) && buses.length > 0) {
-      plans = plans.filter((p) => inRange(planPricePerPerson(p.roomCost, p.communal, h.billable, cheapestBus)));
+      plans = plans.filter((p) => inRange(planPricePerPerson(p.roomCost, p.noDiscount, h.billable, cheapestBus)));
     }
     if (plans.length === 0) continue;
     const amen = new Set<string>();
@@ -656,7 +665,7 @@ export async function findComboMatches(input: {
     }
     h.amenities = [...amen];
     h.plans = plans;
-    h.bestPricePerPerson = Math.min(...plans.map((p) => planPricePerPerson(p.roomCost, p.communal, h.billable, cheapestBus)));
+    h.bestPricePerPerson = Math.min(...plans.map((p) => planPricePerPerson(p.roomCost, p.noDiscount, h.billable, cheapestBus)));
     homes.push(h);
   }
   // Ưu tiên: homestay Nổi bật (+ thứ tự ưu tiên) lên đầu, rồi mới tới giá (gần ngân sách).
@@ -838,6 +847,7 @@ async function findRooms(
       pool: s.pool,
       kind,
       communal: isCommunalRoom(rt.name, room.name),
+      noComboDiscount: room.noComboDiscount,
       images: room.images.map((i) => i.url).filter((u) => !VIDEO_URL_RE.test(u)).slice(0, 8),
       description: room.description,
       amenityList: (room.amenities ?? "").split(",").map((a) => a.trim()).filter(Boolean),
@@ -996,7 +1006,9 @@ export async function createComboBooking(
   if (nSingle + nDouble !== people) ({ nSingle, nDouble } = cabinAllocation(people, seatsAvail)!);
   const roomShare = Math.round(roomCost / people);
   const busAmount = cabinSeatTotal(fare, nDouble, nSingle);
-  const total = Math.max(0, roomShare * people + busAmount - (communal ? 0 : COMBO_DISCOUNT * people));
+  // Không giảm combo: giường cộng đồng hoặc có phòng tick "không giảm 25k khi đặt combo".
+  const noDiscount = communal || roomList.some((r) => r.noComboDiscount);
+  const total = Math.max(0, roomShare * people + busAmount - (noDiscount ? 0 : COMBO_DISCOUNT * people));
   // Tách tiền từng bên: bill về homestay = tiền phòng, bill về nhà xe = tiền vé.
   // (referencePrice = TỔNG khách trả, đã trừ giảm giá combo cho phòng thường.)
   const roomAmount = roomCost; // đã là tổng tiền phòng cả đoàn

@@ -792,6 +792,8 @@ export async function upsertRoom(_prev: ActionState, formData: FormData): Promis
     sheetAlias: s(formData.get("sheetAlias")) ?? null,
     // Phòng nổi bật: lên đầu trang tìm homestay.
     featured: formData.get("featured") === "on",
+    // Không áp khuyến mãi combo (−25k/khách) cho phòng này.
+    noComboDiscount: formData.get("noComboDiscount") === "on",
     listPrice: num(formData.get("listPrice")) ?? 0,
     // 0 = không giảm giá → lưu null (0 thật sẽ làm giá hiệu lực = 0đ).
     salePrice: (num(formData.get("salePrice")) || null) as number | null,
@@ -887,6 +889,7 @@ export async function duplicateRoom(formData: FormData): Promise<void> {
       maxCapacity: src.maxCapacity,
       sheetAlias: src.sheetAlias,
       featured: src.featured,
+      noComboDiscount: src.noComboDiscount,
       listPrice: src.listPrice,
       salePrice: src.salePrice,
       priceMon: src.priceMon,
