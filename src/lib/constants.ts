@@ -116,6 +116,24 @@ export const AREA_OPTIONS = [
   "Mống Vàng",
 ];
 
+/**
+ * Quy ô "khu vực" (nhập tự do: "Đỉnh Gió", "Đỉnh Gió, Tà Xùa", "Khe Cải, Tà Xùa"...)
+ * về KHU CHUẨN để lọc — trước đây lọc khớp nguyên chuỗi nên "Đỉnh Gió" và
+ * "Đỉnh Gió, Tà Xùa" thành 2 lựa chọn, chọn 1 là mất homestay của lựa chọn kia.
+ * Không thuộc khu chuẩn → lấy đoạn đầu (bỏ ", xã Tà Xùa..."); chỉ ghi "Tà Xùa"/trống → "Khác".
+ */
+export function areaZone(area: string | null | undefined): string {
+  const raw = (area ?? "").trim();
+  const n = raw.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/đ/g, "d");
+  if (/dinh gio/.test(n)) return "Đỉnh Gió";
+  if (/khe cai/.test(n)) return "Khe Cải";
+  if (/song lung|khung long/.test(n)) return "Sống lưng khủng long";
+  if (/mong vang/.test(n)) return "Mống Vàng";
+  if (/trung tam/.test(n)) return "Trung tâm Tà Xùa";
+  const head = raw.split(",")[0].trim();
+  return !head || /^(xa\s+)?ta xua$/.test(head.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")) ? "Khác" : head;
+}
+
 export function categoryBySlug(slug: string): CategoryMeta | undefined {
   return CATEGORY_LIST.find((c) => c.slug === slug);
 }

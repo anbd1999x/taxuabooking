@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DateField } from "@/components/DateField";
 import { useSearchNav } from "@/components/useSearchNav";
+import { AREA_OPTIONS, areaZone } from "@/lib/constants";
 
 /**
  * Mỗi thẻ = một LOẠI phòng cụ thể: các phòng giống hệt nhau (cùng hạng + giá +
@@ -326,8 +327,13 @@ export function HomestayList({
         (price === "gt900" && p > 900000) ||
         (price === "lt1500" && p < 1500000) ||
         (price === "gt1500" && p > 1500000)));
-  // Khu vực có trong dữ liệu (để dựng dãy chip lọc).
-  const zones = useMemo(() => [...new Set(all.map((x) => x.area).filter(Boolean))], [all]);
+  // Khu vực có trong dữ liệu — quy về KHU CHUẨN (areaZone) để "Đỉnh Gió" và
+  // "Đỉnh Gió, Tà Xùa" là MỘT lựa chọn. Khu chuẩn trước, khu khác sau, "Khác" cuối.
+  const zones = useMemo(() => {
+    const set = new Set(all.map((x) => areaZone(x.area)));
+    const rank = (z: string) => (z === "Khác" ? 2 : (AREA_OPTIONS as readonly string[]).includes(z) ? 0 : 1);
+    return [...set].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b, "vi"));
+  }, [all]);
   // Tên các homestay có trong dữ liệu (dropdown lọc theo từng nhà).
   const homeNames = useMemo(
     () => [...new Set(all.map((x) => x.homeName).filter(Boolean))].sort((a, b) => a.localeCompare(b, "vi")),
@@ -358,7 +364,7 @@ export function HomestayList({
   const preFiltered = all.filter(
     (x) =>
       (type === "all" || x.cat === type) &&
-      (zone === "all" || x.area === zone) &&
+      (zone === "all" || areaZone(x.area) === zone) &&
       (home === "all" || x.homeName === home) &&
       inPrice(x.price) &&
       fitsGuests(x) &&
