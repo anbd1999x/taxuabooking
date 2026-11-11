@@ -30,7 +30,7 @@ function s(v: FormDataEntryValue | null): string | undefined {
 /** Danh sách ngày yyyy-mm-dd từ input ẩn (cách nhau dấu phẩy); không có ô này trong form → undefined. */
 function dateList(v: FormDataEntryValue | null): string[] | undefined {
   if (typeof v !== "string") return undefined;
-  return [...new Set(v.split(",").map((x) => x.trim()).filter((x) => /^d{4}-d{2}-d{2}$/.test(x)))].sort();
+  return [...new Set(v.split(",").map((x) => x.trim()).filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x)))].sort();
 }
 function num(v: FormDataEntryValue | null): number | undefined {
   const t = s(v);
