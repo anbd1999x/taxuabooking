@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import type { ServiceCategory } from "@prisma/client";
-import { CATEGORY_LIST, AREA_OPTIONS } from "@/lib/constants";
+import { CATEGORIES, CATEGORY_LIST, AREA_OPTIONS } from "@/lib/constants";
 import { MoneyInput } from "@/components/admin/MoneyInput";
 import { ContactPhoneField } from "@/components/admin/ContactPhoneField";
 import { SoldOutDatesField } from "@/components/admin/SoldOutDatesField";
@@ -62,6 +62,19 @@ export function ServiceForm({
   const [state, formAction, pending] = useActionState(action, {});
   const [cat, setCat] = useState<ServiceCategory>(initial.category ?? "HOMESTAY");
   const [contactOnly, setContactOnly] = useState(initial.contactOnly ?? false);
+  // React 19 tự RESET form sau mỗi lần chạy action: ô <select>/<checkbox> có điều khiển (value/checked
+  // theo state) bị DOM đưa về lựa chọn mặc định (select → mục ĐẦU danh sách = "Combo") trong khi state
+  // không đổi → bấm Lưu lần 2 là gửi nhầm "Combo". Ghi lại giá trị state vào DOM sau mỗi lần lưu.
+  const catRef = useRef<HTMLSelectElement>(null);
+  const contactOnlyRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (catRef.current) catRef.current.value = cat;
+    if (contactOnlyRef.current) contactOnlyRef.current.checked = contactOnly;
+    // Chỉ chạy lại sau mỗi lần action trả kết quả (lúc React vừa reset form).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+  // Danh mục hiện tại không nằm trong danh sách chọn (vd BUNGALOW đã ẩn) → vẫn hiện để không nhảy sang mục đầu.
+  const catOptions = CATEGORY_LIST.some((c) => c.key === cat) ? CATEGORY_LIST : [CATEGORIES[cat], ...CATEGORY_LIST];
   // Homestay/bungalow chọn khu vực từ danh sách chuẩn; danh mục khác nhập tự do (tuyến đường...).
   const areaSelect = cat === "HOMESTAY" || cat === "BUNGALOW";
   const areaOptions =
@@ -74,14 +87,16 @@ export function ServiceForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block">
           <span className="text-sm font-medium text-gray-600">Danh mục *</span>
+          {/* Giá trị gửi đi lấy từ STATE (input ẩn), không phụ thuộc DOM của <select>. */}
+          <input type="hidden" name="category" value={cat} />
           <select
-            name="category"
+            ref={catRef}
             value={cat}
             onChange={(e) => setCat(e.target.value as ServiceCategory)}
             className={inputCls}
             required
           >
-            {CATEGORY_LIST.map((c) => (
+            {catOptions.map((c) => (
               <option key={c.key} value={c.key}>{c.label}</option>
             ))}
           </select>
@@ -297,7 +312,7 @@ export function ServiceForm({
           <span className="text-sm text-gray-700">🏊 Hồ bơi (lọc combo)</span>
         </label>
         <label className="flex items-center gap-2">
-          <input type="checkbox" name="contactOnly" checked={contactOnly} onChange={(e) => setContactOnly(e.target.checked)} className="accent-forest-600 h-4 w-4" />
+          <input ref={contactOnlyRef} type="checkbox" name="contactOnly" checked={contactOnly} onChange={(e) => setContactOnly(e.target.checked)} className="accent-forest-600 h-4 w-4" />
           <span className="text-sm text-gray-700">
             {cat === "CABIN"
               ? "💬 Chỉ nhắn tin — không cho đặt trước trên web, khách nhắn Zalo để giữ vé (không ghép combo)"

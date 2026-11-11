@@ -44,6 +44,8 @@ export interface SheetTab {
 }
 
 const SHEET_TAG = "SHEET";
+/** Ngăn cách các ô nhãn của một hàng không khớp khi báo cho admin. */
+const UNMATCHED_SEP = " / ";
 
 // Nhãn hàng tiêu đề thường gặp (không phải tên phòng) → bỏ qua, không báo "không khớp".
 const HEADER_LABELS = new Set([
@@ -207,6 +209,8 @@ function classifyCell(raw: string): { status: RoomStatus; known: boolean } {
   // "Checkin" = khách ở đêm đó → kiểm tra TRƯỚC "checkout": ô đổi khách cùng ngày
   // ("Check out / Check in") vẫn có khách ở đêm đó, không được coi là trống.
   if (/check ?in/.test(t) || /(^| )in$/.test(t)) return ok("BOOKED");
+  // Đánh dấu "x" / "X tên khách" = đã đặt (Chung Chinh) — trước đây vẫn khoá nhưng bị báo "ô không nhận ra".
+  if (/^x( |$)/.test(t)) return ok("BOOKED");
   // "Checkout" = khách trả phòng buổi sáng → đêm đó phòng trống (chủ sheet cũng
   // không tính vào tỉ lệ đặt).
   if (/check ?out/.test(t) || t === "out") return ok("AVAILABLE");
@@ -1251,7 +1255,9 @@ export async function syncServiceSheet(
             const hasBooking = dateCols.some(
               (dc) => dc.date >= ref && cellStatus(dataRow[dc.col] ?? "") !== "AVAILABLE",
             );
-            if (hasBooking) unmatched.add(candidates[0]);
+            // Báo ĐỦ các ô nhãn của hàng, tên phòng (cột trái) trước — trước đây chỉ báo ô sát vùng
+            // ngày nên sheet có cột "View" hiện cảnh báo khó hiểu kiểu "Full 1 mặt kính".
+            if (hasBooking) unmatched.add([...candidates].reverse().join(UNMATCHED_SEP));
             continue;
           }
           const prev = picked.get(room.id);
@@ -1374,6 +1380,32 @@ export async function syncServiceSheet(
     // 4) Cập nhật lại số phòng trống (RoomAvailability) cho các ngày bị ảnh hưởng.
     for (const [rtId, keys] of affectedTypes) {
       for (const dk of keys) await syncRoomTypeAvailability(rtId, parseDateOnly(dk));
+    }
+
+    // SHEET DÙNG CHUNG cho nhiều homestay (vd Cloud Forest + Sunset Clouds, Happy Town + Haus Meej):
+    // dòng của home KIA không phải lỗi → bỏ khỏi cảnh báo "không khớp".
+    if (unmatched.size > 0 && id) {
+      const siblings = await prisma.service.findMany({
+        where: { id: { not: serviceId }, sheetUrl: { contains: id } },
+        select: { roomTypes: { select: { rooms: { select: { id: true, name: true, roomTypeId: true, sheetAlias: true } } } } },
+      });
+      const sibRooms: RoomRef[] = siblings.flatMap((sv) =>
+        sv.roomTypes.flatMap((rt) =>
+          rt.rooms.map((rm) => ({
+            id: rm.id,
+            name: rm.name,
+            roomTypeId: rm.roomTypeId,
+            names: [rm.name, ...(rm.sheetAlias ?? "").split(/[,;\n]/).map((x) => x.trim()).filter(Boolean)],
+          })),
+        ),
+      );
+      if (sibRooms.length > 0) {
+        const sibByName = new Map<string, RoomRef>();
+        for (const rm of sibRooms) for (const n of rm.names) if (!sibByName.has(norm(n))) sibByName.set(norm(n), rm);
+        for (const label of [...unmatched]) {
+          if (label.split(UNMATCHED_SEP).some((part) => matchRoom(sibByName, sibRooms, part))) unmatched.delete(label);
+        }
+      }
     }
 
     const missing = allRooms.filter((rm) => !matchedRoomIds.has(rm.id)).map((rm) => rm.name);
