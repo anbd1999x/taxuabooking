@@ -215,7 +215,15 @@ function classifyCell(raw: string): { status: RoomStatus; known: boolean } {
   // không tính vào tỉ lệ đặt).
   if (/check ?out/.test(t) || t === "out") return ok("AVAILABLE");
   // Khách huỷ / ghi rõ còn phòng → trống (trước đây rơi vào nhánh "chữ lạ" = khoá).
-  if (/\b(huy|cancel|cancelled|canceled)\b/.test(t) && !/chua huy/.test(t)) return ok("AVAILABLE");
+  // Tên khách "Huy" (vd "Huy Hoàng") KHÔNG phải huỷ: chỉ nhận khi gõ có dấu "huỷ/hủy", ô chỉ ghi
+  // "huy", hoặc cụm rõ nghĩa ("khách huy", "huy phòng"...) — trước đây khách tên Huy bị coi là trống.
+  const cancelWord =
+    /hủy|huỷ/.test(raw.normalize("NFC").toLowerCase()) ||
+    t === "huy" ||
+    /\b(khach|da|bao|bi|xin) huy\b/.test(t) ||
+    /\bhuy (phong|coc|don|lich|roi)\b/.test(t) ||
+    /\b(cancel|cancelled|canceled)\b/.test(t);
+  if (cancelWord && !/chua huy/.test(t)) return ok("AVAILABLE");
   if (/^con( trong| phong)?$/.test(t)) return ok("AVAILABLE");
   // "Đã cọc" = đã đặt; "Chờ cọc" rơi xuống nhánh chờ bên dưới. "TOUR" = phòng giữ cho đoàn tour. "CTV" = cộng tác viên đã đặt (Tà Xùa Retreat).
   if (/(dat|chot|book|full|kin|het|day|sold)/.test(t) || /\bda coc\b/.test(t) || /\btour\b/.test(t) || /\bctv\b/.test(t)) return ok("BOOKED");
@@ -859,6 +867,9 @@ async function fetchTabCsv(id: string, gid: string): Promise<string[][] | null> 
 interface SheetGrids {
   raw: string[][];
   expanded: string[][];
+  /** Màu nền ô (chỉ có khi đọc từ bảng HTML): bgRaw = chỉ ô gốc, bgExp = trải vùng gộp. */
+  bgRaw?: string[][];
+  bgExp?: string[][];
 }
 
 /** Giải mã entity HTML thường gặp trong trang htmlview. */
@@ -882,6 +893,81 @@ function cellText(inner: string): string {
     .trim();
 }
 
+/** Màu nền chuẩn hoá của ô ("" = trắng/không tô). */
+function normBg(v: string | undefined): string {
+  const c = (v ?? "").trim().toLowerCase();
+  return !c || c === "#ffffff" || c === "#fff" || c === "white" || c === "transparent" ? "" : c;
+}
+
+/** Nhãn một dòng CHÚ GIẢI MÀU ("Phòng đã cọc", "Đã thanh toán", "Chờ"...) → trạng thái; null = không phải chú giải. */
+function legendStatus(label: string): RoomStatus | null {
+  const t = norm(label);
+  if (!t || t.length > 40) return null;
+  if (/\b(cho|chua coc|chua thanh toan|giu cho|giu phong|pending|hold)\b/.test(t)) return "PENDING";
+  if (/\b(da coc|dat coc|coc|thanh toan|da dat|da ban|da chot|kin phong|het phong|co khach|full)\b/.test(t)) return "BOOKED";
+  if (/\b(dong|khoa|bao tri|khong ban|ngung ban)\b/.test(t)) return "CLOSED";
+  if (/\b(trong|con phong)\b/.test(t)) return "AVAILABLE";
+  return null;
+}
+
+const LEGEND_TEXT: Record<RoomStatus, string> = { AVAILABLE: "", BOOKED: "Đã đặt", PENDING: "Chờ", CLOSED: "Đóng" };
+
+/**
+ * Sheet đánh dấu tình trạng bằng MÀU Ô (vd Nọong Ơi: tô đỏ = đã cọc, không ghi chữ). Chỉ áp dụng khi
+ * sheet có bảng CHÚ GIẢI ở ít nhất một tab: một ô nhãn ("Phòng đã cọc") nằm cạnh một ô MẪU MÀU trống
+ * chữ. Hàm này dò chú giải của MỘT tab → màu ⇒ trạng thái (+ vị trí các ô mẫu màu để khỏi đọc nhầm).
+ */
+function detectColorLegend(g: SheetGrids): { legend: Map<string, RoomStatus>; swatches: Set<string> } {
+  const legend = new Map<string, RoomStatus>();
+  const swatches = new Set<string>(); // "r|c" các ô mẫu màu của chú giải
+  const bgRaw = g.bgRaw;
+  if (!bgRaw) return { legend, swatches };
+  // Ứng viên: ô nhãn + ô mẫu màu sát bên, trên một hàng THƯA chữ (≤2 ô có chữ) — hàng dữ liệu của
+  // lịch (tên phòng + nhiều ô "Đã đặt"/"Chờ" nằm cạnh ô nền màu) không được coi là chú giải.
+  const cands: { r: number; c: number; sc: number; color: string; st: RoomStatus }[] = [];
+  for (let r = 0; r < g.raw.length; r++) {
+    if (g.raw[r].filter((v) => (v ?? "").trim()).length > 2) continue;
+    for (let c = 0; c < g.raw[r].length; c++) {
+      const st = legendStatus(g.raw[r][c]);
+      if (!st) continue;
+      // ô mẫu màu: sát bên phải (ưu tiên) hoặc sát bên trái nhãn, trống chữ, có tô màu
+      const sc = [c + 1, c - 1].find((k) => k >= 0 && !(g.expanded[r][k] ?? "").trim() && !!bgRaw[r][k]);
+      if (sc !== undefined) cands.push({ r, c, sc, color: bgRaw[r][sc], st });
+    }
+  }
+  // Bảng chú giải thật = ít nhất 2 dòng LIỀN NHAU, nhãn cùng cột, mẫu màu cùng cột, MÀU KHÁC NHAU.
+  const real = cands.filter((x) =>
+    cands.some((y) => Math.abs(y.r - x.r) === 1 && y.c === x.c && y.sc === x.sc && y.color !== x.color),
+  );
+  for (const x of real) {
+    swatches.add(`${x.r}|${x.sc}`);
+    const prev = legend.get(x.color);
+    // một màu bị gán 2 nghĩa khác nhau ⇒ coi là đã đặt (khoá cho an toàn)
+    legend.set(x.color, prev && prev !== x.st ? "BOOKED" : x.st);
+  }
+  return { legend, swatches };
+}
+
+/**
+ * Áp chú giải màu lên lưới expanded (lưới đọc trạng thái) của một tab: ô TRỐNG CHỮ mang màu chú giải
+ * ⇒ điền chữ trạng thái tương ứng; ô có chữ (tên khách) mang màu ⇒ cũng theo màu (hết cảnh báo "ô
+ * không nhận ra", khách tên "Huy" không bị hiểu là huỷ). Riêng ô ghi "Check out" giữ nguyên.
+ * Chú giải dùng CHUNG cho mọi tab của sheet (tab tháng sau thường không chép lại bảng chú giải).
+ */
+function applyColorLegend(g: SheetGrids, legend: Map<string, RoomStatus>, swatches: Set<string>): void {
+  const bgExp = g.bgExp;
+  if (!bgExp || legend.size === 0) return;
+  for (let r = 0; r < g.expanded.length; r++) {
+    for (let c = 0; c < g.expanded[r].length; c++) {
+      const st = legend.get(bgExp[r][c]);
+      if (!st || st === "AVAILABLE" || swatches.has(`${r}|${c}`)) continue;
+      const text = g.expanded[r][c] ?? "";
+      if (text.trim() && isPureCheckout(text)) continue;
+      g.expanded[r][c] = LEGEND_TEXT[st];
+    }
+  }
+}
+
 /**
  * Parse bảng HTML của MỘT tab (trang htmlview/sheet) thành lưới ô, trải ô gộp
  * theo đúng thuật toán bảng HTML: colspan chiếm cột kế bên, rowspan "gánh" xuống
@@ -896,33 +982,47 @@ function parseHtmlGrid(html: string): SheetGrids | null {
   const table = (tEnd > tStart ? html.slice(tStart, tEnd) : html.slice(tStart))
     .replace(/<thead[\s\S]*?<\/thead>/i, "");
 
+  // Màu nền theo class định dạng (.s0, .s1...) khai trong <style> của trang.
+  const classBg = new Map<string, string>();
+  for (const m of html.matchAll(/\.(s\d+)\{([^}]*)\}/g)) {
+    const bg = m[2].match(/background-color:\s*([^;]+)/i)?.[1];
+    if (bg) classBg.set(m[1], normBg(bg));
+  }
+
   const rawRows: string[][] = [];
   const expRows: string[][] = [];
+  const bgRawRows: string[][] = []; // màu chỉ ở ô gốc (ô gộp: ô đầu) — để dò chú giải
+  const bgExpRows: string[][] = []; // màu trải toàn vùng gộp — để đọc trạng thái
   // carry[c] = ô gộp dọc từ hàng trên còn phủ xuống `left` hàng nữa tại cột c.
-  const carry: ({ left: number; value: string } | null)[] = [];
+  const carry: ({ left: number; value: string; bg: string } | null)[] = [];
 
   const trRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
   let tr: RegExpExecArray | null;
   while ((tr = trRe.exec(table))) {
     const cellRe = /<(td|th)\b([^>]*)>([\s\S]*?)<\/\1>/gi;
-    const tds: { attrs: string; text: string }[] = [];
+    const tds: { attrs: string; text: string; bg: string }[] = [];
     let m: RegExpExecArray | null;
     while ((m = cellRe.exec(tr[1]))) {
       if (m[1].toLowerCase() !== "td") continue; // th = tiêu đề hàng/cột của trang
       const cls = m[2].match(/class="([^"]*)"/i)?.[1] ?? "";
       if (cls.includes("freezebar")) continue; // vạch cố định hàng/cột, không phải ô dữ liệu
-      tds.push({ attrs: m[2], text: cellText(m[3]) });
+      const sc = cls.split(/\s+/).find((k) => /^s\d+$/.test(k));
+      const inline = m[2].match(/style="[^"]*background-color:\s*([^;"]+)/i)?.[1];
+      tds.push({ attrs: m[2], text: cellText(m[3]), bg: inline ? normBg(inline) : ((sc && classBg.get(sc)) || "") });
     }
     const hasCarry = carry.some((c) => c && c.left > 0);
     if (tds.length === 0 && !hasCarry) continue; // hàng toàn <th> (tiêu đề cột) / hàng rỗng
 
     const raw: string[] = [];
     const exp: string[] = [];
+    const bgR: string[] = [];
+    const bgE: string[] = [];
     let col = 0;
     const takeCarry = () => {
       while (carry[col] && carry[col]!.left > 0) {
         raw[col] = "";
         exp[col] = carry[col]!.value;
+        bgE[col] = carry[col]!.bg;
         carry[col]!.left -= 1;
         col++;
       }
@@ -934,7 +1034,9 @@ function parseHtmlGrid(html: string): SheetGrids | null {
       for (let k = 0; k < cs; k++) {
         raw[col] = k === 0 ? cell.text : "";
         exp[col] = cell.text;
-        carry[col] = rs > 1 ? { left: rs - 1, value: cell.text } : null;
+        bgR[col] = k === 0 ? cell.bg : "";
+        bgE[col] = cell.bg;
+        carry[col] = rs > 1 ? { left: rs - 1, value: cell.text, bg: cell.bg } : null;
         col++;
       }
     }
@@ -944,19 +1046,22 @@ function parseHtmlGrid(html: string): SheetGrids | null {
       if (cy && cy.left > 0) {
         raw[c] = "";
         exp[c] = cy.value;
+        bgE[c] = cy.bg;
         cy.left -= 1;
       }
     }
     rawRows.push(raw);
     expRows.push(exp);
+    bgRawRows.push(bgR);
+    bgExpRows.push(bgE);
   }
   if (rawRows.length === 0) return null;
 
   // Chuẩn hoá: lấp lỗ (cột hàng ngắn / sau ô gộp) thành "" cho cả 2 lưới.
   const width = Math.max(0, ...rawRows.map((r) => r.length), ...expRows.map((r) => r.length));
-  for (const rows of [rawRows, expRows])
+  for (const rows of [rawRows, expRows, bgRawRows, bgExpRows])
     for (const r of rows) for (let c = 0; c < width; c++) r[c] ??= "";
-  return { raw: rawRows, expanded: expRows };
+  return { raw: rawRows, expanded: expRows, bgRaw: bgRawRows, bgExp: bgExpRows };
 }
 
 /** Tải bảng HTML của một tab (có thông tin ô gộp). Trả null nếu không đọc được. */
@@ -1145,6 +1250,16 @@ export async function syncServiceSheet(
 
     // 2) Tải song song rồi duyệt từng tab (kết quả giữ đúng thứ tự tab).
     const tabGrids = await Promise.all(tabs.map((t) => fetchTabGrid(id, t.gid)));
+    // Sheet đánh dấu bằng MÀU Ô: gom chú giải màu của mọi tab rồi áp cho tất cả các tab.
+    const colorLegend = new Map<string, RoomStatus>();
+    const tabLegends = tabGrids.map((g) => (g ? detectColorLegend(g) : null));
+    for (const tl of tabLegends)
+      for (const [color, st] of tl?.legend ?? []) {
+        const prev = colorLegend.get(color);
+        colorLegend.set(color, prev && prev !== st ? "BOOKED" : st);
+      }
+    if (colorLegend.size > 0)
+      tabGrids.forEach((g, i) => g && applyColorLegend(g, colorLegend, tabLegends[i]!.swatches));
     for (let ti = 0; ti < tabs.length; ti++) {
       const tab = tabs[ti];
       if (!tabGrids[ti]) fetchFailed = true; // tải lỗi (mạng/Google chặn) ≠ tab không phải lịch
