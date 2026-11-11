@@ -40,8 +40,10 @@ const durOf = (f: SceneStop | undefined) => (f && f.mode === "spot" ? 7.5 : 6.5)
  * (không setState mỗi khung hình); nền trời/đạo cụ đổi theo giờ & loại điểm bằng CSS transition.
  */
 export function ItineraryScene({
-  flat, cur, playing, onAdvance, onPrev, onNext, onToggle, onJump,
+  flat, cur, playing, compact, onAdvance, onPrev, onNext, onToggle, onJump,
 }: {
+  /** Điện thoại: thu thấp khung phim khi đang neo dưới thanh menu. */
+  compact?: boolean;
   flat: SceneStop[];
   cur: number;
   playing: boolean;
@@ -212,7 +214,7 @@ export function ItineraryScene({
   const playTitle = playing ? "Tạm dừng" : "Chạy tiếp";
 
   return (
-    <div ref={sceneRef} id="lt-scene" className="h-[260px] sm:h-[300px] lg:h-[340px]" style={{ position: "relative", borderRadius: "24px", overflow: "hidden", isolation: "isolate", background: "linear-gradient(180deg, oklch(0.76 0.09 232), oklch(0.89 0.05 215) 62%, oklch(0.93 0.04 190))" }}>
+    <div ref={sceneRef} id="lt-scene" className={(compact ? "h-[168px]" : "h-[260px]") + " transition-[height] duration-300 sm:h-[300px] lg:h-[340px]"} style={{ position: "relative", borderRadius: "24px", overflow: "hidden", isolation: "isolate", background: "linear-gradient(180deg, oklch(0.76 0.09 232), oklch(0.89 0.05 215) 62%, oklch(0.93 0.04 190))" }}>
       <div style={{ position: "absolute", inset: "0", background: "linear-gradient(180deg, oklch(0.6 0.12 25), oklch(0.8 0.13 55) 55%, oklch(0.9 0.08 85))", opacity: `${sc.dawnOp}`, transition: "opacity 1.2s" }}></div>
       <div style={{ position: "absolute", inset: "0", background: "linear-gradient(180deg, oklch(0.2 0.05 265), oklch(0.34 0.06 250))", opacity: `${sc.nightOp}`, transition: "opacity 1.2s" }}>
         {STARS.map((st, i) => (

@@ -81,6 +81,21 @@ export function ItineraryView({ plans, places, prep }: { plans: ViewPlan[]; plac
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, []);
+  // Phim đang neo dưới thanh menu? (mốc 0px đặt ngay trên khung phim, không đổi theo chiều cao phim)
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    const check = () => {
+      const mark = document.getElementById("lt-scene-mark");
+      const end = document.getElementById("lt-places");
+      if (!mark) return;
+      // hết phần lịch trình (tới mục "Nên ghé") thì phim cuộn đi ⇒ trả lại chiều cao
+      const on = mark.getBoundingClientRect().top < headerH - 2 && (!end || end.getBoundingClientRect().top > headerH + 200);
+      setStuck(on);
+    };
+    check();
+    window.addEventListener("scroll", check, { passive: true });
+    return () => window.removeEventListener("scroll", check);
+  }, [headerH]);
 
   const plan = plans.find((p) => p.id === planKey) ?? plans[0] ?? EMPTY_PLAN;
   const shown = useMemo(() => new Map(places.map((p) => [p.id, p])), [places]);
@@ -257,8 +272,10 @@ export function ItineraryView({ plans, places, prep }: { plans: ViewPlan[]; plac
           </div>
 
           {/* Phim neo sát dưới thanh menu khi cuộn; lịch trình bên dưới cuộn tiếp phía sau. */}
+          <div id="lt-scene-mark" className="-mb-4 h-0" />
           <div className="sticky z-20 -mx-1 bg-[oklch(0.975_0.01_150)] px-1 pb-2 pt-2" style={{ top: headerH }}>
             <ItineraryScene
+              compact={stuck}
               flat={flat}
               cur={ci}
               playing={playing}
