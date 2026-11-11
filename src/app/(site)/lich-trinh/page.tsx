@@ -67,7 +67,19 @@ export default async function ItineraryPage() {
             const pl = s.placeId ? byId.get(s.placeId) : undefined;
             const name = pl?.name ?? s.name;
             if (!name) return [];
-            return [{ time: s.time, name, note: s.note, kind: (pl?.kind ?? "move") as StopKind, placeId: pl?.id ?? null }];
+            // "1,5 km từ trung tâm" / "300 m từ trung tâm" (ô địa chỉ của điểm check-in) → km
+            const m = pl?.kind === "checkin" ? pl.badge.match(/([\d.,]+)\s*(km|m)\b/i) : null;
+            const km = m ? parseFloat(m[1].replace(",", ".")) / (m[2].toLowerCase() === "m" ? 1000 : 1) : null;
+            return [{
+              time: s.time,
+              name,
+              note: s.note,
+              kind: (pl?.kind ?? "move") as StopKind,
+              placeId: pl?.id ?? null,
+              km: km != null && Number.isFinite(km) ? km : null,
+              thumb: pl?.media.find((x) => !x.video)?.url ?? null,
+              fact: pl?.facts[1] ?? null,
+            }];
           }),
         }))
         .filter((d) => d.stops.length),
