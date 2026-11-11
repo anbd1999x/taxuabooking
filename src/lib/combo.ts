@@ -317,7 +317,7 @@ export interface ComboHomeOption {
   /** Số trẻ MIỄN PHÍ ở home này (dưới ngưỡng) — đi/ngủ cùng, không tính tiền. */
   freeChildren: number;
   rooms: ComboRoomOption[]; // mọi phòng trống khớp tiêu chí (tham khảo)
-  /** Phương án ghép phòng đủ chỗ cho cả đoàn, rẻ nhất trước (tối đa 3). */
+  /** Phương án ghép phòng đủ chỗ cho cả đoàn, rẻ nhất trước: 3 kiểu ghép + các phương án phủ nốt căn trống còn lại. */
   plans: ComboStayPlan[];
   bestPricePerPerson: number; // giá rẻ nhất đạt được (xe rẻ nhất + phương án rẻ nhất)
 }
@@ -351,8 +351,9 @@ export interface ComboSearchResult {
 
 // ---- Thuật toán ghép phòng cho cả đoàn ----
 
-/** Giới hạn để kết quả còn thực tế: tối đa 10 phòng/phương án, 3 phương án/homestay. */
+/** Giới hạn để kết quả còn thực tế: tối đa 10 phòng/phương án. */
 const MAX_PLAN_ROOMS = 10;
+/** 3 kiểu ghép khác nhau/homestay — CỘNG thêm các phương án cần để mọi căn trống đều hiện ra. */
 const MAX_PLANS_PER_HOME = 3;
 
 /** Trọng số điểm view/tiện ích của phương án (view mây nặng nhất). */
@@ -417,7 +418,7 @@ function makePlan(
  *
  * Phòng thường: gộp phòng giống nhau thành nhóm rồi duyệt tổ hợp số phòng mỗi
  * nhóm (DFS, chặn nhánh) — chỉ giữ phương án TỐI THIỂU (bỏ bớt bất kỳ phòng nào
- * là thiếu chỗ), xếp theo tổng tiền rẻ nhất, lấy tối đa 3 phương án khác nhau.
+ * là thiếu chỗ), xếp theo tổng tiền rẻ nhất, lấy 3 kiểu ghép khác nhau + các phương án phủ nốt mọi căn trống.
  * Phòng cộng đồng (giá mỗi người): xếp đủ người vào các phòng dorm rẻ nhất.
  */
 export function buildStayPlans(rooms: ComboRoomOption[], people: number): ComboStayPlan[] {
@@ -501,8 +502,16 @@ export function buildStayPlans(rooms: ComboRoomOption[], people: number): ComboS
 
   variants.sort((a, b) => a.f.cost - b.f.cost || a.f.used - b.f.used);
   const seenLabel = new Set<string>();
+  // COMBO PHẢI HIỆN HẾT PHÒNG TRỐNG: ngoài 3 phương án khác kiểu ghép rẻ nhất, giữ thêm mọi
+  // phương án (rẻ trước) đưa vào ít nhất một căn CHƯA xuất hiện ở phương án nào — vd hạng có
+  // các căn khác giá (căn 6-8 giá 750k, căn 2-4 giá 800k, căn 5 giá 900k). Trước đây chỉ giữ
+  // bản rẻ nhất của mỗi kiểu ghép nên những căn còn trống nhưng giá cao hơn không bao giờ hiện.
+  const covered = new Set<string>();
+  let basePlans = 0;
   for (const { f, extraGuests, extraCost } of variants) {
-    if (plans.length >= MAX_PLANS_PER_HOME) break;
+    const isNewLabelSlot = basePlans < MAX_PLANS_PER_HOME;
+    const addsRoom = groups.some((g, j) => f.counts[j] > 0 && g.ids.some((id) => !covered.has(id)));
+    if (!isNewLabelSlot && !addsRoom) continue;
     const pgs: ComboPlanGroup[] = [];
     for (let j = 0; j < groups.length; j++) {
       if (f.counts[j] === 0) continue;
@@ -516,36 +525,51 @@ export function buildStayPlans(rooms: ComboRoomOption[], people: number): ComboS
       });
     }
     const plan = makePlan(serviceId, pgs, f.cost, f.capStd + extraGuests, false, extraGuests, extraCost, f.costOld);
-    if (seenLabel.has(plan.label)) continue; // cùng kiểu ghép → giữ bản rẻ nhất
-    seenLabel.add(plan.label);
+    const newLabel = !seenLabel.has(plan.label);
+    // Giữ khi: kiểu ghép mới (trong hạn mức 3), HOẶC có căn chưa hiện ở phương án nào.
+    if (!(newLabel && isNewLabelSlot) && !addsRoom) continue;
+    if (newLabel) { seenLabel.add(plan.label); basePlans++; }
+    for (const g of pgs) for (const o of g.options) covered.add(o.roomId);
     plans.push(plan);
   }
 
   // --- Giường cộng đồng: xếp đủ người vào các phòng dorm rẻ nhất ---
   if (dorm.length > 0) {
     const sorted = [...dorm].sort((a, b) => a.roomCost - b.roomCost);
-    const pgm = new Map<string, ComboPlanGroup>();
-    let remaining = people;
-    let total = 0;
-    let totalOld = 0;
-    let cap = 0;
-    for (const r of sorted) {
-      if (remaining <= 0) break;
-      const take = Math.min(remaining, r.capacity);
-      total += r.roomCost * take; // giá dorm = giá MỖI NGƯỜI
-      totalOld += (r.roomCostOld ?? r.roomCost) * take;
-      cap += r.capacity;
-      remaining -= take;
-      const k = `${r.roomTypeId}|${r.roomCost}`;
-      const g = pgm.get(k);
-      if (g) { g.roomIds.push(r.roomId); g.count += 1; g.options.push({ roomId: r.roomId, roomName: plainName(r), room: r }); }
-      else pgm.set(k, { room: r, roomIds: [r.roomId], count: 1, unitCost: r.roomCost, options: [{ roomId: r.roomId, roomName: plainName(r), room: r }] });
+    const dormCovered = new Set<string>();
+    const dormPlan = (order: ComboRoomOption[]) => {
+      const pgm = new Map<string, ComboPlanGroup>();
+      let remaining = people;
+      let total = 0;
+      let totalOld = 0;
+      let cap = 0;
+      for (const r of order) {
+        if (remaining <= 0) break;
+        const take = Math.min(remaining, r.capacity);
+        total += r.roomCost * take; // giá dorm = giá MỖI NGƯỜI
+        totalOld += (r.roomCostOld ?? r.roomCost) * take;
+        cap += r.capacity;
+        remaining -= take;
+        dormCovered.add(r.roomId);
+        const k = `${r.roomTypeId}|${r.roomCost}`;
+        const g = pgm.get(k);
+        if (g) { g.roomIds.push(r.roomId); g.count += 1; g.options.push({ roomId: r.roomId, roomName: plainName(r), room: r }); }
+        else pgm.set(k, { room: r, roomIds: [r.roomId], count: 1, unitCost: r.roomCost, options: [{ roomId: r.roomId, roomName: plainName(r), room: r }] });
+      }
+      if (remaining <= 0) plans.push(makePlan(serviceId, [...pgm.values()], total, cap, true, 0, 0, totalOld));
+      return remaining <= 0;
+    };
+    // Phương án rẻ nhất trước; rồi mỗi phòng dorm CHƯA hiện (giá cao hơn) được 1 phương án
+    // bắt đầu từ chính phòng đó — để combo hiện hết phòng cộng đồng còn trống.
+    if (dormPlan(sorted)) {
+      for (const r of sorted) {
+        if (!dormCovered.has(r.roomId)) dormPlan([r, ...sorted.filter((x) => x.roomId !== r.roomId)]);
+      }
     }
-    if (remaining <= 0) plans.push(makePlan(serviceId, [...pgm.values()], total, cap, true, 0, 0, totalOld));
   }
 
   plans.sort((a, b) => a.roomCost - b.roomCost || a.roomCount - b.roomCount);
-  return plans.slice(0, MAX_PLANS_PER_HOME);
+  return plans;
 }
 
 /**
