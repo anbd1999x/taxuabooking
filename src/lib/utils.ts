@@ -3,6 +3,11 @@ export function cn(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(" ");
 }
 
+/** URL trỏ tới tệp video (theo đuôi tệp) — dùng cho danh sách ảnh/video lưu chung một cột. */
+export function isVideoUrl(url: string): boolean {
+  return /\.(mp4|m4v|webm|mov|mkv|avi)(?:[?#].*)?$/i.test(url);
+}
+
 /** Tạo slug thân thiện URL từ tiếng Việt (bỏ dấu). */
 export function slugify(input: string): string {
   return input

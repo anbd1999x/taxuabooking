@@ -5,6 +5,7 @@ import { getSettings } from "@/lib/queries";
 import { renderMarkdown } from "@/lib/markdown";
 import { formatDate } from "@/lib/format";
 import { SITE } from "@/lib/site";
+import { isVideoUrl } from "@/lib/utils";
 import { PlaceGallery } from "./place/PlaceGallery";
 import { ExpandableDescription } from "./place/ExpandableDescription";
 import { PlaceReviews, type ReviewItem } from "./place/PlaceReviews";
@@ -81,7 +82,7 @@ const BEST_TIME = [
 ];
 
 export async function PlaceDetail({ place, basePath }: { place: Place & { reviews: PlaceReview[] }; basePath: string }) {
-  const gallery = [place.coverImage, ...(place.images ?? "").split("|")].map((s) => (s ?? "").trim()).filter(Boolean);
+  const gallery = [place.coverImage, ...(place.images ?? "").split("|")].map((s) => (s ?? "").trim()).filter((s) => s && !isVideoUrl(s));
   const reviews = place.reviews;
   const count = reviews.length;
   const avg = count ? reviews.reduce((a, r) => a + r.rating, 0) / count : null;

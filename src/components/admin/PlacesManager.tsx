@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { showToast } from "./Toast";
 import { savePlace, togglePlacePublished, bulkPlaces, removePlace } from "@/app/admin/places/actions";
 import type { PlaceDTO } from "@/app/admin/places/place-dto";
+import { isVideoUrl } from "@/lib/utils";
 
 type Kind = "RESTAURANT" | "CAFE" | "CHECKIN";
 const KINDS: Kind[] = ["RESTAURANT", "CAFE", "CHECKIN"];
@@ -107,7 +108,7 @@ async function uploadImage(file: File): Promise<string> {
   fd.append("standalone", "1");
   const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error ?? `Tải ảnh thất bại (mã ${res.status}).`);
+  if (!res.ok) throw new Error(data.error ?? `Tải tệp thất bại (mã ${res.status}).`);
   return data.url as string;
 }
 
@@ -471,19 +472,21 @@ function Editor({
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
     setGalBusy(true);
+    const urls: string[] = [];
     try {
-      const urls: string[] = [];
       for (const f of files) urls.push(await uploadImage(f));
-      patch({ images: [...form.images, ...urls] });
-      showToast(`Đã tải ${urls.length} ảnh`, "ok");
-    } catch (x) { showToast(x instanceof Error ? x.message : "Tải ảnh thất bại.", "error"); }
-    finally { setGalBusy(false); if (galRef.current) galRef.current.value = ""; }
+      showToast(`Đã tải ${urls.length} tệp`, "ok");
+    } catch (x) { showToast(x instanceof Error ? x.message : "Tải tệp thất bại.", "error"); }
+    finally {
+      // tệp nào tải xong thì giữ lại, kể cả khi tệp sau bị lỗi
+      if (urls.length) patch({ images: [...form.images, ...urls] }); setGalBusy(false); if (galRef.current) galRef.current.value = ""; e.target.value = "";
+    }
   }
 
   const tabs: { k: TabKey; name: string }[] = [
     { k: "info", name: "Thông tin" },
     { k: "hours", name: "Giờ & liên hệ" },
-    { k: "photos", name: "Ảnh" },
+    { k: "photos", name: form.kind === "CHECKIN" ? "Ảnh & video" : "Ảnh" },
     { k: "desc", name: "Mô tả chi tiết" },
   ];
   const tagOpts = Array.from(new Set([...TAG_SUGGEST, ...form.tags]));
@@ -491,6 +494,10 @@ function Editor({
     ? `${form.open} – ${form.close}${form.hoursWeekend ? ` (cuối tuần mở ${form.hoursWeekend})` : ""}`
     : "Chưa cập nhật giờ mở cửa";
   const blocks = descToBlocks(form.content);
+  // Điểm check-in: nhận cả video (hiện ở khung trượt trên thẻ trang Lịch trình).
+  const allowVideo = form.kind === "CHECKIN";
+  const galAccept = allowVideo ? "image/*,video/*" : "image/*";
+  const nVideo = form.images.filter(isVideoUrl).length;
 
   return (
     <>
@@ -634,25 +641,40 @@ function Editor({
 
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="text-xs font-bold text-gray-500">Ảnh khác <span className="font-medium text-gray-400">· {form.images.length} ảnh</span></div>
+                  <div className="text-xs font-bold text-gray-500">{allowVideo ? "Ảnh & video khác" : "Ảnh khác"} <span className="font-medium text-gray-400">· {form.images.length - nVideo} ảnh{nVideo ? `, ${nVideo} video` : ""}</span></div>
                   <label className={`cursor-pointer rounded-full border border-gray-200 bg-white px-3 py-1.5 text-[13px] font-bold ${galBusy ? "opacity-60" : "hover:bg-gray-50"}`}>
-                    {galBusy ? "Đang tải…" : "+ Thêm ảnh"}
-                    <input ref={galRef} type="file" accept="image/*" multiple className="hidden" onChange={onGallery} disabled={galBusy} />
+                    {galBusy ? "Đang tải…" : allowVideo ? "+ Thêm ảnh / video" : "+ Thêm ảnh"}
+                    <input ref={galRef} type="file" accept={galAccept} multiple className="hidden" onChange={onGallery} disabled={galBusy} />
                   </label>
                 </div>
                 <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(auto-fill,minmax(120px,1fr))" }}>
                   {form.images.map((u, i) => (
                     <div key={`${u}-${i}`} className="relative aspect-[4/3] overflow-hidden rounded-xl border border-gray-200">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={u} alt={`Ảnh ${i + 1}`} className="h-full w-full object-cover" />
+                      {isVideoUrl(u) ? (
+                        <>
+                          <video src={`${u}#t=0.1`} preload="metadata" muted playsInline controls className="h-full w-full bg-black object-cover" />
+                          <span className="pointer-events-none absolute left-1.5 top-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-bold text-white">Video</span>
+                        </>
+                      ) : (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={u} alt={`Ảnh ${i + 1}`} className="h-full w-full object-cover" />
+                      )}
+                      {i > 0 && (
+                        <button title="Đưa lên trước" onClick={() => { const a = [...form.images]; [a[i - 1], a[i]] = [a[i], a[i - 1]]; patch({ images: a }); }} className="absolute bottom-1.5 left-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-[13px] text-white hover:bg-black/80">←</button>
+                      )}
                       <button onClick={() => patch({ images: form.images.filter((_, j) => j !== i) })} className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-[13px] text-white hover:bg-black/80">✕</button>
                     </div>
                   ))}
                   <label className={`flex aspect-[4/3] cursor-pointer items-center justify-center rounded-xl border-[1.5px] border-dashed border-gray-300 text-[13px] font-bold text-gray-500 ${galBusy ? "opacity-60" : "hover:bg-gray-50"}`}>
-                    + Ảnh
-                    <input type="file" accept="image/*" multiple className="hidden" onChange={onGallery} disabled={galBusy} />
+                    {allowVideo ? "+ Ảnh / video" : "+ Ảnh"}
+                    <input type="file" accept={galAccept} multiple className="hidden" onChange={onGallery} disabled={galBusy} />
                   </label>
                 </div>
+                {allowVideo && (
+                  <div className="text-xs leading-relaxed text-gray-400">
+                    Video mp4/mov/webm tối đa 200MB mỗi tệp. Ảnh bìa hiện đầu tiên, sau đó tới ảnh/video theo thứ tự ở trên (tối đa 12 mục trên thẻ) — khách vuốt ngang để xem.
+                  </div>
+                )}
               </div>
             </div>
           )}

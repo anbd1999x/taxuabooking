@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useMemo, useState } from "react";
+import { MediaSlider, type MediaItem } from "./MediaSlider";
 import type { StopKind } from "@/lib/itinerary";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +17,7 @@ export interface ItineraryPlace {
   desc: string;
   tip: string;
   facts: string[];
-  image: string | null;
+  media: MediaItem[]; // ảnh bìa + ảnh/video khác (rỗng = nền màu kèm tên)
   href: string | null; // trang chi tiết quán (điểm check-in không có)
   mapUrl: string;
 }
@@ -289,8 +289,8 @@ export function ItineraryView({ plans, places, prep }: { plans: ViewPlan[]; plac
                   )}
                 >
                   <div className="relative aspect-[16/10]">
-                    {p.image ? (
-                      <Image src={p.image} alt={p.name} fill sizes="(max-width:640px) 100vw, 360px" className="object-cover" />
+                    {p.media.length ? (
+                      <MediaSlider items={p.media} name={p.name} />
                     ) : (
                       <div
                         className="flex h-full w-full items-end p-4 text-lg font-extrabold leading-tight text-white/90"

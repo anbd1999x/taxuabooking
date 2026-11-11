@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { loadItinerary } from "@/lib/itinerary-store";
 import { PLACE_KIND_TO_STOP, type FeaturedKey, type StopKind } from "@/lib/itinerary";
+import { isVideoUrl } from "@/lib/utils";
 import { ItineraryView, type ItineraryPlace, type ViewPlan } from "@/components/itinerary/ItineraryView";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ export default async function ItineraryPage() {
   const rows = await prisma.place.findMany({
     where: { published: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    select: { id: true, kind: true, slug: true, name: true, area: true, address: true, price: true, hours: true, tags: true, desc: true, tip: true, coverImage: true, mapUrl: true },
+    select: { id: true, kind: true, slug: true, name: true, area: true, address: true, price: true, hours: true, tags: true, desc: true, tip: true, coverImage: true, images: true, mapUrl: true },
   });
   const { config } = await loadItinerary(rows);
 
@@ -36,7 +37,11 @@ export default async function ItineraryPage() {
       desc: p.desc ?? "",
       tip: p.tip ?? "",
       facts: [hours, price].filter((x): x is string => !!x),
-      image: p.coverImage ?? null,
+      media: [p.coverImage, ...(p.images ?? "").split("|")]
+        .map((u) => (u ?? "").trim())
+        .filter(Boolean)
+        .slice(0, 12)
+        .map((url) => ({ url, video: isVideoUrl(url) })),
       href: kind !== "checkin" && p.slug ? `/${kind === "cafe" ? "cafe" : "nha-hang"}/${p.slug}` : null,
       mapUrl: p.mapUrl || "https://maps.google.com/?q=" + encodeURIComponent(`${p.name} Tà Xùa Bắc Yên Sơn La`),
     }];
