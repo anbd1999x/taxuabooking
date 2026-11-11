@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MediaSlider, type MediaItem } from "./MediaSlider";
 import { ItineraryScene, type SceneStop } from "./ItineraryScene";
 import type { StopKind } from "@/lib/itinerary";
@@ -72,6 +72,15 @@ export function ItineraryView({ plans, places, prep }: { plans: ViewPlan[]; plac
   const [only, setOnly] = useState(false);
   const [cur, setCur] = useState(0); // cảnh đang chiếu (chỉ số điểm dừng đã trải phẳng)
   const [playing, setPlaying] = useState(true);
+
+  // Chiều cao thanh menu (sticky) — phim lịch trình neo ngay bên dưới.
+  const [headerH, setHeaderH] = useState(64);
+  useEffect(() => {
+    const measure = () => { const h = document.querySelector("header"); if (h) setHeaderH(Math.round(h.getBoundingClientRect().height)); };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
 
   const plan = plans.find((p) => p.id === planKey) ?? plans[0] ?? EMPTY_PLAN;
   const shown = useMemo(() => new Map(places.map((p) => [p.id, p])), [places]);
@@ -247,7 +256,8 @@ export function ItineraryView({ plans, places, prep }: { plans: ViewPlan[]; plac
             </div>
           </div>
 
-          <div className="flex flex-col gap-2">
+          {/* Phim neo sát dưới thanh menu khi cuộn; lịch trình bên dưới cuộn tiếp phía sau. */}
+          <div className="sticky z-20 -mx-1 bg-[oklch(0.975_0.01_150)] px-1 pb-2 pt-2" style={{ top: headerH }}>
             <ItineraryScene
               flat={flat}
               cur={ci}
@@ -258,9 +268,9 @@ export function ItineraryView({ plans, places, prep }: { plans: ViewPlan[]; plac
               onToggle={() => setPlaying((p) => !p)}
               onJump={jumpTo}
             />
-            <div className="text-[13px] text-[oklch(0.5_0.02_160)]">
-              Phim lịch trình tự chạy qua từng điểm. Bấm một điểm trong lịch trình bên dưới để xem cảnh đó.
-            </div>
+          </div>
+          <div className="-mt-3 text-[13px] text-[oklch(0.5_0.02_160)]">
+            Phim lịch trình tự chạy qua từng điểm. Bấm một điểm trong lịch trình bên dưới để xem cảnh đó.
           </div>
 
           <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -389,7 +399,7 @@ export function ItineraryView({ plans, places, prep }: { plans: ViewPlan[]; plac
               ))}
             </div>
 
-            <aside className="flex flex-col gap-3 lg:sticky lg:top-[84px]">
+            <aside className="flex flex-col gap-3">
               <div className="flex flex-col gap-3.5 rounded-[22px] border border-[oklch(0.92_0.01_160)] bg-white px-5 py-[18px]">
                 <div className="text-[17px] font-extrabold text-ink">{plan.name} gồm những gì</div>
                 <div className="grid grid-cols-3 gap-2">
@@ -410,6 +420,9 @@ export function ItineraryView({ plans, places, prep }: { plans: ViewPlan[]; plac
                 </div>
                 <Link href="/combo" className="rounded-full bg-[oklch(0.68_0.18_45)] p-[13px] text-center text-[15px] font-extrabold text-white transition hover:brightness-105">
                   Đặt combo {plan.name} →
+                </Link>
+                <Link href={`/ban-do?plan=${encodeURIComponent(plan.id)}`} className="rounded-full border-[1.5px] border-[oklch(0.88_0.015_160)] p-[11px] text-center text-sm font-bold text-[oklch(0.4_0.08_160)] transition hover:text-sunset-500">
+                  Xem cung đường trên bản đồ
                 </Link>
                 <Link href="/kinh-nghiem" className="rounded-full border-[1.5px] border-[oklch(0.88_0.015_160)] p-[11px] text-center text-sm font-bold text-[oklch(0.4_0.08_160)] transition hover:text-sunset-500">
                   Đọc thêm kinh nghiệm Tà Xùa

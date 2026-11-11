@@ -12,6 +12,7 @@ export function Header({ customerName = null }: { customerName?: string | null }
 
   const GUIDE_LINKS = [
     { href: "/lich-trinh", label: "Lịch trình Tà Xùa" },
+    { href: "/ban-do", label: "Bản đồ check-in" },
     { href: "/kinh-nghiem", label: "Kinh nghiệm Tà Xùa" },
     { href: "/nha-hang", label: "Nhà hàng Tà Xùa" },
     { href: "/cafe", label: "Cafe Tà Xùa" },

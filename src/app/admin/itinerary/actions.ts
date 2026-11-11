@@ -37,6 +37,7 @@ export async function saveItinerary(input: ItineraryConfig): Promise<ItineraryAc
     return { error: "Lưu lịch trình thất bại." };
   }
   revalidatePath("/lich-trinh");
+  revalidatePath("/ban-do");
   revalidatePath("/admin/itinerary");
   return { ok: true };
 }

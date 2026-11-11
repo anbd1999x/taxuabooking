@@ -66,6 +66,7 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
             <li><Link href="/huong-dan" className="hover:text-white">Hướng dẫn đặt dịch vụ</Link></li>
             <li><Link href="/tra-cuu" className="hover:text-white">Tra cứu đơn đặt</Link></li>
             <li><Link href="/lich-trinh" className="hover:text-white">Lịch trình Tà Xùa</Link></li>
+            <li><Link href="/ban-do" className="hover:text-white">Bản đồ check-in</Link></li>
             <li><Link href="/kinh-nghiem" className="hover:text-white">Kinh nghiệm du lịch</Link></li>
             <li><Link href="/lien-he" className="hover:text-white">Thông tin liên hệ</Link></li>
             <li><Link href="/chinh-sach-bao-mat" className="hover:text-white">Chính sách bảo mật</Link></li>

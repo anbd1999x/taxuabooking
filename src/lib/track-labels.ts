@@ -8,6 +8,7 @@ const STATIC_LABELS: Record<string, string> = {
   "/tra-cuu": "Tra cứu đơn",
   "/tai-khoan": "Tài khoản",
   "/lich-trinh": "Lịch trình",
+  "/ban-do": "Bản đồ check-in",
   "/kinh-nghiem": "Kinh nghiệm",
   "/huong-dan": "Hướng dẫn đặt",
   "/nha-hang": "Nhà hàng",
