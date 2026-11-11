@@ -380,6 +380,16 @@ export async function getRoomDetail(slug: string, roomId: string) {
   return room;
 }
 
+/**
+ * Homestay "không quản lý lịch" (contactOnly) có khai NGÀY HẾT PHÒNG: kỳ lưu trú trùng
+ * ít nhất 1 đêm trong danh sách → coi như hết phòng (ẩn khỏi kết quả tìm kiếm).
+ */
+export function isSoldOut(s: { contactOnly: boolean; soldOutDates: string[] }, nights: Date[]): boolean {
+  if (!s.contactOnly || s.soldOutDates.length === 0) return false;
+  const set = new Set(s.soldOutDates);
+  return nights.some((d) => set.has(toDateKey(d)));
+}
+
 export type HomestayCardStatus = "ok" | "low" | "full" | "none";
 
 /**
@@ -433,8 +443,9 @@ async function getHomestayCardsImpl(fromKey?: string | null, toKey?: string | nu
       // Kỳ vi phạm chính sách bán cuối tuần (vd chỉ ở đêm T7 khi home không bán lẻ T7)
       // → coi như không còn phòng nào cho kỳ này (trước đây vẫn hiện "còn phòng").
       const policyBlocked = !s.contactOnly && checkWeekendPolicy(s.weekendPolicy, nights) != null;
-      // Homestay "chỉ liên hệ" (không quản lý lịch) → luôn hiện còn chỗ khi tìm kiếm.
-      freeRooms = policyBlocked ? 0 : s.contactOnly ? rooms.length : rooms.filter((r) => !occupied.has(r.id)).length;
+      // Homestay "chỉ liên hệ" (không quản lý lịch) → luôn hiện còn chỗ khi tìm kiếm,
+      // TRỪ khi kỳ trùng "ngày hết phòng" admin đã khai (soldOutDates).
+      freeRooms = policyBlocked || isSoldOut(s, nights) ? 0 : s.contactOnly ? rooms.length : rooms.filter((r) => !occupied.has(r.id)).length;
       status = freeRooms === 0 ? "full" : freeRooms <= 2 ? "low" : "ok";
     }
 
@@ -507,6 +518,7 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
     const cat = /bungalow/i.test(`${s.title} ${s.area ?? ""}`) ? "Bungalow" : "Homestay";
     // Kỳ vi phạm chính sách bán cuối tuần → mọi phòng của home coi như không bán được.
     const policyBlocked = hasDates && !s.contactOnly && checkWeekendPolicy(s.weekendPolicy, nights) != null;
+    const soldOut = hasDates && isSoldOut(s, nights);
     return s.roomTypes.flatMap((rt) => {
       // Tính thông tin thô từng phòng.
       const raw = rt.rooms.map((r) => {
@@ -531,7 +543,8 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
           stayOld: stay ? stay.strikeTotal : null,
           cover: firstImageUrl(r.images) ?? firstImageUrl(rt.images) ?? (rt.imageUrl && !VIDEO_URL_RE.test(rt.imageUrl) ? rt.imageUrl : null) ?? s.images[0]?.url ?? null,
           // Homestay "chỉ liên hệ" không quản lý lịch → coi như luôn trống khi tìm kiếm.
-          free: !policyBlocked && (s.contactOnly || !occupied.has(r.id)),
+          // ...trừ khi kỳ trùng "ngày hết phòng" đã khai → ẩn khỏi kết quả.
+          free: !policyBlocked && !soldOut && (s.contactOnly || !occupied.has(r.id)),
           featured: r.featured, // phòng nổi bật → lên đầu trang tìm
         };
       });

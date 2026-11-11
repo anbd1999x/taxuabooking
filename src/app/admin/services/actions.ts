@@ -27,6 +27,11 @@ function s(v: FormDataEntryValue | null): string | undefined {
   const t = v == null ? undefined : String(v).trim();
   return t ? t : undefined;
 }
+/** Danh sách ngày yyyy-mm-dd từ input ẩn (cách nhau dấu phẩy); không có ô này trong form → undefined. */
+function dateList(v: FormDataEntryValue | null): string[] | undefined {
+  if (typeof v !== "string") return undefined;
+  return [...new Set(v.split(",").map((x) => x.trim()).filter((x) => /^d{4}-d{2}-d{2}$/.test(x)))].sort();
+}
 function num(v: FormDataEntryValue | null): number | undefined {
   const t = s(v);
   if (t == null) return undefined;
@@ -78,6 +83,7 @@ export async function createService(
     easyRoad: formData.get("easyRoad") === "on",
     pool: formData.get("pool") === "on",
     contactOnly: formData.get("contactOnly") === "on",
+    soldOutDates: dateList(formData.get("soldOutDates")),
     ownerId: s(formData.get("ownerId")),
     ctvCommission: num(formData.get("ctvCommission")),
     roomCommission: num(formData.get("roomCommission")),
@@ -116,6 +122,8 @@ export async function createService(
       easyRoad: d.easyRoad ?? false,
       pool: d.pool ?? false,
       contactOnly: d.contactOnly ?? false,
+      // Chỉ ghi khi form có gửi ô "ngày hết phòng" (form khác không gửi → giữ nguyên).
+      ...(d.soldOutDates ? { soldOutDates: d.soldOutDates } : {}),
       ownerId: d.ownerId ?? null,
       ctvCommission: d.ctvCommission ?? null,
       roomCommission: d.roomCommission ?? null,
@@ -160,6 +168,7 @@ export async function createServiceFull(
     easyRoad: formData.get("easyRoad") === "on",
     pool: formData.get("pool") === "on",
     contactOnly: formData.get("contactOnly") === "on",
+    soldOutDates: dateList(formData.get("soldOutDates")),
     ownerId: s(formData.get("ownerId")),
     ctvCommission: num(formData.get("ctvCommission")),
     roomCommission: num(formData.get("roomCommission")),
@@ -249,6 +258,8 @@ export async function createServiceFull(
       easyRoad: d.easyRoad ?? false,
       pool: d.pool ?? false,
       contactOnly: d.contactOnly ?? false,
+      // Chỉ ghi khi form có gửi ô "ngày hết phòng" (form khác không gửi → giữ nguyên).
+      ...(d.soldOutDates ? { soldOutDates: d.soldOutDates } : {}),
       ownerId: d.ownerId ?? null,
       ctvCommission: d.ctvCommission ?? null,
       roomCommission: d.roomCommission ?? null,
@@ -345,6 +356,7 @@ export async function updateService(
     easyRoad: formData.get("easyRoad") === "on",
     pool: formData.get("pool") === "on",
     contactOnly: formData.get("contactOnly") === "on",
+    soldOutDates: dateList(formData.get("soldOutDates")),
     ownerId: s(formData.get("ownerId")),
     ctvCommission: num(formData.get("ctvCommission")),
     roomCommission: num(formData.get("roomCommission")),
@@ -384,6 +396,8 @@ export async function updateService(
       easyRoad: d.easyRoad ?? false,
       pool: d.pool ?? false,
       contactOnly: d.contactOnly ?? false,
+      // Chỉ ghi khi form có gửi ô "ngày hết phòng" (form khác không gửi → giữ nguyên).
+      ...(d.soldOutDates ? { soldOutDates: d.soldOutDates } : {}),
       ownerId: d.ownerId ?? null,
       ctvCommission: d.ctvCommission ?? null,
       roomCommission: d.roomCommission ?? null,

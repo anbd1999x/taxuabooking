@@ -1308,29 +1308,37 @@ export async function syncServiceSheet(
     let reopens = 0; // số ô sheet mở lại thành Trống (xoá bản ghi cũ, không tạo mới)
     const deleteIds: string[] = [];
     const creates: { roomId: string; date: Date; status: RoomStatus; note: string }[] = [];
+    // SHEET/API LÀ NGUỒN CHUẨN: ô nào sheet có phủ thì tình trạng theo sheet — kể cả khi hệ
+    // thống đang báo kín do KHOÁ TAY của admin/chủ nhà hay bản ghi nạp cũ (trước đây các khoá
+    // này bị "đóng băng": sheet trống mà web vẫn báo kín mãi). Chỉ giữ nguyên 2 loại:
+    //  - đơn thật đã xác nhận trên web (bookingId) — gỡ là bán trùng phòng khách đã đặt;
+    //  - khoá từ lịch OTA (note "OTA#...") — nguồn ngoài khác, sheet không biết.
+    let overridden = 0; // số ô khoá tay/nạp cũ bị sheet ghi đè
+    let bookingConflicts = 0; // đêm (từ hôm nay) sheet để trống nhưng đơn web đang giữ
     for (const { room, date, status } of deduped) {
       const dk = toDateKey(date);
       const existing = existingByKey.get(`${room.id}|${dk}`);
-      // Không đụng: đơn thật (bookingId), bản ghi của nguồn khác (OTA#..., note admin)
-      // hoặc khoá thủ công admin (status != AVAILABLE, không do sheet tạo).
       const ownedBySheet = existing?.note === SHEET_TAG;
-      const isForeign =
-        existing &&
-        !ownedBySheet &&
-        (existing.bookingId != null || existing.note != null || existing.status !== "AVAILABLE");
-      if (isForeign) continue;
+      if (existing?.bookingId != null) {
+        if (status === "AVAILABLE" && date >= ref) bookingConflicts++;
+        continue;
+      }
+      if (existing?.note?.startsWith("OTA#")) continue;
 
       if (status === "AVAILABLE") {
-        // Ô trống: chỉ mở lại ngày do chính sheet đã khoá trước đó.
-        if (ownedBySheet && existing) {
+        // Sheet trống → mở lại mọi khoá không thuộc đơn thật/OTA.
+        if (existing && existing.status !== "AVAILABLE") {
           deleteIds.push(existing.id);
           reopens++;
+          if (!ownedBySheet) overridden++;
           mark(affectedTypes, room.roomTypeId, dk);
         }
       } else {
         if (existing) {
           if (ownedBySheet && existing.status === status) continue; // không đổi → bỏ qua
-          deleteIds.push(existing.id); // bản ghi SHEET cũ / bản ghi AVAILABLE tự do → thay mới
+          // Bản ghi cũ (SHEET khác trạng thái / khoá tay / bản ghi có note lạ) → thay bằng của sheet.
+          deleteIds.push(existing.id);
+          if (!ownedBySheet && existing.status !== status) overridden++;
         }
         creates.push({ roomId: room.id, date, status, note: SHEET_TAG });
         mark(affectedTypes, room.roomTypeId, dk);
@@ -1381,7 +1389,9 @@ export async function syncServiceSheet(
       const warns =
         (unmatched.size ? ` · ⚠ ${unmatched.size} dòng không khớp` : "") +
         (missing.length ? ` · ⚠ thiếu ${missing.length} phòng` : "") +
-        (unknownValues.size ? ` · ⚠ ô không nhận ra (đang khoá): ${[...unknownValues].slice(0, 5).map((v) => `"${v}"`).join(", ")}` : "");
+        (unknownValues.size ? ` · ⚠ ô không nhận ra (đang khoá): ${[...unknownValues].slice(0, 5).map((v) => `"${v}"`).join(", ")}` : "") +
+        (overridden ? ` · sheet ghi đè ${overridden} ô khoá tay` : "") +
+        (bookingConflicts ? ` · ⚠ ${bookingConflicts} đêm sheet để trống nhưng đơn web đang giữ (chủ nhà chưa ghi sheet?)` : "");
       await prisma.sheetSyncLog
         .create({ data: { serviceId, ok: true, source, summary: summary + warns, changes } })
         .catch(() => {});

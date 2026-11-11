@@ -5,6 +5,7 @@ import type { ServiceCategory } from "@prisma/client";
 import { CATEGORY_LIST, AREA_OPTIONS } from "@/lib/constants";
 import { MoneyInput } from "@/components/admin/MoneyInput";
 import { ContactPhoneField } from "@/components/admin/ContactPhoneField";
+import { SoldOutDatesField } from "@/components/admin/SoldOutDatesField";
 import type { ActionState } from "@/app/admin/services/actions";
 
 type Action = (prev: ActionState, fd: FormData) => Promise<ActionState>;
@@ -31,6 +32,7 @@ interface Initial {
   easyRoad?: boolean;
   pool?: boolean;
   contactOnly?: boolean;
+  soldOutDates?: string[];
   ownerId?: string | null;
   ctvCommission?: number | null;
   roomCommission?: number | null;
@@ -59,6 +61,7 @@ export function ServiceForm({
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   const [cat, setCat] = useState<ServiceCategory>(initial.category ?? "HOMESTAY");
+  const [contactOnly, setContactOnly] = useState(initial.contactOnly ?? false);
   // Homestay/bungalow chọn khu vực từ danh sách chuẩn; danh mục khác nhập tự do (tuyến đường...).
   const areaSelect = cat === "HOMESTAY" || cat === "BUNGALOW";
   const areaOptions =
@@ -294,7 +297,7 @@ export function ServiceForm({
           <span className="text-sm text-gray-700">🏊 Hồ bơi (lọc combo)</span>
         </label>
         <label className="flex items-center gap-2">
-          <input type="checkbox" name="contactOnly" defaultChecked={initial.contactOnly ?? false} className="accent-forest-600 h-4 w-4" />
+          <input type="checkbox" name="contactOnly" checked={contactOnly} onChange={(e) => setContactOnly(e.target.checked)} className="accent-forest-600 h-4 w-4" />
           <span className="text-sm text-gray-700">
             {cat === "CABIN"
               ? "💬 Chỉ nhắn tin — không cho đặt trước trên web, khách nhắn Zalo để giữ vé (không ghép combo)"
@@ -302,6 +305,11 @@ export function ServiceForm({
           </span>
         </label>
       </div>
+
+      {/* Homestay không quản lý lịch: khai các ngày hết phòng để ẩn khỏi kết quả tìm kiếm. */}
+      {contactOnly && (cat === "HOMESTAY" || cat === "BUNGALOW") && (
+        <SoldOutDatesField initial={initial.soldOutDates ?? []} />
+      )}
 
       <label className="block sm:max-w-sm">
         <span className="text-sm font-medium text-gray-600">Thứ tự ưu tiên khi tìm kiếm</span>

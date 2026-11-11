@@ -9,6 +9,7 @@ import { payingChildren, partyLabel, DEFAULT_CHILD_FREE_UNDER } from "./occupanc
 import type { ComboBookingInput } from "./validation";
 import { cabinAllocation, busCostPerPerson, cabinSeatTotal } from "./combo-pricing";
 import { busCommissionFor } from "./provider-commission";
+import { ensureServiceSheetFresh } from "./sheet-sync";
 import { tripsOnDate, peekTrip, materializeTrip, OPEN_SEATS, type TripView } from "./cabin-trips";
 export { cabinAllocation, busCostPerPerson } from "./combo-pricing";
 
@@ -921,6 +922,8 @@ export async function createComboBooking(
   ) {
     throw new Error("Phòng homestay không hợp lệ.");
   }
+  // Làm tươi lịch phòng từ sheet/API ngay tại server (không phụ thuộc trình duyệt gọi trước).
+  await ensureServiceSheetFresh(svc.id).catch(() => {});
   // Số khách TÍNH PHÍ ở home này (trẻ dưới ngưỡng miễn phí ở cùng, không tính). `people` dùng
   // cho mọi phép tính chỗ/giá bên dưới; trẻ miễn phí chỉ hiện trong nhãn.
   const freeUnder = svc.childFreeUnderAge ?? DEFAULT_CHILD_FREE_UNDER;

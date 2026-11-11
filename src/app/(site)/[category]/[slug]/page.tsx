@@ -119,6 +119,12 @@ export default async function ServiceDetailPage({
           select: { roomId: true, date: true },
         });
     const occByRoom = new Map<string, string[]>();
+    // Homestay "không quản lý lịch" có khai NGÀY HẾT PHÒNG → mọi phòng kín các đêm đó.
+    if (service.contactOnly && service.soldOutDates.length) {
+      const sk = toDateKey(start), ek = toDateKey(windowEnd);
+      const closed = service.soldOutDates.filter((k) => k >= sk && k <= ek);
+      if (closed.length) for (const id of roomIds) occByRoom.set(id, [...closed]);
+    }
     for (const st of statuses) {
       const arr = occByRoom.get(st.roomId) ?? [];
       arr.push(toDateKey(st.date));

@@ -1,4 +1,5 @@
 import "server-only";
+import { ensureServiceSheetFresh } from "./sheet-sync";
 import type { ServiceCategory } from "@prisma/client";
 import { prisma } from "./prisma";
 import { CATEGORIES } from "./constants";
@@ -258,6 +259,12 @@ export async function createBooking(
 
   const kind = CATEGORIES[service.category].availabilityKind;
   const qty = input.quantity;
+
+  // Làm tươi lịch từ sheet/API NGAY TẠI SERVER trước khi tính tình trạng (trước đây chỉ trình
+  // duyệt gọi, và trang homestay đặt nhiều phòng không gọi). Vừa đồng bộ <60s thì bỏ qua; lỗi không chặn đặt.
+  if (service.category === "HOMESTAY" || service.category === "BUNGALOW") {
+    await ensureServiceSheetFresh(service.id).catch(() => {});
+  }
 
   // Không nhận đặt cho ngày đã qua; giới hạn độ dài kỳ để tránh dữ liệu rác.
   if (input.useDate < toDateKey(today())) throw new Error("Ngày sử dụng đã qua — vui lòng chọn ngày khác.");
