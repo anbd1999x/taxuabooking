@@ -7,10 +7,13 @@ import { showToast } from "./Toast";
 import { savePlace, togglePlacePublished, bulkPlaces, removePlace } from "@/app/admin/places/actions";
 import type { PlaceDTO } from "@/app/admin/places/place-dto";
 
-type Kind = "RESTAURANT" | "CAFE";
+type Kind = "RESTAURANT" | "CAFE" | "CHECKIN";
+const KINDS: Kind[] = ["RESTAURANT", "CAFE", "CHECKIN"];
 
-const KIND_SLUG: Record<Kind, string> = { RESTAURANT: "nha-hang", CAFE: "cafe" };
-const KIND_NAME: Record<Kind, string> = { RESTAURANT: "Nhà hàng", CAFE: "Cafe" };
+const KIND_SLUG: Record<Kind, string> = { RESTAURANT: "nha-hang", CAFE: "cafe", CHECKIN: "lich-trinh" };
+const KIND_NAME: Record<Kind, string> = { RESTAURANT: "Nhà hàng", CAFE: "Cafe", CHECKIN: "Điểm check-in" };
+/** Link xem trên web: điểm check-in không có trang chi tiết riêng → về /lich-trinh. */
+const webHref = (kind: string, slug: string) => (kind === "CHECKIN" ? "/lich-trinh" : `/${KIND_SLUG[kind as Kind] ?? "nha-hang"}/${slug}`);
 
 const AREA_DEFAULTS = ["Trung tâm", "Đỉnh Gió", "Khe Cải", "Sống lưng khủng long", "Mống Vàng", "Thảo nguyên", "Làng Chếu"];
 const TAG_SUGGEST = ["Gợi ý", "Đặc sản Tây Bắc", "Nhóm đông", "Lẩu nướng", "Cơm suất", "View săn mây", "Có đồ ăn", "Mở sớm", "Mở khuya", "Ngoài trời", "Có homestay"];
@@ -40,6 +43,7 @@ interface FormState {
   address: string;
   mapUrl: string;
   short: string;
+  tip: string;
   content: string;
   tags: string[];
   coverImage: string;
@@ -58,7 +62,7 @@ function toForm(p: PlaceDTO): FormState {
   const [open, close] = parseHours(p.hours);
   return {
     id: p.id,
-    kind: (p.kind === "CAFE" ? "CAFE" : "RESTAURANT") as Kind,
+    kind: (KINDS.includes(p.kind as Kind) ? p.kind : "RESTAURANT") as Kind,
     name: p.name,
     slug: p.slug,
     area: p.area || AREA_DEFAULTS[0],
@@ -73,6 +77,7 @@ function toForm(p: PlaceDTO): FormState {
     address: p.address,
     mapUrl: p.mapUrl,
     short: p.desc,
+    tip: p.tip,
     content: p.content,
     tags: [...p.tags],
     coverImage: p.coverImage,
@@ -85,7 +90,7 @@ function blankForm(kind: Kind, order: number): FormState {
   return {
     id: null, kind, name: "", slug: "", area: AREA_DEFAULTS[0], price: "", order,
     open: "", close: "", hoursWeekend: "", booking: "no", phone: "", zalo: "", address: "", mapUrl: "",
-    short: "", content: "", tags: [], coverImage: "", images: [], published: false,
+    short: "", tip: "", content: "", tags: [], coverImage: "", images: [], published: false,
   };
 }
 
@@ -215,6 +220,7 @@ export function PlacesManager({ initialPlaces, areas: areaProp }: { initialPlace
       address: form.address,
       mapUrl: form.mapUrl,
       desc: form.short,
+      tip: form.tip,
       content: form.content,
       tags: form.tags,
       coverImage: form.coverImage,
@@ -268,7 +274,7 @@ export function PlacesManager({ initialPlaces, areas: areaProp }: { initialPlace
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex gap-1 rounded-xl bg-gray-100 p-1">
-            {(["RESTAURANT", "CAFE"] as Kind[]).map((k) => (
+            {KINDS.map((k) => (
               <button
                 key={k}
                 onClick={() => pickKind(k)}
@@ -356,7 +362,7 @@ export function PlacesManager({ initialPlaces, areas: areaProp }: { initialPlace
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={r.coverImage} alt="" className="h-full w-full object-cover" />
                 ) : (
-                  <div className="flex h-full items-center justify-center text-lg">{r.kind === "CAFE" ? "☕" : "🍲"}</div>
+                  <div className="flex h-full items-center justify-center text-lg">{r.kind === "CAFE" ? "☕" : r.kind === "CHECKIN" ? "📍" : "🍲"}</div>
                 )}
               </div>
               <button onClick={() => openEdit(r)} className="min-w-0 text-left">
@@ -380,7 +386,7 @@ export function PlacesManager({ initialPlaces, areas: areaProp }: { initialPlace
 
               <div className="flex justify-end gap-1.5">
                 <button onClick={() => openEdit(r)} className="rounded-full bg-forest-800 px-3 py-1.5 text-[13px] font-bold text-white hover:bg-forest-700">Sửa</button>
-                <Link href={`/${KIND_SLUG[r.kind as Kind]}/${r.slug}`} target="_blank" title="Xem trên web" className="rounded-full border border-gray-200 px-2.5 py-1.5 text-[13px] font-bold text-gray-600 hover:bg-gray-50">↗</Link>
+                <Link href={webHref(r.kind, r.slug)} target="_blank" title="Xem trên web" className="rounded-full border border-gray-200 px-2.5 py-1.5 text-[13px] font-bold text-gray-600 hover:bg-gray-50">↗</Link>
               </div>
             </div>
           );
@@ -498,7 +504,7 @@ function Editor({
             <div className="truncate text-[17px] font-extrabold tracking-[-0.01em] text-ink">{form.name || "Quán chưa đặt tên"}</div>
           </div>
           {!isNew && form.slug && (
-            <Link href={`/${kindSlug}/${form.slug}`} target="_blank" className="whitespace-nowrap rounded-full border border-gray-200 px-3 py-2 text-[13px] font-bold text-gray-600 hover:bg-gray-50">Xem ↗</Link>
+            <Link href={webHref(form.kind, form.slug)} target="_blank" className="whitespace-nowrap rounded-full border border-gray-200 px-3 py-2 text-[13px] font-bold text-gray-600 hover:bg-gray-50">Xem ↗</Link>
           )}
         </div>
 
@@ -527,6 +533,7 @@ function Editor({
                 <select value={form.kind} onChange={(e) => patch({ kind: e.target.value as Kind })} className={INPUT}>
                   <option value="RESTAURANT">Nhà hàng</option>
                   <option value="CAFE">Cafe</option>
+                  <option value="CHECKIN">Điểm check-in</option>
                 </select>
               </label>
               <label className={FIELD_LABEL}>Khu vực *
@@ -549,6 +556,9 @@ function Editor({
               </label>
               <label className={`${FIELD_LABEL} sm:col-span-2`}>Mô tả ngắn <span className="font-medium text-gray-400">· hiện ở thẻ quán và Google ({form.short.length}/160)</span>
                 <textarea value={form.short} onChange={(e) => patch({ short: e.target.value })} rows={2} placeholder="Một câu: điểm đặc biệt + nên tới lúc nào." className={`${INPUT} resize-y leading-relaxed`} />
+              </label>
+              <label className={`${FIELD_LABEL} sm:col-span-2`}>Mẹo cho khách <span className="font-medium text-gray-400">· hiện ở thẻ trên trang Lịch trình</span>
+                <input value={form.tip} onChange={(e) => patch({ tip: e.target.value })} maxLength={200} placeholder="VD: Tới trước 6h để có ảnh vắng người." className={INPUT} />
               </label>
               <div className="flex flex-col gap-1.5 sm:col-span-2">
                 <div className="text-xs font-bold text-gray-500">Đặc điểm</div>

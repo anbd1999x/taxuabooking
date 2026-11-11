@@ -22,13 +22,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       select: { id: true, updatedAt: true, roomType: { select: { service: { select: { slug: true, category: true } } } } },
     }),
     prisma.place.findMany({
-      where: { published: true, slug: { not: null } },
+      where: { published: true, slug: { not: null }, kind: { in: ["RESTAURANT", "CAFE"] } },
       select: { slug: true, kind: true, updatedAt: true },
     }),
   ]);
 
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: `${base}/`, changeFrequency: "daily", priority: 1 },
+    { url: `${base}/lich-trinh`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${base}/kinh-nghiem`, changeFrequency: "weekly", priority: 0.6 },
     { url: `${base}/huong-dan`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/nha-hang`, changeFrequency: "weekly", priority: 0.6 },

@@ -579,7 +579,7 @@ model Article {
 /// Địa điểm ăn uống (nhà hàng / cafe) hiển thị ở trang /nha-hang và /cafe.
 model Place {
   id         String   @id @default(cuid())
-  kind       String // "RESTAURANT" | "CAFE"
+  kind       String // "RESTAURANT" | "CAFE" | "CHECKIN" (điểm check-in, hiện ở /lich-trinh)
   slug       String?  @unique // đường dẫn trang chi tiết (/nha-hang/<slug>)
   name       String
   area       String // khu vực (Trung tâm, Đỉnh Gió, Khe Cải...)
@@ -592,6 +592,7 @@ model Place {
   booking    String? // nhận đặt bàn: "no" | "call" | "group"
   tags       String? // đặc điểm, phân tách bằng dấu phẩy
   desc       String? // mô tả ngắn (tự biên soạn)
+  tip        String? // mẹo ngắn cho khách (hiện ở thẻ trên trang /lich-trinh)
   content    String? // mô tả chi tiết (markdown) cho trang chi tiết
   coverImage String? // ảnh bìa
   images     String? // các ảnh khác, phân tách bằng "|"

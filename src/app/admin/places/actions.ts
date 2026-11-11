@@ -29,6 +29,7 @@ function slugify(t: string): string {
 function revalidate(slug?: string) {
   revalidatePath("/nha-hang");
   revalidatePath("/cafe");
+  revalidatePath("/lich-trinh");
   revalidatePath("/admin/places");
   if (slug) {
     revalidatePath(`/nha-hang/${slug}`);
@@ -40,7 +41,7 @@ function revalidate(slug?: string) {
 export async function savePlace(input: PlaceInput): Promise<ActionState & { place?: PlaceDTO }> {
   await requireAdmin();
   const name = clean(input.name);
-  const kind = input.kind === "CAFE" ? "CAFE" : input.kind === "RESTAURANT" ? "RESTAURANT" : "";
+  const kind = input.kind === "CAFE" || input.kind === "RESTAURANT" || input.kind === "CHECKIN" ? input.kind : "";
   const area = clean(input.area);
   if (!name) return { error: "Nhập tên quán trước khi lưu." };
   if (!kind) return { error: "Loại quán không hợp lệ." };
@@ -75,6 +76,7 @@ export async function savePlace(input: PlaceInput): Promise<ActionState & { plac
     booking: clean(input.booking) || null,
     tags: tags.length ? tags.join(", ") : null,
     desc: desc || null,
+    tip: clean(input.tip).slice(0, 200) || null,
     content: clean(input.content) || null,
     coverImage: clean(input.coverImage) || null,
     images: images.length ? images.join("|") : null,

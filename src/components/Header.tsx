@@ -11,6 +11,7 @@ export function Header({ customerName = null }: { customerName?: string | null }
   const firstName = customerName ? customerName.trim().split(/\s+/).slice(-1)[0] : "";
 
   const GUIDE_LINKS = [
+    { href: "/lich-trinh", label: "Lịch trình Tà Xùa" },
     { href: "/kinh-nghiem", label: "Kinh nghiệm Tà Xùa" },
     { href: "/nha-hang", label: "Nhà hàng Tà Xùa" },
     { href: "/cafe", label: "Cafe Tà Xùa" },

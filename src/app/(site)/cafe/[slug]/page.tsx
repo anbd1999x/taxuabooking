@@ -27,6 +27,7 @@ export default async function CafeDetailPage({ params }: { params: Promise<{ slu
   const { slug } = await params;
   const place = await getPlace(slug);
   if (!place) notFound();
+  if (place.kind === "CHECKIN") redirect("/lich-trinh");
   if (place.kind !== "CAFE") redirect(`/nha-hang/${place.slug}`);
   return <PlaceDetail place={place} basePath="/cafe" />;
 }

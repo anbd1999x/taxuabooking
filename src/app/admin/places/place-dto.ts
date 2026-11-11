@@ -4,7 +4,7 @@
 /** Dữ liệu một quán gửi lên từ form sửa (slide-over). */
 export interface PlaceInput {
   id?: string;
-  kind: string; // "RESTAURANT" | "CAFE"
+  kind: string; // "RESTAURANT" | "CAFE" | "CHECKIN"
   name: string;
   slug?: string;
   area: string;
@@ -18,6 +18,7 @@ export interface PlaceInput {
   booking?: string; // "no" | "call" | "group"
   tags?: string[];
   desc?: string;
+  tip?: string;
   content?: string;
   coverImage?: string;
   images?: string[];
@@ -42,6 +43,7 @@ export interface PlaceDTO {
   booking: string;
   tags: string[];
   desc: string;
+  tip: string;
   content: string;
   coverImage: string;
   images: string[];
@@ -55,7 +57,7 @@ export function toDTO(p: {
   id: string; kind: string; slug: string | null; name: string; area: string;
   address: string | null; phone: string | null; zalo: string | null; price: string | null;
   hours: string | null; hoursWeekend: string | null; booking: string | null; tags: string | null;
-  desc: string | null; content: string | null; coverImage: string | null; images: string | null;
+  desc: string | null; tip: string | null; content: string | null; coverImage: string | null; images: string | null;
   mapUrl: string | null; sortOrder: number; published: boolean; updatedAt: Date;
 }): PlaceDTO {
   return {
@@ -73,6 +75,7 @@ export function toDTO(p: {
     booking: p.booking ?? "",
     tags: (p.tags ?? "").split(",").map((t) => t.trim()).filter(Boolean),
     desc: p.desc ?? "",
+    tip: p.tip ?? "",
     content: p.content ?? "",
     coverImage: p.coverImage ?? "",
     images: (p.images ?? "").split("|").map((s) => s.trim()).filter(Boolean),

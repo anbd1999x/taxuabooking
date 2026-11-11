@@ -27,6 +27,7 @@ export default async function NhaHangDetailPage({ params }: { params: Promise<{ 
   const { slug } = await params;
   const place = await getPlace(slug);
   if (!place) notFound();
+  if (place.kind === "CHECKIN") redirect("/lich-trinh");
   if (place.kind !== "RESTAURANT") redirect(`/cafe/${place.slug}`);
   return <PlaceDetail place={place} basePath="/nha-hang" />;
 }
