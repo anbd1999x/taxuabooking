@@ -3,12 +3,13 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MAP_EDGES, MAP_NODES, mapRoute, type NodeKey } from "@/lib/checkin-map";
+import { MAP_EDGES, mapRoute, mapRouteVia, type NodeKey } from "@/lib/checkin-map";
 import { cn } from "@/lib/utils";
 
 export interface MapSpot {
   id: string; // id Place, hoặc "tt"/"by" cho 2 mốc cố định
-  node: NodeKey | null; // vị trí trên bản đồ hoạt hình (null = chỉ có ở danh sách / vệ tinh)
+  pos: [number, number] | null; // vị trí trên bản đồ hoạt hình (null = chỉ có ở danh sách / vệ tinh)
+  node: NodeKey | null; // nút đường gần nhất
   name: string;
   km: number | null; // khoảng cách đường xe máy từ trung tâm
   sub: string;
@@ -24,7 +25,7 @@ export interface MapPlan {
   id: string;
   name: string;
   sub: string;
-  days: { title: string; stops: { time: string; name: string; note: string; node: NodeKey; spotId: string; checkin: boolean }[] }[];
+  days: { title: string; stops: { time: string; name: string; note: string; node: NodeKey; pos: [number, number]; spotId: string; checkin: boolean }[] }[];
 }
 
 const G = "oklch(0.29 0.055 160)";
@@ -108,7 +109,7 @@ export function CheckinMap({ spots, plans, initialPlan }: { spots: MapSpot[]; pl
       }
       dayKm.push(km);
       totalKm += km;
-      const pts = mapRoute(d.stops.map((s) => s.node));
+      const pts = mapRouteVia(d.stops);
       routes.push({ pts: poly(pts), c, on });
       if (on && !carPts && pts.length > 1) carPts = pts;
     });
@@ -184,8 +185,8 @@ export function CheckinMap({ spots, plans, initialPlan }: { spots: MapSpot[]; pl
   const pickPlan = (k: string) => { setPlanId(k); setDay(0); setSel(null); };
   const stand = { position: "absolute" as const, left: 0, top: 0, transformOrigin: "0 0", transform: `rotateZ(${-rot}deg) rotateX(${-tilt}deg)`, transformStyle: "preserve-3d" as const };
 
-  const pins = spots.filter((s) => s.node).map((s, i) => {
-    const [x, y] = MAP_NODES[s.node!];
+  const pins = spots.filter((s) => s.pos).map((s, i) => {
+    const [x, y] = s.pos!;
     const isC = s.id === "tt";
     const c = isC ? G : (inPlan.get(s.id) ?? "oklch(0.45 0.08 160)");
     const num = P ? order.get(s.id) : undefined;

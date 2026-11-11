@@ -42,7 +42,7 @@ const durOf = (f: SceneStop | undefined) => (f && f.mode === "spot" ? 7.5 : 6.5)
 export function ItineraryScene({
   flat, cur, playing, compact, onAdvance, onPrev, onNext, onToggle, onJump,
 }: {
-  /** Điện thoại: thu thấp khung phim khi đang neo dưới thanh menu. */
+  /** Đang neo dưới thanh menu: thu thấp khung phim (điện thoại & desktop), điện thoại thu gọn cả thẻ thông tin. */
   compact?: boolean;
   flat: SceneStop[];
   cur: number;
@@ -214,7 +214,7 @@ export function ItineraryScene({
   const playTitle = playing ? "Tạm dừng" : "Chạy tiếp";
 
   return (
-    <div ref={sceneRef} id="lt-scene" className={(compact ? "h-[168px]" : "h-[260px]") + " transition-[height] duration-300 sm:h-[300px] lg:h-[340px]"} style={{ position: "relative", borderRadius: "24px", overflow: "hidden", isolation: "isolate", background: "linear-gradient(180deg, oklch(0.76 0.09 232), oklch(0.89 0.05 215) 62%, oklch(0.93 0.04 190))" }}>
+    <div ref={sceneRef} id="lt-scene" className={(compact ? "lt-compact h-[150px] sm:h-[300px] lg:h-[220px]" : "h-[260px] sm:h-[300px] lg:h-[340px]") + " transition-[height] duration-300"} style={{ position: "relative", borderRadius: "24px", overflow: "hidden", isolation: "isolate", background: "linear-gradient(180deg, oklch(0.76 0.09 232), oklch(0.89 0.05 215) 62%, oklch(0.93 0.04 190))" }}>
       <div style={{ position: "absolute", inset: "0", background: "linear-gradient(180deg, oklch(0.6 0.12 25), oklch(0.8 0.13 55) 55%, oklch(0.9 0.08 85))", opacity: `${sc.dawnOp}`, transition: "opacity 1.2s" }}></div>
       <div style={{ position: "absolute", inset: "0", background: "linear-gradient(180deg, oklch(0.2 0.05 265), oklch(0.34 0.06 250))", opacity: `${sc.nightOp}`, transition: "opacity 1.2s" }}>
         {STARS.map((st, i) => (
@@ -361,12 +361,12 @@ export function ItineraryScene({
       <div ref={flashRef} style={{ position: "absolute", inset: "0", background: "white", opacity: "0", pointerEvents: "none" }}></div>
       <div ref={dayRef} style={{ position: "absolute", left: "50%", top: "42%", transform: "translate(-50%,-50%)", fontSize: "clamp(28px,5vw,44px)", fontWeight: "800", letterSpacing: "-.02em", color: "white", padding: "10px 26px", borderRadius: "999px", background: "oklch(0.25 0.05 160 / .75)", opacity: "0", pointerEvents: "none", whiteSpace: "nowrap" }}>{sc.dayLabel}</div>
 
-      <div style={{ position: "absolute", left: "14px", top: "14px", maxWidth: "min(380px,calc(100% - 150px))", padding: "10px 14px", borderRadius: "16px", background: "oklch(1 0 0 / .94)", boxShadow: "0 8px 20px -10px oklch(0.2 0.04 160 / .4)", display: "flex", flexDirection: "column", gap: "3px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}><span style={{ fontSize: "11px", fontWeight: "800", padding: "2px 8px", borderRadius: "999px", background: `${sc.dayC}`, color: "white", whiteSpace: "nowrap" }}>{sc.dayLabel} · {sc.time}</span><span style={{ fontSize: "11px", fontWeight: "800", padding: "2px 8px", borderRadius: "999px", background: `${sc.tBg}`, color: `${sc.tFg}`, whiteSpace: "nowrap" }}>{sc.type}</span></div>
-        <div style={{ fontSize: "16px", fontWeight: "800", lineHeight: "1.3" }}>{sc.name}</div>
+      <div data-lt-card="1" style={{ position: "absolute", left: "14px", top: "14px", maxWidth: "min(380px,calc(100% - 150px))", padding: "10px 14px", borderRadius: "16px", background: "oklch(1 0 0 / .94)", boxShadow: "0 8px 20px -10px oklch(0.2 0.04 160 / .4)", display: "flex", flexDirection: "column", gap: "3px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}><span style={{ fontSize: "11px", fontWeight: "800", padding: "2px 8px", borderRadius: "999px", background: `${sc.dayC}`, color: "white", whiteSpace: "nowrap" }}>{sc.dayLabel} · {sc.time}</span><span data-lt-type="1" style={{ fontSize: "11px", fontWeight: "800", padding: "2px 8px", borderRadius: "999px", background: `${sc.tBg}`, color: `${sc.tFg}`, whiteSpace: "nowrap" }}>{sc.type}</span></div>
+        <div data-lt-name="1" style={{ fontSize: "16px", fontWeight: "800", lineHeight: "1.3" }}>{sc.name}</div>
         <div className="hidden sm:block" style={{ fontSize: "13px", lineHeight: "1.45", color: "oklch(0.42 0.02 160)" }}>{sc.note}</div>
       </div>
-      <div style={{ position: "absolute", right: "14px", top: "14px", display: "flex", gap: "6px" }}>
+      <div data-lt-ctrl="1" style={{ position: "absolute", right: "14px", top: "14px", display: "flex", gap: "6px" }}>
         <button type="button" onClick={prevStop} title="Cảnh trước" aria-label="Cảnh trước" style={{ cursor: "pointer", width: "38px", height: "38px", borderRadius: "50%", background: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", fontWeight: "800", boxShadow: "0 4px 12px -4px oklch(0.2 0.04 150 / .35)" }}>‹</button>
         <button type="button" onClick={togglePlay} title={playTitle} aria-label={playTitle} style={{ cursor: "pointer", width: "38px", height: "38px", borderRadius: "50%", background: "oklch(0.68 0.18 45)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "800", boxShadow: "0 4px 12px -4px oklch(0.2 0.04 150 / .35)" }}>{playIcon}</button>
         <button type="button" onClick={nextStop} title="Cảnh sau" aria-label="Cảnh sau" style={{ cursor: "pointer", width: "38px", height: "38px", borderRadius: "50%", background: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", fontWeight: "800", boxShadow: "0 4px 12px -4px oklch(0.2 0.04 150 / .35)" }}>›</button>

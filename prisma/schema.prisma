@@ -597,6 +597,8 @@ model Place {
   coverImage String? // ảnh bìa
   images     String? // các ảnh khác, phân tách bằng "|"
   mapUrl     String? // link Google Maps
+  mapX       Float? // vị trí trên bản đồ hoạt hình /ban-do (0–100, tương đối; null = theo mặc định của slug)
+  mapY       Float?
   sortOrder  Int      @default(0)
   published  Boolean  @default(true)
   createdAt  DateTime @default(now())

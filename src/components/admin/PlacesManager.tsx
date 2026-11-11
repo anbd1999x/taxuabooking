@@ -7,6 +7,8 @@ import { showToast } from "./Toast";
 import { savePlace, togglePlacePublished, bulkPlaces, removePlace } from "@/app/admin/places/actions";
 import type { PlaceDTO } from "@/app/admin/places/place-dto";
 import { isVideoUrl } from "@/lib/utils";
+import { spotPos } from "@/lib/checkin-map";
+import { CheckinMapPicker } from "./CheckinMapPicker";
 
 type Kind = "RESTAURANT" | "CAFE" | "CHECKIN";
 const KINDS: Kind[] = ["RESTAURANT", "CAFE", "CHECKIN"];
@@ -24,7 +26,7 @@ const BOOKING_OPTS: { v: string; label: string }[] = [
   { v: "group", label: "Chỉ nhóm từ 6 người" },
 ];
 
-type TabKey = "info" | "hours" | "photos" | "desc";
+type TabKey = "info" | "hours" | "photos" | "desc" | "map";
 
 /** Trạng thái form trong slide-over (phẳng, dễ set từng ô). */
 interface FormState {
@@ -49,6 +51,7 @@ interface FormState {
   tags: string[];
   coverImage: string;
   images: string[];
+  mapPos: [number, number] | null; // vị trí tự khai trên bản đồ check-in (null = mặc định theo slug)
   published: boolean;
 }
 
@@ -83,6 +86,7 @@ function toForm(p: PlaceDTO): FormState {
     tags: [...p.tags],
     coverImage: p.coverImage,
     images: [...p.images],
+    mapPos: p.mapX != null && p.mapY != null ? [p.mapX, p.mapY] : null,
     published: p.published,
   };
 }
@@ -91,7 +95,7 @@ function blankForm(kind: Kind, order: number): FormState {
   return {
     id: null, kind, name: "", slug: "", area: AREA_DEFAULTS[0], price: "", order,
     open: "", close: "", hoursWeekend: "", booking: "no", phone: "", zalo: "", address: "", mapUrl: "",
-    short: "", tip: "", content: "", tags: [], coverImage: "", images: [], published: false,
+    short: "", tip: "", content: "", tags: [], coverImage: "", images: [], mapPos: null, published: false,
   };
 }
 
@@ -226,6 +230,8 @@ export function PlacesManager({ initialPlaces, areas: areaProp }: { initialPlace
       tags: form.tags,
       coverImage: form.coverImage,
       images: form.images,
+      mapX: form.mapPos ? form.mapPos[0] : null,
+      mapY: form.mapPos ? form.mapPos[1] : null,
       sortOrder: Number(form.order) || 0,
       published: form.published,
     });
@@ -258,8 +264,8 @@ export function PlacesManager({ initialPlaces, areas: areaProp }: { initialPlace
 
   const isNew = form ? form.id === null : false;
   const tabWarn: Record<TabKey, boolean> = form
-    ? { info: !form.name || !form.short, hours: !form.open || !form.close, photos: !form.coverImage, desc: false }
-    : { info: false, hours: false, photos: false, desc: false };
+    ? { info: !form.name || !form.short, hours: !form.open || !form.close, photos: !form.coverImage, desc: false, map: !(form.mapPos ?? spotPos(form.slug, null, null)) }
+    : { info: false, hours: false, photos: false, desc: false, map: false };
 
   return (
     <div className="max-w-[1240px]">
@@ -400,6 +406,7 @@ export function PlacesManager({ initialPlaces, areas: areaProp }: { initialPlace
       {form && (
         <Editor
           form={form}
+          others={items.filter((x) => x.kind === "CHECKIN" && x.id !== form.id).flatMap((x) => { const pos = spotPos(x.slug, x.mapX, x.mapY); return pos ? [{ name: x.name, pos }] : []; })}
           patch={patch}
           areaList={areaList}
           tab={tab}
@@ -435,9 +442,10 @@ function descToBlocks(desc: string) {
 }
 
 function Editor({
-  form, patch, areaList, tab, setTab, tabWarn, descMode, setDescMode, isNew, err, pending, onClose, onSave, onDelete,
+  form, others, patch, areaList, tab, setTab, tabWarn, descMode, setDescMode, isNew, err, pending, onClose, onSave, onDelete,
 }: {
   form: FormState;
+  others: { name: string; pos: [number, number] }[];
   patch: (p: Partial<FormState>) => void;
   areaList: string[];
   tab: TabKey;
@@ -488,6 +496,7 @@ function Editor({
     { k: "hours", name: "Giờ & liên hệ" },
     { k: "photos", name: form.kind === "CHECKIN" ? "Ảnh & video" : "Ảnh" },
     { k: "desc", name: "Mô tả chi tiết" },
+    ...(form.kind === "CHECKIN" ? [{ k: "map" as TabKey, name: "Bản đồ" }] : []),
   ];
   const tagOpts = Array.from(new Set([...TAG_SUGGEST, ...form.tags]));
   const hoursPreview = form.open && form.close
@@ -677,6 +686,10 @@ function Editor({
                 )}
               </div>
             </div>
+          )}
+
+          {tab === "map" && form.kind === "CHECKIN" && (
+            <CheckinMapPicker name={form.name} value={form.mapPos} fallback={spotPos(form.slug, null, null)} others={others} onChange={(v) => patch({ mapPos: v })} />
           )}
 
           {tab === "desc" && (

@@ -30,6 +30,7 @@ function revalidate(slug?: string) {
   revalidatePath("/nha-hang");
   revalidatePath("/cafe");
   revalidatePath("/lich-trinh");
+  revalidatePath("/ban-do");
   revalidatePath("/admin/places");
   if (slug) {
     revalidatePath(`/nha-hang/${slug}`);
@@ -62,6 +63,12 @@ export async function savePlace(input: PlaceInput): Promise<ActionState & { plac
   const tags = (input.tags ?? []).map((t) => t.trim()).filter(Boolean);
   const images = (input.images ?? []).map((u) => u.trim()).filter(Boolean);
 
+  // Vị trí trên bản đồ hoạt hình: chỉ điểm check-in, cần đủ cả X và Y trong 0–100.
+  const inRange = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 100;
+  const mapPos = kind === "CHECKIN" && inRange(input.mapX) && inRange(input.mapY)
+    ? { mapX: Math.round(input.mapX * 10) / 10, mapY: Math.round(input.mapY * 10) / 10 }
+    : { mapX: null, mapY: null };
+
   const data = {
     name,
     kind,
@@ -81,6 +88,7 @@ export async function savePlace(input: PlaceInput): Promise<ActionState & { plac
     coverImage: clean(input.coverImage) || null,
     images: images.length ? images.join("|") : null,
     mapUrl: clean(input.mapUrl) || null,
+    ...mapPos,
     sortOrder: Number(input.sortOrder) || 0,
     published: !!input.published,
   };

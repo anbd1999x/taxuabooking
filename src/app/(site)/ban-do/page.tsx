@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { loadItinerary } from "@/lib/itinerary-store";
-import { SLUG_NODE, type NodeKey } from "@/lib/checkin-map";
+import { MAP_NODES, nearestNode, spotPos, type NodeKey } from "@/lib/checkin-map";
 import { isVideoUrl } from "@/lib/utils";
 import { CheckinMap, type MapSpot, type MapPlan } from "@/components/itinerary/CheckinMap";
 
@@ -27,22 +27,24 @@ export default async function CheckinMapPage({ searchParams }: { searchParams: P
   const rows = await prisma.place.findMany({
     where: { published: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    select: { id: true, kind: true, slug: true, name: true, area: true, address: true, hours: true, tags: true, desc: true, tip: true, coverImage: true, images: true, mapUrl: true },
+    select: { id: true, kind: true, slug: true, name: true, area: true, address: true, hours: true, tags: true, desc: true, tip: true, coverImage: true, images: true, mapUrl: true, mapX: true, mapY: true },
   });
   const { config } = await loadItinerary(rows);
 
   const fixed: MapSpot[] = [
-    { id: "tt", node: "tt", name: "Trung tâm Tà Xùa", km: 0, sub: "Chợ & UBND xã · mốc 0", desc: "Khu chợ, homestay, quán ăn. Điểm xuất phát của mọi cung đường.", tip: "Đổ xăng và ăn sáng ở đây trước khi đi xa.", best: "", image: null, mapUrl: "https://maps.google.com/?q=" + encodeURIComponent("Xã Tà Xùa, Bắc Yên, Sơn La"), satQuery: "Xã Tà Xùa, Bắc Yên, Sơn La" },
-    { id: "by", node: "by", name: "Thị trấn Bắc Yên", km: 15, sub: "Cửa ngõ · bến xe cabin", desc: "Nơi xe cabin dừng, từ đây lên Tà Xùa theo đèo quanh co.", tip: "Dừng ngắm toàn cảnh đèo ở các khúc cua.", best: "", image: null, mapUrl: "https://maps.google.com/?q=" + encodeURIComponent("Thị trấn Bắc Yên, Sơn La"), satQuery: "Thị trấn Bắc Yên, Sơn La" },
+    { id: "tt", pos: MAP_NODES.tt, node: "tt", name: "Trung tâm Tà Xùa", km: 0, sub: "Chợ & UBND xã · mốc 0", desc: "Khu chợ, homestay, quán ăn. Điểm xuất phát của mọi cung đường.", tip: "Đổ xăng và ăn sáng ở đây trước khi đi xa.", best: "", image: null, mapUrl: "https://maps.google.com/?q=" + encodeURIComponent("Xã Tà Xùa, Bắc Yên, Sơn La"), satQuery: "Xã Tà Xùa, Bắc Yên, Sơn La" },
+    { id: "by", pos: MAP_NODES.by, node: "by", name: "Thị trấn Bắc Yên", km: 15, sub: "Cửa ngõ · bến xe cabin", desc: "Nơi xe cabin dừng, từ đây lên Tà Xùa theo đèo quanh co.", tip: "Dừng ngắm toàn cảnh đèo ở các khúc cua.", best: "", image: null, mapUrl: "https://maps.google.com/?q=" + encodeURIComponent("Thị trấn Bắc Yên, Sơn La"), satQuery: "Thị trấn Bắc Yên, Sơn La" },
   ];
   const checkins: MapSpot[] = rows
     .filter((p) => p.kind === "CHECKIN")
     .map((p) => {
       const image = [p.coverImage, ...(p.images ?? "").split("|")].map((u) => (u ?? "").trim()).find((u) => u && !isVideoUrl(u)) ?? null;
       const q = `${p.name}, Tà Xùa, Bắc Yên, Sơn La`;
+      const pos = spotPos(p.slug, p.mapX, p.mapY);
       return {
         id: p.id,
-        node: (p.slug && SLUG_NODE[p.slug]) || null,
+        pos,
+        node: pos ? nearestNode(pos) : null,
         name: p.name,
         km: parseKm(p.address),
         sub: (p.tags ?? "").split(",").map((t) => t.trim()).filter((t) => t && !/^gợi ý$/i.test(t)).slice(0, 2).join(" · ") || p.area,
@@ -83,6 +85,7 @@ export default async function CheckinMapPage({ searchParams }: { searchParams: P
                 name: (s.placeId && nameOf.get(s.placeId)) || s.name,
                 note: s.note,
                 node,
+                pos: spot?.pos ?? MAP_NODES[node],
                 spotId: spot ? spot.id : edge ? "by" : "tt",
                 checkin: !!spot,
               };

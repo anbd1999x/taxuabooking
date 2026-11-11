@@ -52,6 +52,38 @@ export const MAP_EDGES: { a: NodeKey; b: NodeKey; pts: [number, number][]; rough
   { a: "bb", b: "ld", pts: [[76, 35], [80, 31], [87, 25]] },
 ];
 
+type Pt = [number, number];
+
+/** Vị trí một điểm check-in: toạ độ admin khai (mapX/mapY) ⇒ ưu tiên; không có thì theo slug; null = chưa có. */
+export function spotPos(slug: string | null | undefined, mapX: number | null | undefined, mapY: number | null | undefined): Pt | null {
+  if (typeof mapX === "number" && typeof mapY === "number") return [mapX, mapY];
+  const node = slug ? SLUG_NODE[slug] : undefined;
+  return node ? MAP_NODES[node] : null;
+}
+
+/** Nút đường gần một vị trí nhất (điểm tự khai toạ độ nối vào mạng đường qua nút này). */
+export function nearestNode(pos: Pt): NodeKey {
+  let best: NodeKey = "tt";
+  let bd = Infinity;
+  for (const k of Object.keys(MAP_NODES) as NodeKey[]) {
+    const d = Math.hypot(MAP_NODES[k][0] - pos[0], MAP_NODES[k][1] - pos[1]);
+    if (d < bd) { bd = d; best = k; }
+  }
+  return best;
+}
+
+/** Cung đường qua các điểm dừng: đi theo mạng đường giữa các nút, nối đoạn thẳng từ nút tới vị trí thật của điểm. */
+export function mapRouteVia(stops: { node: NodeKey; pos: Pt }[]): Pt[] {
+  const out: Pt[] = [];
+  const push = (p: Pt) => { const l = out[out.length - 1]; if (!l || l[0] !== p[0] || l[1] !== p[1]) out.push(p); };
+  for (let i = 0; i < stops.length; i++) {
+    if (i > 0) for (const p of mapPath(stops[i - 1].node, stops[i].node)) push(p);
+    if (i > 0 && stops[i - 1].node === stops[i].node) push(MAP_NODES[stops[i].node]);
+    push(stops[i].pos);
+  }
+  return out;
+}
+
 /** Đường đi ngắn nhất (theo số đoạn) giữa 2 nút, trả về chuỗi điểm. */
 export function mapPath(a: NodeKey, b: NodeKey): [number, number][] {
   if (a === b) return [];

@@ -23,6 +23,8 @@ export interface PlaceInput {
   coverImage?: string;
   images?: string[];
   mapUrl?: string;
+  mapX?: number | null; // vị trí trên bản đồ hoạt hình (0–100)
+  mapY?: number | null;
   sortOrder?: number;
   published?: boolean;
 }
@@ -48,6 +50,8 @@ export interface PlaceDTO {
   coverImage: string;
   images: string[];
   mapUrl: string;
+  mapX: number | null;
+  mapY: number | null;
   sortOrder: number;
   published: boolean;
   updatedAt: number;
@@ -58,7 +62,7 @@ export function toDTO(p: {
   address: string | null; phone: string | null; zalo: string | null; price: string | null;
   hours: string | null; hoursWeekend: string | null; booking: string | null; tags: string | null;
   desc: string | null; tip: string | null; content: string | null; coverImage: string | null; images: string | null;
-  mapUrl: string | null; sortOrder: number; published: boolean; updatedAt: Date;
+  mapUrl: string | null; mapX: number | null; mapY: number | null; sortOrder: number; published: boolean; updatedAt: Date;
 }): PlaceDTO {
   return {
     id: p.id,
@@ -80,6 +84,8 @@ export function toDTO(p: {
     coverImage: p.coverImage ?? "",
     images: (p.images ?? "").split("|").map((s) => s.trim()).filter(Boolean),
     mapUrl: p.mapUrl ?? "",
+    mapX: p.mapX,
+    mapY: p.mapY,
     sortOrder: p.sortOrder,
     published: p.published,
     updatedAt: p.updatedAt.getTime(),
