@@ -310,7 +310,8 @@ function PromiseRow({
 }
 
 /** 2 cam kết bằng tiền (100 triệu + 10 triệu). `termsHref` có thì hiện link "Xem điều kiện áp dụng". */
-export function PromisesBlock({ termsHref }: { termsHref?: string }) {
+export function PromisesBlock({ termsHref, solo }: { termsHref?: string; /** chỉ 1 chủ sở hữu ⇒ xưng "mình" */ solo?: boolean }) {
+  const we = solo ? "mình" : "tụi mình";
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <PromiseRow
@@ -342,7 +343,7 @@ export function PromisesBlock({ termsHref }: { termsHref?: string }) {
       >
         <span style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
           <span>
-            <b>Đúng giá niêm yết.</b> Nếu tụi mình đã biết giá niêm yết của chính nhà xe, homestay thấp hơn mà vẫn chốt giá cao hơn, bạn được hoàn phần chênh lệch và bồi thường 10.000.000 đồng. Nhà cung cấp đổi giá mà không báo thì bạn được hoàn đủ phần chênh lệch.
+            <b>Đúng giá niêm yết.</b> Nếu {we} đã biết giá niêm yết của chính nhà xe, homestay thấp hơn mà vẫn chốt giá cao hơn, bạn được hoàn phần chênh lệch và bồi thường 10.000.000 đồng. Nhà cung cấp đổi giá mà không báo thì bạn được hoàn đủ phần chênh lệch.
           </span>
           <span style={{ fontSize: 12, lineHeight: 1.5, color: "oklch(0.45 0.03 155)" }}>
             Giá chốt qua Zalo là giá cuối cùng, không tăng sau khi bạn đồng ý. Giá trên web chỉ để tham khảo.
@@ -350,7 +351,7 @@ export function PromisesBlock({ termsHref }: { termsHref?: string }) {
         </span>
       </PromiseRow>
       <div style={{ fontSize: 13, lineHeight: 1.55, color: "oklch(0.4 0.02 160)", padding: "0 4px" }}>
-        <b>Sự cố ngoài ý muốn</b> (xe hỏng, homestay khoá nhầm phòng, sạt lở, cấm đường…): tụi mình báo ngay và đưa phương án thay thế tương đương, hoặc hoàn tiền phần dịch vụ chưa sử dụng nếu bạn không đồng ý.
+        <b>Sự cố ngoài ý muốn</b> (xe hỏng, homestay khoá nhầm phòng, sạt lở, cấm đường…): {we} báo ngay và đưa phương án thay thế tương đương, hoặc hoàn tiền phần dịch vụ chưa sử dụng nếu bạn không đồng ý.
       </div>
     </div>
   );

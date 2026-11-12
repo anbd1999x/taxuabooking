@@ -154,7 +154,7 @@ export function TrustPopup({ config }: { config: TrustPopupConfig }) {
         {/* PHẢI: cam kết */}
         <div style={{ padding: wide ? "36px 32px 28px" : "20px 18px calc(18px + env(safe-area-inset-bottom))", display: "flex", flexDirection: "column", gap: 16 }}>
           <CommitmentIntro showSub={wide} />
-          <PromisesBlock termsHref="/cam-ket/dieu-khoan" />
+          <PromisesBlock termsHref="/cam-ket/dieu-khoan" solo={config.people.length === 1} />
           <FiveKhongBlock five={five} />
 
           <div style={{ flex: 1 }} />

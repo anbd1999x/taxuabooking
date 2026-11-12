@@ -34,7 +34,7 @@ export default async function CommitmentPage() {
           <PeopleColumn people={people} wide />
           <div className="flex flex-col gap-4 p-6 sm:p-9">
             <CommitmentIntro showSub />
-            <PromisesBlock termsHref="/cam-ket/dieu-khoan" />
+            <PromisesBlock termsHref="/cam-ket/dieu-khoan" solo={people.length === 1} />
             <FiveKhongBlock five={config.fiveRules} />
           </div>
         </div>

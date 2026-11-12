@@ -93,6 +93,20 @@ export function parseTrustPopup(raw?: string | null): TrustPopupConfig {
   }
 }
 
+/** Tên đầy đủ (chủ tài khoản ngân hàng) của 2 chủ sở hữu, theo đúng thứ tự ở /admin/popup. */
+export const OWNER_LEGAL_NAMES = ["Bùi Danh An", "Tăng Mai Linh"];
+
+/** Tên đầy đủ của những chủ sở hữu đang hiện (dùng trong điều khoản: tài khoản nhận tiền, người chịu trách nhiệm). */
+export function visibleLegalNames(config: TrustPopupConfig): string[] {
+  const names = OWNER_LEGAL_NAMES.filter((_, i) => !config.people[i]?.hidden);
+  return names.length ? names : OWNER_LEGAL_NAMES;
+}
+
+/** Chỉ còn 1 chủ sở hữu hiện ⇒ xưng "mình" thay cho "tụi mình". */
+export function soloVoice(text: string, solo: boolean): string {
+  return solo ? text.replace(/Tụi mình/g, "Mình").replace(/tụi mình/g, "mình") : text;
+}
+
 /** Những người đang được hiện (chưa bị ẩn trong /admin/popup). */
 export function visiblePeople(config: TrustPopupConfig): TrustPerson[] {
   return config.people.filter((p) => !p.hidden);

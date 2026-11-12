@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSettings } from "@/lib/queries";
-import { formatPhone, parseTrustPopup, TRUST_POPUP_KEY } from "@/lib/trust-popup";
+import { formatPhone, parseTrustPopup, soloVoice, TRUST_POPUP_KEY, visibleLegalNames, visiblePeople } from "@/lib/trust-popup";
 import { SITE } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
@@ -222,7 +222,15 @@ export default async function TermsPage() {
   const trust = parseTrustPopup(settings[TRUST_POPUP_KEY]);
   if (!trust.enabled && !trust.showLinks) notFound();
   const phone = (settings.contactPhone || SITE.defaultPhone).replace(/\D/g, ""); // SĐT chung toàn web
-  const legal: [string, string][] = [LEGAL[0], ["Hotline", formatPhone(phone)], ...LEGAL.slice(1)];
+  // Chỉ còn 1 chủ sở hữu hiện (ẩn người kia ở /admin/popup) ⇒ xưng "mình", và chỉ nêu tài khoản của người đó.
+  const solo = visiblePeople(trust).length === 1;
+  const owners = visibleLegalNames(trust);
+  const tx = (s: string) =>
+    soloVoice(s, solo)
+      .replace("tài khoản ngân hàng Bùi Danh An hoặc Tăng Mai Linh", `tài khoản ngân hàng ${owners.join(" hoặc ")}`)
+      .replace("tài khoản Bùi Danh An, Tăng Mai Linh, hoặc ví", `tài khoản ${owners.join(", ")}, hoặc ví`);
+  const R = (s: string) => rich(tx(s));
+  const legal: [string, string][] = [["Người chịu trách nhiệm", owners[0]], ["Hotline", formatPhone(phone)], ...LEGAL.slice(1)];
   return (
     <div
       style={{
@@ -277,7 +285,7 @@ export default async function TermsPage() {
             <div style={{ fontSize: 14, color: "oklch(0.48 0.02 160)", marginTop: 8 }}>
               Áp dụng từ 01/11/2026 · Cập nhật lần cuối 12/11/2026
             </div>
-            <p style={{ margin: "12px 0 0", fontSize: 16, lineHeight: 1.65, color: INK }}>{INTRO}</p>
+            <p style={{ margin: "12px 0 0", fontSize: 16, lineHeight: 1.65, color: INK }}>{tx(INTRO)}</p>
           </div>
 
           {/* 2 thẻ cam kết tiền */}
@@ -310,7 +318,7 @@ export default async function TermsPage() {
             {DEFINITIONS.map((d, i) => (
               <div key={i} style={{ display: "grid", gridTemplateColumns: "18px minmax(0,1fr)", gap: 8, fontSize: 15, lineHeight: 1.6, color: INK }}>
                 <span style={{ color: BRAND, fontWeight: 800 }}>•</span>
-                <span>{rich(d)}</span>
+                <span>{R(d)}</span>
               </div>
             ))}
           </section>
@@ -345,7 +353,7 @@ export default async function TermsPage() {
               </div>
               {s.body.map((blk, bi) =>
                 typeof blk === "string" ? (
-                  <div key={bi} style={{ fontSize: 15, lineHeight: 1.65, color: INK }}>{rich(blk)}</div>
+                  <div key={bi} style={{ fontSize: 15, lineHeight: 1.65, color: INK }}>{R(blk)}</div>
                 ) : (
                   <div key={bi} className="flex flex-col gap-1.5">
                     <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: ".04em", color: blk.c }}>{blk.h}</div>
@@ -355,7 +363,7 @@ export default async function TermsPage() {
                         style={{ display: "grid", gridTemplateColumns: "18px minmax(0,1fr)", gap: 8, fontSize: 15, lineHeight: 1.6, color: INK }}
                       >
                         <span style={{ color: blk.c, fontWeight: 800 }}>{blk.ordered ? `${ii + 1}.` : blk.mark}</span>
-                        <span>{rich(item)}</span>
+                        <span>{R(item)}</span>
                       </div>
                     ))}
                   </div>
@@ -403,7 +411,7 @@ export default async function TermsPage() {
           >
             <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>Gửi yêu cầu hoàn tiền, bồi thường</h2>
             <div style={{ fontSize: 14, lineHeight: 1.6, color: "oklch(0.88 0.03 160)" }}>
-              Gửi bằng chứng qua Zalo hoặc email. Tụi mình phản hồi trong 24 giờ và giải quyết xong trong tối đa 7 ngày làm việc.
+              Gửi bằng chứng qua Zalo hoặc email. {solo ? "Mình" : "Tụi mình"} phản hồi trong 24 giờ và giải quyết xong trong tối đa 7 ngày làm việc.
             </div>
             <Link href="/tra-cuu" style={{ fontSize: 14, fontWeight: 700, color: "oklch(0.85 0.1 70)" }}>
               Tra cứu đơn bằng mã đơn →
