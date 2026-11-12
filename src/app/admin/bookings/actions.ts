@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import type { BookingStatus, PaymentStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -13,6 +13,7 @@ import { adjustInventory, assignRoomsForBooking, statusHoldsInventory } from "@/
 import { canRoleAct, type BookingRole } from "@/lib/booking-flow";
 import { enumerateNights, isValidDateKey, parseDateOnly, toDateKey } from "@/lib/dates";
 import { parseSurcharges, type BookingSurcharge } from "@/lib/surcharges";
+import { AUTO_CANCEL_HOURS_KEY, MAX_AUTO_CANCEL_HOURS } from "@/lib/auto-cancel-config";
 
 export interface BookingActionState {
   ok?: boolean;
@@ -827,4 +828,23 @@ export async function updateBookingStatus(
   revalidatePath("/admin/inventory");
   revalidatePath("/admin/availability");
   return { ok: true };
+}
+
+/** Lưu số giờ tự huỷ đơn chưa thanh toán (0 = tắt). Chỉ ADMIN. */
+export async function saveAutoCancelHours(
+  _prev: { ok?: boolean; error?: string; message?: string },
+  fd: FormData,
+): Promise<{ ok?: boolean; error?: string; message?: string }> {
+  await requireAdmin();
+  const raw = String(fd.get("hours") ?? "").trim().replace(",", ".");
+  const n = Number(raw);
+  if (raw === "" || !Number.isFinite(n) || n < 0 || n > MAX_AUTO_CANCEL_HOURS) {
+    return { error: `Nhập số giờ từ 0 đến ${MAX_AUTO_CANCEL_HOURS} (0 = tắt tự huỷ).` };
+  }
+  const value = String(Math.round(n * 2) / 2);
+  await prisma.siteSetting.upsert({ where: { key: AUTO_CANCEL_HOURS_KEY }, create: { key: AUTO_CANCEL_HOURS_KEY, value }, update: { value } });
+  updateTag("settings");
+  revalidatePath("/admin/bookings");
+  revalidatePath("/tra-cuu");
+  return { ok: true, message: value === "0" ? "Đã tắt tự huỷ theo thời gian." : `Đơn chưa thanh toán sẽ tự huỷ sau ${value.replace(".", ",")} giờ.` };
 }

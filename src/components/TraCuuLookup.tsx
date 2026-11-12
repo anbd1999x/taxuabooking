@@ -78,11 +78,14 @@ export function TraCuuLookup({
   orders,
   phone,
   zalo,
+  autoCancelHours = 0,
 }: {
   initialQ: string;
   orders: LookupOrder[];
   phone: string;
   zalo: string;
+  /** Số giờ tự huỷ đơn chưa thanh toán (admin thiết lập); 0 = tắt ⇒ không hiện câu nhắc. */
+  autoCancelHours?: number;
 }) {
   const router = useRouter();
   const [q, setQ] = useState(initialQ);
@@ -269,7 +272,7 @@ export function TraCuuLookup({
                       </div>
                     ))}
                   </div>
-                  <div className="mx-5 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold leading-[1.5]" style={{ background: st.msgBg, color: st.msgFg }}><VoiceText text={st.msg} /></div>
+                  <div className="mx-5 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold leading-[1.5]" style={{ background: st.msgBg, color: st.msgFg }}><VoiceText text={st.msg + (autoCancelHours > 0 && (o.st === "new" || o.st === "contact") ? ` Đơn tự huỷ nếu sau ${String(autoCancelHours).replace(".", ",")} giờ kể từ lúc đặt chưa xác nhận thanh toán.` : "")} /></div>
                   {/* chi tiết */}
                   {isOpen && (
                     <div className="flex flex-col gap-2 px-5 pt-3.5">

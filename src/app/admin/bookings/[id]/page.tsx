@@ -6,6 +6,10 @@ import { CATEGORIES } from "@/lib/constants";
 import { formatPrice, formatDate, formatDateTime, toNumber } from "@/lib/format";
 import { addDays, today } from "@/lib/dates";
 import { SITE } from "@/lib/site";
+import { getSettings } from "@/lib/queries";
+import { formatPhone } from "@/lib/trust-popup";
+import { AUTO_CANCEL_FROM, getAutoCancelHours } from "@/lib/booking-auto-cancel";
+import { hoursLabel } from "@/lib/auto-cancel-config";
 import { ActionForm } from "@/components/admin/ActionForm";
 import { MoneyInput } from "@/components/admin/MoneyInput";
 import {
@@ -317,7 +321,16 @@ export default async function BookingDetailPage({
     `Đơn ${b.code} · ${b.customerName} · ${b.phone} · ${b.quantity} khách\n${partLines}\n` +
     `${price != null ? `Tổng ${formatPrice(price)}` : "Giá chờ xác nhận"} · ${payText}`;
   // ----- Tin nhắn gửi khách (format sẵn, dán thẳng Zalo) -----
-  const hotline = SITE.defaultPhone;
+  // Hotline = SĐT chung toàn web (chủ sở hữu được chọn ở /admin/popup), không gõ cứng.
+  const hotline = formatPhone((await getSettings()).contactPhone || SITE.defaultPhone);
+  // Đơn còn chờ & chưa thu tiền sẽ tự huỷ sau số giờ admin thiết lập ở /admin/bookings (0 = tắt).
+  const autoCancelHours = await getAutoCancelHours();
+  // Giờ hạn chót luôn hiển thị theo giờ Việt Nam (máy chủ có thể chạy múi giờ khác).
+  const VN_TIME = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" });
+  const autoCancelAt =
+    autoCancelHours > 0 && (b.status === "NEW" || b.status === "CONTACTING") && b.paymentStatus === "UNPAID" && b.createdAt >= AUTO_CANCEL_FROM
+      ? new Date(b.createdAt.getTime() + autoCancelHours * 3_600_000)
+      : null;
   const mapUrl = b.service?.mapUrl || null;
   const ctvLine = b.ctv ? `${b.ctv.name}${b.ctv.phone ? ` · ${b.ctv.phone}` : ""}` : null;
   const roomsConfirmLabel = rooms.length
@@ -334,6 +347,9 @@ export default async function BookingDetailPage({
     `• Số khách: ${b.quantity}`,
     price != null ? `• Tạm tính: ${formatPrice(price)}` : `• Giá: đang xác nhận`,
     ...(due != null && due > 0 ? [`Vui lòng cọc để giữ chỗ (còn thiếu ${formatPrice(due)}).`] : []),
+    ...(autoCancelAt
+      ? [`Lưu ý: đơn sẽ tự huỷ nếu tới ${VN_TIME.format(autoCancelAt)} (sau ${hoursLabel(autoCancelHours)} giờ kể từ lúc đặt) chưa xác nhận thanh toán, hoặc nếu phòng được chủ nhà báo đã có khách đặt trước.`]
+      : []),
     `Cảm ơn bạn! Hotline ${hotline}.`,
   ].join("\n");
 

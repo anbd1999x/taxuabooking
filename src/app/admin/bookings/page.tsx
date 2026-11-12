@@ -6,6 +6,8 @@ import type { Prisma } from "@prisma/client";
 import BookingsListClient, { type BookingRow } from "@/components/admin/BookingsListClient";
 import { bookingPax } from "@/lib/occupancy";
 import { bookingCabinBerths } from "@/lib/combo-pricing";
+import { getAutoCancelHours } from "@/lib/booking-auto-cancel";
+import { AutoCancelSetting } from "@/components/admin/AutoCancelSetting";
 
 export const dynamic = "force-dynamic";
 
@@ -135,5 +137,10 @@ export default async function AdminBookingsPage({
     };
   });
 
-  return <BookingsListClient rows={rows} totalInDb={totalInDb} filterLabel={filterLabel} />;
+  return (
+    <>
+      <AutoCancelSetting hours={await getAutoCancelHours()} />
+      <BookingsListClient rows={rows} totalInDb={totalInDb} filterLabel={filterLabel} />
+    </>
+  );
 }

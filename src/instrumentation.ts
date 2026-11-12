@@ -6,6 +6,8 @@
  * kiểm tra các mốc đến hạn (src/lib/booking-reminders.ts). Nhiều bản app chạy song song
  * vẫn chỉ gửi 1 lần nhờ khoá PostgreSQL + bảng BookingReminder.
  *
+ * Cùng nhịp 5 phút: tự huỷ đơn "Mới/Đang liên hệ" quá 6 giờ chưa ghi nhận thanh toán.
+ *
  * Chỉ bật ở production (dev local đang trỏ DB production — không để máy dev bắn thông báo).
  * Tắt khẩn cấp: đặt env REMINDERS_DISABLED=1.
  */
@@ -17,7 +19,15 @@ export async function register() {
   if (g.__taxuaReminderTimer) return; // đã bật (tránh bật trùng khi module nạp lại)
 
   const { runBookingRemindersLocked } = await import("./lib/booking-reminders");
+  const { cancelExpiredUnpaidBookingsLocked } = await import("./lib/booking-auto-cancel");
   const tick = async () => {
+    // Tự huỷ đơn chờ quá 6 giờ chưa ghi nhận thanh toán (src/lib/booking-auto-cancel.ts).
+    try {
+      const cancelled = await cancelExpiredUnpaidBookingsLocked();
+      if (cancelled && cancelled.length) console.log("[auto-cancel] quá hạn thanh toán:", cancelled.join(", "));
+    } catch (err) {
+      console.error("[auto-cancel] lỗi", err);
+    }
     try {
       const res = await runBookingRemindersLocked();
       if (res && res.length) {

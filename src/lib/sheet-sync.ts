@@ -2,6 +2,7 @@ import "server-only";
 import { prisma } from "./prisma";
 import { parseDateOnly, toDateKey, today } from "./dates";
 import { syncRoomTypeAvailability } from "./room-availability";
+import { cancelBookingsBlockedBySheet } from "./booking-auto-cancel";
 import type { RoomStatus } from "@prisma/client";
 
 /**
@@ -1531,14 +1532,21 @@ export async function syncServiceSheet(
       data: { sheetSyncedAt: new Date(), sheetSyncResult: summary },
     });
 
+    // Đơn đang chờ, chưa thanh toán mà phòng đã bị chủ nhà ghi "đã đặt" trong lịch vừa đồng bộ ⇒ tự huỷ.
+    const autoCancelled = await cancelBookingsBlockedBySheet(serviceId, SHEET_TAG).catch((err) => {
+      console.error("[auto-cancel] lỗi khi đối chiếu đơn với lịch đồng bộ", err);
+      return [] as string[];
+    });
+
     // Nhật ký: chạy tay ghi mọi lần; cron chỉ ghi khi có thay đổi (tránh spam 5').
-    if (source === "MANUAL" || changes > 0) {
+    if (source === "MANUAL" || changes > 0 || autoCancelled.length > 0) {
       const warns =
         (unmatched.size ? ` · ⚠ ${unmatched.size} dòng không khớp` : "") +
         (missing.length ? ` · ⚠ thiếu ${missing.length} phòng` : "") +
         (unknownValues.size ? ` · ⚠ ô không nhận ra (đang khoá): ${[...unknownValues].slice(0, 5).map((v) => `"${v}"`).join(", ")}` : "") +
         (overridden ? ` · sheet ghi đè ${overridden} ô khoá tay` : "") +
-        (bookingConflicts ? ` · ⚠ ${bookingConflicts} đêm sheet để trống nhưng đơn web đang giữ (chủ nhà chưa ghi sheet?)` : "");
+        (bookingConflicts ? ` · ⚠ ${bookingConflicts} đêm sheet để trống nhưng đơn web đang giữ (chủ nhà chưa ghi sheet?)` : "") +
+        (autoCancelled.length ? ` · tự huỷ ${autoCancelled.length} đơn chưa thanh toán vì phòng đã có khách: ${autoCancelled.join(", ")}` : "");
       await prisma.sheetSyncLog
         .create({ data: { serviceId, ok: true, source, summary: summary + warns, changes } })
         .catch(() => {});

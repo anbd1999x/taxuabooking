@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AUTO_CANCEL_HOURS_KEY, parseAutoCancelHours } from "@/lib/auto-cancel-config";
 import type { BookingStatus, ServiceCategory } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/format";
@@ -162,5 +163,5 @@ export default async function LookupPage({
     };
   });
 
-  return <TraCuuLookup initialQ={q} orders={orders} phone={phone} zalo={zalo} />;
+  return <TraCuuLookup initialQ={q} orders={orders} phone={phone} zalo={zalo} autoCancelHours={parseAutoCancelHours(settings[AUTO_CANCEL_HOURS_KEY])} />;
 }
