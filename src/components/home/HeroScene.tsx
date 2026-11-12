@@ -23,7 +23,8 @@ const BAND_STYLE = [
 const ROAD = "M 520 640 C 650 584, 760 520, 900 510 S 1100 470, 1200 442 S 1380 402, 1500 408";
 
 /**
- * Nền banner trang chủ dạng HOẠT HÌNH (thay ảnh): trời bình minh, sao lặn, mặt trời mọc, chim bay,
+ * Nền banner trang chủ dạng HOẠT HÌNH (thay ảnh): chu kỳ ngày–đêm (đêm sao → bình minh → ban ngày →
+ * hoàng hôn), mặt trời đi theo cung, chim bay, xe cabin & xe máy kéo cờ "ĐI TÀ XÙA THÔI!",
  * 4 lớp núi parallax theo cuộn trang, 3 dải mây trôi, xe cabin & xe máy chạy trên đường đèo.
  * Vẽ bằng requestAnimationFrame qua ref (không setState mỗi khung hình); tôn trọng reduced-motion.
  */
@@ -36,6 +37,14 @@ export function HeroScene() {
     const reduce = !!window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const sun = host.querySelector<HTMLElement>("[data-sun]");
     const glow = host.querySelector<HTMLElement>("[data-glow]");
+    const dawnEl = host.querySelector<HTMLElement>("[data-dawn]");
+    const dayEl = host.querySelector<HTMLElement>("[data-day]");
+    const tint = host.querySelector<HTMLElement>("[data-tint]");
+    const svg = host.querySelector<SVGSVGElement>("svg");
+    // Màn hẹp: neo cảnh về bên phải để vẫn thấy đường đèo và xe.
+    const fit = () => svg?.setAttribute("preserveAspectRatio", window.innerWidth < 760 ? "xMaxYMid slice" : "xMidYMax slice");
+    fit();
+    window.addEventListener("resize", fit);
     const stars = [...host.querySelectorAll<HTMLElement>("[data-star]")];
     const layers = [...host.querySelectorAll<SVGGElement>("[data-layer]")];
     const bands = [...host.querySelectorAll<HTMLElement>("[data-band]")];
@@ -47,13 +56,27 @@ export function HeroScene() {
     const t0 = performance.now();
     let raf = 0;
 
+    const CYCLE = 10; // giây cho một vòng đêm → bình minh → ngày → hoàng hôn
+    const sm = (x: number) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+
     const tick = (t: number) => {
       const sy = window.scrollY || 0;
       const H = host.offsetHeight, W = host.offsetWidth;
-      const e = reduce ? 1 : 1 - Math.pow(1 - Math.min(1, t / 6), 3); // mặt trời mọc trong ~6 giây đầu
-      if (sun) sun.style.transform = `translateY(${H * (0.56 - 0.26 * e) + sy * 0.3}px)`;
-      if (glow) glow.style.opacity = String(0.4 + 0.6 * e);
-      stars.forEach((el, i) => { el.style.opacity = String(Math.max(0, (1 - e) * 0.85 + 0.1 * Math.sin(t * 2 + i))); });
+      const ph = reduce ? 0.5 : (0.5 + t / CYCLE) % 1; // pha trong ngày (0.5 = giữa trưa)
+      const band = (p: number, q: number, r: number, u: number) => sm((ph - p) / (q - p)) * (1 - sm((ph - r) / (u - r)));
+      const light = band(0.12, 0.42, 0.6, 0.88);
+      const dawn = band(0.08, 0.22, 0.3, 0.42) + band(0.58, 0.7, 0.78, 0.9);
+      const day = band(0.28, 0.42, 0.58, 0.7);
+      if (dawnEl) dawnEl.style.opacity = String(Math.min(1, dawn));
+      if (dayEl) dayEl.style.opacity = String(day);
+      if (tint) tint.style.opacity = String(0.55 * (1 - light));
+      const arc = Math.sin(Math.PI * Math.max(0, Math.min(1, (ph - 0.1) / 0.8)));
+      if (sun) {
+        sun.style.transform = `translate(${(ph - 0.5) * W * 0.5}px, ${H * (0.62 - 0.46 * arc) + sy * 0.3}px) scale(${1 - 0.18 * day})`;
+        sun.style.opacity = String(sm(arc * 4));
+      }
+      if (glow) glow.style.opacity = String(Math.min(1, dawn * 1.1 + day * 0.35));
+      stars.forEach((el, i) => { el.style.opacity = String(Math.max(0, (1 - sm(light * 2.2)) * (0.75 + 0.2 * Math.sin(t * 2 + i)))); });
       layers.forEach((g, i) => { g.style.transform = `translateY(${sy * (0.22 - i * 0.05)}px)`; });
       bands.forEach((el, i) => { el.style.transform = `translate3d(${reduce ? 0 : -((t * SP[i]) % 50)}%, ${Math.sin(t * 0.4 + i) * 3 - sy * (0.05 + i * 0.03)}px, 0)`; });
       if (reduce) return;
@@ -66,10 +89,13 @@ export function HeroScene() {
       const place = (g: SVGGElement | null, pos: number, flip: boolean) => {
         if (!g) return;
         const d = L * pos;
-        const a = road.getPointAtLength(Math.max(0, d - 6)), b = road.getPointAtLength(Math.min(L, d + 6)), p = road.getPointAtLength(d);
-        const ang = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
+        const p0 = road.getPointAtLength(Math.max(0, d - 6)), p1 = road.getPointAtLength(Math.min(L, d + 6)), p = road.getPointAtLength(d);
+        const ang = (Math.atan2(p1.y - p0.y, p1.x - p0.x) * 180) / Math.PI;
         g.setAttribute("transform", `translate(${p.x} ${p.y + Math.sin(t * 20) * 0.5}) rotate(${ang}) scale(${flip ? -1 : 1} 1)`);
         g.style.opacity = pos < 0.02 || pos > 0.98 ? "0" : "1";
+        // lá cờ "ĐI TÀ XÙA THÔI!" phấp phới sau xe
+        const flag = g.querySelector("[data-flag]");
+        if (flag) flag.setAttribute("transform", `rotate(${Math.sin(t * 6 + (flip ? 1.5 : 0)) * 2.2} ${flip ? -11 : -33} -18)`);
       };
       place(bus, (t * 0.045) % 1, false);
       place(bike, 1 - ((t * 0.07 + 0.4) % 1), true);
@@ -83,17 +109,20 @@ export function HeroScene() {
     // reduced-motion: không chạy vòng lặp nhưng vẫn cập nhật parallax khi cuộn
     const onScroll = () => { if (reduce) tick(0); };
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => { cancelAnimationFrame(raf); window.removeEventListener("scroll", onScroll); };
+    return () => { cancelAnimationFrame(raf); window.removeEventListener("scroll", onScroll); window.removeEventListener("resize", fit); };
   }, []);
 
   return (
     <div ref={root} aria-hidden className="absolute inset-0 -z-10 overflow-hidden">
       <div
         className="absolute inset-0 overflow-hidden"
-        style={{ background: "linear-gradient(180deg, oklch(0.36 0.07 265) 0%, oklch(0.55 0.09 300) 30%, oklch(0.76 0.11 35) 55%, oklch(0.88 0.09 70) 72%, oklch(0.93 0.05 85) 100%)" }}
+        style={{ background: "linear-gradient(180deg, oklch(0.16 0.04 265) 0%, oklch(0.22 0.05 262) 45%, oklch(0.3 0.05 255) 100%)" }}
       >
+        {/* trời bình minh / hoàng hôn và trời ban ngày — hiện dần theo chu kỳ ngày đêm */}
+        <div data-dawn className="absolute inset-0" style={{ opacity: 0, background: "linear-gradient(180deg, oklch(0.4 0.07 265) 0%, oklch(0.58 0.09 310) 32%, oklch(0.77 0.12 38) 56%, oklch(0.88 0.1 70) 74%, oklch(0.93 0.05 85) 100%)" }} />
+        <div data-day className="absolute inset-0" style={{ opacity: 1, background: "linear-gradient(180deg, oklch(0.6 0.11 240) 0%, oklch(0.75 0.08 230) 40%, oklch(0.88 0.04 215) 70%, oklch(0.95 0.02 200) 100%)" }} />
         {STARS.map((s, i) => (
-          <span key={i} data-star className="absolute rounded-full bg-white" style={{ left: s.x, top: s.y, width: s.s, height: s.s, opacity: 0.85 }} />
+          <span key={i} data-star className="absolute rounded-full bg-white" style={{ left: s.x, top: s.y, width: s.s, height: s.s, opacity: 0 }} />
         ))}
         <div
           data-glow
@@ -104,7 +133,7 @@ export function HeroScene() {
           data-sun
           className="absolute left-[66%] top-0 -ml-[60px] h-[120px] w-[120px] rounded-full will-change-transform"
           style={{
-            transform: "translateY(380px)",
+            transform: "translateY(110px)",
             background: "radial-gradient(circle, oklch(0.99 0.05 95) 0 52%, oklch(0.95 0.12 80) 70%, oklch(0.92 0.13 70 / 0) 72%)",
             boxShadow: "0 0 90px 40px oklch(0.95 0.13 75 / .45)",
           }}
@@ -131,6 +160,12 @@ export function HeroScene() {
             <path d={ROAD} fill="none" stroke="oklch(0.62 0.04 65)" strokeWidth={10} strokeLinecap="round" transform="translate(0,12)" />
             <path data-road d={ROAD} fill="none" stroke="none" />
             <g data-bus style={{ opacity: 0 }}>
+              <g data-flag>
+                <path d="M -33 -19.5 L -44 -25 M -33 -19.5 L -44 -14" stroke="oklch(0.35 0.02 60)" strokeWidth={0.8} fill="none" />
+                <rect x="-118" y="-27" width="74" height="15" rx="1.5" fill="oklch(0.68 0.18 45)" />
+                <rect x="-118" y="-27" width="74" height="15" rx="1.5" fill="none" stroke="oklch(0.98 0.02 90)" strokeWidth={0.8} />
+                <text x="-81" y="-16.764" textAnchor="middle" fontSize="7.6" fontWeight={800} letterSpacing=".3" fill="white">ĐI TÀ XÙA THÔI!</text>
+              </g>
               <ellipse cx="0" cy="1" rx="34" ry="3" fill="oklch(0.1 0.02 160 / .35)" />
               <rect x="-32" y="-26" width="64" height="22" rx="6" fill="oklch(0.95 0.008 90)" />
               <rect x="-32" y="-12" width="64" height="4" fill="oklch(0.66 0.17 45)" />
@@ -140,6 +175,13 @@ export function HeroScene() {
               <circle cx="32" cy="-9" r="2" fill="oklch(0.98 0.1 95)" />
             </g>
             <g data-bike style={{ opacity: 0 }}>
+              <g data-flag>
+                <path d="M -11 -18.5 L -22 -22 M -11 -18.5 L -22 -15" stroke="oklch(0.35 0.02 60)" strokeWidth={0.8} fill="none" />
+                <rect x="-78" y="-24" width="56" height="11" rx="1.5" fill="oklch(0.68 0.18 45)" />
+                <rect x="-78" y="-24" width="56" height="11" rx="1.5" fill="none" stroke="oklch(0.98 0.02 90)" strokeWidth={0.8} />
+                {/* xe máy chạy ngược chiều (lật ngang) → lật chữ lại cho đọc xuôi */}
+                <text x="50" y="-16.412" transform="scale(-1 1)" textAnchor="middle" fontSize="5.8" fontWeight={800} letterSpacing=".3" fill="white">ĐI TÀ XÙA THÔI!</text>
+              </g>
               <ellipse cx="0" cy="1" rx="13" ry="2" fill="oklch(0.1 0.02 160 / .35)" />
               <rect x="-10" y="-9" width="20" height="5" rx="2.5" fill="oklch(0.55 0.15 28)" />
               <rect x="-5" y="-21" width="6" height="12" rx="2.5" fill="oklch(0.45 0.08 160)" />
@@ -162,6 +204,8 @@ export function HeroScene() {
           </div>
         ))}
       </div>
+      {/* lớp phủ đêm: đậm khi trời tối, tan khi trời sáng */}
+      <div data-tint className="pointer-events-none absolute inset-0" style={{ background: "oklch(0.14 0.04 265)", opacity: 0 }} />
       {/* lớp phủ tối để chữ dễ đọc */}
       <div
         className="pointer-events-none absolute inset-0"
