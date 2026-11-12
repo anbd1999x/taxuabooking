@@ -24,6 +24,10 @@ const AUTO_CANCEL_LOCK_KEY = 772_641_902; // khoá advisory riêng (khác khoá 
 const BY = "Hệ thống";
 
 const PENDING = { status: { in: ["NEW", "CONTACTING"] as ("NEW" | "CONTACTING")[] }, paymentStatus: "UNPAID" as const };
+const AUTO_TITLE = "Tự động huỷ đơn";
+// Đơn đã từng bị tự huỷ mà quản trị viên MỞ LẠI ⇒ không bao giờ tự huỷ lần nữa (người đã quyết định giữ đơn).
+// Trước đây đơn mở lại bị huỷ tiếp ở lượt quét/đồng bộ kế (vì điều kiện huỷ vẫn còn đúng).
+const NEVER_AUTO_CANCELLED = { logs: { none: { title: AUTO_TITLE } } };
 
 /** Huỷ một đơn (trả tồn nếu lỡ đã giữ) + ghi nhật ký. Trả false nếu đơn vừa đổi trạng thái/đã thu tiền. */
 async function cancelOne(tx: Prisma.TransactionClient, id: string, reason: string): Promise<boolean> {
@@ -39,7 +43,7 @@ async function cancelOne(tx: Prisma.TransactionClient, id: string, reason: strin
     data: { status: "CANCELLED", cancelReason: reason, inventoryApplied: false, needsConfirmation: false },
   });
   if (upd.count !== 1) throw new Error("AUTO_CANCEL_SKIPPED"); // rollback cả phần trả tồn (nếu có)
-  await tx.bookingLog.create({ data: { bookingId: id, kind: "STATUS", title: "Tự động huỷ đơn", body: `Lý do: ${reason}`, by: BY } });
+  await tx.bookingLog.create({ data: { bookingId: id, kind: "STATUS", title: AUTO_TITLE, body: `Lý do: ${reason}`, by: BY } });
   return true;
 }
 
@@ -60,7 +64,7 @@ export async function cancelExpiredUnpaidBookings(now = new Date()): Promise<str
   const deadline = new Date(now.getTime() - hours * 3_600_000);
   if (deadline <= AUTO_CANCEL_FROM) return [];
   const due = await prisma.bookingRequest.findMany({
-    where: { ...PENDING, createdAt: { gte: AUTO_CANCEL_FROM, lte: deadline } },
+    where: { ...PENDING, ...NEVER_AUTO_CANCELLED, createdAt: { gte: AUTO_CANCEL_FROM, lte: deadline } },
     select: { id: true, code: true },
     orderBy: { createdAt: "asc" },
     take: 100,
@@ -96,6 +100,7 @@ export async function cancelBookingsBlockedBySheet(serviceId: string, syncTag: s
   const pending = await prisma.bookingRequest.findMany({
     where: {
       ...PENDING,
+      ...NEVER_AUTO_CANCELLED,
       heldRoom: false,
       createdAt: { gte: AUTO_CANCEL_FROM },
       useDate: { gte: today },

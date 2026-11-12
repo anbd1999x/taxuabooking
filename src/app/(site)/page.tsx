@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { HeroSearch } from "@/components/home/HeroSearch";
-import { HeroScene } from "@/components/home/HeroScene";
+import { HeroPhoto } from "@/components/home/HeroPhoto";
 import { HomeCabin } from "@/components/home/HomeCabin";
 import { FeaturedGrid } from "@/components/home/FeaturedGrid";
 import {
@@ -41,9 +41,9 @@ export default async function HomePage() {
 
   return (
     <>
-      {/* HERO — "Bình minh chàm trên Tà Xùa": tranh hoạt hình nhiều lớp + chữ kiểu tạp chí */}
+      {/* HERO — ảnh thật đồi hoa Tà Xùa (bản hoạt hình cũ: components/home/HeroScene) + chữ kiểu tạp chí */}
       <header className="relative isolate flex min-h-[680px] flex-col justify-end overflow-hidden sm:min-h-[720px]">
-        <HeroScene />
+        <HeroPhoto />
         <div className="container-page flex flex-col gap-5 pb-28 pt-12 text-white sm:pb-36">
           {/* dòng định vị: hoa văn quả trám + địa danh + toạ độ */}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] font-bold uppercase tracking-[.22em] sm:text-xs" style={{ textShadow: "0 1px 10px oklch(0.15 0.05 270 / .6)" }}>
