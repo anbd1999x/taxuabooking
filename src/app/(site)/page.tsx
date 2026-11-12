@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { We } from "@/components/SiteContact";
 import Image from "next/image";
 import { HeroSearch } from "@/components/home/HeroSearch";
+import { HeroScene } from "@/components/home/HeroScene";
 import { HomeCabin } from "@/components/home/HomeCabin";
 import { FeaturedGrid } from "@/components/home/FeaturedGrid";
 import {
@@ -14,8 +14,6 @@ import {
 import { getComboOrigins } from "@/lib/combo";
 
 export const dynamic = "force-dynamic";
-
-const HERO_IMAGE = "/banner.jpg";
 
 export default async function HomePage() {
   const [services, articles, settings, cabinPrices, route, comboOrigins] = await Promise.all([
@@ -40,9 +38,9 @@ export default async function HomePage() {
   return (
     <>
       {/* HERO */}
-      <header className="relative isolate flex min-h-[560px] flex-col justify-end overflow-hidden sm:min-h-[640px]">
-        <Image src={HERO_IMAGE} alt="Biển mây Tà Xùa" fill priority className="-z-10 object-cover" />
-        <div className="-z-10 absolute inset-0" style={{ background: "linear-gradient(180deg,oklch(0.18 0.04 160 / .5) 0%,transparent 30%,transparent 48%,oklch(0.18 0.04 160 / .82) 100%)" }} />
+      <header className="relative isolate flex min-h-[560px] flex-col justify-end overflow-hidden sm:min-h-[680px]">
+        {/* Nền hoạt hình (trời bình minh, núi, mây, xe chạy) thay cho ảnh banner */}
+        <HeroScene />
         <div className="container-page flex flex-col gap-4 pb-28 pt-10 text-white sm:pb-32">
           <div className="flex flex-wrap gap-2">
             <span className="rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.06em] backdrop-blur">Bắc Yên · Sơn La · 2.865m</span>
@@ -79,7 +77,7 @@ export default async function HomePage() {
 
       {/* EXPERIENCE */}
       {articles.length > 0 && (
-        <section className="container-page mt-16 flex flex-col gap-6">
+        <section className="container-page mb-20 mt-16 flex flex-col gap-6">
           <div className="flex flex-wrap items-end justify-between gap-5">
             <div>
               <h2 className="text-3xl font-extrabold leading-tight tracking-tight text-ink sm:text-4xl">Kinh nghiệm du lịch Tà Xùa</h2>
@@ -102,23 +100,6 @@ export default async function HomePage() {
           </div>
         </section>
       )}
-
-      {/* CTA */}
-      <section className="container-page mt-16 mb-20">
-        <div className="grid overflow-hidden rounded-[28px] text-white sm:grid-cols-2" style={{ background: "oklch(0.68 0.18 45)" }}>
-          <div className="flex flex-col justify-center gap-4 p-8 sm:p-14">
-            <h2 className="text-3xl font-extrabold leading-tight tracking-tight sm:text-5xl">Cần tư vấn lịch trình?</h2>
-            <p className="max-w-md text-[17px] leading-relaxed">Nhắn cho <We /> ngày bạn muốn đi, số người và ngân sách. <We cap /> lên giúp xe, phòng và combo phù hợp.</p>
-            <div className="mt-2 flex flex-wrap gap-2.5">
-              <a href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="rounded-full bg-white px-5 py-3.5 text-base font-bold" style={{ color: "oklch(0.45 0.15 45)" }}>Chat Zalo</a>
-              <a href={`tel:${phone.replace(/\s/g, "")}`} className="rounded-full px-5 py-3.5 text-base font-bold text-white" style={{ background: "oklch(0.27 0.05 160)" }}>Gọi {phone}</a>
-            </div>
-          </div>
-          <div className="relative min-h-[260px]">
-            <Image src={HERO_IMAGE} alt="Tà Xùa" fill sizes="(max-width:640px) 100vw, 600px" className="object-cover" />
-          </div>
-        </div>
-      </section>
 
       {/* Thanh liên hệ cố định (mobile) */}
       <div className="fixed inset-x-3 bottom-3 z-20 grid grid-cols-2 gap-2 rounded-[20px] bg-white p-2 shadow-[0_10px_30px_-8px_rgba(30,60,45,0.35)] sm:hidden">
