@@ -5,7 +5,8 @@ import Link from "next/link";
 import { CATEGORY_LIST } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
-export function Header({ customerName = null }: { customerName?: string | null }) {
+/** `showCommitment` = công tắc "Hiển thị" ở /admin/popup: tắt thì ẩn toàn bộ phần cam kết (menu, popup, link dưới form, trang /cam-ket). */
+export function Header({ customerName = null, showCommitment = true }: { customerName?: string | null; showCommitment?: boolean }) {
   const [open, setOpen] = useState(false);
   const [dd, setDd] = useState(false); // dropdown "Cẩm nang" (desktop)
   const firstName = customerName ? customerName.trim().split(/\s+/).slice(-1)[0] : "";
@@ -42,12 +43,14 @@ export function Header({ customerName = null }: { customerName?: string | null }
               {c.shortLabel}
             </Link>
           ))}
-          <Link
-            href="/cam-ket"
-            className="whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-semibold text-forest-700 transition hover:bg-forest-50 hover:text-forest-800"
-          >
-            Cam kết
-          </Link>
+          {showCommitment && (
+            <Link
+              href="/cam-ket"
+              className="whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-semibold text-forest-700 transition hover:bg-forest-50 hover:text-forest-800"
+            >
+              Cam kết
+            </Link>
+          )}
           {/* Menu cấp 2: hover hoặc click mới xổ ra */}
           <div className="group relative" onMouseLeave={() => setDd(false)}>
             <button
@@ -135,13 +138,15 @@ export function Header({ customerName = null }: { customerName?: string | null }
                 {c.shortLabel}
               </Link>
             ))}
-            <Link
-              href="/cam-ket"
-              onClick={() => setOpen(false)}
-              className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-forest-700 hover:bg-forest-50 hover:text-forest-800"
-            >
-              Cam kết uy tín
-            </Link>
+            {showCommitment && (
+              <Link
+                href="/cam-ket"
+                onClick={() => setOpen(false)}
+                className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-forest-700 hover:bg-forest-50 hover:text-forest-800"
+              >
+                Cam kết uy tín
+              </Link>
+            )}
             <div className="my-1 border-t border-black/5" />
             {GUIDE_LINKS.map((l) => (
               <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700">{l.label}</Link>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { getSettings } from "@/lib/queries";
 import { parseTrustPopup, TRUST_POPUP_KEY, OFFICIAL_SITES } from "@/lib/trust-popup";
 import { CommitmentIntro, FiveKhongBlock, PeopleColumn, PromisesBlock } from "@/components/trust/parts";
@@ -9,13 +10,14 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Cam kết uy tín",
   description:
-    "Cam kết uy tín của Tà Xùa Booking: website thật, người thật, không scam. Bồi thường đến 100 triệu nếu nhận tiền không cung cấp dịch vụ; đền 10 triệu nếu bán cao hơn giá gốc.",
+    "Cam kết uy tín của Tà Xùa Booking: website thật, người thật, không scam. Chi trả đến 100 triệu nếu nhận tiền mà không cung cấp dịch vụ và không hoàn tiền; bồi thường 10 triệu nếu cố ý báo cao hơn giá niêm yết; sự cố ngoài ý muốn có phương án thay thế hoặc hoàn tiền.",
   alternates: { canonical: "/cam-ket" },
 };
 
 export default async function CommitmentPage() {
   const settings = await getSettings();
   const config = parseTrustPopup(settings[TRUST_POPUP_KEY]);
+  if (!config.enabled) notFound(); // admin tắt phần cam kết ⇒ ẩn cả trang
 
   return (
     <div

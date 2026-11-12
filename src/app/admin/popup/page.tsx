@@ -29,9 +29,9 @@ export default async function AdminPopupPage() {
             className="mt-0.5 h-4 w-4 accent-forest-600"
           />
           <span>
-            <span className="block text-sm font-semibold text-ink">Hiển thị popup trên trang web</span>
+            <span className="block text-sm font-semibold text-ink">Hiển thị phần cam kết trên trang web</span>
             <span className="mt-0.5 block text-xs text-gray-500">
-              Bỏ tick để tắt hẳn popup (khách sẽ không thấy popup uy tín nữa).
+              Bỏ tick để ẩn toàn bộ: popup uy tín, mục “Cam kết” trên menu, link “Xem cam kết uy tín” dưới các form đặt dịch vụ, trang /cam-ket và trang điều khoản.
             </span>
           </span>
         </label>

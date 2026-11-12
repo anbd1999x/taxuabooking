@@ -177,10 +177,10 @@ export function TrustPopup({ config }: { config: TrustPopupConfig }) {
               Tôi đã hiểu, xem dịch vụ →
             </button>
             <a
-              href="/cam-ket"
+              href="/cam-ket/dieu-khoan"
               style={{ textAlign: "center", fontSize: 12, fontWeight: 600, color: "oklch(0.5 0.02 160)", textDecoration: "none" }}
             >
-              Xem trang cam kết uy tín →
+              Xem điều khoản cam kết đầy đủ →
             </a>
           </div>
         </div>

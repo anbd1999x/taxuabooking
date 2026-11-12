@@ -1,25 +1,7 @@
 import * as React from "react";
-import Link from "next/link";
 import { OFFICIAL_SITES, telHref, zaloHref, type TrustPerson } from "@/lib/trust-popup";
 
-/** Link "Cam kết uy tín" đặt dưới nút gửi yêu cầu đặt dịch vụ (mọi form đặt). */
-export function CommitmentLink({ className }: { className?: string }) {
-  return (
-    <Link
-      href="/cam-ket"
-      className={
-        className ??
-        "mt-2 flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-forest-700 transition hover:text-forest-900"
-      }
-    >
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        <path d="m9 12 2 2 4-4" />
-      </svg>
-      Xem cam kết uy tín →
-    </Link>
-  );
-}
+export { CommitmentLink } from "./CommitmentLink";
 
 /** Các mảnh dùng chung giữa Popup uy tín và trang /cam-ket (nội dung + thiết kế giống nhau). */
 
@@ -339,7 +321,7 @@ export function PromisesBlock({ termsHref }: { termsHref?: string }) {
       >
         <span style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
           <span>
-            <b>Cam kết minh bạch.</b> Nếu có bằng chứng Tà Xùa Booking nhận tiền mà không cung cấp dịch vụ, bạn được bồi thường đến 100.000.000 đồng.
+            <b>Cam kết minh bạch.</b> Nếu Tà Xùa Booking đã nhận tiền mà không cung cấp dịch vụ và không hoàn tiền trong 3 ngày làm việc kể từ khi bạn yêu cầu, bạn được hoàn 100% và bồi thường thêm, tổng chi trả đến 100.000.000 đồng.
           </span>
           {termsHref && (
             <a href={termsHref} style={{ fontSize: 12, fontWeight: 700, color: "oklch(0.5 0.15 45)", textDecoration: "none" }}>
@@ -358,13 +340,16 @@ export function PromisesBlock({ termsHref }: { termsHref?: string }) {
       >
         <span style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
           <span>
-            <b>Không bán cao hơn giá gốc.</b> Nếu giá tụi mình chốt qua Zalo cao hơn giá niêm yết của chính nhà xe, homestay cùng ngày, bạn được đền 10.000.000 đồng.
+            <b>Đúng giá niêm yết.</b> Nếu tụi mình đã biết giá niêm yết của chính nhà xe, homestay thấp hơn mà vẫn chốt giá cao hơn, bạn được hoàn phần chênh lệch và bồi thường 10.000.000 đồng. Nhà cung cấp đổi giá mà không báo thì bạn được hoàn đủ phần chênh lệch.
           </span>
           <span style={{ fontSize: 12, lineHeight: 1.5, color: "oklch(0.45 0.03 155)" }}>
             Giá chốt qua Zalo là giá cuối cùng, không tăng sau khi bạn đồng ý. Giá trên web chỉ để tham khảo.
           </span>
         </span>
       </PromiseRow>
+      <div style={{ fontSize: 13, lineHeight: 1.55, color: "oklch(0.4 0.02 160)", padding: "0 4px" }}>
+        <b>Sự cố ngoài ý muốn</b> (xe hỏng, homestay khoá nhầm phòng, sạt lở, cấm đường…): tụi mình báo ngay và đưa phương án thay thế tương đương, hoặc hoàn tiền phần dịch vụ chưa sử dụng nếu bạn không đồng ý.
+      </div>
     </div>
   );
 }
