@@ -26,6 +26,10 @@ export default async function HomePage() {
   ]);
 
   const heroTitle = settings.heroTitle || "Lên Tà Xùa săn mây, mọi thứ có ở đây.";
+  // Tách tiêu đề ở dấu phẩy đầu tiên: vế sau tô màu nắng bình minh.
+  const cut = heroTitle.indexOf(",");
+  const heroLead = cut > 0 ? heroTitle.slice(0, cut + 1) : heroTitle;
+  const heroRest = cut > 0 ? heroTitle.slice(cut + 1).trim() : "";
   const phone = settings.contactPhone || "0357452952";
   const zalo = settings.contactZalo || "0357452952";
 
@@ -37,19 +41,40 @@ export default async function HomePage() {
 
   return (
     <>
-      {/* HERO */}
-      <header className="relative isolate flex min-h-[560px] flex-col justify-end overflow-hidden sm:min-h-[680px]">
-        {/* Nền hoạt hình (trời bình minh, núi, mây, xe chạy) thay cho ảnh banner */}
+      {/* HERO — "Bình minh chàm trên Tà Xùa": tranh hoạt hình nhiều lớp + chữ kiểu tạp chí */}
+      <header className="relative isolate flex min-h-[680px] flex-col justify-end overflow-hidden sm:min-h-[720px]">
         <HeroScene />
-        <div className="container-page flex flex-col gap-4 pb-28 pt-10 text-white sm:pb-32">
-          <div className="flex flex-wrap gap-2">
-            <span className="rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.06em] backdrop-blur">Bắc Yên · Sơn La · 2.865m</span>
-            <span className="rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.06em] backdrop-blur">Mùa mây T10 – T4</span>
+        <div className="container-page flex flex-col gap-5 pb-28 pt-12 text-white sm:pb-36">
+          {/* dòng định vị: hoa văn quả trám + địa danh + toạ độ */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] font-bold uppercase tracking-[.22em] sm:text-xs" style={{ textShadow: "0 1px 10px oklch(0.15 0.05 270 / .6)" }}>
+            <svg width="26" height="14" viewBox="0 0 26 14" aria-hidden className="flex-none">
+              <path d="M7 1 L13 7 L7 13 L1 7 Z" fill="oklch(0.6 0.21 25)" /><path d="M7 4 L10 7 L7 10 L4 7 Z" fill="oklch(0.84 0.15 88)" />
+              <path d="M19 1 L25 7 L19 13 L13 7 Z" fill="none" stroke="oklch(0.84 0.15 88)" strokeWidth="1.4" /><rect x="17.6" y="5.6" width="2.8" height="2.8" fill="oklch(0.66 0.22 355)" />
+            </svg>
+            <span>Tà Xùa · Bắc Yên · Sơn La</span>
+            <span aria-hidden className="hidden h-px w-10 bg-white/50 sm:block" />
+            <span className="font-mono text-[11px] font-semibold tracking-[.1em] text-white/80">21°16′B · 104°26′Đ · 2.865 m</span>
           </div>
-          <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.02] tracking-tight sm:text-6xl lg:text-7xl">{heroTitle}</h1>
-          <p className="max-w-xl text-base leading-relaxed text-white/90 sm:text-lg">
+          <h1 className="max-w-[980px] text-balance text-[clamp(40px,7.4vw,96px)] font-extrabold leading-[.98] tracking-[-.04em]" style={{ textShadow: "0 2px 30px oklch(0.15 0.06 270 / .45)" }}>
+            {heroLead}
+            {heroRest && (
+              <>
+                {" "}
+                <span className="bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(100deg, oklch(0.93 0.1 88) 0%, oklch(0.86 0.15 72) 45%, oklch(0.8 0.16 48) 100%)", textShadow: "none" }}>{heroRest}</span>
+              </>
+            )}
+          </h1>
+          <p className="max-w-[580px] text-pretty text-base leading-relaxed text-white/90 sm:text-[19px]" style={{ textShadow: "0 1px 14px oklch(0.15 0.05 270 / .6)" }}>
             Xe cabin, homestay, xe máy, xe ôm, taxi. Chọn ngày là thấy giá và chỗ trống, gửi yêu cầu là có người gọi lại xác nhận.
           </p>
+          <div className="hidden flex-wrap items-center gap-x-4 gap-y-2 text-[13px] font-semibold text-white/85 sm:flex">
+            <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[.08em] text-white backdrop-blur">Mùa mây T10 – T4</span>
+            <span>Xe cabin đêm từ Hà Nội</span>
+            <span aria-hidden className="h-1 w-1 rounded-full bg-white/60" />
+            <span>Homestay view biển mây</span>
+            <span aria-hidden className="hidden h-1 w-1 rounded-full bg-white/60 sm:block" />
+            <span className="hidden sm:inline">Combo trọn gói</span>
+          </div>
         </div>
       </header>
 
