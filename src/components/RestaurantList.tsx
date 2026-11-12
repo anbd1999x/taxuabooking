@@ -1,5 +1,6 @@
 "use client";
 
+import { SiteZaloLink } from "@/components/SiteContact";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -485,7 +486,7 @@ export function RestaurantList({ items: all, initialArea = "" }: { items: Restau
         </div>
         {items.length === 0 && (
           <div className="rounded-[22px] border-[1.5px] border-dashed border-[oklch(0.85_0.02_200)] bg-white px-6 py-12 text-center text-[15px] text-gray-500">
-            Chưa có quán phù hợp. <a href="https://zalo.me/0357452952" target="_blank" rel="noopener noreferrer" className="font-bold text-forest-700">Nhắn Tà Xùa Booking qua Zalo</a>, tụi mình gợi ý quán theo lịch trình của bạn.
+            Chưa có quán phù hợp. <SiteZaloLink className="font-bold text-forest-700">Nhắn Tà Xùa Booking qua Zalo</SiteZaloLink>, tụi mình gợi ý quán theo lịch trình của bạn.
           </div>
         )}
 

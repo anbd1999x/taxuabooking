@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSettings } from "@/lib/queries";
-import { parseTrustPopup, TRUST_POPUP_KEY } from "@/lib/trust-popup";
+import { formatPhone, parseTrustPopup, TRUST_POPUP_KEY } from "@/lib/trust-popup";
+import { SITE } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -204,7 +205,6 @@ function rich(s: string) {
 
 const LEGAL: [string, string][] = [
   ["Người chịu trách nhiệm", "Bùi Danh An"],
-  ["Hotline", "0397 943 155 · 0357 452 952"],
   ["Email", "lienhe@taxuabooking.com"],
   ["Website", "taxuabooking.com · taxuabooking.vn"],
 ];
@@ -218,7 +218,10 @@ const TOC = [
 
 export default async function TermsPage() {
   // admin tắt phần cam kết (/admin/popup) ⇒ ẩn cả trang điều khoản
-  if (!parseTrustPopup((await getSettings())[TRUST_POPUP_KEY]).enabled) notFound();
+  const settings = await getSettings();
+  if (!parseTrustPopup(settings[TRUST_POPUP_KEY]).enabled) notFound();
+  const phone = (settings.contactPhone || SITE.defaultPhone).replace(/\D/g, ""); // SĐT chung toàn web
+  const legal: [string, string][] = [LEGAL[0], ["Hotline", formatPhone(phone)], ...LEGAL.slice(1)];
   return (
     <div
       style={{
@@ -368,7 +371,7 @@ export default async function TermsPage() {
           >
             <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, letterSpacing: "-.015em" }}>Bên cam kết</h2>
             <div className="flex flex-col">
-              {LEGAL.map(([k, v]) => (
+              {legal.map(([k, v]) => (
                 <div
                   key={k}
                   style={{
@@ -406,20 +409,12 @@ export default async function TermsPage() {
             </Link>
             <div className="flex flex-wrap gap-2">
               <a
-                href="https://zalo.me/0397943155"
+                href={`https://zalo.me/${phone}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ fontSize: 14, fontWeight: 800, padding: "11px 16px", borderRadius: 999, background: "white", color: BRAND, whiteSpace: "nowrap" }}
               >
-                Zalo 0397 943 155
-              </a>
-              <a
-                href="https://zalo.me/0357452952"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ fontSize: 14, fontWeight: 800, padding: "11px 16px", borderRadius: 999, background: "white", color: BRAND, whiteSpace: "nowrap" }}
-              >
-                Zalo 0357 452 952
+                Zalo {formatPhone(phone)}
               </a>
               <a
                 href="mailto:lienhe@taxuabooking.com"

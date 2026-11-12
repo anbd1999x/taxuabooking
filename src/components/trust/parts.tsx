@@ -144,15 +144,15 @@ export function PeopleColumn({
           color: "oklch(0.85 0.1 70)",
         }}
       >
-        Xin chào, tụi mình là
+        {people.length > 1 ? "Xin chào, tụi mình là" : "Xin chào, mình là"}
       </div>
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "1fr 1fr",
+          gridTemplateColumns: people.length > 1 ? "1fr 1fr" : "1fr",
           gap: wide ? 12 : 10,
           width: "100%",
-          maxWidth: 340,
+          maxWidth: people.length > 1 ? 340 : 190,
         }}
       >
         {people.map((u, i) => (
@@ -167,7 +167,9 @@ export function PeopleColumn({
           maxWidth: 300,
         }}
       >
-        Hai đứa mình trực tiếp nghe máy, tư vấn và giữ chỗ cho từng khách. Liên hệ ai cũng được.
+        {people.length > 1
+          ? "Hai đứa mình trực tiếp nghe máy, tư vấn và giữ chỗ cho từng khách. Liên hệ ai cũng được."
+          : "Mình trực tiếp nghe máy, tư vấn và giữ chỗ cho từng khách."}
       </div>
 
       {/* Website chính thức duy nhất */}

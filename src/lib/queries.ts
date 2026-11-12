@@ -1,4 +1,5 @@
 import "server-only";
+import { parseTrustPopup, sitePhoneOf, TRUST_POPUP_KEY } from "@/lib/trust-popup";
 import { unstable_cache } from "next/cache";
 import { cache as reactCache } from "react";
 import type {
@@ -47,7 +48,14 @@ const TTL_AVAIL = 30; // giây — dữ liệu gắn với tình trạng còn ch
 
 async function getSettingsImpl(): Promise<Record<string, string>> {
   const rows = await prisma.siteSetting.findMany();
-  return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  const s: Record<string, string> = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  // SĐT/Zalo dùng chung toàn web = SĐT của chủ sở hữu được chọn ở /admin/popup (nếu đã chọn).
+  const phone = sitePhoneOf(parseTrustPopup(s[TRUST_POPUP_KEY]));
+  if (phone) {
+    s.contactPhone = phone;
+    s.contactZalo = phone;
+  }
+  return s;
 }
 export const getSettings = unstable_cache(getSettingsImpl, ["settings"], { revalidate: TTL, tags: ["settings"] });
 

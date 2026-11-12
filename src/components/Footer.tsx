@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { CATEGORY_LIST } from "@/lib/constants";
 import { SITE } from "@/lib/site";
+import { formatPhone, parseTrustPopup, TRUST_POPUP_KEY } from "@/lib/trust-popup";
 
 export function Footer({ settings }: { settings: Record<string, string> }) {
   const phone = settings.contactPhone || SITE.defaultPhone;
-  const phone2 = "0397943155";
   const email = "lienhe@taxuabooking.com";
-  const facebook = "https://www.facebook.com/tanglinhvxhg";
-  const facebook2 = "https://www.facebook.com/an.danh.bui.2025";
+  // Facebook của từng chủ sở hữu (theo thứ tự ở /admin/popup); người bị ẩn thì không hiện.
+  const FB_DEFAULT = ["https://www.facebook.com/an.danh.bui.2025", "https://www.facebook.com/tanglinhvxhg"];
+  const [facebook, facebook2] = parseTrustPopup(settings[TRUST_POPUP_KEY])
+    .people.map((p, i) => (p.hidden ? "" : (/facebook\.com\/.+/.test(p.facebook) ? p.facebook : FB_DEFAULT[i])))
+    .filter(Boolean);
   const address = settings.contactAddress || "Tà Xùa, Bắc Yên, Sơn La";
 
   return (
@@ -39,8 +42,7 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
         <div>
           <h4 className="font-semibold text-white">Liên hệ</h4>
           <ul className="mt-3 space-y-2 text-sm text-forest-200">
-            <li>📞 {phone}</li>
-            <li>📞 {phone2}</li>
+            <li>📞 {formatPhone(phone)}</li>
             {email && <li>✉️ {email}</li>}
             {facebook && (
               <li>

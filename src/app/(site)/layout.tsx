@@ -8,7 +8,9 @@ import { CommitmentEnabledProvider } from "@/components/trust/CommitmentLink";
 import { BackgroundMusic } from "@/components/BackgroundMusic";
 import { getSettings } from "@/lib/queries";
 import { getCustomer } from "@/lib/customer";
-import { parseTrustPopup, TRUST_POPUP_KEY } from "@/lib/trust-popup";
+import { parseTrustPopup, TRUST_POPUP_KEY, visiblePeople } from "@/lib/trust-popup";
+import { SiteContactProvider } from "@/components/SiteContact";
+import { SITE } from "@/lib/site";
 
 export default async function SiteLayout({
   children,
@@ -16,10 +18,11 @@ export default async function SiteLayout({
   children: React.ReactNode;
 }) {
   const [settings, customer] = await Promise.all([getSettings(), getCustomer()]);
-  const trustPopup = parseTrustPopup(settings[TRUST_POPUP_KEY]);
+  const trustConfig = parseTrustPopup(settings[TRUST_POPUP_KEY]);
+  const trustPopup = { ...trustConfig, people: visiblePeople(trustConfig) }; // người bị ẩn không hiện ở popup
 
   return (
-    <>
+    <SiteContactProvider phone={settings.contactPhone || SITE.defaultPhone}>
       <VisitTracker />
       <TrustPopup config={trustPopup} />
       <SearchLoadingOverlay />
@@ -30,6 +33,6 @@ export default async function SiteLayout({
       <Footer settings={settings} />
       <BackgroundMusic />
       <LocationPrompt />
-    </>
+    </SiteContactProvider>
   );
 }

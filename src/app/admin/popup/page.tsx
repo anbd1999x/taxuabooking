@@ -9,6 +9,10 @@ export const dynamic = "force-dynamic";
 export default async function AdminPopupPage() {
   const settings = await getSettings();
   const config = parseTrustPopup(settings[TRUST_POPUP_KEY]);
+  // SĐT toàn web: theo lựa chọn đã lưu; chưa lưu thì chọn sẵn người có số trùng số đang dùng.
+  const cur = (settings.contactPhone || "").replace(/\D/g, "");
+  const match = config.people.findIndex((p) => p.phone.replace(/\D/g, "") === cur);
+  const phoneOwner = config.sitePhoneOwner ?? (match >= 0 ? match : 1);
 
   return (
     <div className="flex max-w-3xl flex-col gap-4">
@@ -16,7 +20,8 @@ export default async function AdminPopupPage() {
         <h1 className="text-xl font-bold text-ink sm:text-2xl">Popup uy tín</h1>
         <p className="mt-1 text-sm text-gray-500">
           Popup hiện khi khách mới vào web (mỗi phiên 1 lần — chuyển trang không hiện lại, đóng
-          trình duyệt rồi quay lại sẽ hiện lại). Cấu hình thông tin 2 người đứng sau dưới đây.
+          trình duyệt rồi quay lại sẽ hiện lại). Cấu hình thông tin 2 chủ sở hữu dưới đây: ẩn/hiện từng người, và chọn
+          số điện thoại của một người để dùng cho toàn bộ trang web (chân trang, nút gọi, Zalo, trang liên hệ…).
         </p>
       </header>
 
@@ -40,7 +45,19 @@ export default async function AdminPopupPage() {
           const p = config.people[i - 1];
           return (
             <div key={i} className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
-              <h2 className="text-sm font-bold text-ink">Người {i}</h2>
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                <h2 className="text-sm font-bold text-ink">Chủ sở hữu {i}</h2>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] font-semibold text-gray-700">
+                  <label className="flex items-center gap-1.5">
+                    <input type="checkbox" name={`show${i}`} defaultChecked={!p.hidden} className="h-4 w-4 accent-forest-600" />
+                    Hiện người này trên web
+                  </label>
+                  <label className="flex items-center gap-1.5">
+                    <input type="radio" name="sitePhone" value={i} defaultChecked={phoneOwner === i - 1} className="h-4 w-4 accent-forest-600" />
+                    Dùng SĐT này cho toàn bộ trang web
+                  </label>
+                </div>
+              </div>
 
               <div>
                 <span className="mb-1 block text-[13px] font-semibold text-gray-600">Ảnh đại diện</span>

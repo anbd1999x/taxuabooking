@@ -15,11 +15,15 @@ export interface TrustPerson {
   zalo: string;
   /** URL ảnh đại diện (/uploads/...); để trống sẽ hiện chữ cái đầu */
   avatar: string;
+  /** Ẩn người này khỏi popup / trang cam kết / chân trang. */
+  hidden?: boolean;
 }
 
 export interface TrustPopupConfig {
   enabled: boolean;
   people: TrustPerson[];
+  /** Chủ sở hữu (0 hoặc 1) có SĐT dùng cho TOÀN BỘ trang web; null = chưa chọn (dùng cài đặt contactPhone cũ). */
+  sitePhoneOwner: 0 | 1 | null;
   /** Danh sách "Cam kết 5 Không" (hiển thị dạng lưới đánh số). */
   fiveRules: string[];
 }
@@ -43,6 +47,7 @@ function emptyPerson(name = "", phone = ""): TrustPerson {
 /** Cấu hình mặc định (khi chưa lưu trong DB) — khớp bản thiết kế. */
 export const DEFAULT_TRUST_POPUP: TrustPopupConfig = {
   enabled: true,
+  sitePhoneOwner: null,
   people: [
     { name: "Bùi An", phone: "0397 943 155", facebook: "https://facebook.com/", zalo: "", avatar: "" },
     { name: "Tăng Linh", phone: "0900 000 000", facebook: "https://facebook.com/", zalo: "", avatar: "" },
@@ -65,6 +70,7 @@ export function parseTrustPopup(raw?: string | null): TrustPopupConfig {
         facebook: String(p.facebook ?? "").trim(),
         zalo: String(p.zalo ?? "").trim(),
         avatar: String(p.avatar ?? "").trim(),
+        hidden: p.hidden === true,
       } satisfies TrustPerson;
     });
     const five = Array.isArray(obj.fiveRules)
@@ -72,12 +78,31 @@ export function parseTrustPopup(raw?: string | null): TrustPopupConfig {
       : [];
     return {
       enabled: obj.enabled !== false,
+      sitePhoneOwner: obj.sitePhoneOwner === 0 || obj.sitePhoneOwner === 1 ? obj.sitePhoneOwner : null,
       people: norm,
       fiveRules: five.length ? five : DEFAULT_FIVE_RULES,
     };
   } catch {
     return DEFAULT_TRUST_POPUP;
   }
+}
+
+/** Những người đang được hiện (chưa bị ẩn trong /admin/popup). */
+export function visiblePeople(config: TrustPopupConfig): TrustPerson[] {
+  return config.people.filter((p) => !p.hidden);
+}
+
+/** SĐT dùng chung toàn web (chỉ chữ số) theo chủ sở hữu được chọn; null = chưa cấu hình. */
+export function sitePhoneOf(config: TrustPopupConfig): string | null {
+  if (config.sitePhoneOwner == null) return null;
+  const digits = (config.people[config.sitePhoneOwner]?.phone ?? "").replace(/\D/g, "");
+  return digits || null;
+}
+
+/** "0397943155" → "0397 943 155" (số 10 chữ số); khác thì giữ nguyên. */
+export function formatPhone(phone: string): string {
+  const d = phone.replace(/\D/g, "");
+  return d.length === 10 ? `${d.slice(0, 4)} ${d.slice(4, 7)} ${d.slice(7)}` : phone;
 }
 
 /** Link Zalo hiệu lực: ưu tiên link khai báo, thiếu thì dựng từ SĐT. */

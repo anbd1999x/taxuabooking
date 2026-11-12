@@ -1,5 +1,6 @@
 "use client";
 
+import { SitePhone } from "@/components/SiteContact";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -430,7 +431,7 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
         {items.length === 0 ? (
           <div className="rounded-[22px] border border-dashed border-[oklch(0.85_0.02_200)] bg-white py-14 text-center">
             <div className="text-[19px] font-extrabold text-ink">Không có xe phù hợp</div>
-            <div className="mt-1 text-[15px] text-gray-500">Thử đổi loại xe hoặc ngày, hoặc gọi 0357452952 để được hỗ trợ.</div>
+            <div className="mt-1 text-[15px] text-gray-500">Thử đổi loại xe hoặc ngày, hoặc gọi <SitePhone /> để được hỗ trợ.</div>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] sm:gap-[22px]">

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getSettings } from "@/lib/queries";
 import { Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 import { SITE } from "@/lib/site";
@@ -42,7 +43,7 @@ export const metadata: Metadata = {
 };
 
 // Dữ liệu có cấu trúc (JSON-LD) cho Google: doanh nghiệp du lịch + website.
-const JSON_LD = {
+const jsonLd = (phone: string) => ({
   "@context": "https://schema.org",
   "@graph": [
     {
@@ -51,7 +52,7 @@ const JSON_LD = {
       name: SITE.name,
       url: SITE.url,
       description: SITE.description,
-      telephone: SITE.defaultPhone.replace(/\s/g, ""),
+      telephone: phone.replace(/\D/g, ""),
       areaServed: "Tà Xùa, Bắc Yên, Sơn La, Việt Nam",
       address: {
         "@type": "PostalAddress",
@@ -69,13 +70,15 @@ const JSON_LD = {
       publisher: { "@id": `${SITE.url}/#organization` },
     },
   ],
-};
+});
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // SĐT chung toàn web (theo chủ sở hữu được chọn ở /admin/popup); DB lỗi thì dùng số mặc định.
+  const phone = (await getSettings().catch(() => ({}) as Record<string, string>)).contactPhone || SITE.defaultPhone;
   return (
     <html lang="vi" className={`${beVietnam.variable} h-full`}>
       <body className="min-h-full flex flex-col bg-cloud text-ink">
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd(phone)) }} />
         {children}
       </body>
     </html>

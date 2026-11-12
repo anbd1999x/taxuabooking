@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SitePhone } from "@/components/SiteContact";
 import { notFound } from "next/navigation";
 import { categoryBySlug, CATEGORY_LIST } from "@/lib/constants";
 import { listServicesByCategory, getHomestayRoomCards, getRentalBikes, getXeomRoutes, getTaxiRoutes, type ListFilters } from "@/lib/queries";
@@ -189,7 +190,7 @@ export default async function CategoryPage({
                   : result.planCount === 0
                     ? "Chưa ghép được đủ chỗ cho cả đoàn từ các phòng trống khớp tiêu chí — thử nới tiêu chí, giảm số người hoặc đổi ngày."
                     : "Thử nới tiêu chí hoặc đổi ngày."}{" "}
-                Hoặc liên hệ {SITE.defaultPhone}.
+                Hoặc liên hệ <SitePhone />.
               </p>
             </div>
           ) : (
