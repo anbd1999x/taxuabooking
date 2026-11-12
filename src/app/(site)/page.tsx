@@ -45,12 +45,8 @@ export default async function HomePage() {
       <header className="relative isolate flex min-h-[400px] flex-col justify-end overflow-hidden sm:min-h-[720px]">
         <HeroPhoto />
         <div className="container-page flex flex-col gap-3 pb-28 pt-10 text-white sm:gap-5 sm:pb-36 sm:pt-12">
-          {/* dòng định vị: hoa văn quả trám + địa danh + toạ độ */}
+          {/* dòng định vị: địa danh + toạ độ */}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] font-bold uppercase tracking-[.22em] sm:text-xs" style={{ textShadow: "0 1px 10px oklch(0.15 0.05 270 / .6)" }}>
-            <svg width="26" height="14" viewBox="0 0 26 14" aria-hidden className="flex-none">
-              <path d="M7 1 L13 7 L7 13 L1 7 Z" fill="oklch(0.6 0.21 25)" /><path d="M7 4 L10 7 L7 10 L4 7 Z" fill="oklch(0.84 0.15 88)" />
-              <path d="M19 1 L25 7 L19 13 L13 7 Z" fill="none" stroke="oklch(0.84 0.15 88)" strokeWidth="1.4" /><rect x="17.6" y="5.6" width="2.8" height="2.8" fill="oklch(0.66 0.22 355)" />
-            </svg>
             <span>Tà Xùa · Bắc Yên · Sơn La</span>
             <span aria-hidden className="hidden h-px w-10 bg-white/50 sm:block" />
             <span className="font-mono text-[11px] font-semibold tracking-[.1em] text-white/80">21°16′B · 104°26′Đ · 2.865 m</span>
