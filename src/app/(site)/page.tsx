@@ -42,9 +42,9 @@ export default async function HomePage() {
   return (
     <>
       {/* HERO — ảnh thật đồi hoa Tà Xùa (bản hoạt hình cũ: components/home/HeroScene) + chữ kiểu tạp chí */}
-      <header className="relative isolate flex min-h-[680px] flex-col justify-end overflow-hidden sm:min-h-[720px]">
+      <header className="relative isolate flex min-h-[400px] flex-col justify-end overflow-hidden sm:min-h-[720px]">
         <HeroPhoto />
-        <div className="container-page flex flex-col gap-5 pb-28 pt-12 text-white sm:pb-36">
+        <div className="container-page flex flex-col gap-3 pb-28 pt-10 text-white sm:gap-5 sm:pb-36 sm:pt-12">
           {/* dòng định vị: hoa văn quả trám + địa danh + toạ độ */}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] font-bold uppercase tracking-[.22em] sm:text-xs" style={{ textShadow: "0 1px 10px oklch(0.15 0.05 270 / .6)" }}>
             <svg width="26" height="14" viewBox="0 0 26 14" aria-hidden className="flex-none">
@@ -64,7 +64,7 @@ export default async function HomePage() {
               </>
             )}
           </h1>
-          <p className="max-w-[580px] text-pretty text-base leading-relaxed text-white/90 sm:text-[19px]" style={{ textShadow: "0 1px 14px oklch(0.15 0.05 270 / .6)" }}>
+          <p className="hidden max-w-[580px] text-pretty text-base leading-relaxed text-white/90 sm:block sm:text-[19px]" style={{ textShadow: "0 1px 14px oklch(0.15 0.05 270 / .6)" }}>
             Xe cabin, homestay, xe máy, xe ôm, taxi. Chọn ngày là thấy giá và chỗ trống, gửi yêu cầu là có người gọi lại xác nhận.
           </p>
           <div className="hidden flex-wrap items-center gap-x-4 gap-y-2 text-[13px] font-semibold text-white/85 sm:flex">
