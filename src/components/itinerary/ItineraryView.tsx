@@ -74,7 +74,7 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
   const [cur, setCur] = useState(0); // cảnh đang chiếu (chỉ số điểm dừng đã trải phẳng)
   const [playing, setPlaying] = useState(true);
 
-  // Chiều cao thanh menu (sticky) — phim lịch trình neo ngay bên dưới.
+  // Chiều cao thanh menu (sticky) — cột đặt combo bên phải neo ngay bên dưới.
   const [headerH, setHeaderH] = useState(64);
   useEffect(() => {
     const measure = () => { const h = document.querySelector("header"); if (h) setHeaderH(Math.round(h.getBoundingClientRect().height)); };
@@ -82,22 +82,6 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, []);
-  // Phim đang neo dưới thanh menu? (mốc 0px đặt ngay trên khung phim, không đổi theo chiều cao phim)
-  const [stuck, setStuck] = useState(false);
-  useEffect(() => {
-    const check = () => {
-      const mark = document.getElementById("lt-scene-mark");
-      const end = document.getElementById("lt-places");
-      if (!mark) return;
-      // hết phần lịch trình (tới mục "Nên ghé") thì phim cuộn đi ⇒ trả lại chiều cao
-      const on = mark.getBoundingClientRect().top < headerH - 2 && (!end || end.getBoundingClientRect().top > headerH + 200);
-      setStuck(on);
-    };
-    check();
-    window.addEventListener("scroll", check, { passive: true });
-    return () => window.removeEventListener("scroll", check);
-  }, [headerH]);
-
   const plan = plans.find((p) => p.id === planKey) ?? plans[0] ?? EMPTY_PLAN;
   const shown = useMemo(() => new Map(places.map((p) => [p.id, p])), [places]);
 
@@ -254,11 +238,9 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
             </div>
           </div>
 
-          {/* Phim neo sát dưới thanh menu khi cuộn; lịch trình bên dưới cuộn tiếp phía sau. */}
-          <div id="lt-scene-mark" className="-mb-4 h-0" />
-          <div className="sticky z-20 -mx-1 bg-[oklch(0.975_0.01_150)] px-1 pb-2 pt-2" style={{ top: headerH }}>
+          {/* Phim lịch trình: cuộn theo trang (không neo dưới thanh menu). */}
+          <div>
             <ItineraryScene
-              compact={stuck}
               flat={flat}
               cur={ci}
               playing={playing}
@@ -399,7 +381,7 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
               ))}
             </div>
 
-            <aside className="flex flex-col gap-3 lg:sticky" style={{ top: headerH + 252 }}>
+            <aside className="flex flex-col gap-3 lg:sticky" style={{ top: headerH + 16 }}>
               <div className="flex flex-col gap-3.5 rounded-[22px] border border-[oklch(0.92_0.01_160)] bg-white px-5 py-[18px]">
                 <div className="text-[17px] font-extrabold text-ink">{plan.name} gồm những gì</div>
                 <div className="grid grid-cols-3 gap-2">
