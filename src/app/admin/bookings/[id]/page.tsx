@@ -6,6 +6,12 @@ import { CATEGORIES } from "@/lib/constants";
 import { formatPrice, formatDate, formatDateTime, toNumber } from "@/lib/format";
 import { addDays, today } from "@/lib/dates";
 import { SITE } from "@/lib/site";
+
+// Giờ nhận / trả phòng chuẩn ghi trong tin nhắn gửi khách (homestay có quy định riêng thì báo thêm).
+const STAY_CHECKIN_TIME = "14:00";
+const STAY_CHECKOUT_TIME = "12:00";
+// Tỉ lệ cọc giữ chỗ ghi trong tin nhắn gửi khách.
+const DEPOSIT_RATE = 0.5;
 import { getSettings } from "@/lib/queries";
 import { formatPhone } from "@/lib/trust-popup";
 import { AUTO_CANCEL_FROM, getAutoCancelHours } from "@/lib/booking-auto-cancel";
@@ -338,21 +344,6 @@ export default async function BookingDetailPage({
     : null;
   const isStay = b.nights != null && b.endDate != null;
 
-  // 1) Tin nhắn ĐÃ NHẬN yêu cầu (gửi sớm, mời cọc) — bản rút gọn, nhiều dòng cho dễ đọc.
-  const customerMsg = [
-    `Chào ${b.customerName},`,
-    `Tà Xùa Booking đã nhận yêu cầu ${b.code}:`,
-    `• Dịch vụ: ${b.serviceTitle}`,
-    `• Ngày: ${formatDate(b.useDate)}${b.endDate ? ` → ${formatDate(b.endDate)}` : ""}${b.nights ? ` (${b.nights} đêm)` : ""}`,
-    `• Số khách: ${b.quantity}`,
-    price != null ? `• Tạm tính: ${formatPrice(price)}` : `• Giá: đang xác nhận`,
-    ...(due != null && due > 0 ? [`Vui lòng cọc để giữ chỗ (còn thiếu ${formatPrice(due)}).`] : []),
-    ...(autoCancelAt
-      ? [`Lưu ý: đơn sẽ tự huỷ nếu tới ${VN_TIME.format(autoCancelAt)} (sau ${hoursLabel(autoCancelHours)} giờ kể từ lúc đặt) chưa xác nhận thanh toán, hoặc nếu phòng được chủ nhà báo đã có khách đặt trước.`]
-      : []),
-    `Cảm ơn bạn! Hotline ${hotline}.`,
-  ].join("\n");
-
   // 2) Tin nhắn XÁC NHẬN CHỐT ĐƠN (gửi khi đã chốt/cọc). Thương hiệu Tà Xùa Booking
   //    đứng ra xác nhận; nội dung theo loại đơn: vé xe riêng / homestay riêng / combo
   //    (gộp cả 2 nhưng tách bạch từng phần). Gắn đúng tên dịch vụ + cọc + còn lại.
@@ -367,6 +358,61 @@ export default async function BookingDetailPage({
     return `${b.quantity} khách`;
   })();
   const outPickup2 = outTrip ? pickupChosen || outTrip.pickupPoint : null;
+
+  // 1) Tin nhắn ĐÃ NHẬN yêu cầu (gửi sớm, mời cọc). Tách bạch XE và HOMESTAY, ghi rõ ngày + giờ:
+  //    xe đi/về hôm nào mấy giờ, đón ở đâu; nhận/trả phòng hôm nào mấy giờ (combo: xe đi tối hôm
+  //    trước ngày nhận phòng nên không gộp chung một dòng "Ngày").
+  const stayName = b.service?.title ?? b.serviceTitle;
+  const hasRoom = !!(b.roomTypeId || b.roomId || b.roomIds.length > 0);
+  const busLines = outTrip
+    ? [
+        `🚐 XE CABIN: ${outTrip.service.title}`,
+        `- Đi: ${outTrip.departureTime} ngày ${formatDate(outTrip.departureDate)}${outPickup2 ? `, đón tại ${outPickup2}` : ""}${outTrip.dropoffPoint ? ` → ${outTrip.dropoffPoint}` : ""}`,
+        ...(retTrip
+          ? [`- Về: ${retTrip.departureTime} ngày ${formatDate(retTrip.departureDate)}${retTrip.pickupPoint ? `, từ ${retTrip.pickupPoint}` : ""}${dropChosen || pickupChosen || retTrip.dropoffPoint ? ` → ${dropChosen || pickupChosen || retTrip.dropoffPoint}` : ""}`]
+          : ["- Vé một chiều (chưa gồm chiều về)"]),
+        ...(seatsLabel ? [`- Chỗ nằm: ${seatsLabel}`] : []),
+      ]
+    : [];
+  const stayLines =
+    hasRoom && isStay
+      ? [
+          `🏠 HOMESTAY: ${stayName}`,
+          ...(roomsConfirmLabel ? [`- Phòng: ${roomsConfirmLabel}`] : []),
+          `- Nhận phòng: từ ${STAY_CHECKIN_TIME} ngày ${formatDate(b.useDate)}`,
+          `- Trả phòng: trước ${STAY_CHECKOUT_TIME} ngày ${formatDate(b.endDate!)} (${b.nights} đêm)`,
+        ]
+      : [];
+  // Tiền cọc giữ chỗ = 50% tổng tiền (làm tròn lên nghìn đồng), tự tính theo giá đơn.
+  const deposit = price != null && price > 0 ? Math.ceil((price * DEPOSIT_RATE) / 1000) * 1000 : null;
+  const depositLines =
+    deposit == null || due == null || due <= 0
+      ? []
+      : collected >= deposit
+        ? [`Đã nhận cọc ${formatPrice(collected)}, còn lại ${formatPrice(due)}.`]
+        : collected > 0
+          ? [`Vui lòng cọc 50% = ${formatPrice(deposit)} để giữ chỗ (đã nhận ${formatPrice(collected)}, cần chuyển thêm ${formatPrice(deposit - collected)}).`]
+          : [`Vui lòng cọc 50% = ${formatPrice(deposit)} để giữ chỗ.`];
+  const customerMsg = [
+    `Chào ${b.customerName},`,
+    `Tà Xùa Booking đã nhận yêu cầu ${b.code}:`,
+    ...(busLines.length || stayLines.length
+      ? [...(busLines.length ? ["", ...busLines] : []), ...(stayLines.length ? ["", ...stayLines] : []), ""]
+      : [
+          `• Dịch vụ: ${b.serviceTitle}`,
+          `• Ngày: ${formatDate(b.useDate)}${b.endDate ? ` → ${formatDate(b.endDate)}` : ""}${b.nights ? ` (${b.nights} đêm)` : ""}`,
+        ]),
+    `• Số khách: ${partyLabelStr}`,
+    price != null ? `• Tạm tính: ${formatPrice(price)}` : `• Giá: đang xác nhận`,
+    ...depositLines,
+    ...(autoCancelAt
+      ? [
+          `Lưu ý: đơn sẽ tự huỷ sau ${hoursLabel(autoCancelHours)} giờ kể từ lúc đặt (trước ${VN_TIME.format(autoCancelAt)}) nếu chưa xác nhận cọc/thanh toán` +
+            (hasRoom ? ", hoặc ngay khi phòng đã được người khác đặt trước." : "."),
+        ]
+      : []),
+    `Cảm ơn bạn! Hotline ${hotline}.`,
+  ].join("\n");
 
   let confirmLines: string[];
   if (b.category === "COMBO") {

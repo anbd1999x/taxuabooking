@@ -19,7 +19,7 @@ export async function getAutoCancelHours(): Promise<number> {
   const row = await prisma.siteSetting.findUnique({ where: { key: AUTO_CANCEL_HOURS_KEY } });
   return parseAutoCancelHours(row?.value);
 }
-export const AUTO_CANCEL_FROM = new Date("2026-11-12T09:00:00.000Z"); // 16:00 ngày 12/11/2026 giờ VN
+export const AUTO_CANCEL_FROM = new Date("2026-11-11T17:00:00.000Z"); // 00:00 ngày 12/11/2026 giờ VN (đơn đặt từ hôm bật tính năng)
 const AUTO_CANCEL_LOCK_KEY = 772_641_902; // khoá advisory riêng (khác khoá nhắc lịch)
 const BY = "Hệ thống";
 
