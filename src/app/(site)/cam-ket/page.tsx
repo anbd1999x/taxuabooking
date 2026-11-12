@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default async function CommitmentPage() {
   const settings = await getSettings();
   const config = parseTrustPopup(settings[TRUST_POPUP_KEY]);
-  if (!config.enabled) notFound(); // admin tắt phần cam kết ⇒ ẩn cả trang
+  if (!config.enabled && !config.showLinks) notFound(); // tắt cả popup lẫn menu/link ⇒ ẩn cả trang
   const people = visiblePeople(config);
 
   return (

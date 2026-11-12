@@ -20,7 +20,10 @@ export interface TrustPerson {
 }
 
 export interface TrustPopupConfig {
+  /** Hiện POPUP uy tín khi khách mới vào web. */
   enabled: boolean;
+  /** Hiện mục menu "Cam kết" + link "Xem cam kết uy tín" dưới các form đặt dịch vụ. */
+  showLinks: boolean;
   people: TrustPerson[];
   /** Chủ sở hữu (0 hoặc 1) có SĐT dùng cho TOÀN BỘ trang web; null = chưa chọn (dùng cài đặt contactPhone cũ). */
   sitePhoneOwner: 0 | 1 | null;
@@ -47,6 +50,7 @@ function emptyPerson(name = "", phone = ""): TrustPerson {
 /** Cấu hình mặc định (khi chưa lưu trong DB) — khớp bản thiết kế. */
 export const DEFAULT_TRUST_POPUP: TrustPopupConfig = {
   enabled: true,
+  showLinks: true,
   sitePhoneOwner: null,
   people: [
     { name: "Bùi An", phone: "0397 943 155", facebook: "https://facebook.com/", zalo: "", avatar: "" },
@@ -78,6 +82,8 @@ export function parseTrustPopup(raw?: string | null): TrustPopupConfig {
       : [];
     return {
       enabled: obj.enabled !== false,
+      // chưa lưu công tắc riêng (cấu hình cũ) ⇒ đi theo công tắc popup như trước
+      showLinks: typeof obj.showLinks === "boolean" ? obj.showLinks : obj.enabled !== false,
       sitePhoneOwner: obj.sitePhoneOwner === 0 || obj.sitePhoneOwner === 1 ? obj.sitePhoneOwner : null,
       people: norm,
       fiveRules: five.length ? five : DEFAULT_FIVE_RULES,

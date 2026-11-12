@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import type { FormResult } from "@/components/admin/ActionForm";
@@ -30,6 +30,7 @@ export async function saveTrustPopup(_prev: FormResult, fd: FormData): Promise<F
 
   const config: TrustPopupConfig = {
     enabled: fd.get("enabled") === "on",
+    showLinks: fd.get("showLinks") === "on",
     sitePhoneOwner: fd.get("sitePhone") === "2" ? 1 : 0,
     people: [person(1), person(2)],
     fiveRules,
@@ -49,7 +50,9 @@ export async function saveTrustPopup(_prev: FormResult, fd: FormData): Promise<F
     update: { value: JSON.stringify(config) },
   });
 
+  // Cài đặt được cache 60 giây (tag "settings") — xoá ngay để menu, popup, SĐT đổi liền sau khi lưu.
+  updateTag("settings");
   revalidatePath("/", "layout");
   revalidatePath("/admin/popup", "page");
-  return { ok: true, message: "Đã lưu popup uy tín (cập nhật trang web trong ~1 phút)." };
+  return { ok: true, message: "Đã lưu. Trang web cập nhật ngay (tải lại trang để thấy)." };
 }

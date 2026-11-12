@@ -217,9 +217,10 @@ const TOC = [
 ];
 
 export default async function TermsPage() {
-  // admin tắt phần cam kết (/admin/popup) ⇒ ẩn cả trang điều khoản
+  // admin tắt cả popup lẫn menu/link cam kết (/admin/popup) ⇒ ẩn cả trang điều khoản
   const settings = await getSettings();
-  if (!parseTrustPopup(settings[TRUST_POPUP_KEY]).enabled) notFound();
+  const trust = parseTrustPopup(settings[TRUST_POPUP_KEY]);
+  if (!trust.enabled && !trust.showLinks) notFound();
   const phone = (settings.contactPhone || SITE.defaultPhone).replace(/\D/g, ""); // SĐT chung toàn web
   const legal: [string, string][] = [LEGAL[0], ["Hotline", formatPhone(phone)], ...LEGAL.slice(1)];
   return (

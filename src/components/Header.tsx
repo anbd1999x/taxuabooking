@@ -5,7 +5,7 @@ import Link from "next/link";
 import { CATEGORY_LIST } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
-/** `showCommitment` = công tắc "Hiển thị" ở /admin/popup: tắt thì ẩn toàn bộ phần cam kết (menu, popup, link dưới form, trang /cam-ket). */
+/** `showCommitment` = công tắc "Hiện menu & link cam kết" ở /admin/popup (tách riêng với công tắc popup). */
 export function Header({ customerName = null, showCommitment = true }: { customerName?: string | null; showCommitment?: boolean }) {
   const [open, setOpen] = useState(false);
   const [dd, setDd] = useState(false); // dropdown "Cẩm nang" (desktop)

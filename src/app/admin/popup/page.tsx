@@ -34,9 +34,25 @@ export default async function AdminPopupPage() {
             className="mt-0.5 h-4 w-4 accent-forest-600"
           />
           <span>
-            <span className="block text-sm font-semibold text-ink">Hiển thị phần cam kết trên trang web</span>
+            <span className="block text-sm font-semibold text-ink">Hiện popup uy tín</span>
             <span className="mt-0.5 block text-xs text-gray-500">
-              Bỏ tick để ẩn toàn bộ: popup uy tín, mục “Cam kết” trên menu, link “Xem cam kết uy tín” dưới các form đặt dịch vụ, trang /cam-ket và trang điều khoản.
+              Popup hiện khi khách mới vào web. Bỏ tick để không hiện popup nữa.
+            </span>
+          </span>
+        </label>
+
+        <label className="flex items-start gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+          <input
+            type="checkbox"
+            name="showLinks"
+            defaultChecked={config.showLinks}
+            className="mt-0.5 h-4 w-4 accent-forest-600"
+          />
+          <span>
+            <span className="block text-sm font-semibold text-ink">Hiện menu và link cam kết</span>
+            <span className="mt-0.5 block text-xs text-gray-500">
+              Mục “Cam kết” trên thanh menu và link “Xem cam kết uy tín” dưới các form đặt dịch vụ. Tắt cả hai công tắc
+              thì trang /cam-ket và trang điều khoản cũng ẩn luôn.
             </span>
           </span>
         </label>
