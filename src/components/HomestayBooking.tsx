@@ -1,5 +1,6 @@
 "use client";
 
+import { ItineraryLink } from "@/components/itinerary/ItineraryLink";
 import { VoiceText } from "@/components/SiteContact";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
@@ -1034,6 +1035,7 @@ export function HomestayBooking({
                 >
                   {submitting ? "Đang gửi..." : "Gửi yêu cầu đặt phòng"}
                 </button>
+                <ItineraryLink nights={nN} />
                 <CommitmentLink className="flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-forest-700 transition hover:text-forest-900" />
                 <p className="text-center text-xs leading-relaxed text-gray-500">
                   Giá tham khảo. Chủ nhà gọi xác nhận, không thanh toán online.

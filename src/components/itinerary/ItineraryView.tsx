@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { MediaSlider, type MediaItem } from "./MediaSlider";
 import { ItineraryScene, type SceneStop } from "./ItineraryScene";
+import { ItineraryHero, type HeroPlan } from "./ItineraryHero";
 import type { StopKind } from "@/lib/itinerary";
 import { cn } from "@/lib/utils";
 
@@ -65,8 +66,8 @@ const period = (t: string) => {
 };
 const hm = (m: number) => (m >= 60 ? `${Math.floor(m / 60)} giờ${m % 60 ? ` ${m % 60} phút` : ""}` : `${m} phút`);
 
-export function ItineraryView({ plans, places, prep }: { plans: ViewPlan[]; places: ItineraryPlace[]; prep: string[] }) {
-  const [planKey, setPlanKey] = useState(plans[0]?.id ?? "");
+export function ItineraryView({ plans, places, prep, initialPlan }: { plans: ViewPlan[]; places: ItineraryPlace[]; prep: string[]; initialPlan?: string }) {
+  const [planKey, setPlanKey] = useState((initialPlan && plans.some((p) => p.id === initialPlan) ? initialPlan : plans[0]?.id) ?? "");
   const [closed, setClosed] = useState<Record<string, boolean>>({});
   const [tab, setTab] = useState<Tab>("checkin");
   const [only, setOnly] = useState(false);
@@ -199,6 +200,17 @@ export function ItineraryView({ plans, places, prep }: { plans: ViewPlan[]; plac
     if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 76, behavior: "smooth" });
   };
   const pickPlan = (k: string) => { setPlanKey(k); setCur(0); };
+  // Thẻ chọn lịch trình ở phần đầu trang.
+  const heroPlans: HeroPlan[] = plans.map((p) => {
+    const stops = p.days.reduce((n, d) => n + d.stops.length, 0);
+    const checkins = new Set(p.days.flatMap((d) => d.stops.filter((x) => x.kind === "checkin" && x.placeId).map((x) => x.placeId))).size;
+    return {
+      id: p.id,
+      name: p.name,
+      title: p.days.length > 1 ? `${p.days.length} ngày ${p.days.length - 1} đêm` : "Trong ngày",
+      meta: `${stops} điểm dừng${checkins ? ` · ${checkins} điểm check-in` : ""}`,
+    };
+  });
   const jumpPlan = (k: string) => { pickPlan(k); go("plan"); };
   const jumpTab = (t: Tab) => { setTab(t); setTimeout(() => go("place"), 30); };
   // Chiếu cảnh của một điểm dừng; cảnh đang khuất phía trên thì cuộn lên cho thấy.
@@ -216,37 +228,8 @@ export function ItineraryView({ plans, places, prep }: { plans: ViewPlan[]; plac
   return (
     <div className="bg-[oklch(0.975_0.01_150)]">
       <style>{`@keyframes lt-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}.lt-rise{animation:lt-rise .4s ease both}.lt-stop:hover{border-color:var(--lt-c)!important}@keyframes lt-blink{from{opacity:.35}to{opacity:1}}.lt-blink{animation:lt-blink .8s ease infinite alternate}@media (prefers-reduced-motion:reduce){.lt-rise,.lt-blink{animation:none}}@media (max-width:639px){.lt-compact [data-lt-card]{left:8px!important;top:8px!important;padding:5px 9px!important;border-radius:12px!important;gap:1px!important;max-width:calc(100% - 118px)!important}.lt-compact [data-lt-name]{font-size:13px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lt-compact [data-lt-type]{display:none!important}.lt-compact [data-lt-ctrl]{right:8px!important;top:8px!important;gap:4px!important}.lt-compact [data-lt-ctrl] button{width:30px!important;height:30px!important;font-size:12px!important}}`}</style>
-      <div className="container-page flex flex-col gap-7 pb-14 pt-5">
-        {/* HERO */}
-        <section
-          className="lt-rise flex flex-col gap-[18px] rounded-[26px] p-[clamp(22px,4vw,40px)] text-white"
-          style={{ background: "linear-gradient(160deg, oklch(0.32 0.06 165), oklch(0.24 0.045 160))" }}
-        >
-          <div className="text-xs font-extrabold uppercase tracking-[.12em] text-[oklch(0.85_0.1_75)]">Cẩm nang · Lịch trình gợi ý</div>
-          <h1 className="max-w-[760px] text-balance text-[clamp(28px,4.4vw,46px)] font-extrabold leading-[1.08] tracking-[-.03em]">
-            Đi Tà Xùa mấy ngày, đi đâu, ăn gì?
-          </h1>
-          <p className="max-w-[620px] text-pretty text-base leading-relaxed text-[oklch(0.88_0.03_160)]">
-            Lịch trình theo giờ cho chuyến xe cabin đêm từ Hà Nội, kèm danh sách điểm check-in, quán cafe và quán ăn nên ghé.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {([
-              ...plans.map((p) => [`Lịch trình ${p.name}`, () => jumpPlan(p.id)] as const),
-              ["Điểm check-in", () => jumpTab("checkin")] as const,
-              ["Cafe & quán ăn", () => jumpTab("cafe")] as const,
-            ]).map(([name, fn]) => (
-              <button
-                key={name}
-                type="button"
-                onClick={fn}
-                className="whitespace-nowrap rounded-full border border-white/20 bg-white/[.12] px-4 py-[9px] text-sm font-bold transition hover:bg-white/20"
-              >
-                {name}
-              </button>
-            ))}
-          </div>
-        </section>
-
+      <ItineraryHero plans={heroPlans} activeId={plan.id} onPick={jumpPlan} onTab={jumpTab} />
+      <div className="container-page flex flex-col gap-7 pb-14 pt-8">
         {/* LỊCH TRÌNH */}
         <section id="lt-plan" className="flex scroll-mt-20 flex-col gap-4">
           <div className="flex flex-wrap items-end justify-between gap-3.5">

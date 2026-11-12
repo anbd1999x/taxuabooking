@@ -599,6 +599,8 @@ model Place {
   mapUrl     String? // link Google Maps
   mapX       Float? // vị trí trên bản đồ hoạt hình /ban-do (0–100, tương đối; null = theo mặc định của slug)
   mapY       Float?
+  lat        Float? // toạ độ thật (vĩ độ) — lấy từ link Google Maps khi lưu, hoặc admin nhập tay
+  lng        Float? // kinh độ
   sortOrder  Int      @default(0)
   published  Boolean  @default(true)
   createdAt  DateTime @default(now())

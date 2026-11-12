@@ -1,5 +1,6 @@
 "use client";
 
+import { ItineraryLink } from "@/components/itinerary/ItineraryLink";
 import { useState } from "react";
 import type { ServiceCategory, AvailabilityStatus } from "@prisma/client";
 import { DateField } from "@/components/DateField";
@@ -454,6 +455,7 @@ export function BookingPanel({
       >
         {submitting ? "Đang gửi..." : "Gửi yêu cầu đặt"}
       </button>
+      {kind === "stay" && avail && <ItineraryLink nights={avail.nights} className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-forest-700 transition hover:text-forest-900" />}
       <CommitmentLink />
       {requireSelection && !selectedId && avail && (
         <p className="mt-2 text-center text-xs text-gray-500">

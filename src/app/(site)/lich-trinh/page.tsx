@@ -14,7 +14,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/lich-trinh" },
 };
 
-export default async function ItineraryPage() {
+export default async function ItineraryPage({ searchParams }: { searchParams: Promise<{ ngay?: string }> }) {
+  const wantDays = Number((await searchParams).ngay);
   const rows = await prisma.place.findMany({
     where: { published: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -85,5 +86,11 @@ export default async function ItineraryPage() {
         .filter((d) => d.stops.length),
     }));
 
-  return <ItineraryView plans={plans} places={places} prep={config.prep} />;
+  // ?ngay=N (từ trang đặt combo/phòng): mở sẵn lịch trình có số ngày khớp, không có thì lấy cái gần nhất.
+  const initialPlan =
+    Number.isFinite(wantDays) && wantDays >= 1 && plans.length
+      ? [...plans].sort((a, b) => Math.abs(a.days.length - wantDays) - Math.abs(b.days.length - wantDays))[0].id
+      : undefined;
+
+  return <ItineraryView plans={plans} places={places} prep={config.prep} initialPlan={initialPlan} />;
 }

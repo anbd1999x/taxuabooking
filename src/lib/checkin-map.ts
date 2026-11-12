@@ -1,118 +1,52 @@
 /**
- * Bố cục bản đồ check-in hoạt hình (/ban-do): toạ độ TƯƠNG ĐỐI trên mặt phẳng 100×100 và mạng
- * đường nối các nút. Không phải toạ độ GPS — vị trí chính xác xem ở tab "Vệ tinh Google".
- * Nội dung từng điểm (tên, mô tả, ảnh, khoảng cách) lấy từ bảng Place (kind CHECKIN) theo slug.
+ * Bố cục bản đồ check-in (/ban-do) theo TOẠ ĐỘ THẬT (vĩ độ/kinh độ lấy từ link Google Maps của từng
+ * điểm — xem src/lib/map-link.ts). Bản đồ hoạt hình 3D chiếu các điểm lên mặt phẳng 100×100:
+ * hướng (đông/tây/nam/bắc so với trung tâm) giữ đúng; khoảng cách được NÉN (luỹ thừa 0,6) để cụm điểm
+ * gần trung tâm không dính vào nhau khi có điểm ở xa 15–20 km. Vị trí chính xác xem ở tab Vệ tinh.
  */
 
-export type NodeKey = "tt" | "by" | "dg" | "cd" | "dr" | "sl" | "dc" | "mv" | "bb" | "ld" | "tn" | "mch";
-
-export const MAP_NODES: Record<NodeKey, [number, number]> = {
-  tt: [56, 47], // trung tâm Tà Xùa (mốc 0)
-  by: [54, 95], // thị trấn Bắc Yên (bến xe cabin)
-  dg: [50, 41], // Đỉnh Gió
-  cd: [46, 36], // Cây cô đơn
-  dr: [35, 26], // Mỏm đầu rùa
-  sl: [12, 18], // Sống lưng khủng long
-  dc: [60, 68], // Đồi chè Shan tuyết (trên đường Bắc Yên lên)
-  mv: [62, 60], // Bản Mống Vàng
-  bb: [76, 35], // Rừng chè cổ thụ Bản Bẹ
-  ld: [87, 25], // Mỏm lạc đà
-  tn: [30, 58], // Thảo nguyên Tà Xùa
-  mch: [20, 67], // Mỏm cá heo
-};
-
-/** slug của Place (điểm check-in) → nút trên bản đồ. Slug chưa khai ở đây ⇒ chỉ hiện ở danh sách/vệ tinh. */
-export const SLUG_NODE: Record<string, NodeKey> = {
-  "dinh-gio": "dg",
-  "cay-co-don": "cd",
-  "mom-dau-rua": "dr",
-  "song-lung-khung-long": "sl",
-  "doi-che-shan-tuyet": "dc",
-  "ban-mong-vai": "mv",
-  "ban-mong-vang": "mv",
-  "doi-che-co-thu-ban-be": "bb",
-  "rung-che-co-thu-ban-be": "bb",
-  "mom-lac-da": "ld",
-  "thao-nguyen-ta-xua": "tn",
-  "mom-ca-heo": "mch",
-};
-
-/** Mạng đường: [nút đầu, nút cuối, các điểm của đoạn đường]. `rough` = đường mòn (vẽ nét đứt). */
-export const MAP_EDGES: { a: NodeKey; b: NodeKey; pts: [number, number][]; rough?: boolean }[] = [
-  { a: "by", b: "dc", pts: [[54, 95], [46, 88], [60, 82], [50, 74], [60, 68]] },
-  { a: "dc", b: "mv", pts: [[60, 68], [62, 60]] },
-  { a: "mv", b: "tt", pts: [[62, 60], [58, 54], [56, 47]] },
-  { a: "tt", b: "dg", pts: [[56, 47], [52, 44], [50, 41]] },
-  { a: "dg", b: "cd", pts: [[50, 41], [48, 38], [46, 36]] },
-  { a: "cd", b: "dr", pts: [[46, 36], [40, 33], [35, 26]], rough: true },
-  { a: "dr", b: "sl", pts: [[35, 26], [28, 28], [22, 22], [12, 18]], rough: true },
-  { a: "tt", b: "tn", pts: [[56, 47], [46, 52], [38, 50], [30, 58]] },
-  { a: "tn", b: "mch", pts: [[30, 58], [26, 62], [20, 67]] },
-  { a: "tt", b: "bb", pts: [[56, 47], [64, 44], [70, 38], [76, 35]] },
-  { a: "bb", b: "ld", pts: [[76, 35], [80, 31], [87, 25]] },
-];
-
-type Pt = [number, number];
-
-/** Vị trí một điểm check-in: toạ độ admin khai (mapX/mapY) ⇒ ưu tiên; không có thì theo slug; null = chưa có. */
-export function spotPos(slug: string | null | undefined, mapX: number | null | undefined, mapY: number | null | undefined): Pt | null {
-  if (typeof mapX === "number" && typeof mapY === "number") return [mapX, mapY];
-  const node = slug ? SLUG_NODE[slug] : undefined;
-  return node ? MAP_NODES[node] : null;
+export interface LatLng {
+  lat: number;
+  lng: number;
 }
 
-/** Nút đường gần một vị trí nhất (điểm tự khai toạ độ nối vào mạng đường qua nút này). */
-export function nearestNode(pos: Pt): NodeKey {
-  let best: NodeKey = "tt";
-  let bd = Infinity;
-  for (const k of Object.keys(MAP_NODES) as NodeKey[]) {
-    const d = Math.hypot(MAP_NODES[k][0] - pos[0], MAP_NODES[k][1] - pos[1]);
-    if (d < bd) { bd = d; best = k; }
-  }
-  return best;
+/** Mốc 0: trung tâm xã Tà Xùa (UBND xã) và cửa ngõ Bắc Yên — toạ độ theo Google Maps. */
+export const MAP_CENTER: LatLng = { lat: 21.275413, lng: 104.434299 };
+export const MAP_GATE: LatLng = { lat: 21.247864, lng: 104.442468 }; // bến xe Bắc Yên
+
+const YS = 0.8; // mặt bản đồ tỉ lệ 1.25 ⇒ 1 đơn vị dọc (%) = 0.8 đơn vị ngang
+const POWER = 0.6; // nén khoảng cách: r → r^0.6
+// Vùng đặt điểm trên mặt phẳng (%, chừa lề cho nhãn đứng)
+const BOX = { x0: 12, x1: 88, y0: 18, y1: 90 };
+
+/** Khoảng cách đường chim bay (km). */
+export function distanceKm(a: LatLng, b: LatLng): number {
+  const dx = (b.lng - a.lng) * Math.cos((a.lat * Math.PI) / 180) * 111.32;
+  const dy = (b.lat - a.lat) * 110.57;
+  return Math.hypot(dx, dy);
 }
 
-/** Cung đường qua các điểm dừng: đi theo mạng đường giữa các nút, nối đoạn thẳng từ nút tới vị trí thật của điểm. */
-export function mapRouteVia(stops: { node: NodeKey; pos: Pt }[]): Pt[] {
-  const out: Pt[] = [];
-  const push = (p: Pt) => { const l = out[out.length - 1]; if (!l || l[0] !== p[0] || l[1] !== p[1]) out.push(p); };
-  for (let i = 0; i < stops.length; i++) {
-    if (i > 0) for (const p of mapPath(stops[i - 1].node, stops[i].node)) push(p);
-    if (i > 0 && stops[i - 1].node === stops[i].node) push(MAP_NODES[stops[i].node]);
-    push(stops[i].pos);
+/**
+ * Chiếu danh sách điểm (có toạ độ) lên mặt phẳng bản đồ. Trả về id → [x%, y%].
+ * Luôn tính cả tâm (MAP_CENTER) để phép co giãn ổn định dù ít điểm.
+ */
+export function projectSpots(points: { id: string; lat: number; lng: number }[]): Map<string, [number, number]> {
+  const out = new Map<string, [number, number]>();
+  if (points.length === 0) return out;
+  const raw = points.map((p) => {
+    const dx = (p.lng - MAP_CENTER.lng) * Math.cos((MAP_CENTER.lat * Math.PI) / 180) * 111.32; // km về phía đông
+    const dy = (p.lat - MAP_CENTER.lat) * 110.57; // km về phía bắc
+    const r = Math.hypot(dx, dy);
+    const k = r > 0 ? Math.pow(r, POWER) / r : 0;
+    return { id: p.id, x: dx * k, y: -dy * k }; // y hướng xuống (bắc ở trên)
+  });
+  const xs = [0, ...raw.map((p) => p.x)], ys = [0, ...raw.map((p) => p.y)];
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const w = BOX.x1 - BOX.x0, h = (BOX.y1 - BOX.y0) * YS; // cùng đơn vị ngang
+  const s = Math.min(w / Math.max(0.001, maxX - minX), h / Math.max(0.001, maxY - minY));
+  const offX = BOX.x0 + (w - (maxX - minX) * s) / 2, offY = BOX.y0 * YS + (h - (maxY - minY) * s) / 2;
+  for (const p of raw) {
+    out.set(p.id, [Math.round((offX + (p.x - minX) * s) * 10) / 10, Math.round(((offY + (p.y - minY) * s) / YS) * 10) / 10]);
   }
   return out;
-}
-
-/** Đường đi ngắn nhất (theo số đoạn) giữa 2 nút, trả về chuỗi điểm. */
-export function mapPath(a: NodeKey, b: NodeKey): [number, number][] {
-  if (a === b) return [];
-  const adj = new Map<NodeKey, [NodeKey, [number, number][]][]>();
-  for (const e of MAP_EDGES) {
-    adj.set(e.a, [...(adj.get(e.a) ?? []), [e.b, e.pts]]);
-    adj.set(e.b, [...(adj.get(e.b) ?? []), [e.a, [...e.pts].reverse()]]);
-  }
-  const prev = new Map<NodeKey, [NodeKey, [number, number][]] | null>([[a, null]]);
-  const q: NodeKey[] = [a];
-  while (q.length) {
-    const u = q.shift()!;
-    if (u === b) break;
-    for (const [v, pts] of adj.get(u) ?? []) {
-      if (!prev.has(v)) { prev.set(v, [u, pts]); q.push(v); }
-    }
-  }
-  const segs: [number, number][][] = [];
-  let cur = b;
-  for (let p = prev.get(cur); p; p = prev.get(cur)) { segs.unshift(p[1]); cur = p[0]; }
-  return segs.reduce<[number, number][]>((acc, seg, i) => acc.concat(i ? seg.slice(1) : seg), []);
-}
-
-/** Chuỗi điểm đi lần lượt qua các nút (một ngày của lịch trình). */
-export function mapRoute(nodes: NodeKey[]): [number, number][] {
-  let pts: [number, number][] = [];
-  for (let i = 1; i < nodes.length; i++) {
-    const seg = mapPath(nodes[i - 1], nodes[i]);
-    pts = pts.concat(pts.length ? seg.slice(1) : seg);
-  }
-  return pts;
 }

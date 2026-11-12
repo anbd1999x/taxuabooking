@@ -7,8 +7,6 @@ import { showToast } from "./Toast";
 import { savePlace, togglePlacePublished, bulkPlaces, removePlace } from "@/app/admin/places/actions";
 import type { PlaceDTO } from "@/app/admin/places/place-dto";
 import { isVideoUrl } from "@/lib/utils";
-import { spotPos } from "@/lib/checkin-map";
-import { CheckinMapPicker } from "./CheckinMapPicker";
 
 type Kind = "RESTAURANT" | "CAFE" | "CHECKIN";
 const KINDS: Kind[] = ["RESTAURANT", "CAFE", "CHECKIN"];
@@ -51,7 +49,7 @@ interface FormState {
   tags: string[];
   coverImage: string;
   images: string[];
-  mapPos: [number, number] | null; // vị trí tự khai trên bản đồ check-in (null = mặc định theo slug)
+  latLng: string; // toạ độ "vĩ độ, kinh độ" (để trống = tự lấy từ link Google Maps khi lưu)
   published: boolean;
 }
 
@@ -86,7 +84,7 @@ function toForm(p: PlaceDTO): FormState {
     tags: [...p.tags],
     coverImage: p.coverImage,
     images: [...p.images],
-    mapPos: p.mapX != null && p.mapY != null ? [p.mapX, p.mapY] : null,
+    latLng: p.lat != null && p.lng != null ? `${p.lat}, ${p.lng}` : "",
     published: p.published,
   };
 }
@@ -95,7 +93,7 @@ function blankForm(kind: Kind, order: number): FormState {
   return {
     id: null, kind, name: "", slug: "", area: AREA_DEFAULTS[0], price: "", order,
     open: "", close: "", hoursWeekend: "", booking: "no", phone: "", zalo: "", address: "", mapUrl: "",
-    short: "", tip: "", content: "", tags: [], coverImage: "", images: [], mapPos: null, published: false,
+    short: "", tip: "", content: "", tags: [], coverImage: "", images: [], latLng: "", published: false,
   };
 }
 
@@ -230,8 +228,7 @@ export function PlacesManager({ initialPlaces, areas: areaProp }: { initialPlace
       tags: form.tags,
       coverImage: form.coverImage,
       images: form.images,
-      mapX: form.mapPos ? form.mapPos[0] : null,
-      mapY: form.mapPos ? form.mapPos[1] : null,
+      latLng: form.latLng,
       sortOrder: Number(form.order) || 0,
       published: form.published,
     });
@@ -264,7 +261,7 @@ export function PlacesManager({ initialPlaces, areas: areaProp }: { initialPlace
 
   const isNew = form ? form.id === null : false;
   const tabWarn: Record<TabKey, boolean> = form
-    ? { info: !form.name || !form.short, hours: !form.open || !form.close, photos: !form.coverImage, desc: false, map: !(form.mapPos ?? spotPos(form.slug, null, null)) }
+    ? { info: !form.name || !form.short, hours: !form.open || !form.close, photos: !form.coverImage, desc: false, map: !form.latLng.trim() && !form.mapUrl.trim() }
     : { info: false, hours: false, photos: false, desc: false, map: false };
 
   return (
@@ -406,7 +403,6 @@ export function PlacesManager({ initialPlaces, areas: areaProp }: { initialPlace
       {form && (
         <Editor
           form={form}
-          others={items.filter((x) => x.kind === "CHECKIN" && x.id !== form.id).flatMap((x) => { const pos = spotPos(x.slug, x.mapX, x.mapY); return pos ? [{ name: x.name, pos }] : []; })}
           patch={patch}
           areaList={areaList}
           tab={tab}
@@ -442,10 +438,9 @@ function descToBlocks(desc: string) {
 }
 
 function Editor({
-  form, others, patch, areaList, tab, setTab, tabWarn, descMode, setDescMode, isNew, err, pending, onClose, onSave, onDelete,
+  form, patch, areaList, tab, setTab, tabWarn, descMode, setDescMode, isNew, err, pending, onClose, onSave, onDelete,
 }: {
   form: FormState;
-  others: { name: string; pos: [number, number] }[];
   patch: (p: Partial<FormState>) => void;
   areaList: string[];
   tab: TabKey;
@@ -689,7 +684,24 @@ function Editor({
           )}
 
           {tab === "map" && form.kind === "CHECKIN" && (
-            <CheckinMapPicker name={form.name} value={form.mapPos} fallback={spotPos(form.slug, null, null)} others={others} onChange={(v) => patch({ mapPos: v })} />
+            <div className="flex flex-col gap-3">
+              <label className={FIELD_LABEL}>Link Google Maps
+                <input value={form.mapUrl} onChange={(e) => patch({ mapUrl: e.target.value })} placeholder="Dán link chia sẻ từ Google Maps" className={`${INPUT} text-sm`} />
+              </label>
+              <label className={FIELD_LABEL}>Toạ độ <span className="font-medium text-gray-400">· vĩ độ, kinh độ — để trống sẽ tự lấy từ link khi lưu</span>
+                <input value={form.latLng} onChange={(e) => patch({ latLng: e.target.value })} placeholder="VD: 21.2652, 104.5386" className={`${INPUT} font-mono text-sm`} />
+              </label>
+              {form.latLng.trim() && (
+                <a href={`https://maps.google.com/?q=${encodeURIComponent(form.latLng.trim())}`} target="_blank" rel="noopener noreferrer" className="self-start text-[13px] font-bold text-forest-700 hover:underline">
+                  Mở toạ độ này trên Google Maps để kiểm tra ↗
+                </a>
+              )}
+              <div className="rounded-xl bg-forest-50 px-4 py-3 text-[13px] leading-relaxed text-forest-800">
+                Vị trí của điểm trên <b>bản đồ check-in</b> (cả bản 3D lẫn ảnh vệ tinh) lấy theo toạ độ này. Khi lưu, hệ thống tự đọc toạ độ từ link Google Maps;
+                nếu link không đọc được hoặc ra sai chỗ, mở Google Maps, bấm chuột phải vào đúng vị trí, chép cặp số hiện ra rồi dán vào ô Toạ độ.
+                Đổi link thì xoá ô Toạ độ để hệ thống lấy lại.
+              </div>
+            </div>
           )}
 
           {tab === "desc" && (

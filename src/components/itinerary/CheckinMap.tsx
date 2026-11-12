@@ -3,13 +3,14 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MAP_EDGES, mapRoute, mapRouteVia, type NodeKey } from "@/lib/checkin-map";
+import { SatelliteMap } from "./SatelliteMap";
 import { cn } from "@/lib/utils";
 
 export interface MapSpot {
   id: string; // id Place, hoặc "tt"/"by" cho 2 mốc cố định
-  pos: [number, number] | null; // vị trí trên bản đồ hoạt hình (null = chỉ có ở danh sách / vệ tinh)
-  node: NodeKey | null; // nút đường gần nhất
+  pos: [number, number] | null; // vị trí trên bản đồ hoạt hình, chiếu từ toạ độ thật (null = chưa có toạ độ)
+  lat: number | null; // toạ độ thật (lấy từ link Google Maps)
+  lng: number | null;
   name: string;
   km: number | null; // khoảng cách đường xe máy từ trung tâm
   sub: string;
@@ -18,14 +19,13 @@ export interface MapSpot {
   best: string; // khung giờ đẹp nhất
   image: string | null;
   mapUrl: string;
-  satQuery: string; // từ khoá tìm trên bản đồ vệ tinh
 }
 
 export interface MapPlan {
   id: string;
   name: string;
   sub: string;
-  days: { title: string; stops: { time: string; name: string; note: string; node: NodeKey; pos: [number, number]; spotId: string; checkin: boolean }[] }[];
+  days: { title: string; stops: { time: string; name: string; note: string; pos: [number, number]; spotId: string; checkin: boolean }[] }[];
 }
 
 const G = "oklch(0.29 0.055 160)";
@@ -61,14 +61,11 @@ const MOUNTAINS: [number, number, number, number, string, string][] = [
 ];
 const SEAS: [number, number, number][] = [[36, 74, 18], [72, 62, 16], [24, 40, 16], [84, 46, 14], [56, 30, 12]];
 const CLOUDS: [number, number, number][] = [[20, 40, 20], [60, 22, 24], [75, 70, 18], [40, 80, 22], [10, 60, 16]];
-// Xe máy chạy vòng quanh khi chưa chọn lịch trình.
-const TOUR: NodeKey[] = ["tt", "cd", "dr", "cd", "tt", "tn", "mch", "tn", "tt", "bb", "ld", "bb", "tt"];
-const ROADS = MAP_EDGES.map((e) => ({ pts: poly(e.pts), dash: e.rough ? "2 4" : undefined }));
 
 const CTRL = "flex h-[38px] w-[38px] cursor-pointer items-center justify-center rounded-xl bg-white font-extrabold shadow-[0_4px_12px_-4px_oklch(0.2_0.04_150/.3)]";
 
-export function CheckinMap({ spots, plans, initialPlan }: { spots: MapSpot[]; plans: MapPlan[]; initialPlan?: string }) {
-  const [view, setView] = useState<"3d" | "sat">("3d");
+export function CheckinMap({ spots, plans, initialPlan, initialView }: { spots: MapSpot[]; plans: MapPlan[]; initialPlan?: string; initialView?: "3d" | "sat" }) {
+  const [view, setView] = useState<"3d" | "sat">(initialView ?? "3d");
   const [planId, setPlanId] = useState(initialPlan && plans.some((p) => p.id === initialPlan) ? initialPlan : "all");
   const [day, setDay] = useState(0); // 0 = cả lịch trình
   const [sel, setSel] = useState<string | null>(null);
@@ -93,7 +90,14 @@ export function CheckinMap({ spots, plans, initialPlan }: { spots: MapSpot[]; pl
     const dayKm: number[] = [];
     let carPts: [number, number][] | null = null;
     let totalKm = 0;
-    if (!P) return { routes, carPts: mapRoute(TOUR), inPlan, order, totalKm, dayKm };
+    if (!P) {
+      // Chưa chọn lịch trình: xe máy chạy từ trung tâm ra từng điểm rồi quay về.
+      const tt = byId.get("tt")?.pos;
+      const tour: [number, number][] = [];
+      if (tt) for (const s of spots) if (s.pos && s.id !== "tt" && s.id !== "by") tour.push(tt, s.pos);
+      if (tt && tour.length) tour.push(tt);
+      return { routes, carPts: tour.length > 1 ? tour : null, inPlan, order, totalKm, dayKm };
+    }
     let n = 0;
     P.days.forEach((d, di) => {
       const on = day === 0 || day === di + 1;
@@ -109,12 +113,13 @@ export function CheckinMap({ spots, plans, initialPlan }: { spots: MapSpot[]; pl
       }
       dayKm.push(km);
       totalKm += km;
-      const pts = mapRouteVia(d.stops);
+      // nối thẳng vị trí các điểm dừng (bỏ điểm trùng liên tiếp)
+      const pts = d.stops.map((s) => s.pos).filter((p, i, a) => i === 0 || p[0] !== a[i - 1][0] || p[1] !== a[i - 1][1]);
       routes.push({ pts: poly(pts), c, on });
       if (on && !carPts && pts.length > 1) carPts = pts;
     });
     return { routes, carPts, inPlan, order, totalKm, dayKm };
-  }, [P, day, byId]);
+  }, [P, day, byId, spots]);
 
   useEffect(() => { live.current.pts = carPts; live.current.rot = rot; });
 
@@ -190,7 +195,7 @@ export function CheckinMap({ spots, plans, initialPlan }: { spots: MapSpot[]; pl
     const isC = s.id === "tt";
     const c = isC ? G : (inPlan.get(s.id) ?? "oklch(0.45 0.08 160)");
     const num = P ? order.get(s.id) : undefined;
-    return { s, x, y, isC, c, num, dim: !!P && !inPlan.has(s.id), on: sel === s.id, bob: (2.4 + (i % 4) * 0.3).toFixed(1), stem: isC ? 22 : s.node === "cd" ? 96 : s.node === "dr" || s.node === "dg" ? 14 : Math.round(20 + (1 - y / 100) * 40) };
+    return { s, x, y, isC, c, num, dim: !!P && !inPlan.has(s.id), on: sel === s.id, bob: (2.4 + (i % 4) * 0.3).toFixed(1), stem: isC ? 22 : Math.round(18 + (1 - y / 100) * 34 + (i % 3) * 16) };
   });
 
   const sp = sel ? byId.get(sel) : undefined;
@@ -201,7 +206,10 @@ export function CheckinMap({ spots, plans, initialPlan }: { spots: MapSpot[]; pl
   const stats = P
     ? [{ v: P.name, k: "Thời gian" }, { v: String(nSpots), k: "Điểm check-in" }, { v: `~${Math.round(totalKm)} km`, k: "Di chuyển tại chỗ" }]
     : [{ v: String(nSpots), k: "Điểm check-in" }, { v: kms.length ? `${String(Math.min(...kms)).replace(".", ",")}–${String(Math.max(...kms)).replace(".", ",")}` : "—", k: "km từ trung tâm" }, { v: "2.865m", k: "Đỉnh cao nhất" }];
-  const satSrc = `https://maps.google.com/maps?q=${encodeURIComponent(sp ? sp.satQuery : "Xã Tà Xùa, Bắc Yên, Sơn La")}&t=k&z=${sp && sp.id !== "tt" ? 15 : 12}&hl=vi&output=embed`;
+  // Tia nối trung tâm → từng điểm (gợi hướng đi; không phải đường thật).
+  const center = byId.get("tt")?.pos ?? null;
+  const spokes = center ? spots.filter((s) => s.pos && s.id !== "tt").map((s) => poly([center, s.pos!])) : [];
+  const satSpots = spots.filter((s): s is MapSpot & { lat: number; lng: number } => s.lat != null && s.lng != null).map((s) => ({ id: s.id, name: s.name, lat: s.lat, lng: s.lng, mapUrl: s.mapUrl, main: s.id === "tt" }));
   const stop = (e: React.PointerEvent) => e.stopPropagation();
 
   return (
@@ -256,8 +264,8 @@ export function CheckinMap({ spots, plans, initialPlan }: { spots: MapSpot[]; pl
                 ))}
                 <div className="absolute left-[4%] top-[68%] h-[12%] w-[18%] rounded-full" style={{ background: "linear-gradient(90deg, oklch(0.68 0.09 225), oklch(0.78 0.08 215))", transform: "rotate(-20deg)" }} />
                 <svg viewBox="0 0 100 80" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible">
-                  {ROADS.map((r, i) => (
-                    <polyline key={i} points={r.pts} fill="none" stroke="oklch(0.88 0.04 85)" strokeWidth={5} strokeLinecap="round" strokeLinejoin="round" strokeDasharray={r.dash} vectorEffect="non-scaling-stroke" />
+                  {spokes.map((pts, i) => (
+                    <polyline key={i} points={pts} fill="none" stroke="oklch(0.9 0.04 85)" strokeWidth={3} strokeLinecap="round" strokeDasharray="1 7" opacity={P ? 0.35 : 0.9} vectorEffect="non-scaling-stroke" />
                   ))}
                   {routes.map((r, i) => (
                     <polyline key={i} className="cm-anim" points={r.pts} fill="none" stroke={r.c} strokeWidth={r.on ? 4 : 2} strokeLinecap="round" strokeLinejoin="round" strokeDasharray="8 6" opacity={r.on ? 1 : 0.18} vectorEffect="non-scaling-stroke" style={{ animation: "cm-dash 1.2s linear infinite" }} />
@@ -340,7 +348,7 @@ export function CheckinMap({ spots, plans, initialPlan }: { spots: MapSpot[]; pl
             </div>
 
             <div className="pointer-events-none absolute left-3.5 top-14 flex flex-wrap gap-1.5 sm:top-3.5">
-              {(P ? P.days.map((_, i) => ({ name: `Ngày ${i + 1}`, c: DAYC[i % DAYC.length] })) : [{ name: "Đường xe máy", c: "oklch(0.88 0.04 85)" }]).map((l) => (
+              {(P ? P.days.map((_, i) => ({ name: `Ngày ${i + 1}`, c: DAYC[i % DAYC.length] })) : [{ name: "Hướng từ trung tâm", c: "oklch(0.88 0.04 85)" }]).map((l) => (
                 <span key={l.name} className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-white/90 px-2.5 py-1.5 text-xs font-bold text-ink">
                   <span className="h-1 w-3.5 rounded-sm" style={{ background: l.c }} />
                   {l.name}
@@ -356,15 +364,17 @@ export function CheckinMap({ spots, plans, initialPlan }: { spots: MapSpot[]; pl
             )}
             {view === "3d" && !sp && (
               <div className="pointer-events-none absolute bottom-3.5 right-3.5 rounded-full bg-white/85 px-2.5 py-[5px] text-[11px] font-semibold text-[oklch(0.4_0.02_160)]">
-                Kéo để xoay · vị trí tương đối, xem chính xác ở tab Vệ tinh
+                Kéo để xoay · đúng hướng, khoảng cách đã thu gọn · xem chính xác ở tab Vệ tinh
               </div>
             )}
 
             {view === "sat" && (
               <>
-                <iframe src={satSrc} title="Bản đồ vệ tinh Tà Xùa" loading="lazy" referrerPolicy="no-referrer-when-downgrade" className="absolute inset-0 z-[5] h-full w-full border-0" />
+                <div className="absolute inset-0 z-[5] isolate" onPointerDown={stop}>
+                  <SatelliteMap spots={satSpots} selected={sel} onSelect={setSel} />
+                </div>
                 <div className="absolute inset-x-3 bottom-3 z-[6] flex gap-1.5 overflow-x-auto p-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" onPointerDown={stop}>
-                  {spots.map((s) => (
+                  {satSpots.map((s) => (
                     <button
                       key={s.id}
                       type="button"
@@ -379,7 +389,7 @@ export function CheckinMap({ spots, plans, initialPlan }: { spots: MapSpot[]; pl
               </>
             )}
             <div className="absolute left-1/2 top-3.5 z-[7] inline-flex -translate-x-1/2 gap-[3px] rounded-full bg-white p-[3px] shadow-[0_6px_16px_-6px_oklch(0.2_0.04_150/.4)]" onPointerDown={stop}>
-              {([["3d", "Hoạt hình 3D"], ["sat", "Vệ tinh Google"]] as const).map(([k, name]) => (
+              {([["3d", "Hoạt hình 3D"], ["sat", "Ảnh vệ tinh"]] as const).map(([k, name]) => (
                 <button key={k} type="button" onClick={() => setView(k)} className="whitespace-nowrap rounded-full px-3.5 py-[7px] text-xs font-extrabold" style={{ background: view === k ? G : "transparent", color: view === k ? "white" : "oklch(0.35 0.02 160)" }}>
                   {name}
                 </button>

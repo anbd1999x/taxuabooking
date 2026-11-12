@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { toDTO, type PlaceInput, type PlaceDTO } from "./place-dto";
+import { parseLatLng, resolveMapLatLng } from "@/lib/map-link";
 
 export interface ActionState {
   ok?: boolean;
@@ -63,11 +64,19 @@ export async function savePlace(input: PlaceInput): Promise<ActionState & { plac
   const tags = (input.tags ?? []).map((t) => t.trim()).filter(Boolean);
   const images = (input.images ?? []).map((u) => u.trim()).filter(Boolean);
 
-  // Vị trí trên bản đồ hoạt hình: chỉ điểm check-in, cần đủ cả X và Y trong 0–100.
-  const inRange = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 100;
-  const mapPos = kind === "CHECKIN" && inRange(input.mapX) && inRange(input.mapY)
-    ? { mapX: Math.round(input.mapX * 10) / 10, mapY: Math.round(input.mapY * 10) / 10 }
-    : { mapX: null, mapY: null };
+  // TOẠ ĐỘ THẬT (dùng cho bản đồ check-in /ban-do): admin nhập tay "vĩ độ, kinh độ" ⇒ dùng luôn;
+  // để trống ⇒ tự lấy từ link Google Maps. Đổi link mà ô toạ độ vẫn là số cũ ⇒ lấy lại theo link mới.
+  const mapUrl = clean(input.mapUrl);
+  const latLngText = clean(input.latLng);
+  let geo = parseLatLng(latLngText);
+  if (latLngText && !geo) return { error: 'Toạ độ không hợp lệ — nhập dạng "21.2652, 104.5386" (vĩ độ, kinh độ) hoặc để trống để tự lấy từ link Google Maps.' };
+  const prev = input.id ? await prisma.place.findUnique({ where: { id: input.id }, select: { mapUrl: true, lat: true, lng: true } }) : null;
+  if (geo && prev && (prev.mapUrl ?? "") !== mapUrl && prev.lat === geo.lat && prev.lng === geo.lng) geo = null;
+  let geoNote = "";
+  if (!geo && mapUrl) {
+    geo = await resolveMapLatLng(mapUrl);
+    if (!geo && kind === "CHECKIN") geoNote = " · chưa lấy được toạ độ từ link Google Maps — nhập tay ở tab Bản đồ";
+  }
 
   const data = {
     name,
@@ -87,8 +96,9 @@ export async function savePlace(input: PlaceInput): Promise<ActionState & { plac
     content: clean(input.content) || null,
     coverImage: clean(input.coverImage) || null,
     images: images.length ? images.join("|") : null,
-    mapUrl: clean(input.mapUrl) || null,
-    ...mapPos,
+    mapUrl: mapUrl || null,
+    lat: geo?.lat ?? null,
+    lng: geo?.lng ?? null,
     sortOrder: Number(input.sortOrder) || 0,
     published: !!input.published,
   };
@@ -104,7 +114,7 @@ export async function savePlace(input: PlaceInput): Promise<ActionState & { plac
   revalidate(slug);
   return {
     ok: true,
-    message: input.id ? `Đã lưu "${name}"` : `Đã tạo "${name}"`,
+    message: (input.id ? `Đã lưu "${name}"` : `Đã tạo "${name}"`) + geoNote,
     place: toDTO(saved),
   };
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { ItineraryLink } from "@/components/itinerary/ItineraryLink";
 import { We } from "@/components/SiteContact";
 import Link from "next/link";
 import Image from "next/image";
@@ -136,6 +137,7 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
         <div className="text-[clamp(22px,2.6vw,28px)] font-extrabold tracking-[-0.02em] text-ink">
           {entries.length} phương án combo
         </div>
+        <ItineraryLink nights={nights} className="mt-1.5 inline-flex items-center gap-1.5 text-sm font-bold text-forest-700 hover:text-sunset-500" />
         <div className="mt-1 text-sm text-gray-500">
           {buses.length} nhà xe · {adults} người lớn{childrenAges.length > 0 ? ` · ${childrenAges.length} trẻ em (${childrenAges.join(", ")} tuổi)` : ""} · {nights} đêm ({checkIn} → {checkOut})
           {origin && <> · đón tại <span className="font-bold text-ink">{origin}</span></>}
@@ -703,6 +705,7 @@ function ComboPlanCard({
                 <button type="button" onClick={book} disabled={submitting} className="rounded-full bg-sunset-500 py-3.5 text-center text-sm font-bold text-white hover:bg-sunset-600 disabled:opacity-60">
                   {submitting ? "Đang gửi..." : "Gửi yêu cầu đặt combo"}
                 </button>
+                <ItineraryLink nights={nights} />
                 <CommitmentLink className="flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-forest-700 transition hover:text-forest-900" />
                 <p className="text-center text-xs leading-relaxed text-gray-500">Giá tham khảo · chủ dịch vụ gọi xác nhận, không thanh toán online.</p>
               </div>

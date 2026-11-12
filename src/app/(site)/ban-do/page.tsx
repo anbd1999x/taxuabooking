@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { loadItinerary } from "@/lib/itinerary-store";
-import { MAP_NODES, nearestNode, spotPos, type NodeKey } from "@/lib/checkin-map";
+import { MAP_CENTER, MAP_GATE, projectSpots } from "@/lib/checkin-map";
 import { isVideoUrl } from "@/lib/utils";
 import { CheckinMap, type MapSpot, type MapPlan } from "@/components/itinerary/CheckinMap";
 
@@ -22,29 +22,37 @@ function parseKm(s: string | null): number | null {
   return Number.isFinite(v) ? v : null;
 }
 
-export default async function CheckinMapPage({ searchParams }: { searchParams: Promise<{ plan?: string }> }) {
-  const { plan: initialPlan } = await searchParams;
+export default async function CheckinMapPage({ searchParams }: { searchParams: Promise<{ plan?: string; view?: string }> }) {
+  const { plan: initialPlan, view } = await searchParams;
   const rows = await prisma.place.findMany({
     where: { published: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    select: { id: true, kind: true, slug: true, name: true, area: true, address: true, hours: true, tags: true, desc: true, tip: true, coverImage: true, images: true, mapUrl: true, mapX: true, mapY: true },
+    select: { id: true, kind: true, slug: true, name: true, area: true, address: true, hours: true, tags: true, desc: true, tip: true, coverImage: true, images: true, mapUrl: true, lat: true, lng: true },
   });
   const { config } = await loadItinerary(rows);
 
+  // Chiếu MỌI địa điểm có toạ độ thật (lấy từ link Google Maps khi lưu) lên mặt phẳng bản đồ hoạt hình.
+  const located = rows.filter((p): p is typeof p & { lat: number; lng: number } => p.lat != null && p.lng != null);
+  const posOf = projectSpots([
+    { id: "tt", ...MAP_CENTER },
+    { id: "by", ...MAP_GATE },
+    ...located.map((p) => ({ id: p.id, lat: p.lat, lng: p.lng })),
+  ]);
+  const TT = posOf.get("tt")!, BY = posOf.get("by")!;
+
   const fixed: MapSpot[] = [
-    { id: "tt", pos: MAP_NODES.tt, node: "tt", name: "Trung tâm Tà Xùa", km: 0, sub: "Chợ & UBND xã · mốc 0", desc: "Khu chợ, homestay, quán ăn. Điểm xuất phát của mọi cung đường.", tip: "Đổ xăng và ăn sáng ở đây trước khi đi xa.", best: "", image: null, mapUrl: "https://maps.google.com/?q=" + encodeURIComponent("Xã Tà Xùa, Bắc Yên, Sơn La"), satQuery: "Xã Tà Xùa, Bắc Yên, Sơn La" },
-    { id: "by", pos: MAP_NODES.by, node: "by", name: "Thị trấn Bắc Yên", km: 15, sub: "Cửa ngõ · bến xe cabin", desc: "Nơi xe cabin dừng, từ đây lên Tà Xùa theo đèo quanh co.", tip: "Dừng ngắm toàn cảnh đèo ở các khúc cua.", best: "", image: null, mapUrl: "https://maps.google.com/?q=" + encodeURIComponent("Thị trấn Bắc Yên, Sơn La"), satQuery: "Thị trấn Bắc Yên, Sơn La" },
+    { id: "tt", pos: TT, ...MAP_CENTER, name: "Trung tâm Tà Xùa", km: 0, sub: "Chợ & UBND xã · mốc 0", desc: "Khu chợ, homestay, quán ăn. Điểm xuất phát của mọi cung đường.", tip: "Đổ xăng và ăn sáng ở đây trước khi đi xa.", best: "", image: null, mapUrl: `https://maps.google.com/?q=${MAP_CENTER.lat},${MAP_CENTER.lng}` },
+    { id: "by", pos: BY, ...MAP_GATE, name: "Thị trấn Bắc Yên", km: 15, sub: "Cửa ngõ · bến xe cabin", desc: "Nơi xe cabin dừng, từ đây lên Tà Xùa theo đèo quanh co.", tip: "Dừng ngắm toàn cảnh đèo ở các khúc cua.", best: "", image: null, mapUrl: `https://maps.google.com/?q=${MAP_GATE.lat},${MAP_GATE.lng}` },
   ];
   const checkins: MapSpot[] = rows
     .filter((p) => p.kind === "CHECKIN")
     .map((p) => {
       const image = [p.coverImage, ...(p.images ?? "").split("|")].map((u) => (u ?? "").trim()).find((u) => u && !isVideoUrl(u)) ?? null;
-      const q = `${p.name}, Tà Xùa, Bắc Yên, Sơn La`;
-      const pos = spotPos(p.slug, p.mapX, p.mapY);
       return {
         id: p.id,
-        pos,
-        node: pos ? nearestNode(pos) : null,
+        pos: posOf.get(p.id) ?? null, // chưa có toạ độ ⇒ chỉ hiện ở danh sách
+        lat: p.lat,
+        lng: p.lng,
         name: p.name,
         km: parseKm(p.address),
         sub: (p.tags ?? "").split(",").map((t) => t.trim()).filter((t) => t && !/^gợi ý$/i.test(t)).slice(0, 2).join(" · ") || p.area,
@@ -52,15 +60,14 @@ export default async function CheckinMapPage({ searchParams }: { searchParams: P
         tip: p.tip ?? "",
         best: p.hours ?? "",
         image,
-        mapUrl: p.mapUrl || "https://maps.google.com/?q=" + encodeURIComponent(q),
-        satQuery: q,
+        mapUrl: p.mapUrl || "https://maps.google.com/?q=" + encodeURIComponent(p.lat != null && p.lng != null ? `${p.lat},${p.lng}` : `${p.name}, Tà Xùa, Bắc Yên, Sơn La`),
       };
     });
   const byPlace = new Map(checkins.map((s) => [s.id, s]));
   const nameOf = new Map(rows.map((p) => [p.id, p.name]));
 
-  // Lịch trình (admin soạn ở /admin/itinerary) → cung đường: điểm check-in có trên bản đồ đi tới nút
-  // của nó; quán ăn/cafe/nghỉ coi như ở trung tâm; chặng xe đầu & cuối là Bắc Yên.
+  // Lịch trình (admin soạn ở /admin/itinerary) → cung đường nối vị trí các điểm dừng: địa điểm có toạ độ
+  // thì theo toạ độ; chưa có (hoặc điểm tự nhập) coi như ở trung tâm; chặng xe đầu & cuối là Bắc Yên.
   const plans: MapPlan[] = config.plans
     .filter((p) => p.published && p.days.some((d) => d.stops.length))
     .map((p) => {
@@ -79,13 +86,11 @@ export default async function CheckinMapPage({ searchParams }: { searchParams: P
               const custom = !s.placeId || !nameOf.has(s.placeId);
               const edge = custom && (gi === 0 || gi === total - 1);
               gi++;
-              const node: NodeKey = spot?.node ?? (edge ? "by" : "tt");
               return {
                 time: s.time,
                 name: (s.placeId && nameOf.get(s.placeId)) || s.name,
                 note: s.note,
-                node,
-                pos: spot?.pos ?? MAP_NODES[node],
+                pos: (s.placeId && posOf.get(s.placeId)) || (edge ? BY : TT),
                 spotId: spot ? spot.id : edge ? "by" : "tt",
                 checkin: !!spot,
               };
@@ -94,5 +99,5 @@ export default async function CheckinMapPage({ searchParams }: { searchParams: P
       };
     });
 
-  return <CheckinMap spots={[...fixed, ...checkins]} plans={plans} initialPlan={typeof initialPlan === "string" ? initialPlan : undefined} />;
+  return <CheckinMap spots={[...fixed, ...checkins]} plans={plans} initialPlan={typeof initialPlan === "string" ? initialPlan : undefined} initialView={view === "sat" ? "sat" : "3d"} />;
 }
