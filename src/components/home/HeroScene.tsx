@@ -42,7 +42,7 @@ export function HeroScene() {
     const tint = host.querySelector<HTMLElement>("[data-tint]");
     const svg = host.querySelector<SVGSVGElement>("svg");
     // Màn hẹp: neo cảnh về bên phải để vẫn thấy đường đèo và xe.
-    const fit = () => svg?.setAttribute("preserveAspectRatio", window.innerWidth < 760 ? "xMaxYMid slice" : "xMidYMax slice");
+    const fit = () => svg?.setAttribute("preserveAspectRatio", window.innerWidth < 760 ? "xMaxYMax slice" : "xMidYMax slice");
     fit();
     window.addEventListener("resize", fit);
     const stars = [...host.querySelectorAll<HTMLElement>("[data-star]")];
@@ -56,13 +56,21 @@ export function HeroScene() {
     const t0 = performance.now();
     let raf = 0;
 
-    const CYCLE = 10; // giây cho một vòng đêm → bình minh → ngày → hoàng hôn
+    // Một vòng ngày → hoàng hôn → đêm → bình minh dài 48 giây; mở trang là BAN NGÀY (pha 0.44),
+    // giữ ngày ~7 giây rồi mặt trời lặn chậm rãi (~14 giây).
+    const CYCLE = 48;
+    const START_PHASE = 0.44;
+    // Màn hẹp chỉ thấy nửa phải của cảnh → cho xe cabin & xe máy xuất phát ngay trong khung nhìn.
+    const narrow = window.innerWidth < 760;
+    const BUS_START = narrow ? 0.5 : 0.18;
+    const BIKE_START = narrow ? 0.1 : 0.4; // xe máy chạy ngược chiều: vị trí = 1 − (…)
+    const VEHICLE_SCALE = narrow ? 3 : 1; // màn hẹp cảnh bị thu nhỏ → phóng to xe + cờ cho đọc được chữ
     const sm = (x: number) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
 
     const tick = (t: number) => {
       const sy = window.scrollY || 0;
       const H = host.offsetHeight, W = host.offsetWidth;
-      const ph = reduce ? 0.5 : (0.5 + t / CYCLE) % 1; // pha trong ngày (0.5 = giữa trưa)
+      const ph = reduce ? 0.5 : (START_PHASE + t / CYCLE) % 1; // pha trong ngày (0.5 = giữa trưa)
       const band = (p: number, q: number, r: number, u: number) => sm((ph - p) / (q - p)) * (1 - sm((ph - r) / (u - r)));
       const light = band(0.12, 0.42, 0.6, 0.88);
       const dawn = band(0.08, 0.22, 0.3, 0.42) + band(0.58, 0.7, 0.78, 0.9);
@@ -91,14 +99,14 @@ export function HeroScene() {
         const d = L * pos;
         const p0 = road.getPointAtLength(Math.max(0, d - 6)), p1 = road.getPointAtLength(Math.min(L, d + 6)), p = road.getPointAtLength(d);
         const ang = (Math.atan2(p1.y - p0.y, p1.x - p0.x) * 180) / Math.PI;
-        g.setAttribute("transform", `translate(${p.x} ${p.y + Math.sin(t * 20) * 0.5}) rotate(${ang}) scale(${flip ? -1 : 1} 1)`);
+        g.setAttribute("transform", `translate(${p.x} ${p.y + Math.sin(t * 20) * 0.5}) rotate(${ang}) scale(${flip ? -VEHICLE_SCALE : VEHICLE_SCALE} ${VEHICLE_SCALE})`);
         g.style.opacity = pos < 0.02 || pos > 0.98 ? "0" : "1";
         // lá cờ "ĐI TÀ XÙA THÔI!" phấp phới sau xe
         const flag = g.querySelector("[data-flag]");
         if (flag) flag.setAttribute("transform", `rotate(${Math.sin(t * 6 + (flip ? 1.5 : 0)) * 2.2} ${flip ? -11 : -33} -18)`);
       };
-      place(bus, (t * 0.045) % 1, false);
-      place(bike, 1 - ((t * 0.07 + 0.4) % 1), true);
+      place(bus, (t * 0.045 + BUS_START) % 1, false);
+      place(bike, 1 - ((t * 0.07 + BIKE_START) % 1), true);
     };
 
     const loop = (now: number) => {
@@ -144,7 +152,7 @@ export function HeroScene() {
             <span className="absolute right-0 top-[3px] h-[1.6px] w-[52%] rounded-sm" style={{ background: "oklch(0.3 0.04 280)", transform: "rotate(-18deg)", transformOrigin: "left center" }} />
           </div>
         ))}
-        <svg viewBox="0 0 1440 680" preserveAspectRatio="xMidYMax slice" className="pointer-events-none absolute inset-0 h-full w-full">
+        <svg viewBox="0 0 1440 680" preserveAspectRatio="xMidYMax slice" className="pointer-events-none absolute inset-x-0 top-0 h-full w-full max-[759px]:h-[55%]">
           <defs>
             <linearGradient id="hxFar" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="oklch(0.62 0.07 300)" /><stop offset="1" stopColor="oklch(0.8 0.07 40)" /></linearGradient>
             <linearGradient id="hxMid" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="oklch(0.5 0.07 285)" /><stop offset="1" stopColor="oklch(0.72 0.07 30)" /></linearGradient>
@@ -190,8 +198,10 @@ export function HeroScene() {
             </g>
           </g>
         </svg>
+        {/* màn hẹp: nối tiếp sườn đồi phía trước xuống hết banner (cảnh chỉ cao 55%) */}
+        <div className="absolute inset-x-0 bottom-0 h-[45.5%] min-[760px]:hidden" style={{ background: "oklch(0.18 0.035 165)" }} />
         {CLOUD_BANDS.map((blobs, li) => (
-          <div key={li} className="pointer-events-none absolute inset-x-0 overflow-visible" style={{ bottom: BAND_STYLE[li].bottom, height: BAND_STYLE[li].height, opacity: BAND_STYLE[li].opacity }}>
+          <div key={li} className={"pointer-events-none absolute inset-x-0 overflow-visible" + (li === 0 ? " max-[759px]:hidden" : "")} style={{ bottom: BAND_STYLE[li].bottom, height: BAND_STYLE[li].height, opacity: BAND_STYLE[li].opacity }}>
             <div data-band className="absolute inset-y-0 left-0 w-[200%] will-change-transform">
               {blobs.map((c, i) => (
                 <div
