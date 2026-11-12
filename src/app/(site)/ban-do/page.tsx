@@ -4,11 +4,13 @@ import { loadItinerary } from "@/lib/itinerary-store";
 import { MAP_CENTER, MAP_GATE, projectSpots } from "@/lib/checkin-map";
 import { isVideoUrl } from "@/lib/utils";
 import { CheckinMap, type MapSpot, type MapPlan } from "@/components/itinerary/CheckinMap";
+import { SatBoard, type BoardSpot, type BoardPlan } from "@/components/itinerary/SatBoard";
+import { roadPath } from "@/lib/road-path";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Bản đồ check-in Tà Xùa — cung đường theo lịch trình",
+  title: "Bản đồ vệ tinh Tà Xùa — điểm check-in & cung đường theo lịch trình",
   description:
     "Bản đồ các điểm check-in quanh Tà Xùa tính từ chợ trung tâm: Cây cô đơn, Sống lưng khủng long, Mỏm cá heo, thảo nguyên, đồi chè cổ thụ. Chọn lịch trình 2N1Đ, 3N2Đ để xem cung đường từng ngày.",
   alternates: { canonical: "/ban-do" },
@@ -30,6 +32,59 @@ export default async function CheckinMapPage({ searchParams }: { searchParams: P
     select: { id: true, kind: true, slug: true, name: true, area: true, address: true, hours: true, tags: true, desc: true, tip: true, coverImage: true, images: true, mapUrl: true, lat: true, lng: true },
   });
   const { config } = await loadItinerary(rows);
+
+  // Mặc định: bản đồ ẢNH VỆ TINH (ghim theo toạ độ thật, đường theo đường xe thật). ?view=3d ⇒ bản đồ hoạt hình cũ.
+  if (view !== "3d") {
+    const firstImage = (p: (typeof rows)[number]) => [p.coverImage, ...(p.images ?? "").split("|")].map((u) => (u ?? "").trim()).find((u) => u && !isVideoUrl(u)) ?? null;
+    const placed = rows.filter((p): p is typeof p & { lat: number; lng: number } => p.lat != null && p.lng != null);
+    const spots: BoardSpot[] = [
+      { id: "tt", cat: "center", ...MAP_CENTER, name: "Trung tâm Tà Xùa", sub: "", desc: "Khu chợ, homestay, quán ăn. Điểm xuất phát của mọi cung đường.", tip: "Đổ xăng và ăn sáng ở đây trước khi đi xa.", best: "", image: null, mapUrl: `https://maps.google.com/?q=${MAP_CENTER.lat},${MAP_CENTER.lng}`, href: null },
+      { id: "by", cat: "start", ...MAP_GATE, name: "Bắc Yên (xe cabin)", sub: "", desc: "Nơi xe cabin dừng, từ đây lên Tà Xùa theo đèo quanh co.", tip: "", best: "", image: null, mapUrl: `https://maps.google.com/?q=${MAP_GATE.lat},${MAP_GATE.lng}`, href: null },
+      ...placed.map((p): BoardSpot => ({
+        id: p.id,
+        cat: p.kind === "CHECKIN" ? "cam" : "cafe",
+        lat: p.lat,
+        lng: p.lng,
+        name: p.name,
+        sub: p.kind === "CHECKIN" ? (p.address ?? "") : (p.area ?? ""),
+        desc: p.desc ?? "",
+        tip: p.tip ?? "",
+        best: p.kind === "CHECKIN" ? (p.hours ?? "") : "",
+        image: firstImage(p),
+        mapUrl: p.mapUrl || `https://maps.google.com/?q=${p.lat},${p.lng}`,
+        href: p.kind !== "CHECKIN" && p.slug ? `/${p.kind === "CAFE" ? "cafe" : "nha-hang"}/${p.slug}` : null,
+      })),
+    ];
+    const at = new Map(spots.map((s) => [s.id, s]));
+    const names = new Map(rows.map((p) => [p.id, p.name]));
+    const boardPlans: BoardPlan[] = [];
+    for (const p of config.plans) {
+      if (!p.published || !p.days.some((d) => d.stops.length)) continue;
+      const total = p.days.reduce((a, d) => a + d.stops.length, 0);
+      let gi = 0;
+      const days: BoardPlan["days"] = [];
+      for (const d of p.days) {
+        if (!d.stops.length) continue;
+        const stops = d.stops.map((st) => {
+          const own = !!st.placeId && at.has(st.placeId);
+          const custom = !st.placeId || !names.has(st.placeId);
+          const edge = custom && (gi === 0 || gi === total - 1); // chặng xe đầu & cuối: Bắc Yên
+          gi++;
+          return { time: st.time, name: (st.placeId && names.get(st.placeId)) || st.name, note: st.note, spotId: own ? st.placeId! : edge ? "by" : "tt", own };
+        });
+        // ngày sau bắt đầu từ trung tâm (nơi ở) nếu điểm đầu không phải trung tâm
+        const seq = [...(days.length && stops[0].spotId !== "tt" ? ["tt"] : []), ...stops.map((x) => x.spotId)];
+        days.push({ title: d.title, stops, path: await roadPath(seq.map((id) => at.get(id)!)) });
+      }
+      boardPlans.push({ id: p.id, name: p.name || "Lịch trình", sub: p.sub, days });
+    }
+    // "Khám phá tự do": đường từ Bắc Yên lên trung tâm ra điểm xa nhất, và nhánh về phía đối diện.
+    const far = (from: { lat: number; lng: number }) => placed.reduce<(typeof placed)[number] | null>((b, p) => (!b || Math.hypot(p.lat - from.lat, p.lng - from.lng) > Math.hypot(b.lat - from.lat, b.lng - from.lng) ? p : b), null);
+    const f1 = far(MAP_CENTER);
+    const f2 = f1 ? far(f1) : null;
+    const freeRoads = [await roadPath([MAP_GATE, MAP_CENTER, ...(f1 ? [f1] : [])]), ...(f2 && f2 !== f1 ? [await roadPath([MAP_CENTER, f2])] : [])];
+    return <SatBoard spots={spots} plans={boardPlans} freeRoads={freeRoads} initialPlan={typeof initialPlan === "string" ? initialPlan : undefined} />;
+  }
 
   // Chiếu MỌI địa điểm có toạ độ thật (lấy từ link Google Maps khi lưu) lên mặt phẳng bản đồ hoạt hình.
   const located = rows.filter((p): p is typeof p & { lat: number; lng: number } => p.lat != null && p.lng != null);
@@ -99,5 +154,5 @@ export default async function CheckinMapPage({ searchParams }: { searchParams: P
       };
     });
 
-  return <CheckinMap spots={[...fixed, ...checkins]} plans={plans} initialPlan={typeof initialPlan === "string" ? initialPlan : undefined} initialView={view === "sat" ? "sat" : "3d"} />;
+  return <CheckinMap spots={[...fixed, ...checkins]} plans={plans} initialPlan={typeof initialPlan === "string" ? initialPlan : undefined} initialView="3d" />;
 }

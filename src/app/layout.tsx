@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     type: "website",
     locale: "vi_VN",
     siteName: SITE.name,
-    title: `${SITE.name} — Săn mây Tà Xùa dễ dàng`,
+    title: `${SITE.name} - Đặt xe - Đặt phòng Tà Xùa chỉ với một chạm`,
     description: SITE.description,
   },
   robots: { index: true, follow: true },
