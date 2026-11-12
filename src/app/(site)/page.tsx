@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { We } from "@/components/SiteContact";
 import Image from "next/image";
 import { HeroSearch } from "@/components/home/HeroSearch";
 import { HomeCabin } from "@/components/home/HomeCabin";
@@ -107,7 +108,7 @@ export default async function HomePage() {
         <div className="grid overflow-hidden rounded-[28px] text-white sm:grid-cols-2" style={{ background: "oklch(0.68 0.18 45)" }}>
           <div className="flex flex-col justify-center gap-4 p-8 sm:p-14">
             <h2 className="text-3xl font-extrabold leading-tight tracking-tight sm:text-5xl">Cần tư vấn lịch trình?</h2>
-            <p className="max-w-md text-[17px] leading-relaxed">Nhắn cho tụi mình ngày bạn muốn đi, số người và ngân sách. Tụi mình lên giúp xe, phòng và combo phù hợp.</p>
+            <p className="max-w-md text-[17px] leading-relaxed">Nhắn cho <We /> ngày bạn muốn đi, số người và ngân sách. <We cap /> lên giúp xe, phòng và combo phù hợp.</p>
             <div className="mt-2 flex flex-wrap gap-2.5">
               <a href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="rounded-full bg-white px-5 py-3.5 text-base font-bold" style={{ color: "oklch(0.45 0.15 45)" }}>Chat Zalo</a>
               <a href={`tel:${phone.replace(/\s/g, "")}`} className="rounded-full px-5 py-3.5 text-base font-bold text-white" style={{ background: "oklch(0.27 0.05 160)" }}>Gọi {phone}</a>

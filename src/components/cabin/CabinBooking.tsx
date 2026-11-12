@@ -1,5 +1,6 @@
 "use client";
 
+import { VoiceText } from "@/components/SiteContact";
 import { useState } from "react";
 import type { CabinDirectionOptions, CabinTripAvail, CabinDay, CabinFareOption } from "@/lib/cabin";
 import { cabinSeatTotal } from "@/lib/combo-pricing";
@@ -490,9 +491,9 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
               <div className="text-xs font-bold uppercase tracking-wider text-forest-700">Đã gửi yêu cầu</div>
               <div className="text-2xl font-extrabold tracking-tight text-ink">Mã: {code}</div>
               <div className="text-[13px] leading-relaxed text-gray-700">
-                {needsConfirm
+                <VoiceText text={needsConfirm
                   ? `Tụi mình sẽ gọi ${custPhone} để xác nhận chỗ. Yêu cầu được xác nhận sau khi nhà xe kiểm tra, chưa cần thanh toán.`
-                  : `Tụi mình sẽ gọi ${custPhone} để xác nhận chi tiết. Chưa cần thanh toán.`}
+                  : `Tụi mình sẽ gọi ${custPhone} để xác nhận chi tiết. Chưa cần thanh toán.`} />
               </div>
               <div className="mt-1 grid grid-cols-2 gap-2">
                 {zalo && (

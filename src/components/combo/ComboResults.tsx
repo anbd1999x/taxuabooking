@@ -1,5 +1,6 @@
 "use client";
 
+import { We } from "@/components/SiteContact";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -632,7 +633,7 @@ function ComboPlanCard({
                 <div className="rounded-xl bg-forest-50 p-4">
                   <div className="text-[11px] font-bold uppercase tracking-wide text-forest-700">Mã yêu cầu</div>
                   <div className="mt-0.5 text-2xl font-extrabold text-ink">{done.code}</div>
-                  <div className="mt-1 text-sm leading-relaxed text-gray-600">Tụi mình sẽ gọi <b>{phone}</b> để xác nhận xe, phòng và chốt giá. Chưa thanh toán online.</div>
+                  <div className="mt-1 text-sm leading-relaxed text-gray-600"><We cap /> sẽ gọi <b>{phone}</b> để xác nhận xe, phòng và chốt giá. Chưa thanh toán online.</div>
                 </div>
                 <button type="button" onClick={() => setOpenForm(false)} className="rounded-full bg-forest-600 py-3 text-center text-sm font-bold text-white hover:bg-forest-700">Xong</button>
               </div>

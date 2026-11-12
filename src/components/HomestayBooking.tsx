@@ -1,5 +1,6 @@
 "use client";
 
+import { VoiceText } from "@/components/SiteContact";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { billableOccupants, multiRoomExtraCost } from "@/lib/occupancy";
@@ -868,9 +869,9 @@ export function HomestayBooking({
               <div className="text-[11px] font-bold uppercase tracking-wide text-forest-700">Đã gửi yêu cầu</div>
               <div className="text-2xl font-extrabold text-ink">Mã: {result.code}</div>
               <p className="text-sm leading-relaxed text-gray-600">
-                {result.needsConfirmation
+                <VoiceText text={result.needsConfirmation
                   ? `Tụi mình sẽ gọi ${cphone} để xác nhận phòng (chưa thanh toán online).`
-                  : `Tụi mình sẽ gọi ${cphone} để xác nhận chi tiết.`}
+                  : `Tụi mình sẽ gọi ${cphone} để xác nhận chi tiết.`} />
               </p>
               <button type="button" onClick={reset} className="mt-1 self-start rounded-lg bg-white px-4 py-2 text-sm font-bold text-forest-800 ring-1 ring-gray-200">
                 Đặt thêm

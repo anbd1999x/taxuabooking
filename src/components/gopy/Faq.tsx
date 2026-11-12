@@ -1,5 +1,6 @@
 "use client";
 
+import { VoiceText } from "@/components/SiteContact";
 import { useState } from "react";
 import { FEEDBACK_FAQS } from "@/lib/feedback";
 
@@ -22,7 +23,7 @@ export function Faq() {
             </button>
             <div className={`grid transition-all duration-300 ${on ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
               <div className="overflow-hidden">
-                <p className="px-4 pb-4 text-sm leading-relaxed text-gray-600">{f.a}</p>
+                <p className="px-4 pb-4 text-sm leading-relaxed text-gray-600"><VoiceText text={f.a} /></p>
               </div>
             </div>
           </div>

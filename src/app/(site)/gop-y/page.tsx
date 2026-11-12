@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { We } from "@/components/SiteContact";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/queries";
 import { getCustomer } from "@/lib/customer";
@@ -108,7 +109,7 @@ export default async function GopYPage() {
             Giúp Tà Xùa Booking tốt hơn mỗi chuyến đi
           </h1>
           <p className="max-w-2xl text-pretty text-[15px] leading-relaxed text-white/90 sm:text-base">
-            Mỗi góp ý đều được đọc. Báo lỗi, đề xuất tính năng hay kể lại chuyến đi của bạn, tụi mình sẽ phản hồi trong
+            Mỗi góp ý đều được đọc. Báo lỗi, đề xuất tính năng hay kể lại chuyến đi của bạn, <We /> sẽ phản hồi trong
             1–2 ngày làm việc.
           </p>
         </div>

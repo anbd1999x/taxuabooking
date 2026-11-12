@@ -1,6 +1,6 @@
 "use client";
 
-import { SitePhone, SiteZaloLink } from "@/components/SiteContact";
+import { SitePhone, SiteZaloLink, We } from "@/components/SiteContact";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -353,7 +353,7 @@ export function XeomList({ routes }: { routes: XeomRouteCard[] }) {
 
         {items.length === 0 ? (
           <div className="rounded-[22px] border border-dashed border-[oklch(0.85_0.02_200)] bg-white py-14 text-center text-[15px] text-gray-500">
-            Chưa có tuyến này. Gọi <SitePhone />, tụi mình sắp xếp tài xế cho bạn.
+            Chưa có tuyến này. Gọi <SitePhone />, <We /> sắp xếp tài xế cho bạn.
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] sm:gap-[22px]">
@@ -440,7 +440,7 @@ export function XeomList({ routes }: { routes: XeomRouteCard[] }) {
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-[oklch(0.92_0.01_200)] bg-white px-[18px] py-4">
-          <div className="max-w-[640px] text-sm leading-[1.5] text-gray-600">Xe ôm không đặt chỗ tự động. Sau khi bạn gửi yêu cầu, tụi mình gọi lại xác nhận tài xế, giờ đón và giá chốt.</div>
+          <div className="max-w-[640px] text-sm leading-[1.5] text-gray-600">Xe ôm không đặt chỗ tự động. Sau khi bạn gửi yêu cầu, <We /> gọi lại xác nhận tài xế, giờ đón và giá chốt.</div>
           <SiteZaloLink className="whitespace-nowrap rounded-full px-4 py-2.5 text-sm font-bold text-white" style={{ background: "oklch(0.68 0.18 45)" }}>Hỏi nhanh qua Zalo</SiteZaloLink>
         </div>
 

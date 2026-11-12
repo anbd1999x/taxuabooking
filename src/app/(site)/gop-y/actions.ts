@@ -1,5 +1,7 @@
 "use server";
 
+import { getSettings } from "@/lib/queries";
+import { parseTrustPopup, soloVoice, TRUST_POPUP_KEY, visiblePeople } from "@/lib/trust-popup";
 import { revalidatePath } from "next/cache";
 import type { FeedbackType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -22,7 +24,8 @@ export async function submitFeedback(_prev: SubmitState, fd: FormData): Promise<
   const type = VALID_TYPES.includes(typeRaw) ? typeRaw : "IDEA";
   const message = String(fd.get("message") ?? "").trim().slice(0, 1000);
   if (message.length < 15) {
-    return { error: "Viết thêm chút nữa nhé (ít nhất 15 ký tự) để tụi mình hiểu rõ." };
+    const trust = parseTrustPopup((await getSettings())[TRUST_POPUP_KEY]);
+    return { error: soloVoice("Viết thêm chút nữa nhé (ít nhất 15 ký tự) để tụi mình hiểu rõ.", visiblePeople(trust).length === 1) };
   }
   const moodRaw = Math.round(Number(fd.get("mood")));
   const mood = moodRaw >= 1 && moodRaw <= 5 ? moodRaw : null;

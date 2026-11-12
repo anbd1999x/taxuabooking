@@ -1,5 +1,6 @@
 "use client";
 
+import { VoiceText } from "@/components/SiteContact";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -268,7 +269,7 @@ export function TraCuuLookup({
                       </div>
                     ))}
                   </div>
-                  <div className="mx-5 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold leading-[1.5]" style={{ background: st.msgBg, color: st.msgFg }}>{st.msg}</div>
+                  <div className="mx-5 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold leading-[1.5]" style={{ background: st.msgBg, color: st.msgFg }}><VoiceText text={st.msg} /></div>
                   {/* chi tiết */}
                   {isOpen && (
                     <div className="flex flex-col gap-2 px-5 pt-3.5">
@@ -280,7 +281,7 @@ export function TraCuuLookup({
                               <span className="self-start whitespace-nowrap rounded-[7px] px-[7px] py-1 text-[11px] font-extrabold" style={{ background: bg, color: fg }}>{p.k}</span>
                               <div className="min-w-0">
                                 <div className="text-sm font-bold">{p.name}</div>
-                                {p.d && <div className="mt-0.5 text-[13px] leading-[1.5]" style={{ color: "oklch(0.45 0.02 160)" }}>{p.d}</div>}
+                                {p.d && <div className="mt-0.5 text-[13px] leading-[1.5]" style={{ color: "oklch(0.45 0.02 160)" }}><VoiceText text={p.d} /></div>}
                                 {p.lines && p.lines.length > 0 && (
                                   <div className="mt-1.5 flex flex-col gap-1">
                                     {p.lines.map((l) => (
@@ -348,7 +349,7 @@ export function TraCuuLookup({
               <div key={h.k} className="rounded-2xl border bg-white p-4" style={{ borderColor: "oklch(0.92 0.01 160)" }}>
                 <div className="text-xs font-extrabold" style={{ color: "oklch(0.68 0.18 45)" }}>{h.k}</div>
                 <div className="mt-1 text-[15px] font-bold">{h.t}</div>
-                <div className="mt-1 text-[13px] leading-[1.5]" style={{ color: "oklch(0.45 0.02 160)" }}>{h.d}</div>
+                <div className="mt-1 text-[13px] leading-[1.5]" style={{ color: "oklch(0.45 0.02 160)" }}><VoiceText text={h.d} /></div>
               </div>
             ))}
           </div>
@@ -360,7 +361,7 @@ export function TraCuuLookup({
             {LEGEND.map((l) => (
               <div key={l.k} className="flex items-start gap-2">
                 <span className="mt-[5px] h-[9px] w-[9px] flex-none rounded-full" style={{ background: l.c }} />
-                <span><b className="text-ink">{l.k}</b> — {l.d}</span>
+                <span><b className="text-ink">{l.k}</b> — <VoiceText text={l.d} /></span>
               </div>
             ))}
           </div>

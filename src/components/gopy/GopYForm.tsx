@@ -1,5 +1,6 @@
 "use client";
 
+import { We, useVoice } from "@/components/SiteContact";
 import { useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { FeedbackType } from "@prisma/client";
@@ -9,6 +10,7 @@ import { submitFeedback, type SubmitState } from "@/app/(site)/gop-y/actions";
 const LOGIN_HREF = "/tai-khoan?next=/gop-y";
 
 export function GopYForm({ loggedIn, userName }: { loggedIn: boolean; userName: string }) {
+  const voice = useVoice(); // "tụi mình" / "mình" theo số chủ sở hữu đang hiện
   const [state, formAction, pending] = useActionState<SubmitState, FormData>(submitFeedback, {});
   const [type, setType] = useState<FeedbackType>("IDEA");
   const [mood, setMood] = useState(0);
@@ -62,7 +64,7 @@ export function GopYForm({ loggedIn, userName }: { loggedIn: boolean; userName: 
         <h2 className="text-2xl font-extrabold tracking-tight text-ink">Cảm ơn bạn đã góp ý!</h2>
         <p className="text-[15px] leading-relaxed text-gray-600">
           Mã góp ý <b className="font-mono text-ink">{state.code}</b>. Góp ý đã hiện trên bảng công khai bên dưới
-          {anon ? " (ẩn tên)" : ""}. Tụi mình sẽ trả lời ngay dưới góp ý của bạn.
+          {anon ? " (ẩn tên)" : ""}. <We cap /> sẽ trả lời ngay dưới góp ý của bạn.
         </p>
         <div className="flex flex-wrap gap-2">
           <a
@@ -186,7 +188,7 @@ export function GopYForm({ loggedIn, userName }: { loggedIn: boolean; userName: 
           onChange={(e) => setMsg(e.target.value)}
           rows={5}
           maxLength={1000}
-          placeholder={feedbackType(type).ph}
+          placeholder={voice(feedbackType(type).ph)}
           className="resize-y rounded-2xl border border-gray-200 bg-gray-50/60 px-3.5 py-3 text-[15px] leading-relaxed focus:border-forest-400 focus:bg-white focus:outline-none"
         />
       </label>

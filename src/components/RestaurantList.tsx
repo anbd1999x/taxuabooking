@@ -1,6 +1,6 @@
 "use client";
 
-import { SiteZaloLink } from "@/components/SiteContact";
+import { SiteZaloLink, We } from "@/components/SiteContact";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -486,12 +486,12 @@ export function RestaurantList({ items: all, initialArea = "" }: { items: Restau
         </div>
         {items.length === 0 && (
           <div className="rounded-[22px] border-[1.5px] border-dashed border-[oklch(0.85_0.02_200)] bg-white px-6 py-12 text-center text-[15px] text-gray-500">
-            Chưa có quán phù hợp. <SiteZaloLink className="font-bold text-forest-700">Nhắn Tà Xùa Booking qua Zalo</SiteZaloLink>, tụi mình gợi ý quán theo lịch trình của bạn.
+            Chưa có quán phù hợp. <SiteZaloLink className="font-bold text-forest-700">Nhắn Tà Xùa Booking qua Zalo</SiteZaloLink>, <We /> gợi ý quán theo lịch trình của bạn.
           </div>
         )}
 
         <div className="mt-2.5 rounded-[18px] border px-5 py-[18px] text-sm leading-relaxed" style={{ background: "oklch(0.95 0.025 155)", borderColor: "oklch(0.9 0.04 155)", color: "oklch(0.3 0.05 160)" }}>
-          <b>Lưu ý:</b> giá và giờ mở cửa do quán tự cập nhật, có thể đổi theo mùa; nên nhắn Zalo xác nhận trước khi tới. Cần gợi ý quán hợp lịch trình? Nhắn Tà Xùa Booking qua Zalo, tụi mình tư vấn miễn phí kèm{" "}
+          <b>Lưu ý:</b> giá và giờ mở cửa do quán tự cập nhật, có thể đổi theo mùa; nên nhắn Zalo xác nhận trước khi tới. Cần gợi ý quán hợp lịch trình? Nhắn Tà Xùa Booking qua Zalo, <We /> tư vấn miễn phí kèm{" "}
           <Link href="/homestay" className="font-bold underline underline-offset-2">đặt phòng</Link> và <Link href="/xe-cabin" className="font-bold underline underline-offset-2">vé xe cabin</Link>.
           Tìm chỗ ngồi ngắm mây uống cà phê? Xem <Link href="/cafe" className="font-bold underline underline-offset-2">danh sách cafe Tà Xùa</Link>.
           Chưa biết gọi món gì? Đọc <Link href="/kinh-nghiem/an-gi-o-ta-xua" className="font-bold underline underline-offset-2">món gì nên thử ở Tà Xùa</Link>.

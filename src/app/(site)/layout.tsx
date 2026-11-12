@@ -22,7 +22,7 @@ export default async function SiteLayout({
   const trustPopup = { ...trustConfig, people: visiblePeople(trustConfig) }; // người bị ẩn không hiện ở popup
 
   return (
-    <SiteContactProvider phone={settings.contactPhone || SITE.defaultPhone}>
+    <SiteContactProvider phone={settings.contactPhone || SITE.defaultPhone} solo={trustPopup.people.length === 1}>
       <VisitTracker />
       <TrustPopup config={trustPopup} />
       <SearchLoadingOverlay />

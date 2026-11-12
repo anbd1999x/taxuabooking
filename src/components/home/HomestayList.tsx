@@ -1,6 +1,6 @@
 "use client";
 
-import { SitePhone } from "@/components/SiteContact";
+import { SitePhone, We } from "@/components/SiteContact";
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -811,7 +811,7 @@ export function HomestayList({
         {items.length === 0 && (
           <div className="flex flex-col items-center gap-2.5 rounded-[22px] border border-dashed border-[oklch(0.85_0.02_230)] bg-white px-6 py-14 text-center">
             <div className="text-[19px] font-extrabold text-ink">Không có phòng phù hợp</div>
-            <div className="max-w-[420px] text-[15px] text-gray-500">Thử đổi ngày hoặc khoảng giá. Hoặc gọi <SitePhone />, tụi mình tìm chỗ giúp.</div>
+            <div className="max-w-[420px] text-[15px] text-gray-500">Thử đổi ngày hoặc khoảng giá. Hoặc gọi <SitePhone />, <We /> tìm chỗ giúp.</div>
             <button type="button" onClick={clearAll} className="mt-1.5 rounded-full px-5 py-2.5 text-sm font-bold text-white" style={{ background: TH.G }}>Xoá bộ lọc</button>
           </div>
         )}
