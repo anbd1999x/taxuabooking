@@ -308,7 +308,7 @@ export default function BookingsCalendar({
                   {/* Điện thoại: số đơn + chấm màu theo trạng thái từng đơn */}
                   {list.length > 0 && (
                     <div className="flex w-full min-w-0 flex-col gap-1 md:hidden">
-                      <span className="truncate text-[10px] font-extrabold leading-none text-forest-700">{list.length} đơn</span>
+                      <span className="truncate text-[10px] font-extrabold leading-none text-forest-700">{list.length}<span className="max-[359px]:hidden"> đơn</span></span>
                       <span className="flex flex-wrap gap-[3px]">
                         {list.slice(0, 5).map((r) => (
                           <span key={r.id} className={`h-1.5 w-1.5 rounded-full ${ST[r.status].dot}`} />
