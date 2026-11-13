@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { formatPrice } from "@/lib/format";
-import type { StatRow, StatsResult } from "@/lib/stats";
+import type { ServicePayRow, StatRow, StatsResult } from "@/lib/stats";
+import { StatsRangeFilter } from "./StatsRangeFilter";
 
 /**
  * Bảng thống kê dùng chung cho admin & chủ dịch vụ.
@@ -23,11 +24,10 @@ export function StatsView({
   return (
     <div>
       {/* Bộ lọc thời gian */}
-      <form className="mt-4 flex flex-wrap items-end gap-2" action={action}>
-        <label className="block"><span className="text-xs font-medium text-gray-500">Từ ngày</span><input type="date" name="from" defaultValue={fromKey} className="mt-1 block rounded-xl border border-gray-200 px-3 py-2 text-sm" /></label>
-        <label className="block"><span className="text-xs font-medium text-gray-500">Đến ngày</span><input type="date" name="to" defaultValue={toKey} className="mt-1 block rounded-xl border border-gray-200 px-3 py-2 text-sm" /></label>
-        <button className="rounded-xl bg-forest-600 px-4 py-2 text-sm font-semibold text-white">Xem</button>
-      </form>
+      <StatsRangeFilter key={`${fromKey}|${toKey}`} action={action} fromKey={fromKey} toKey={toKey} />
+      <p className="mt-2 text-xs text-gray-500">
+        Đang xem: {dmy(fromKey)} → {dmy(toKey)} (theo ngày tạo đơn)
+      </p>
 
       {/* Tổng quan */}
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -67,6 +67,8 @@ export function StatsView({
         </section>
       )}
 
+      {showProviders && <ServicePayTable rows={stats.byService} />}
+
       <StatTable title="Theo cộng tác viên (CTV)" col="CTV" rows={stats.byCtv} />
       {showProviders && (
         <StatTable
@@ -80,6 +82,80 @@ export function StatsView({
         />
       )}
     </div>
+  );
+}
+
+const dmy = (k: string) => `${k.slice(8, 10)}/${k.slice(5, 7)}/${k.slice(0, 4)}`;
+
+/** Thanh toán của sàn cho TỪNG DỊCH VỤ: tổng tiền / đã thanh toán / còn chưa thanh toán. */
+function ServicePayTable({ rows }: { rows: ServicePayRow[] }) {
+  const sum = (f: (r: ServicePayRow) => number) => rows.reduce((n, r) => n + f(r), 0);
+  const payable = sum((r) => r.payable);
+  const paid = sum((r) => r.paid);
+  const remaining = sum((r) => r.remaining);
+  return (
+    <section className="mt-8">
+      <h2 className="text-lg font-semibold text-ink">Thanh toán cho từng dịch vụ</h2>
+      <p className="mt-0.5 text-xs text-gray-500">
+        Đơn đã chốt (giữ chỗ / hoàn thành). Phải thanh toán = tổng tiền bán ra − chiết khấu sàn. Số “đã thanh toán” ghi ở mục
+        “Đã thanh toán cho nhà cung cấp” trong trang chi tiết từng đơn; đơn combo tách riêng phần homestay và phần nhà xe.
+      </p>
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Stat label="Phải thanh toán cho dịch vụ" value={formatPrice(payable)} sub={`tổng bán ra ${formatPrice(sum((r) => r.total))}`} />
+        <Stat label="Đã thanh toán" value={formatPrice(paid)} tone="ok" />
+        <Stat label="Còn chưa thanh toán" value={formatPrice(remaining)} tone="warn" />
+      </div>
+      <div className="mt-3 overflow-x-auto rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
+            <tr>
+              <th className="px-3 py-3">Dịch vụ</th>
+              <th className="px-3 py-3 text-center">Đơn</th>
+              <th className="px-3 py-3 text-right">Tổng tiền</th>
+              <th className="px-3 py-3 text-right">CK sàn</th>
+              <th className="px-3 py-3 text-right">Phải thanh toán</th>
+              <th className="px-3 py-3 text-right">Đã thanh toán</th>
+              <th className="px-3 py-3 text-right">Còn chưa thanh toán</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {rows.length === 0 ? (
+              <tr><td colSpan={7} className="py-8 text-center text-gray-500">Không có dữ liệu.</td></tr>
+            ) : (
+              rows.map((r) => (
+                <tr key={r.id} className="hover:bg-gray-50">
+                  <td className="px-3 py-3">
+                    <span className="font-medium text-ink">{r.name}</span>
+                    <span className="ml-2 whitespace-nowrap rounded-md bg-gray-100 px-1.5 py-0.5 text-[11px] font-bold text-gray-600">{r.kind}</span>
+                  </td>
+                  <td className="px-3 py-3 text-center">{r.orders}</td>
+                  <td className="px-3 py-3 text-right font-semibold">{formatPrice(r.total)}</td>
+                  <td className="px-3 py-3 text-right text-gray-500">{r.discount > 0 ? formatPrice(r.discount) : "—"}</td>
+                  <td className="px-3 py-3 text-right font-semibold">{formatPrice(r.payable)}</td>
+                  <td className="px-3 py-3 text-right text-forest-700">{formatPrice(r.paid)}</td>
+                  <td className={`px-3 py-3 text-right font-semibold ${r.remaining > 0 ? "text-amber-700" : "text-forest-700"}`}>
+                    {formatPrice(r.remaining)}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+          {rows.length > 0 && (
+            <tfoot className="bg-gray-50 font-bold text-ink">
+              <tr>
+                <td className="px-3 py-3">Tổng</td>
+                <td className="px-3 py-3 text-center">{sum((r) => r.orders)}</td>
+                <td className="px-3 py-3 text-right">{formatPrice(sum((r) => r.total))}</td>
+                <td className="px-3 py-3 text-right">{formatPrice(sum((r) => r.discount))}</td>
+                <td className="px-3 py-3 text-right">{formatPrice(payable)}</td>
+                <td className="px-3 py-3 text-right text-forest-700">{formatPrice(paid)}</td>
+                <td className="px-3 py-3 text-right text-amber-700">{formatPrice(remaining)}</td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </div>
+    </section>
   );
 }
 

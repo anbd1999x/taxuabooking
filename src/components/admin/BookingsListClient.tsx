@@ -265,14 +265,15 @@ export default function BookingsListClient({
             {totalInDb} đơn · {n("NEW")} mới chưa xử lý · {nUrg} cần gấp
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        {/* max-w-full + min-w-0: màn rất hẹp (≤360px) thanh chọn chế độ tự cuộn trong khung, không đẩy rộng trang. */}
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
           <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-[14px] bg-gray-200/70 p-1">
             {VIEWS.map(([k, name]) => (
               <button
                 key={k}
                 type="button"
                 onClick={() => setView(k)}
-                className={`whitespace-nowrap rounded-[11px] px-3 py-2 text-sm font-extrabold transition ${
+                className={`whitespace-nowrap rounded-[11px] px-2.5 py-2 text-[13px] font-extrabold transition sm:px-3 sm:text-sm ${
                   view === k ? "bg-white text-forest-800 shadow-sm" : "text-gray-600 hover:text-ink"
                 }`}
               >

@@ -45,6 +45,10 @@ export interface ProviderOrderVM {
   adminNote: string;
   busLabel: string;
   busPrice: number;
+  // Sàn thanh toán cho chủ dịch vụ (phần tiền của bên mình trong đơn; admin ghi ở chi tiết đơn).
+  payoutDue: number; // sàn phải chuyển = bán ra − chiết khấu sàn
+  payoutReceived: number; // đã nhận từ sàn
+  payoutOwed: number; // còn thiếu (chỉ tính đơn đã chốt)
 }
 
 const G = "oklch(0.29 0.055 160)";
@@ -158,6 +162,8 @@ export function ProviderOrders({
   const live = orders.filter((o) => o.st !== "cancel");
   const collectedTotal = live.reduce((a, o) => a + o.collected, 0);
   const dueTotal = live.reduce((a, o) => a + Math.max(0, o.net - o.collected), 0);
+  const payoutReceivedTotal = live.reduce((a, o) => a + o.payoutReceived, 0);
+  const payoutOwedTotal = live.reduce((a, o) => a + o.payoutOwed, 0);
   const ctvDueOrders = live.filter((o) => o.ctv && !o.ctvPaid);
   const ctvDue = ctvDueOrders.reduce((a, o) => a + o.comm, 0);
   const todoN = orders.filter((o) => o.st === "new" || o.st === "held").length;
@@ -205,6 +211,7 @@ export function ProviderOrders({
     { label: "Cần xử lý", v: todoN + " đơn", sub: "Mới cần xác nhận hoặc chờ cọc", dot: "oklch(0.68 0.18 45)", bg: "oklch(0.985 0.02 70)", bd: "oklch(0.9 0.06 70)", pick: () => setTab("todo") },
     { label: "Đã thu", v: K(collectedTotal), sub: "Cọc và thanh toán đã ghi nhận", dot: "oklch(0.55 0.13 155)", bg: "white", bd: "oklch(0.92 0.01 160)", pick: () => setTab("all") },
     { label: "Còn phải thu", v: K(dueTotal), sub: "Từ các đơn chưa thanh toán đủ", dot: "oklch(0.58 0.14 300)", bg: "white", bd: "oklch(0.92 0.01 160)", pick: () => { setTab("all"); setSort("due"); } },
+    { label: "Đã nhận từ sàn", v: K(payoutReceivedTotal), sub: "Sàn còn thiếu " + K(payoutOwedTotal), dot: "oklch(0.55 0.12 230)", bg: "white", bd: "oklch(0.92 0.01 160)", pick: () => setTab("all") },
     { label: "Hoa hồng CTV chưa trả", v: K(ctvDue), sub: ctvDueOrders.length + " đơn từ CTV", dot: "oklch(0.7 0.15 80)", bg: "white", bd: "oklch(0.92 0.01 160)", pick: () => { setSrc("ctv"); setTab("all"); } },
   ];
 
@@ -337,6 +344,12 @@ export function ProviderOrders({
                     <span style={{ color: dueC, fontWeight: 700 }}>{dueText}</span>
                   </div>
                   {o.discount > 0 && <div style={{ fontSize: 11, color: "oklch(0.5 0.02 160)" }}>Giá bán {K(o.gross)} − chiết khấu {K(o.discount)}</div>}
+                  {(o.payoutReceived > 0 || o.payoutOwed > 0) && (
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 12, paddingTop: 5, borderTop: "1px dashed oklch(0.9 0.01 160)" }}>
+                      <span style={{ color: "oklch(0.42 0.12 250)", fontWeight: 700 }}>Sàn đã chuyển {K(o.payoutReceived)}</span>
+                      <span style={{ color: o.payoutOwed > 0 ? "oklch(0.55 0.15 50)" : "oklch(0.4 0.1 155)", fontWeight: 700 }}>{o.payoutOwed > 0 ? "Còn thiếu " + K(o.payoutOwed) : "Đã nhận đủ"}</span>
+                    </div>
+                  )}
                 </div>
                 {/* Hành động */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "stretch" }}>
@@ -490,6 +503,24 @@ function Drawer({
               <b style={{ fontSize: 17 }}>{K(o.net)}</b>
             </div>
           </div>
+          {/* sàn thanh toán cho chủ dịch vụ */}
+          {o.st !== "cancel" && (
+            <div style={{ padding: "14px 16px", borderRadius: 16, background: "white", border: "1px solid oklch(0.92 0.01 160)", display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: ".04em", textTransform: "uppercase", color: "oklch(0.5 0.02 160)" }}>Tà Xùa Booking thanh toán cho bạn</div>
+                <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: "nowrap", color: o.payoutOwed > 0 ? "oklch(0.55 0.15 50)" : o.payoutReceived > 0 ? "oklch(0.4 0.1 155)" : "oklch(0.5 0.02 160)" }}>
+                  {o.payoutOwed > 0 ? "Còn thiếu " + K(o.payoutOwed) : o.payoutReceived > 0 ? "Đã nhận đủ" : "Chưa đến kỳ"}
+                </span>
+              </div>
+              {([["Phần của bạn trong đơn", K(o.payoutDue)], ["Đã nhận", K(o.payoutReceived)], ["Còn thiếu", K(o.payoutOwed)]] as const).map(([k, v]) => (
+                <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+                  <span style={{ color: "oklch(0.5 0.02 160)" }}>{k}</span>
+                  <b>{v}</b>
+                </div>
+              ))}
+              <div style={{ fontSize: 11, color: "oklch(0.5 0.02 160)" }}>Số “đã nhận” do sàn ghi nhận khi chuyển tiền cho bạn; “còn thiếu” tính khi đơn đã xác nhận / hoàn thành.</div>
+            </div>
+          )}
           {/* thanh toán */}
           <div style={{ padding: "14px 16px", borderRadius: 16, background: "white", border: "1px solid oklch(0.92 0.01 160)", display: "flex", flexDirection: "column", gap: 10 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>

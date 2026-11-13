@@ -6,6 +6,7 @@ import { showToast } from "./Toast";
 import {
   saveBookingStage,
   recordBookingPayment,
+  recordSupplierPayout,
   addBookingNote,
   deleteBooking,
   saveBookingSurcharge,
@@ -205,6 +206,95 @@ export function PaymentRecordForm({
         >
           Thu đủ
         </button>
+      </div>
+    </form>
+  );
+}
+
+/** Ghi nhận SÀN trả tiền cho một nhà cung cấp trong đơn (homestay / nhà xe). */
+export function SupplierPayoutForm({
+  id,
+  side,
+  label,
+  payable,
+  paid,
+}: {
+  id: string;
+  side: "room" | "bus";
+  label: string;
+  payable: number;
+  paid: number;
+}) {
+  const [amt, setAmt] = useState("");
+  const [state, action, pending] = useActionState<BookingActionState, FormData>(recordSupplierPayout, {});
+  useResultToast(state, () => setAmt(""));
+  const fmt = (n: number) => n.toLocaleString("vi-VN");
+  const remaining = Math.max(0, payable - paid);
+  const quick: [string, number][] =
+    // Điền nhanh theo số PHẢI TRẢ; đã trả một phần thì không vượt quá phần còn lại.
+    remaining > 0 ? [["50%", Math.min(remaining, Math.round(payable * 0.5))], ["100%", Math.min(remaining, payable)]] : [];
+
+  return (
+    <form action={action} className="flex flex-col gap-1.5">
+      <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="side" value={side} />
+      <input type="hidden" name="label" value={label} />
+      {remaining > 0 && (
+        <div className="flex gap-1.5">
+          <input
+            name="amount"
+            value={amt}
+            onChange={(e) => setAmt(e.target.value)}
+            inputMode="numeric"
+            placeholder="Số tiền đã trả"
+            className="w-full min-w-0 flex-1 rounded-lg border-[1.5px] border-gray-200 bg-white px-3 py-1.5 text-sm font-bold"
+          />
+          {quick.map(([name, v]) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => setAmt(fmt(v))}
+              className="whitespace-nowrap rounded-full border-[1.5px] border-gray-200 bg-white px-2.5 py-1 text-xs font-bold text-gray-700 hover:bg-gray-100"
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="flex items-center gap-1.5">
+        {remaining > 0 && (
+          <>
+            <button
+              name="mode"
+              value="add"
+              disabled={pending}
+              className="flex-1 rounded-full bg-forest-700 px-3 py-1.5 text-[13px] font-bold text-white hover:bg-forest-800 disabled:opacity-50"
+            >
+              Ghi nhận đã trả
+            </button>
+            <button
+              name="mode"
+              value="full"
+              disabled={pending}
+              className="flex-1 rounded-full border-[1.5px] border-gray-200 bg-white px-3 py-1.5 text-[13px] font-bold text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+            >
+              Trả đủ
+            </button>
+          </>
+        )}
+        {paid > 0 && (
+          <button
+            name="mode"
+            value="reset"
+            disabled={pending}
+            onClick={(e) => {
+              if (!confirm(`Đặt lại số tiền đã trả cho ${label} về 0?`)) e.preventDefault();
+            }}
+            className="ml-auto whitespace-nowrap px-1 py-1.5 text-xs font-bold text-red-600 hover:text-red-700 disabled:opacity-50"
+          >
+            Đặt lại về 0
+          </button>
+        )}
       </div>
     </form>
   );

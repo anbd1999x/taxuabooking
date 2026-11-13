@@ -51,14 +51,27 @@ export function RoomGrid({
     const key = keyOf(roomId, date);
     setStatuses((s) => ({ ...s, [key]: next }));
     setSaving(true);
-    try {
-      const res = await fetch("/api/admin/room-status", {
+    const post = (force: boolean) =>
+      fetch("/api/admin/room-status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roomId, date, status: next }),
+        body: JSON.stringify({ roomId, date, status: next, force }),
       });
+    try {
+      let res = await post(false);
       if (!res.ok) {
-        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        const data = (await res.json().catch(() => null)) as { error?: string; needConfirm?: boolean } | null;
+        if (res.status === 409 && data?.needConfirm) {
+          // Ô đang do một đơn thật giữ chỗ → cảnh báo tình trạng hiện tại, đồng ý mới ghi đè.
+          if (!confirm(data.error || "Phòng đang có đơn giữ chỗ. Vẫn ghi đè?")) {
+            setStatuses((s) => ({ ...s, [key]: cur }));
+            return;
+          }
+          res = await post(true);
+          if (res.ok) return;
+          const d2 = (await res.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(d2?.error || "Lưu không thành công, vui lòng thử lại.");
+        }
         throw new Error(data?.error || "Lưu không thành công, vui lòng thử lại.");
       }
     } catch (e) {

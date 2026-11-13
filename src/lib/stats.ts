@@ -4,6 +4,8 @@ import { parseDateOnly, addDays } from "./dates";
 import { toNumber } from "./format";
 import { comboSideCollected } from "./combo-pricing";
 import { resolveBusCommissions, resolveRoomCommissions } from "./provider-commission";
+import { supplierPayouts } from "./supplier-payout";
+import { CATEGORIES } from "./constants";
 
 /** Một dòng thống kê (tổng, theo CTV, hoặc theo chủ dịch vụ). */
 export interface StatRow {
@@ -24,10 +26,24 @@ export interface StatRow {
   platformProfit: number; // lợi nhuận sàn = homeDiscount + busDiscount − hoa hồng CTV
 }
 
+/** Thanh toán của SÀN cho một dịch vụ (homestay / nhà xe / …) — chỉ đơn đã chốt. */
+export interface ServicePayRow {
+  id: string;
+  name: string;
+  kind: string; // Homestay / Nhà xe / …
+  orders: number;
+  total: number; // tổng tiền bán ra phần của dịch vụ
+  discount: number; // chiết khấu để lại cho sàn
+  payable: number; // phải thanh toán = total − discount
+  paid: number; // sàn đã thanh toán
+  remaining: number; // còn chưa thanh toán
+}
+
 export interface StatsResult {
   totals: StatRow;
   byCtv: StatRow[];
   byProvider: StatRow[]; // rỗng khi xem ở phạm vi một chủ dịch vụ
+  byService: ServicePayRow[]; // rỗng khi xem ở phạm vi một chủ dịch vụ
 }
 
 function emptyRow(id: string, name: string): StatRow {
@@ -168,7 +184,10 @@ export async function computeStats(fromKey: string, toKey: string, ownerId?: str
       roomIds: true,
       useDate: true,
       endDate: true,
-      service: { select: { ownerId: true, owner: { select: { name: true } } } },
+      serviceTitle: true,
+      paidToRoom: true,
+      paidToBus: true,
+      service: { select: { id: true, title: true, category: true, ownerId: true, owner: { select: { name: true } } } },
     },
   });
 
@@ -185,18 +204,21 @@ export async function computeStats(fromKey: string, toKey: string, ownerId?: str
     ...new Set(bookings.filter((b) => b.category === "COMBO" && b.cabinTripId).map((b) => b.cabinTripId!)),
   ];
   const tripOwner = new Map<string, { id: string; name: string }>();
+  const tripService = new Map<string, { id: string; title: string }>(); // nhà xe chạy chuyến (combo)
   if (!ownerId && comboTripIds.length) {
     const trips = await prisma.cabinTrip.findMany({
       where: { id: { in: comboTripIds } },
-      select: { id: true, service: { select: { ownerId: true, owner: { select: { name: true } } } } },
+      select: { id: true, service: { select: { id: true, title: true, ownerId: true, owner: { select: { name: true } } } } },
     });
     for (const t of trips) {
       tripOwner.set(t.id, {
         id: t.service.ownerId ?? "_none",
         name: t.service.owner?.name ?? "Chưa gán chủ dịch vụ",
       });
+      tripService.set(t.id, { id: t.service.id, title: t.service.title });
     }
   }
+  const byService = new Map<string, ServicePayRow>();
 
   const totals = emptyRow("_all", "Tổng");
   const byCtv = new Map<string, StatRow>();
@@ -218,6 +240,35 @@ export async function computeStats(fromKey: string, toKey: string, ownerId?: str
     const crow = byCtv.get(ck) ?? emptyRow(ck, cn);
     accumulate(crow, scoped, net);
     byCtv.set(ck, crow);
+
+    // Thanh toán cho từng dịch vụ: đơn đã chốt, tách theo bên (combo = homestay + nhà xe).
+    if (!ownerId && (b.status === "CONFIRMED" || b.status === "COMPLETED")) {
+      const sides = supplierPayouts(b, toNumber(b.roomCommission as never) ?? 0, toNumber(b.busCommission as never) ?? 0);
+      for (const s of sides) {
+        const comboBus = isCombo && s.side === "bus";
+        const svc = comboBus
+          ? (b.cabinTripId ? tripService.get(b.cabinTripId) : undefined)
+          : b.service
+            ? { id: b.service.id, title: b.service.title }
+            : undefined;
+        const key = svc?.id ?? (comboBus ? "_bus" : `_t:${b.serviceTitle}`);
+        const row =
+          byService.get(key) ??
+          {
+            id: key,
+            name: svc?.title ?? (comboBus ? "Nhà xe (chưa gán chuyến)" : `${b.serviceTitle} (đã xoá bài đăng)`),
+            kind: s.side === "bus" ? "Nhà xe" : isCombo ? "Homestay" : CATEGORIES[b.service?.category ?? b.category].shortLabel,
+            orders: 0, total: 0, discount: 0, payable: 0, paid: 0, remaining: 0,
+          };
+        row.orders += 1;
+        row.total += s.gross;
+        row.discount += s.discount;
+        row.payable += s.payable;
+        row.paid += s.paid;
+        row.remaining += s.remaining;
+        byService.set(key, row);
+      }
+    }
 
     if (!ownerId) {
       if (isCombo) {
@@ -247,5 +298,6 @@ export async function computeStats(fromKey: string, toKey: string, ownerId?: str
     totals,
     byCtv: [...byCtv.values()].sort(sortByRevenue),
     byProvider: [...byProvider.values()].sort(sortByRevenue),
+    byService: [...byService.values()].sort((a, b) => b.remaining - a.remaining || b.total - a.total),
   };
 }

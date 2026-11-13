@@ -25,7 +25,10 @@ import {
   NoteForm,
   DeleteBookingButton,
   SurchargePanel,
+  SupplierPayoutForm,
 } from "@/components/admin/BookingDetailClient";
+import { supplierPayouts } from "@/lib/supplier-payout";
+import { resolveBusCommissions, resolveRoomCommissions } from "@/lib/provider-commission";
 import {
   toggleBookingHeld,
   duplicateBooking,
@@ -539,6 +542,17 @@ export default async function BookingDetailPage({
 
   const payPct = price != null && price > 0 ? Math.min(100, Math.round((collected / price) * 100)) : 0;
 
+  // Sàn thanh toán cho nhà cung cấp: phải trả (bán ra − chiết khấu sàn) / đã trả / còn lại, từng bên.
+  const [roomDiscMap, busDiscMap] = await Promise.all([resolveRoomCommissions([b]), resolveBusCommissions([b])]);
+  const payouts = supplierPayouts(b, roomDiscMap.get(b.id) ?? 0, busDiscMap.get(b.id) ?? 0).map((s) => ({
+    ...s,
+    kind: s.side === "bus" ? "Nhà xe" : b.category === "COMBO" || b.category === "HOMESTAY" || b.category === "BUNGALOW" ? "Homestay" : cat.label,
+    name:
+      s.side === "bus"
+        ? (outTrip?.service.title ?? b.service?.title ?? b.serviceTitle)
+        : (b.service?.title ?? b.serviceTitle),
+  }));
+
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-4">
       {/* Thanh trên: quay lại + điều hướng đơn + sao chép */}
@@ -1020,6 +1034,61 @@ export default async function BookingDetailPage({
               </div>
             ) : (
               <div className="text-xs text-gray-500">CTV: Khách tự đặt → không tính hoa hồng</div>
+            )}
+          </section>
+
+          {/* Đã thanh toán cho nhà cung cấp (home / xe) */}
+          <section className="flex flex-col gap-3 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
+            <div>
+              <h2 className="text-base font-extrabold text-ink">Đã thanh toán cho nhà cung cấp</h2>
+              <p className="mt-0.5 text-xs text-gray-500">Tiền sàn đã chuyển cho homestay / nhà xe trong đơn này.</p>
+            </div>
+            {price == null ? (
+              <p className="text-sm text-gray-500">Đơn chưa có giá — nhập giá đơn trước khi ghi nhận.</p>
+            ) : (
+              payouts.map((s) => (
+                <div key={s.side} className="flex flex-col gap-2 rounded-xl border border-gray-200 p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-xs text-gray-500">{s.kind}</div>
+                      <div className="font-bold text-ink">{s.name}</div>
+                    </div>
+                    <span
+                      className={`whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-bold ${
+                        s.payable > 0 && s.remaining === 0
+                          ? "bg-forest-100 text-forest-700"
+                          : s.paid > 0
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-red-50 text-red-600"
+                      }`}
+                    >
+                      {s.payable > 0 && s.remaining === 0 ? "Đã trả đủ" : s.paid > 0 ? "Trả một phần" : "Chưa trả"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <div className="text-[11px] text-gray-500">Phải trả</div>
+                      <div className="text-sm font-extrabold text-ink">{formatPrice(s.payable)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] text-gray-500">Đã trả</div>
+                      <div className="text-sm font-extrabold text-forest-700">{formatPrice(s.paid)}</div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] text-gray-500">Còn lại</div>
+                      <div className={`text-sm font-extrabold ${s.remaining > 0 ? "text-sunset-600" : "text-forest-700"}`}>
+                        {formatPrice(s.remaining)}
+                      </div>
+                    </div>
+                  </div>
+                  {s.discount > 0 && (
+                    <div className="text-[11px] text-gray-500">
+                      Bán ra {formatPrice(s.gross)} − chiết khấu sàn {formatPrice(s.discount)}
+                    </div>
+                  )}
+                  <SupplierPayoutForm id={b.id} side={s.side} label={s.name} payable={s.payable} paid={s.paid} />
+                </div>
+              ))
             )}
           </section>
 

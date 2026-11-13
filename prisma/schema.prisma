@@ -522,6 +522,10 @@ model BookingRequest {
   roomCommission   Decimal?   @db.Decimal(12, 0)
   // Chiết khấu NHÀ XE cho sàn (snapshot lúc đặt) = Service.busCommission × số khách × số chiều.
   busCommission    Decimal?   @db.Decimal(12, 0)
+  // SÀN đã thanh toán cho nhà cung cấp trong đơn này (cộng dồn; null = chưa trả gì).
+  // paidToRoom: trả cho homestay / dịch vụ chính của đơn; paidToBus: trả cho nhà xe (cabin / combo).
+  paidToRoom       Decimal?   @db.Decimal(12, 0)
+  paidToBus        Decimal?   @db.Decimal(12, 0)
   commissionPaid   Boolean    @default(false) // đã trả hoa hồng cho CTV chưa
   commissionPaidAt DateTime?
 

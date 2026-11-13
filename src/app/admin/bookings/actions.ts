@@ -14,6 +14,8 @@ import { canRoleAct, type BookingRole } from "@/lib/booking-flow";
 import { enumerateNights, isValidDateKey, parseDateOnly, toDateKey } from "@/lib/dates";
 import { parseSurcharges, type BookingSurcharge } from "@/lib/surcharges";
 import { AUTO_CANCEL_HOURS_KEY, MAX_AUTO_CANCEL_HOURS } from "@/lib/auto-cancel-config";
+import { supplierPayouts } from "@/lib/supplier-payout";
+import { resolveBusCommissions, resolveRoomCommissions } from "@/lib/provider-commission";
 
 export interface BookingActionState {
   ok?: boolean;
@@ -397,6 +399,60 @@ export async function recordBookingPayment(
   );
   revalidateDetail(id);
   return { ok: true, message: `Đã ghi nhận ${formatPrice(amount)}` };
+}
+
+/**
+ * Ghi nhận SÀN THANH TOÁN CHO NHÀ CUNG CẤP trong một đơn (side: room = homestay/dịch vụ
+ * chính, bus = nhà xe). Cộng dồn vào paidToRoom / paidToBus + ghi nhật ký. Chỉ ADMIN.
+ * mode: add = trả thêm số tiền nhập · full = trả nốt phần còn lại · reset = đặt lại về 0 (nhập nhầm).
+ */
+export async function recordSupplierPayout(
+  _prev: BookingActionState,
+  formData: FormData,
+): Promise<BookingActionState> {
+  const id = String(formData.get("id") ?? "");
+  const side = String(formData.get("side") ?? "");
+  const mode = String(formData.get("mode") ?? "add");
+  const label = String(formData.get("label") ?? "").slice(0, 120) || (side === "bus" ? "nhà xe" : "nhà cung cấp");
+  if (!id || (side !== "room" && side !== "bus")) return { error: "Dữ liệu không hợp lệ." };
+  const session = await getSession();
+  if (session?.role !== "ADMIN") return { error: "Chỉ admin ghi nhận thanh toán cho nhà cung cấp." };
+
+  const b = await prisma.bookingRequest.findUnique({ where: { id } });
+  if (!b) return { error: "Không tìm thấy yêu cầu." };
+  const [roomDisc, busDisc] = await Promise.all([resolveRoomCommissions([b]), resolveBusCommissions([b])]);
+  const cur = supplierPayouts(b, roomDisc.get(id) ?? 0, busDisc.get(id) ?? 0).find((s) => s.side === side);
+  if (!cur) return { error: "Đơn này không có phần tiền của bên đó." };
+
+  let total: number;
+  let title: string;
+  if (mode === "reset") {
+    if (cur.paid <= 0) return { error: "Chưa có khoản thanh toán nào để xoá." };
+    total = 0;
+    title = `Đặt lại tiền đã trả ${label} về 0 (trước đó ${formatPrice(cur.paid)})`;
+  } else {
+    const amount = mode === "full" ? cur.remaining : (money(formData.get("amount")) ?? 0);
+    if (amount <= 0) return { error: mode === "full" ? "Đã thanh toán đủ cho bên này." : "Nhập số tiền đã thanh toán." };
+    if (cur.paid + amount > cur.payable) {
+      return { error: `Vượt quá số phải trả (${formatPrice(cur.payable)}, đã trả ${formatPrice(cur.paid)}).` };
+    }
+    total = cur.paid + amount;
+    title = `Trả ${label} ${formatPrice(amount)}`;
+  }
+
+  // Khoá lạc quan theo updatedAt — tránh 2 lần ghi cùng lúc đè mất nhau.
+  const r = await prisma.bookingRequest.updateMany({
+    where: { id, updatedAt: b.updatedAt },
+    data: side === "room" ? { paidToRoom: total } : { paidToBus: total },
+  });
+  if (r.count === 0) return { error: "Đơn vừa được cập nhật ở nơi khác — tải lại trang rồi thử lại." };
+  await log(
+    prisma, id, "SUPPLIER", title,
+    mode === "reset" ? null : total >= cur.payable ? "Đã thanh toán đủ cho bên này" : `Còn phải trả ${formatPrice(cur.payable - total)}`,
+    await sessionName(),
+  );
+  revalidateDetail(id);
+  return { ok: true, message: mode === "reset" ? "Đã đặt lại về 0" : "Đã ghi nhận thanh toán cho nhà cung cấp" };
 }
 
 /** Thêm GHI CHÚ NỘI BỘ vào nhật ký xử lý đơn. */

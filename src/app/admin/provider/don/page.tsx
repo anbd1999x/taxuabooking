@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/format";
 import { comboSideCollected } from "@/lib/combo-pricing";
 import { toDateKey, today } from "@/lib/dates";
-import { resolveRoomInfo } from "@/lib/provider-commission";
+import { resolveRoomInfo, resolveRoomCommissions, resolveBusCommissions } from "@/lib/provider-commission";
+import { supplierPayouts } from "@/lib/supplier-payout";
 import { providerUnlocked } from "@/lib/booking-flow";
 import { ProviderOrders, type ProviderOrderVM, type POStatus } from "@/components/admin/ProviderOrders";
 import { durationLabel, bookingCountLabel } from "@/lib/occupancy";
@@ -49,7 +50,11 @@ export default async function ProviderOrdersPage() {
   ]);
 
   // Chiết khấu hiệu lực + nhãn phòng thực của mỗi đơn (snapshot, hoặc tính bù đơn cũ).
-  const infoMap = await resolveRoomInfo(bookings);
+  const [infoMap, roomDiscMap, busDiscMap] = await Promise.all([
+    resolveRoomInfo(bookings),
+    resolveRoomCommissions(bookings),
+    resolveBusCommissions(bookings),
+  ]);
 
   const orders: ProviderOrderVM[] = bookings.map((b) => {
     const isCombo = b.category === "COMBO";
@@ -105,6 +110,11 @@ export default async function ProviderOrdersPage() {
     }
     const net = Math.max(0, gross - discount);
 
+    // Sàn thanh toán cho bên mình: cùng công thức với trang chi tiết đơn của admin.
+    const mySide = (isCombo ? !homeSide : b.category === "CABIN") ? "bus" : "room";
+    const po = supplierPayouts(b, roomDiscMap.get(b.id) ?? 0, busDiscMap.get(b.id) ?? 0).find((s) => s.side === mySide);
+    const chot = b.status === "CONFIRMED" || b.status === "COMPLETED";
+
     // Chủ dịch vụ chỉ thấy SĐT khách sau khi đơn Đã cọc / Đã thanh toán đủ / Hoàn thành.
     // Admin (sàn) luôn thấy. Ẩn ngay từ server để không lộ SĐT xuống client.
     const st = mapStatus(b.status, b.paymentStatus);
@@ -144,6 +154,9 @@ export default async function ProviderOrdersPage() {
       adminNote: b.adminNote ?? "",
       busLabel,
       busPrice,
+      payoutDue: po?.payable ?? 0,
+      payoutReceived: po?.paid ?? 0,
+      payoutOwed: chot ? (po?.remaining ?? 0) : 0,
     };
   });
 

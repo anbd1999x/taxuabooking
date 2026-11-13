@@ -9,6 +9,12 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 const STATUSES: RoomStatus[] = ["AVAILABLE", "BOOKED", "PENDING", "CLOSED"];
+const STATUS_LABEL: Record<RoomStatus, string> = {
+  AVAILABLE: "Trống",
+  BOOKED: "Đã đặt",
+  PENDING: "Chờ xác nhận",
+  CLOSED: "Đóng",
+};
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -18,7 +24,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Không có quyền." }, { status: 403 });
   }
 
-  let body: { roomId?: string; date?: string; status?: string };
+  let body: { roomId?: string; date?: string; status?: string; force?: boolean };
   try {
     body = await request.json();
   } catch {
@@ -40,20 +46,42 @@ export async function POST(request: Request) {
 
   const d = parseDateOnly(date);
 
-  // Ngày đang được GIỮ bởi một đơn thật → không cho sửa tay (dễ gây lệch tồn kho).
-  // Muốn đổi, hãy huỷ / sửa đơn ở mục "Yêu cầu đặt".
+  // Ngày đang được GIỮ bởi một đơn thật → KHÔNG khoá, nhưng phải cảnh báo tình trạng hiện tại;
+  // client hỏi lại, đồng ý thì gửi kèm force=true để ghi đè (ô thành khoá tay, đơn vẫn giữ nguyên).
   const existing = await prisma.roomDayStatus.findUnique({
     where: { roomId_date: { roomId, date: d } },
   });
   if (existing?.bookingId) {
     const bk = await prisma.bookingRequest.findUnique({
       where: { id: existing.bookingId },
-      select: { code: true },
+      select: { id: true, code: true, customerName: true, phone: true },
     });
-    return NextResponse.json(
-      { error: `Ngày này do đơn ${bk?.code ?? "đã đặt"} giữ chỗ — hãy huỷ/sửa đơn đó thay vì sửa tay.` },
-      { status: 409 },
-    );
+    if (bk && body.force !== true) {
+      const dmy = `${date.slice(8, 10)}/${date.slice(5, 7)}/${date.slice(0, 4)}`;
+      return NextResponse.json(
+        {
+          needConfirm: true,
+          error:
+            `Phòng ${room.name} ngày ${dmy} hiện đang "${STATUS_LABEL[existing.status]}" — ` +
+            `do đơn ${bk.code} (${bk.customerName} · ${bk.phone}) giữ chỗ.\n\n` +
+            `Đổi sang "${STATUS_LABEL[status as RoomStatus]}" sẽ ghi đè lên tình trạng này; đơn ${bk.code} vẫn giữ nguyên trạng thái ` +
+            `(nếu khách không ở nữa, hãy huỷ/sửa đơn ở mục "Yêu cầu đặt").\n\nVẫn ghi đè?`,
+        },
+        { status: 409 },
+      );
+    }
+    if (bk) {
+      // Để lại dấu vết trong nhật ký đơn: ai đã sửa tay ô đang do đơn giữ.
+      await prisma.bookingLog.create({
+        data: {
+          bookingId: bk.id,
+          kind: "SYSTEM",
+          title: "Sửa tay tình trạng phòng",
+          body: `Phòng ${room.name} ngày ${date}: ${STATUS_LABEL[existing.status]} → ${STATUS_LABEL[status as RoomStatus]} (ghi đè ô do đơn giữ chỗ)`,
+          by: session.name || session.username || "Admin",
+        },
+      });
+    }
   }
 
   if (status === "AVAILABLE") {

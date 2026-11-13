@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import type { BookingStatus } from "@prisma/client";
 import { ST, CAT_BADGE, CAT_OPTIONS, type BookingRow } from "./BookingsListClient";
 
@@ -161,9 +162,14 @@ export default function BookingsCalendar({
     return (
       <div
         key={r.id}
-        className={`flex animate-[fadeIn_.2s_ease_both] flex-col gap-2 rounded-2xl border bg-white px-3.5 py-3 ${urg ? "border-sunset-300" : "border-gray-200"}`}
+        className={`flex min-w-0 animate-[fadeIn_.2s_ease_both] flex-col gap-2 rounded-2xl border bg-white px-3.5 py-3 ${urg ? "border-sunset-300" : "border-gray-200"}`}
       >
-        <div className="flex items-start gap-2.5">
+        {/* Bấm vào phần thông tin đơn → trang chi tiết (nút "Xử lý" bên dưới vẫn mở ngăn xử lý nhanh). */}
+        <Link
+          href={`/admin/bookings/${r.id}`}
+          title={`Mở chi tiết đơn ${r.code}`}
+          className="-m-1 flex items-start gap-2.5 rounded-xl p-1 transition hover:bg-forest-50/60"
+        >
           <span className={`flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[9px] text-[11px] font-extrabold ${catTone}`}>{catK}</span>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-1.5">
@@ -182,7 +188,7 @@ export default function BookingsCalendar({
             <div className="text-[15px] font-extrabold text-ink">{r.price != null ? money(r.price) : "—"}</div>
             <div className="text-xs text-gray-500">{r.paxLabel}</div>
           </div>
-        </div>
+        </Link>
         <div className="flex flex-wrap gap-1.5">
           {chips.map((c, i) => (
             <span key={i} className="max-w-full truncate rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-700">{c}</span>
@@ -243,16 +249,19 @@ export default function BookingsCalendar({
     ).filter((g) => g[2].length);
 
     return (
-      <div className="grid items-start gap-3.5 2xl:grid-cols-[minmax(0,1fr)_400px]">
-        {/* Màn hẹp: lịch giữ nguyên ô đầy đủ (tên khách, số khách, doanh thu) và CUỘN NGANG. */}
-        <div id="bk-month-scroll" className="min-w-0 overflow-x-auto overscroll-x-contain rounded-[20px] border border-gray-200 bg-white p-2 md:p-3.5">
-         <div className="min-w-[760px]">
-          <div className="mb-1.5 grid grid-cols-7 gap-1.5">
+      // grid-cols-[minmax(0,1fr)]: cột không được nở theo nội dung (chip dài không xuống dòng trong thẻ
+      // đơn từng làm cả trang rộng quá màn hình điện thoại → không xem / không cuộn được).
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-3.5 2xl:grid-cols-[minmax(0,1fr)_400px]">
+        {/* Điện thoại (< md): ô THU GỌN vừa bề ngang màn hình (ngày + số đơn + chấm trạng thái), bấm ngày
+            để xem đơn ở panel bên dưới. Từ md trở lên: ô đầy đủ (tên khách, số khách, doanh thu), thiếu chỗ thì cuộn ngang. */}
+        <div id="bk-month-scroll" className="min-w-0 overflow-x-auto overscroll-x-contain rounded-[20px] border border-gray-200 bg-white p-1.5 md:p-3.5">
+         <div className="md:min-w-[760px]">
+          <div className="mb-1 grid grid-cols-7 gap-1 md:mb-1.5 md:gap-1.5">
             {WD_SHORT.map((n) => (
               <div key={n} className={`py-1 text-center text-xs font-extrabold tracking-wide ${n === "CN" ? "text-red-600" : "text-gray-500"}`}>{n}</div>
             ))}
           </div>
-          <div className="grid grid-cols-7 gap-1.5">
+          <div className="grid grid-cols-7 gap-1 md:gap-1.5">
             {cells.map((k) => {
               const inM = k.slice(0, 7) === ym;
               const list = F.filter((r) => (mode === "arrive" ? r.useDate === k : r.useDate === k || (r.useDate < k && k < endOf(r))));
@@ -261,12 +270,20 @@ export default function BookingsCalendar({
               const guests = sum(list, (r) => r.pax);
               const rev = sum(list.filter((r) => r.useDate === k && r.status !== "CANCELLED"), (r) => r.price ?? 0);
               return (
-                <button
+                // div (không phải button) để lồng được link từng đơn bên trong ô.
+                <div
                   key={k}
-                  type="button"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => pickDay(k)}
+                  onKeyDown={(ev) => {
+                    if (ev.target === ev.currentTarget && (ev.key === "Enter" || ev.key === " ")) {
+                      ev.preventDefault();
+                      pickDay(k);
+                    }
+                  }}
                   style={{ background: isS ? "oklch(0.97 0.03 70)" : cellHeat(list.length) }}
-                  className={`flex min-h-[112px] min-w-0 flex-col gap-1 rounded-xl border-[1.5px] p-[7px] text-left transition-colors hover:border-forest-400 2xl:min-h-[124px] ${
+                  className={`flex min-h-[64px] min-w-0 cursor-pointer flex-col gap-1 rounded-[10px] border-[1.5px] p-1 text-left transition-colors hover:border-forest-400 md:min-h-[112px] md:rounded-xl md:p-[7px] 2xl:min-h-[124px] ${
                     isS ? "border-forest-800" : isT ? "border-sunset-500" : "border-gray-200"
                   } ${inM ? "" : "opacity-40"}`}
                 >
@@ -282,28 +299,41 @@ export default function BookingsCalendar({
                       )}
                     </span>
                     {list.length > 0 && (
-                      <span className="whitespace-nowrap text-[11px] font-extrabold text-forest-700">
+                      <span className="hidden whitespace-nowrap text-[11px] font-extrabold text-forest-700 md:inline">
                         {list.length}
                         {" đơn"}
                       </span>
                     )}
                   </div>
-                  <div className="flex w-full min-w-0 flex-col gap-[3px]">
+                  {/* Điện thoại: số đơn + chấm màu theo trạng thái từng đơn */}
+                  {list.length > 0 && (
+                    <div className="flex w-full min-w-0 flex-col gap-1 md:hidden">
+                      <span className="truncate text-[10px] font-extrabold leading-none text-forest-700">{list.length} đơn</span>
+                      <span className="flex flex-wrap gap-[3px]">
+                        {list.slice(0, 5).map((r) => (
+                          <span key={r.id} className={`h-1.5 w-1.5 rounded-full ${ST[r.status].dot}`} />
+                        ))}
+                      </span>
+                    </div>
+                  )}
+                  <div className="hidden w-full min-w-0 flex-col gap-[3px] md:flex">
                     {list.slice(0, 3).map((r, i) => {
                       const meta = ST[r.status];
                       const cont = r.useDate !== k;
                       return (
-                        <div
+                        <Link
                           key={r.id}
-                          title={`${r.code} · ${r.name} · ${meta.name}`}
-                          className={`min-w-0 items-center gap-1 rounded-md px-1.5 py-[3px] text-[11px] font-bold ${meta.bg} ${meta.fg} ${cont ? "opacity-60" : ""} ${
+                          href={`/admin/bookings/${r.id}`}
+                          onClick={(ev) => ev.stopPropagation()}
+                          title={`${r.code} · ${r.name} · ${meta.name} — bấm để mở chi tiết đơn`}
+                          className={`min-w-0 items-center gap-1 rounded-md px-1.5 py-[3px] text-[11px] font-bold hover:ring-1 hover:ring-current ${meta.bg} ${meta.fg} ${cont ? "opacity-60" : ""} ${
                             i === 2 ? "hidden 2xl:flex" : "flex"
                           }`}
                         >
                           <span className={`h-1.5 w-1.5 flex-none rounded-full ${meta.dot}`} />
                           <span className="flex-none text-[10px] font-extrabold opacity-75">{(CAT_BADGE[r.cat] ?? ["DV"])[0]}</span>
                           <span className="truncate">{(cont ? "↳ " : "") + r.name.trim().split(/\s+/).slice(-2).join(" ")}</span>
-                        </div>
+                        </Link>
                       );
                     })}
                     {list.length > 2 && (
@@ -315,11 +345,11 @@ export default function BookingsCalendar({
                   </div>
                   <div className="flex-1" />
                   {list.length > 0 && (
-                    <div className="w-full truncate text-[11px] font-semibold text-gray-500">
+                    <div className="hidden w-full truncate text-[11px] font-semibold text-gray-500 md:block">
                       {guests} khách{rev ? ` · ${short(rev)}` : ""}
                     </div>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>
@@ -330,7 +360,7 @@ export default function BookingsCalendar({
         <aside
           id="bk-day-panel"
           // Thanh trên của khu quản trị dính ở top (cao 64px) → chừa 80px để không bị che.
-          className="flex scroll-mt-20 flex-col gap-3.5 rounded-[20px] border border-gray-200 bg-gray-50 p-4 2xl:sticky 2xl:top-20 2xl:max-h-[calc(100vh-96px)] 2xl:overflow-y-auto"
+          className="flex min-w-0 scroll-mt-20 flex-col gap-3.5 rounded-[20px] border border-gray-200 bg-gray-50 p-4 2xl:sticky 2xl:top-20 2xl:max-h-[calc(100vh-96px)] 2xl:overflow-y-auto"
         >
           <div className="flex items-start justify-between gap-2.5">
             <div>
@@ -390,7 +420,7 @@ export default function BookingsCalendar({
         {days.map(({ k, l }) => {
           const isT = k === todayKey;
           return (
-            <section key={k} className="grid items-start gap-3.5 lg:grid-cols-[150px_minmax(0,1fr)]">
+            <section key={k} className="grid grid-cols-[minmax(0,1fr)] items-start gap-3.5 lg:grid-cols-[150px_minmax(0,1fr)]">
               <button
                 type="button"
                 onClick={() => {
@@ -493,12 +523,12 @@ export default function BookingsCalendar({
   const navBtn = "flex h-[38px] w-[38px] items-center justify-center rounded-full border-[1.5px] border-gray-200 text-lg font-extrabold text-ink hover:bg-gray-50";
 
   return (
-    <div className="flex flex-col gap-3.5">
+    <div className="flex min-w-0 flex-col gap-3.5">
       {/* Thanh điều hướng kỳ + bộ lọc */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-gray-200 bg-white px-3.5 py-3">
-        <div className="flex items-center gap-1.5">
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5">
           <button type="button" onClick={() => shift(-1)} title="Trước" className={navBtn}>‹</button>
-          <div className="min-w-[118px] whitespace-nowrap text-center text-[17px] font-extrabold tracking-tight text-ink sm:min-w-[170px] sm:text-[19px]">
+          <div className="min-w-[104px] whitespace-nowrap text-center text-[17px] font-extrabold tracking-tight text-ink sm:min-w-[170px] sm:text-[19px]">
             {view === "year" ? `Năm ${y}` : `Tháng ${m + 1}, ${y}`}
           </div>
           <button type="button" onClick={() => shift(1)} title="Sau" className={navBtn}>›</button>
@@ -510,11 +540,11 @@ export default function BookingsCalendar({
             Hôm nay
           </button>
         </div>
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2.5">
           {view === "month" && (
-            <div className="flex items-center gap-1.5 text-[13px] font-bold text-gray-500">
+            <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5 text-[13px] font-bold text-gray-500">
               Hiện đơn
-              <div className="inline-flex gap-[3px] rounded-[10px] bg-gray-100 p-[3px]">
+              <div className="inline-flex max-w-full gap-[3px] overflow-x-auto rounded-[10px] bg-gray-100 p-[3px]">
                 {(
                   [
                     ["arrive", "Theo ngày đến", "Mỗi đơn chỉ hiện ở ngày nhận phòng / khởi hành"],
