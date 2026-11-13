@@ -20,7 +20,7 @@ const META = {
 
 /** Ảnh chia sẻ link lấy từ địa điểm thật trong DB (thiếu thì ảnh biển mây). */
 export async function generateMetadata(): Promise<Metadata> {
-  return pageMeta({ ...META, image: await placeShareImage("CHECKIN") });
+  return pageMeta({ ...META, image: await placeShareImage("CHECKIN", 1) });
 }
 
 /** "1,5 km từ trung tâm" / "300 m từ trung tâm" → km. */

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { pageMeta } from "@/lib/og";
+import { articleShareImage } from "@/lib/og-source";
 import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
@@ -8,12 +9,17 @@ import { ARTICLE_TOPICS, articleTopicLabel } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = pageMeta({
+const META = {
   title: "Kinh nghiệm du lịch Tà Xùa",
   description:
     "Kinh nghiệm du lịch Tà Xùa mới nhất: mùa mây, đặt xe cabin, chọn homestay, điểm check-in, lịch trình 2N1Đ, 3N2Đ, chi phí và mẹo đi lần đầu.",
   path: "/kinh-nghiem",
-});
+};
+
+// Ảnh chia sẻ = ảnh bìa bài viết mới nhất (thiếu thì ảnh biển mây mặc định).
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMeta({ ...META, image: await articleShareImage() });
+}
 
 export default async function ArticlesPage({
   searchParams,
