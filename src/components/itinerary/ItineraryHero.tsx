@@ -46,6 +46,8 @@ export function ItineraryHero({
   onTab: (tab: "checkin" | "cafe") => void;
 }) {
   const root = useRef<HTMLElement>(null);
+  const wrap = useRef<HTMLDivElement>(null); // khung chung của cảnh + thẻ lịch trình (xe máy chạy trên cả hai)
+  const card = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const host = root.current;
@@ -55,7 +57,11 @@ export function ItineraryHero({
     const ridgeB = host.querySelector<SVGElement>("[data-ridge='b']");
     const ridgeF = host.querySelector<SVGElement>("[data-ridge='f']");
     const text = host.querySelector<HTMLElement>("[data-text]");
-    const bike = host.querySelector<HTMLElement>("[data-bike]");
+    const bike = wrap.current?.querySelector<HTMLElement>("[data-bike]") ?? null;
+    const machine = bike?.querySelector<HTMLElement>("[data-machine]") ?? null;
+    const riders = bike?.querySelector<HTMLElement>("[data-riders]") ?? null;
+    const flagEl = bike?.querySelector<HTMLElement>("[data-flag]") ?? null;
+    const wEl = wrap.current, cEl = card.current;
     const layers = [...host.querySelectorAll<HTMLElement>("[data-clouds]")];
     const birds = [...host.querySelectorAll<HTMLElement>("[data-bird]")];
     const t0 = performance.now();
@@ -79,11 +85,44 @@ export function ItineraryHero({
         if (l) l.style.transform = `rotate(${f}deg)`;
         if (r) r.style.transform = `rotate(${-f}deg)`;
       });
-      if (bike) {
-        const q = (t * 0.06) % 1;
-        const x = q * (W + 120) - 60;
-        const y = Math.sin(q * Math.PI * 4) * -10 - Math.sin(q * Math.PI * 1.3) * 18;
-        bike.style.transform = `translate(${x}px, ${y + Math.sin(t * 22) * 0.8}px) rotate(${Math.cos(q * Math.PI * 4) * -6}deg)`;
+      if (bike && wEl && cEl) {
+        const wr = wEl.getBoundingClientRect(), cr = cEl.getBoundingClientRect();
+        const cL = cr.left - wr.left, cR = cr.right - wr.left, cT = cr.top - wr.top;
+        const BW = 44, BH = 34, V = 80;
+        // mặt đường trên sườn núi (nhấp nhô nhẹ theo chiều ngang)
+        const gY = (x: number) => { const q = (x + 60) / (W + 120); return H * 0.85 - BH + Math.sin(q * Math.PI * 4) * -10 - Math.sin(q * Math.PI * 1.3) * 18; };
+        const wideL = cL >= 70, wideR = W - cR >= 70; // có chỗ trống bên trái / phải thẻ (màn rộng)
+        const xs = wideL ? cL - BW - 6 : cL + 6; // chỗ dừng xe để bê lên
+        const xe = cL + 10, xr = cR - BW - 10, topY = cT - BH + 3; // chạy trên mép trên của thẻ
+        const t1 = wideL ? (xs + 60) / V : 0, t2 = 2.8, t3 = Math.max(1, (xr - xe) / V), t4 = wideR ? 0.8 : 0.6, t5 = wideR ? (W + 60 - (cR + 14)) / V : 0;
+        let u = t % (t1 + t2 + t3 + t4 + t5);
+        let x = 0, y = 0, rot = 0, z = 2, carry = false, flag = 0, op = 1;
+        if (u < t1) {
+          x = -60 + u * V; y = gY(x) + Math.sin(t * 22) * 0.8; rot = (gY(x + 6) - gY(x - 6)) * 2.2;
+        } else if ((u -= t1) < t2) {
+          // xuống xe (20% đầu) → hai người đội xe đi lên mép thẻ → ngồi lại (cuối)
+          const k = u / t2, e0 = Math.min(1, Math.max(0, (k - 0.2) / 0.7)), e = e0 * e0 * (3 - 2 * e0);
+          const y0 = wideL ? gY(xs) : cT + 16;
+          x = xs + (xe - xs) * e; y = y0 + (topY - y0) * e;
+          carry = k < 0.92;
+          if (carry && e0 > 0 && e0 < 1) y -= Math.abs(Math.sin(t * 9)) * 2;
+          rot = carry ? -8 * Math.sin(e * Math.PI) : 0;
+          z = wideL || e > 0.6 ? 6 : 4; // màn hẹp: nhô lên từ sau mép thẻ
+        } else if ((u -= t2) < t3) {
+          x = xe + u * V; y = topY + Math.sin(t * 22) * 0.8; z = 6; flag = Math.min(1, u / 0.9);
+        } else if ((u -= t3) < t4) {
+          const k = u / t4; z = 6; flag = 1;
+          if (wideR) { const y1 = gY(cR + 14); x = xr + (cR + 14 - xr) * k; y = topY + (y1 - topY) * k * k - Math.sin(k * Math.PI) * 16; rot = 14 * Math.sin(k * Math.PI); }
+          else { x = xr + k * 30; y = topY; op = 1 - k; }
+        } else {
+          u -= t4; x = cR + 14 + u * V; y = gY(x) + Math.sin(t * 22) * 0.8; rot = (gY(x + 6) - gY(x - 6)) * 2.2; flag = 1;
+        }
+        bike.style.transform = `translate(${x}px, ${y}px) rotate(${rot}deg)`;
+        bike.style.zIndex = String(z);
+        bike.style.opacity = String(op);
+        if (machine) machine.style.transform = carry ? "translateY(-22px)" : "none";
+        if (riders) riders.style.transform = carry ? "translateY(13px)" : "none";
+        if (flagEl) { flagEl.style.transform = `scaleX(${flag})`; flagEl.style.opacity = String(flag); }
       }
     };
     const loop = (now: number) => {
@@ -101,8 +140,8 @@ export function ItineraryHero({
   const TEXT_SHADOW = "0 1px 2px oklch(0.2 0.05 260 / .55), 0 2px 18px oklch(0.2 0.05 260 / .5)";
 
   return (
-    <>
-      <style>{`@keyframes lth-in{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}@media (prefers-reduced-motion:reduce){.lth-in{animation:none!important}}`}</style>
+    <div ref={wrap} className="relative" style={{ overflowX: "clip" }}>
+      <style>{`@keyframes lth-in{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}@keyframes lth-wave{0%,100%{transform:skewY(-4deg)}50%{transform:skewY(4deg)}}@media (prefers-reduced-motion:reduce){.lth-in,.lth-flag{animation:none!important}}`}</style>
       <section
         ref={root}
         className="relative h-[460px] overflow-hidden min-[600px]:h-[480px] min-[900px]:h-[520px]"
@@ -131,17 +170,6 @@ export function ItineraryHero({
         <div aria-hidden className="pointer-events-none absolute bottom-[14%] left-[-5%] right-[-5%] h-24" style={{ WebkitMaskImage: "linear-gradient(180deg, black 45%, transparent 92%)", maskImage: "linear-gradient(180deg, black 45%, transparent 92%)" }}>
           <div className="absolute inset-0 opacity-80" style={{ background: `linear-gradient(-45deg, ${PINE_A} 50%, transparent 50%) 5px 100% / 17px 58px repeat-x, linear-gradient(45deg, ${PINE_A} 50%, transparent 50%) 5px 100% / 17px 58px repeat-x` }} />
           <div className="absolute inset-x-0 bottom-0 h-[62px]" style={{ background: `linear-gradient(-45deg, ${PINE_B} 50%, transparent 50%) 14px 100% / 23px 62px repeat-x, linear-gradient(45deg, ${PINE_B} 50%, transparent 50%) 14px 100% / 23px 62px repeat-x, linear-gradient(-45deg, ${PINE_B} 50%, transparent 50%) 3px 100% / 37px 52px repeat-x, linear-gradient(45deg, ${PINE_B} 50%, transparent 50%) 3px 100% / 37px 52px repeat-x` }} />
-        </div>
-        {/* xe máy 2 người */}
-        <div data-bike aria-hidden className="pointer-events-none absolute bottom-[15%] left-0 z-[2] h-[34px] w-11 will-change-transform" style={{ transform: "translate(-80px,0)" }}>
-          <div className="absolute left-3 top-0.5 h-2 w-2 rounded-full" style={{ background: "oklch(0.62 0.14 45)" }} />
-          <div className="absolute left-[11px] top-[9px] h-[13px] w-2.5 rounded" style={{ background: "oklch(0.5 0.08 250)" }} />
-          <div className="absolute left-[22px] top-0 h-2 w-2 rounded-full" style={{ background: "oklch(0.9 0.02 90)" }} />
-          <div className="absolute left-[21px] top-[7px] h-3.5 w-2.5 rounded" style={{ background: "oklch(0.42 0.07 160)" }} />
-          <div className="absolute left-1.5 top-[19px] h-[7px] w-[30px]" style={{ borderRadius: "4px 7px 2px 2px", background: "oklch(0.5 0.13 25)" }} />
-          <div className="absolute left-9 top-[18px] h-[3px] w-1 rounded-sm" style={{ background: "oklch(0.97 0.08 95)", boxShadow: "0 0 8px 3px oklch(0.96 0.1 95 / .5)" }} />
-          <div className="absolute left-px top-[22px] h-3 w-3 rounded-full" style={{ background: "oklch(0.2 0.01 250)" }} />
-          <div className="absolute left-[29px] top-[22px] h-3 w-3 rounded-full" style={{ background: "oklch(0.2 0.01 250)" }} />
         </div>
         {CLOUD_LAYERS.map((L, li) => (
           <div key={li} aria-hidden className="pointer-events-none absolute inset-x-0" style={{ bottom: L.bottom, height: L.h, opacity: L.op, zIndex: L.z }}>
@@ -173,9 +201,30 @@ export function ItineraryHero({
         </div>
       </section>
 
+      {/* xe máy 2 người: chạy trên sườn núi, tới thẻ lịch trình thì bê xe lên mép thẻ chạy tiếp, kéo băng rôn */}
+      <div data-bike aria-hidden className="pointer-events-none absolute left-0 top-0 z-[2] h-[34px] w-11 will-change-transform" style={{ transform: "translate(-80px,0)" }}>
+        <div data-flag className="absolute right-full top-[3px] flex origin-right items-center" style={{ transform: "scaleX(0)", opacity: 0 }}>
+          <span className="lth-flag whitespace-nowrap rounded-[3px] px-2 py-[3px] text-[11px] font-extrabold leading-tight" style={{ background: "oklch(0.58 0.22 27)", color: "oklch(0.93 0.16 95)", boxShadow: "0 3px 8px -2px oklch(0.2 0.04 260 / .5)", animation: "lth-wave 1.1s ease-in-out infinite", transformOrigin: "right center" }}>Đi Tà Xùa thôi!</span>
+          <span className="h-px w-3.5" style={{ background: "oklch(0.3 0.03 250)" }} />
+        </div>
+        <div data-riders className="absolute inset-0 transition-transform duration-300">
+          <div className="absolute left-3 top-0.5 h-2 w-2 rounded-full" style={{ background: "oklch(0.62 0.14 45)" }} />
+          <div className="absolute left-[11px] top-[9px] h-[13px] w-2.5 rounded" style={{ background: "oklch(0.5 0.08 250)" }} />
+          <div className="absolute left-[22px] top-0 h-2 w-2 rounded-full" style={{ background: "oklch(0.9 0.02 90)" }} />
+          <div className="absolute left-[21px] top-[7px] h-3.5 w-2.5 rounded" style={{ background: "oklch(0.42 0.07 160)" }} />
+        </div>
+        <div data-machine className="absolute inset-0 transition-transform duration-300">
+          <div className="absolute left-1.5 top-[19px] h-[7px] w-[30px]" style={{ borderRadius: "4px 7px 2px 2px", background: "oklch(0.5 0.13 25)" }} />
+          <div className="absolute left-9 top-[18px] h-[3px] w-1 rounded-sm" style={{ background: "oklch(0.97 0.08 95)", boxShadow: "0 0 8px 3px oklch(0.96 0.1 95 / .5)" }} />
+          <div className="absolute left-px top-[22px] h-3 w-3 rounded-full" style={{ background: "oklch(0.2 0.01 250)" }} />
+          <div className="absolute left-[29px] top-[22px] h-3 w-3 rounded-full" style={{ background: "oklch(0.2 0.01 250)" }} />
+        </div>
+      </div>
+
       {/* Thẻ chọn lịch trình nổi đè lên mép dưới cảnh */}
       <div className="lth-in container-page relative z-[5] -mt-[110px] min-[900px]:-mt-[120px]" style={IN(4)}>
         <div
+          ref={card}
           className="grid gap-2 rounded-3xl border p-2.5 backdrop-blur-[14px] min-[900px]:[grid-template-columns:var(--cols)]"
           style={{ ["--cols" as string]: `repeat(${Math.max(1, plans.length)}, minmax(0,1fr)) 220px`, background: "oklch(1 0 0 / .92)", borderColor: "oklch(1 0 0 / .8)", boxShadow: "0 24px 60px -24px oklch(0.25 0.06 220 / .45)" }}
         >
@@ -217,6 +266,6 @@ export function ItineraryHero({
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }

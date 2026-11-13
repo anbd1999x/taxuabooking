@@ -151,7 +151,9 @@ export function PaymentRecordForm({
   const due = price != null ? Math.max(0, price - collected) : null;
   const quick: [string, number][] = [
     ["Cọc 500k", 500000],
-    ...(price != null ? ([["Cọc 30%", Math.round(price * 0.3)]] as [string, number][]) : []),
+    ...(price != null && price > 0
+      ? ([["Cọc 30%", Math.round(price * 0.3)], ["50%", Math.round(price * 0.5)], ["100%", price]] as [string, number][])
+      : []),
     ...(due != null && due > 0 ? ([["Còn lại", due]] as [string, number][]) : []),
   ];
 
