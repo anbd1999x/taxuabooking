@@ -186,7 +186,16 @@ export async function computeAvailability(
         status: r.status,
         bookable: r.bookable,
         availableUnits: r.minAvailableUnits,
-        pricePerUnit: r.totalPricePerUnit,
+        // Xe máy luôn có giá/ngày niêm yết: ngày chưa nhập lịch vẫn tính được tiền thuê
+        // (tình trạng thì vẫn "chờ xác nhận") — trước đây đơn bị để trống giá.
+        pricePerUnit:
+          r.totalPricePerUnit ??
+          (price > 0
+            ? days.reduce((sum, d) => {
+                const o = records.get(toDateKey(d))?.priceOverride;
+                return sum + (o != null && o > 0 ? o : price);
+              }, 0)
+            : null),
         count: r.count,
       };
     });

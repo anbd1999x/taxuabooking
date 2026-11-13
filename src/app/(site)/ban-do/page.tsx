@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/og";
+import { placeShareImage } from "@/lib/og-source";
 import { prisma } from "@/lib/prisma";
 import { loadItinerary } from "@/lib/itinerary-store";
 import { MAP_CENTER, MAP_GATE, projectSpots } from "@/lib/checkin-map";
@@ -9,12 +11,17 @@ import { roadPath } from "@/lib/road-path";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+const META = {
   title: "Bản đồ Tà Xùa: điểm check-in & cung đường",
   description:
     "Bản đồ vệ tinh Tà Xùa với các điểm check-in: Cây cô đơn, Sống lưng khủng long, Mỏm cá heo, thảo nguyên. Chọn lịch trình 2N1Đ, 3N2Đ để xem cung đường từng ngày.",
-  alternates: { canonical: "/ban-do" },
+  path: "/ban-do",
 };
+
+/** Ảnh chia sẻ link lấy từ địa điểm thật trong DB (thiếu thì ảnh biển mây). */
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMeta({ ...META, image: await placeShareImage("CHECKIN") });
+}
 
 /** "1,5 km từ trung tâm" / "300 m từ trung tâm" → km. */
 function parseKm(s: string | null): number | null {

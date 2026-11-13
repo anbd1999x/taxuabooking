@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/og";
+import { placeShareImage } from "@/lib/og-source";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/queries";
 import { SITE } from "@/lib/site";
@@ -6,12 +8,17 @@ import { RestaurantList, type RestaurantCard } from "@/components/RestaurantList
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+const META = {
   title: "Nhà hàng & quán ăn Tà Xùa — danh sách đầy đủ",
   description:
     "Danh sách nhà hàng, quán ăn ngon ở Tà Xùa theo từng khu vực: trung tâm, Đỉnh Gió, Khe Cải, Sống lưng khủng long — kèm giá tham khảo, giờ mở và món nên gọi.",
-  alternates: { canonical: "/nha-hang" },
+  path: "/nha-hang",
 };
+
+/** Ảnh chia sẻ link lấy từ địa điểm thật trong DB (thiếu thì ảnh biển mây). */
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMeta({ ...META, image: await placeShareImage("RESTAURANT") });
+}
 
 /** Loại quán hiển thị trên badge thẻ, suy từ tên + tags (chỉ phục vụ trình bày). */
 function kindOf(name: string, tags: string): string {

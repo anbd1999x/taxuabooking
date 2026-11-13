@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { ServiceCategory } from "@prisma/client";
 import { cabinSeatTotal } from "@/lib/combo-pricing";
+import { adminExtraCost } from "@/lib/occupancy";
 import {
   createAdminBooking,
   updateAdminBooking,
@@ -287,11 +288,22 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
   }, [fareQuote, origin]);
 
   // Combo: gợi ý tiền phòng / tiền xe / giảm giá — tự điền cho tới khi admin sửa tay.
+  // Phụ thu người thêm: số khách vượt TỔNG sức chứa chuẩn các phòng đã chọn × mức/người/đêm.
+  const stayExtra = useMemo(
+    () =>
+      adminExtraCost(
+        isCombo ? people : qty,
+        pickIds.map((id) => quote?.items?.find((i) => i.id === id)?.capacity ?? 0),
+        quote?.extraFee,
+        quote?.nights ?? 1,
+      ),
+    [isCombo, people, qty, pickIds, quote],
+  );
   const comboRoomSuggest = useMemo(() => {
     const its = pickIds.map((id) => quote?.items?.find((i) => i.id === id));
     if (!its.length || its.some((i) => !i || i.price == null)) return null;
-    return its.reduce((n, i) => n + (i!.price ?? 0), 0);
-  }, [pickIds, quote]);
+    return its.reduce((n, i) => n + (i!.price ?? 0), 0) + stayExtra.cost;
+  }, [pickIds, quote, stayExtra]);
   const comboBusSuggest = fare != null ? cabinSeatTotal(fare, shared, solo) : null;
   useEffect(() => {
     if (!touched.room) setRoomAmt(comboRoomSuggest != null ? fmt(comboRoomSuggest) : "");
@@ -315,14 +327,14 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
       if (kind === "stay") {
         const its = pickIds.map((id) => quote.items?.find((i) => i.id === id));
         if (!its.length || its.some((i) => !i || i.price == null)) return null;
-        return its.reduce((n, i) => n + (i!.price ?? 0), 0);
+        return its.reduce((n, i) => n + (i!.price ?? 0), 0) + stayExtra.cost;
       }
       const it = quote.items.find((i) => i.id === pick);
       if (!it || it.price == null) return null;
       return kind === "rental" ? it.price * qty : it.price;
     }
     return quote.fixedPrice != null ? quote.fixedPrice * (kind === "transport" ? 1 : qty) : null;
-  }, [isCombo, roomAmt, busAmt, discount, quote, isCabin, fare, shared, solo, pick, pickIds, kind, qty]);
+  }, [isCombo, roomAmt, busAmt, discount, quote, isCabin, fare, shared, solo, pick, pickIds, kind, qty, stayExtra]);
 
   useEffect(() => {
     if (!priceTouched || isCombo) setPrice(suggested != null ? fmt(suggested) : "");
@@ -511,6 +523,13 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
                       );
                     })}
                   </div>
+                  {multi && stayExtra.extraGuests > 0 && (
+                    <p className="mt-2 text-sm font-semibold text-sunset-600">
+                      {stayExtra.cost > 0
+                        ? `Phụ thu ${stayExtra.extraGuests} người thêm × ${quote.nights} đêm × ${fmt(quote.extraFee ?? 0)}đ = ${fmt(stayExtra.cost)}đ — đã cộng vào ${isCombo ? "tiền phòng" : "giá hệ thống"}.`
+                        : `Vượt sức chứa chuẩn ${stayExtra.extraGuests} khách — homestay chưa khai mức phụ thu người thêm nên chưa cộng, nhập tay nếu có.`}
+                    </p>
+                  )}
                   {pickedFull && !edit && (
                     <p className="mt-2 text-sm font-semibold text-amber-700">
                       Có phòng đang kín — vẫn tạo được đơn để ghi nhận (đã tự bật “Nhập bù đơn cũ”, lịch phòng giữ nguyên).

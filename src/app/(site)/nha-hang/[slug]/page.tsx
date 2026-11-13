@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ogBlock } from "@/lib/og";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PlaceDetail } from "@/components/PlaceDetail";
@@ -16,10 +17,14 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const p = await getPlace(slug);
   if (!p) return {};
+  const title = `${p.name} — ${p.area}, Tà Xùa`;
+  const description = p.desc ?? `${p.name} tại ${p.area}, Tà Xùa: thông tin giờ mở cửa, giá, vị trí và đánh giá thực tế.`;
+  const path = `/nha-hang/${p.slug}`;
   return {
-    title: `${p.name} — ${p.area}, Tà Xùa`,
-    description: p.desc ?? `${p.name} tại ${p.area}, Tà Xùa: thông tin giờ mở cửa, giá, vị trí và đánh giá thực tế.`,
-    alternates: { canonical: `/nha-hang/${p.slug}` },
+    title,
+    description,
+    alternates: { canonical: path },
+    openGraph: ogBlock({ title, description, path, image: p.coverImage, alt: p.name }),
   };
 }
 

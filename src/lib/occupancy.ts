@@ -55,6 +55,23 @@ export function multiRoomExtraCost(
 }
 
 /**
+ * Phụ thu người thêm ở form TẠO ĐƠN HỘ KHÁCH (admin): mỗi khách vượt TỔNG sức chứa chuẩn của
+ * các phòng đã chọn × mức phụ thu/người/đêm của homestay × số đêm. Admin không bị chặn theo
+ * sức chứa tối đa (khác đặt web) nên tính cho MỌI khách vượt chuẩn.
+ */
+export function adminExtraCost(
+  occupants: number,
+  capacities: number[],
+  extraFeePerNight: number | null | undefined,
+  nights: number,
+): { extraGuests: number; cost: number } {
+  if (!capacities.length) return { extraGuests: 0, cost: 0 };
+  const extraGuests = Math.max(0, occupants - capacities.reduce((n, c) => n + c, 0));
+  const cost = extraGuests > 0 && extraFeePerNight ? extraGuests * extraFeePerNight * Math.max(1, nights) : 0;
+  return { extraGuests, cost };
+}
+
+/**
  * Số KHÁCH của một đơn để hiển thị. Đơn homestay: `quantity` = số PHÒNG, số khách nằm ở
  * adults + trẻ em; các loại khác (combo/cabin...) `quantity` đã là số khách/số lượng.
  */
@@ -68,6 +85,22 @@ export function bookingPax(b: {
     return b.adults + (b.childrenAges?.length ?? 0);
   }
   return b.quantity;
+}
+
+/** Dịch vụ THUÊ theo ngày (xe máy): `nights` = số NGÀY thuê, `quantity` = số XE — không phải đêm / người. */
+export function isRentalCategory(category: string): boolean {
+  return category === "MOTORBIKE";
+}
+
+/** "2 đêm" (lưu trú) hoặc "2 ngày thuê" (xe máy); null khi đơn không có thời lượng. */
+export function durationLabel(b: { category: string; nights: number | null }): string | null {
+  if (!b.nights) return null;
+  return isRentalCategory(b.category) ? `${b.nights} ngày thuê` : `${b.nights} đêm`;
+}
+
+/** "3 xe" (thuê xe máy) hoặc "4 người". */
+export function bookingCountLabel(b: Parameters<typeof bookingPax>[0]): string {
+  return isRentalCategory(b.category) ? `${b.quantity} xe` : `${bookingPax(b)} người`;
 }
 
 /** Nhãn hiển thị: "2 người lớn · 1 trẻ em (5, 8 tuổi)". */

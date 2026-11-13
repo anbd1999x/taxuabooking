@@ -1,15 +1,22 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/og";
+import { placeShareImage } from "@/lib/og-source";
 import { prisma } from "@/lib/prisma";
 import { CafeList, type CafeCard } from "@/components/cafe/CafeList";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+const META = {
   title: "Cafe Tà Xùa — danh sách quán cà phê săn mây",
   description:
     "Danh sách quán cafe Tà Xùa theo khu vực: Đỉnh Gió, Khe Cải, trung tâm, Sống lưng khủng long — quán view săn mây, lọc theo khung giờ bình minh/hoàng hôn, giá tham khảo.",
-  alternates: { canonical: "/cafe" },
+  path: "/cafe",
 };
+
+/** Ảnh chia sẻ link lấy từ địa điểm thật trong DB (thiếu thì ảnh biển mây). */
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMeta({ ...META, image: await placeShareImage("CAFE") });
+}
 
 const MAP = "https://maps.google.com/?q=";
 

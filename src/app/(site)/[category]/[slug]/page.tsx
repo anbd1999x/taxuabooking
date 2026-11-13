@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ogBlock } from "@/lib/og";
 import { unstable_cache } from "next/cache";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -78,12 +79,7 @@ export async function generateMetadata({
     title,
     description,
     alternates: { canonical: `/${cat.slug}/${service.slug}` },
-    openGraph: {
-      title,
-      description,
-      url: `${SITE.url}/${cat.slug}/${service.slug}`,
-      images: cover ? [{ url: cover }] : undefined,
-    },
+    openGraph: ogBlock({ title, description, path: `/${cat.slug}/${service.slug}`, image: cover, alt: service.title }),
   };
 }
 

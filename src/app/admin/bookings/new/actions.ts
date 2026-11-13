@@ -16,6 +16,7 @@ import { formatPrice, toNumber } from "@/lib/format";
 import { generateBookingCode, normalizeFacebookUrl } from "@/lib/utils";
 import { busCommissionFor } from "@/lib/provider-commission";
 import { parseSurcharges } from "@/lib/surcharges";
+import { adminExtraCost } from "@/lib/occupancy";
 import { tripsOnDate, peekTrip, materializeTrip, ensureTripOnDate, type TripView } from "@/lib/cabin-trips";
 import type { CabinDirection } from "@prisma/client";
 
@@ -56,6 +57,8 @@ export interface AdminQuote {
   /** Cabin: giá/khách nằm ghép cho chuyến đi (+ về) — tính lại theo chuyến chọn ở client. */
   fixedPrice?: number | null;
   policyNote?: string;
+  /** Homestay: phụ thu mỗi khách vượt sức chứa chuẩn / đêm (null = không phụ thu). */
+  extraFee?: number | null;
   error?: string;
 }
 
@@ -70,7 +73,7 @@ export async function quoteAdminBooking(
   if (!serviceId || !isValidDateKey(from)) return { kind: "manual", nights: 0, error: "Chọn dịch vụ và ngày." };
   if (to && (!isValidDateKey(to) || to < from)) return { kind: "manual", nights: 0, error: "Ngày kết thúc không hợp lệ." };
 
-  const service = await prisma.service.findUnique({ where: { id: serviceId }, select: { category: true } });
+  const service = await prisma.service.findUnique({ where: { id: serviceId }, select: { category: true, extraPersonFee: true } });
   if (!service) return { kind: "manual", nights: 0, error: "Không tìm thấy dịch vụ." };
 
   if (service.category === "CABIN") {
@@ -109,6 +112,7 @@ export async function quoteAdminBooking(
       kind: c.kind,
       nights: c.nights,
       policyNote: c.policyNote,
+      extraFee: c.kind === "stay" ? toNumber(service.extraPersonFee) : null,
       items: c.stayOptions.map((o) => ({
         id: o.id,
         name: o.name,
@@ -280,8 +284,10 @@ async function buildAdminBookingData(
       ? await prisma.room.findMany({ where: { id: { in: picked } }, select: { id: true, roomTypeId: true } })
       : [];
 
+    // Đoàn đông hơn tổng sức chứa chuẩn của các phòng ⇒ cộng phụ thu người thêm vào tiền phòng.
+    const comboExtra = adminExtraCost(people, rooms.map((o) => o.capacity), toNumber(service.extraPersonFee), c?.nights ?? 1);
     const roomSuggest = rooms.length && rooms.every((o) => o.pricePerUnit != null)
-      ? rooms.reduce((n, o) => n + (o.pricePerUnit ?? 0), 0)
+      ? rooms.reduce((n, o) => n + (o.pricePerUnit ?? 0), 0) + comboExtra.cost
       : null;
     const fare = outbound ? await cabinJourneyFare(bus.id, [outbound, ...(ret ? [ret] : [])], Boolean(ret), origin) : null;
     const busSuggest = fare == null ? null : cabinSeatTotal(fare, shared, solo);
@@ -313,7 +319,8 @@ async function buildAdminBookingData(
       `đi ${toDateKey(outbound.departureDate)} ${outbound.departureTime}, về ${toDateKey(ret.departureDate)} ${ret.departureTime}`;
     selectionLabel =
       `Combo: xe ${bus.title} từ ${origin} (${busWhen}) · ${rooms.map((o) => o.name).join(", ") || "chưa chọn phòng"} · ` +
-      `${nights ?? 0} đêm (${checkInKey}→${endDateRaw}) · ${people} khách · xe: ${tickets}`;
+      `${nights ?? 0} đêm (${checkInKey}→${endDateRaw}) · ${people} khách · xe: ${tickets}` +
+      (comboExtra.cost > 0 ? ` · +${comboExtra.extraGuests} khách phụ thu ${formatPrice(comboExtra.cost)}` : "");
   } else if (service.category === "CABIN") {
     const shared = int(fd, "shared");
     const solo = int(fd, "solo");
@@ -375,10 +382,16 @@ async function buildAdminBookingData(
       roomTypeId = first?.roomTypeId ?? null;
       roomIds = rooms.length > 1 ? rooms.map((o) => o.id) : [];
       stayCommission = rooms.reduce((n, o) => n + (o.commission ?? 0), 0);
-      suggested = rooms.every((o) => o.pricePerUnit != null) ? rooms.reduce((n, o) => n + (o.pricePerUnit ?? 0), 0) : null;
+      // Số khách vượt tổng sức chứa chuẩn của các phòng ⇒ cộng phụ thu người thêm (như đặt web).
+      const extra = adminExtraCost(quantity, rooms.map((o) => o.capacity), toNumber(service.extraPersonFee), nights ?? 1);
+      suggested = rooms.every((o) => o.pricePerUnit != null)
+        ? rooms.reduce((n, o) => n + (o.pricePerUnit ?? 0), 0) + extra.cost
+        : null;
       fixedQuantity = rooms.length;
       adults = Math.max(1, quantity - childKids);
-      selectionLabel = `${rooms.map((o) => o.name).join(" + ")} · ${quantity} khách`;
+      selectionLabel =
+        `${rooms.map((o) => o.name).join(" + ")} · ${quantity} khách` +
+        (extra.cost > 0 ? ` · +${extra.extraGuests} khách phụ thu ${formatPrice(extra.cost)}` : "");
     } else {
       suggested = c?.basePrice != null ? c.basePrice * quantity : null;
     }

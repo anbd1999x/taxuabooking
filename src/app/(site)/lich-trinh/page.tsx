@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/og";
+import { placeShareImage } from "@/lib/og-source";
 import { prisma } from "@/lib/prisma";
 import { loadItinerary } from "@/lib/itinerary-store";
 import { PLACE_KIND_TO_STOP, type FeaturedKey, type StopKind } from "@/lib/itinerary";
@@ -7,12 +9,17 @@ import { ItineraryView, type ItineraryPlace, type ViewPlan } from "@/components/
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+const META = {
   title: "Lịch trình Tà Xùa 2N1Đ, 3N2Đ — đi đâu, ăn gì",
   description:
     "Lịch trình Tà Xùa theo giờ cho chuyến xe cabin đêm từ Hà Nội: 2 ngày 1 đêm và 3 ngày 2 đêm, kèm điểm check-in săn mây, quán cafe và quán ăn nên ghé.",
-  alternates: { canonical: "/lich-trinh" },
+  path: "/lich-trinh",
 };
+
+/** Ảnh chia sẻ link lấy từ địa điểm thật trong DB (thiếu thì ảnh biển mây). */
+export async function generateMetadata(): Promise<Metadata> {
+  return pageMeta({ ...META, image: await placeShareImage("CHECKIN") });
+}
 
 export default async function ItineraryPage({ searchParams }: { searchParams: Promise<{ ngay?: string }> }) {
   const wantDays = Number((await searchParams).ngay);

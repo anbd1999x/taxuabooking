@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/og";
 import { We } from "@/components/SiteContact";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/queries";
@@ -16,12 +17,12 @@ import { Faq } from "@/components/gopy/Faq";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta({
   title: "Góp ý & cộng đồng",
   description:
     "Gửi góp ý, báo lỗi hoặc đề xuất tính năng cho Tà Xùa Booking. Mọi góp ý đều được đọc và phản hồi.",
-  alternates: { canonical: "/gop-y" },
-};
+  path: "/gop-y",
+});
 
 function mins(d: Date, now: number): number {
   return Math.max(0, Math.round((now - d.getTime()) / 60000));

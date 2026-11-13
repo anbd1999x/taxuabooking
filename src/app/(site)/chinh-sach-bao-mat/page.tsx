@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/og";
 import Link from "next/link";
 import { getSettings } from "@/lib/queries";
 import { SITE } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta({
   title: "Chính sách bảo mật",
   description: "Chính sách bảo mật và xử lý dữ liệu cá nhân của Tà Xùa Booking.",
-  alternates: { canonical: "/chinh-sach-bao-mat" },
-};
+  path: "/chinh-sach-bao-mat",
+});
 
 export default async function PrivacyPage() {
   const settings = await getSettings();

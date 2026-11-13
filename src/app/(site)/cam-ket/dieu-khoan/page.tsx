@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/og";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSettings } from "@/lib/queries";
@@ -7,12 +8,12 @@ import { SITE } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta({
   title: "Cam kết minh bạch – điều khoản sử dụng dịch vụ",
   description:
     "Cam kết minh bạch của Tà Xùa Booking: chi trả tối đa 100 triệu nếu nhận tiền mà không cung cấp dịch vụ và không hoàn tiền, bồi thường 10 triệu nếu cố ý báo cao hơn giá niêm yết, cách xử lý sự cố và quy trình hoàn tiền.",
-  alternates: { canonical: "/cam-ket/dieu-khoan" },
-};
+  path: "/cam-ket/dieu-khoan",
+});
 
 const INK = "oklch(0.3 0.02 160)";
 const BRAND = "oklch(0.29 0.055 160)";

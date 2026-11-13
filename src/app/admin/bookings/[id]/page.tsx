@@ -35,7 +35,7 @@ import {
 import { blockIp } from "../../ip-block/actions";
 import { geoForIps } from "@/lib/visits";
 import { regionLabel } from "@/lib/track-labels";
-import { bookingPax } from "@/lib/occupancy";
+import { bookingPax, isRentalCategory, durationLabel } from "@/lib/occupancy";
 import { bookingCabinBerths, cabinBerthsLabel, cabinBerthLines } from "@/lib/combo-pricing";
 import { parseSurcharges } from "@/lib/surcharges";
 
@@ -242,18 +242,25 @@ export default async function BookingDetailPage({
       ? rooms.map((r) => `${r.roomType.name} (${r.name})`).join(" + ")
       : "";
     const stay = roomsLabel ? `${b.service?.title ?? b.serviceTitle} · ${roomsLabel}` : b.serviceTitle;
-    const isStay = b.nights != null && b.endDate != null;
+    const isRental = isRentalCategory(b.category);
+    const isStay = !isRental && b.nights != null && b.endDate != null;
+    // Thuê xe máy: nights = số NGÀY thuê (tính cả ngày nhận lẫn ngày trả), quantity = số XE.
+    const rentDays = b.nights ?? 1;
     const roomChips = rooms.length > 1 ? [`${rooms.length} phòng`] : [];
     parts.push({
       key: "room",
       ic: b.category === "COMBO" || b.category === "HOMESTAY" ? "HS" : cat.shortLabel.slice(0, 2).toUpperCase(),
       icTone: "bg-forest-100 text-forest-700",
       name: stay,
-      detail: isStay
+      detail: isRental
+        ? `Nhận xe ${formatDate(b.useDate)} · Trả xe ${formatDate(b.endDate ?? b.useDate)} · ${rentDays} ngày thuê · ${b.quantity} xe${b.selectionLabel ? ` ${b.selectionLabel}` : ""}`
+        : isStay
         ? `Nhận ${formatDate(b.useDate)} · Trả ${formatDate(b.endDate!)} · ${b.nights} đêm · ${bookingPax(b)} người`
         : `${formatDate(b.useDate)}${b.endDate ? ` → ${formatDate(b.endDate)}` : ""} · SL ${b.quantity}${b.selectionLabel && !rooms.length ? ` · ${b.selectionLabel}` : ""}`,
       routeLines: [],
-      chips: isStay ? [...roomChips, `${b.nights} đêm`, `${bookingPax(b)} người`] : [cat.shortLabel],
+      chips: isRental
+        ? [`${rentDays} ngày thuê`, `${b.quantity} xe`]
+        : isStay ? [...roomChips, `${b.nights} đêm`, `${bookingPax(b)} người`] : [cat.shortLabel],
       price: b.category === "COMBO" ? toNumber(b.roomAmount) : outTrip ? null : price,
       heldSide: "room",
       held: b.heldRoom,
@@ -342,13 +349,20 @@ export default async function BookingDetailPage({
   const roomsConfirmLabel = rooms.length
     ? rooms.map((r) => `${r.roomType.name} (${r.name})`).join(", ")
     : null;
-  const isStay = b.nights != null && b.endDate != null;
+  const isRental = isRentalCategory(b.category);
+  const isStay = !isRental && b.nights != null && b.endDate != null;
+  const rentLines = [
+    `Nhận xe: ${formatDate(b.useDate)}`,
+    `Trả xe: ${formatDate(b.endDate ?? b.useDate)} (${b.nights ?? 1} ngày thuê)`,
+  ];
+  const countKey = isRental ? "Số xe" : "Số khách";
 
   // 2) Tin nhắn XÁC NHẬN CHỐT ĐƠN (gửi khi đã chốt/cọc). Thương hiệu Tà Xùa Booking
   //    đứng ra xác nhận; nội dung theo loại đơn: vé xe riêng / homestay riêng / combo
   //    (gộp cả 2 nhưng tách bạch từng phần). Gắn đúng tên dịch vụ + cọc + còn lại.
   const brandHeader = "Tà Xùa Booking (taxuabooking.com) xác nhận booking của quý khách:";
   const partyLabelStr = (() => {
+    if (isRental) return `${b.quantity} xe${b.selectionLabel ? ` ${b.selectionLabel}` : ""}`;
     if (b.adults != null) {
       const kids = b.childrenAges ?? [];
       const parts = [`${b.adults} người lớn`];
@@ -400,9 +414,9 @@ export default async function BookingDetailPage({
       ? [...(busLines.length ? ["", ...busLines] : []), ...(stayLines.length ? ["", ...stayLines] : []), ""]
       : [
           `• Dịch vụ: ${b.serviceTitle}`,
-          `• Ngày: ${formatDate(b.useDate)}${b.endDate ? ` → ${formatDate(b.endDate)}` : ""}${b.nights ? ` (${b.nights} đêm)` : ""}`,
+          `• Ngày: ${formatDate(b.useDate)}${b.endDate ? ` → ${formatDate(b.endDate)}` : ""}${durationLabel(b) ? ` (${durationLabel(b)})` : ""}`,
         ]),
-    `• Số khách: ${partyLabelStr}`,
+    `• ${countKey}: ${partyLabelStr}`,
     price != null ? `• Tạm tính: ${formatPrice(price)}` : `• Giá: đang xác nhận`,
     ...depositLines,
     ...(autoCancelAt
@@ -481,12 +495,14 @@ export default async function BookingDetailPage({
       `Tên khách: ${b.customerName}`,
       `Sđt: ${b.phone}`,
       ...(ctvLine ? [`Hỗ trợ: ${ctvLine}`] : []),
-      `Homestay: ${b.service?.title ?? b.serviceTitle}`,
+      `${isRental ? "Thuê xe máy" : "Homestay"}: ${b.service?.title ?? b.serviceTitle}`,
       ...(roomsConfirmLabel ? [`Số phòng: ${roomsConfirmLabel}`] : []),
-      ...(isStay
+      ...(isRental
+        ? rentLines
+        : isStay
         ? [`Nhận phòng: ${formatDate(b.useDate)}`, `Trả phòng: ${formatDate(b.endDate!)}`]
         : [`Ngày dùng: ${formatDate(b.useDate)}${b.endDate ? ` → ${formatDate(b.endDate)}` : ""}`]),
-      `Số người: ${partyLabelStr}`,
+      `${isRental ? "Số xe" : "Số người"}: ${partyLabelStr}`,
       ...surchargeLines,
       `Tổng số tiền: ${price != null ? formatPrice(price) : "Chờ xác nhận"}`,
       `Đã cọc: ${collected > 0 ? formatPrice(collected) : "Chưa cọc"}`,
@@ -674,8 +690,8 @@ export default async function BookingDetailPage({
                 )}
               </div>
               <div>
-                <div className="text-xs text-gray-500">Số khách</div>
-                <div className="font-bold text-ink">{bookingPax(b)} {b.category === "HOMESTAY" || b.category === "COMBO" ? "người" : ""}</div>
+                <div className="text-xs text-gray-500">{isRental ? "Số xe thuê" : "Số khách"}</div>
+                <div className="font-bold text-ink">{isRental ? `${b.quantity} xe · ${b.nights ?? 1} ngày thuê` : <>{bookingPax(b)} {b.category === "HOMESTAY" || b.category === "COMBO" ? "người" : ""}</>}</div>
               </div>
               <div>
                 <div className="text-xs text-gray-500">Ghi chú của khách</div>

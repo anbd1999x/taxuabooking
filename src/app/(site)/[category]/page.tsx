@@ -16,7 +16,8 @@ import { ComboResults } from "@/components/combo/ComboResults";
 import { ComboHero } from "@/components/combo/ComboHero";
 import { FilterBar } from "@/components/FilterBar";
 import { ScrollToResults } from "@/components/ScrollToResults";
-import { SITE } from "@/lib/site";
+import { ogBlock } from "@/lib/og";
+import { categoryShareImage } from "@/lib/og-source";
 import { SeoBlock } from "@/components/SeoBlock";
 
 /** Tiêu đề + mô tả tìm kiếm riêng cho 3 trang đặt dịch vụ chính (các danh mục khác dùng mẫu chung). */
@@ -71,7 +72,8 @@ export async function generateMetadata({
     title,
     description,
     alternates: { canonical: `/${cat.slug}` },
-    openGraph: { title, description, url: `${SITE.url}/${cat.slug}`, images: [{ url: "/hero-taxua.jpg", width: 1920, height: 1080, alt: "Biển mây Tà Xùa" }] },
+    // Ảnh chia sẻ = ảnh bìa dịch vụ nổi bật của chính danh mục này (xe cabin ra ảnh xe, homestay ra ảnh phòng...).
+    openGraph: ogBlock({ title, description, path: `/${cat.slug}`, image: await categoryShareImage(cat.key), alt: cat.label }),
   };
 }
 

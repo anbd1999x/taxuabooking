@@ -96,8 +96,9 @@ export function BookingPanel({
       setAvailError("Vui lòng chọn ngày.");
       return;
     }
-    if (needsRange && to && to <= from) {
-      setAvailError("Ngày trả phải sau ngày nhận.");
+    // Thuê xe: nhận & trả cùng ngày vẫn được (tính 1 ngày); lưu trú thì ngày trả phải sau ngày nhận.
+    if (needsRange && to && (kind === "rental" ? to < from : to <= from)) {
+      setAvailError(kind === "rental" ? "Ngày trả xe không được trước ngày nhận xe." : "Ngày trả phải sau ngày nhận.");
       return;
     }
     setChecking(true);
@@ -231,7 +232,7 @@ export function BookingPanel({
       <div className="mt-4 grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1">
           <span className="text-xs font-medium text-gray-500">
-            {kind === "trip" ? "Ngày đi" : needsRange ? "Nhận" : "Ngày dùng"}
+            {kind === "trip" ? "Ngày đi" : kind === "rental" ? "Ngày nhận xe" : needsRange ? "Nhận" : "Ngày dùng"}
           </span>
           <DateField
             value={from}
@@ -245,7 +246,7 @@ export function BookingPanel({
         </label>
         {needsRange && (
           <label className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-gray-500">Trả</span>
+            <span className="text-xs font-medium text-gray-500">{kind === "rental" ? "Ngày trả xe" : "Trả"}</span>
             <DateField
               value={to}
               min={from || todayKey()}
@@ -324,12 +325,12 @@ export function BookingPanel({
                     </span>
                     <span className="mt-0.5 block text-xs text-gray-500">
                       {kind === "stay" ? `Sức chứa ${o.capacity} người · ` : ""}
-                      {o.count} {kind === "stay" ? "đêm" : "ngày"}
+                      {o.count} {kind === "stay" ? "đêm" : "ngày thuê (tính cả ngày nhận và ngày trả)"}
                       {o.bookable ? ` · còn ${o.availableUnits}` : ""}
                     </span>
                     <span className="mt-1 block font-bold text-forest-700">
                       {o.pricePerUnit != null
-                        ? `${formatVnd(o.pricePerUnit * quantity)} cho ${quantity} ${kind === "stay" ? "phòng" : "xe"}`
+                        ? `${formatVnd(o.pricePerUnit * quantity)} cho ${quantity} ${kind === "stay" ? "phòng" : `xe × ${o.count} ngày`}`
                         : "Liên hệ xác nhận giá"}
                     </span>
                   </span>

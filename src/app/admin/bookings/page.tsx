@@ -4,7 +4,7 @@ import { toNumber } from "@/lib/format";
 import { addDays, parseDateOnly } from "@/lib/dates";
 import type { Prisma } from "@prisma/client";
 import BookingsListClient, { type BookingRow, type BookingsView } from "@/components/admin/BookingsListClient";
-import { bookingPax } from "@/lib/occupancy";
+import { bookingPax, isRentalCategory, durationLabel } from "@/lib/occupancy";
 import { bookingCabinBerths } from "@/lib/combo-pricing";
 import { getAutoCancelHours } from "@/lib/booking-auto-cancel";
 import { AutoCancelSetting } from "@/components/admin/AutoCancelSetting";
@@ -106,7 +106,9 @@ export default async function AdminBookingsPage({
   const toRow = (b: (typeof bookings)[number]): BookingRow => {
     const chips: string[] = [];
     if (b.selectionLabel) chips.push(b.selectionLabel);
-    if (b.nights) chips.push(`${b.nights} đêm`);
+    // Xe máy: nights = số NGÀY thuê ⇒ "2 ngày thuê", không phải "2 đêm".
+    const dur = durationLabel(b);
+    if (dur) chips.push(dur);
     const berths = bookingCabinBerths(b);
     if (berths) {
       if (berths.shared) chips.push(`${berths.shared} cabin đôi`);
@@ -144,7 +146,7 @@ export default async function AdminBookingsPage({
       endDate: finishDate ? finishDate.toISOString().slice(0, 10) : null,
       qty: b.quantity,
       pax: paxUnit === "SL" ? b.quantity : bookingPax(b),
-      paxLabel: paxUnit === "SL" ? `SL ${b.quantity}` : `${bookingPax(b)} khách`,
+      paxLabel: isRentalCategory(b.category) ? `${b.quantity} xe` : paxUnit === "SL" ? `SL ${b.quantity}` : `${bookingPax(b)} khách`,
       price,
       collected,
       pay,

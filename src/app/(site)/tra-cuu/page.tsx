@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/og";
 import { AUTO_CANCEL_HOURS_KEY, parseAutoCancelHours } from "@/lib/auto-cancel-config";
 import type { BookingStatus, ServiceCategory } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -12,11 +13,11 @@ import { TraCuuLookup, type LookupOrder, type LookupPart, type LookupStatus } fr
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta({
   title: "Tra cứu đơn đặt",
   description: "Tra cứu tình trạng đơn đặt dịch vụ Tà Xùa bằng số điện thoại hoặc mã đơn.",
-  alternates: { canonical: "/tra-cuu" },
-};
+  path: "/tra-cuu",
+});
 
 const STATUS_MAP: Record<BookingStatus, LookupStatus> = {
   NEW: "new",

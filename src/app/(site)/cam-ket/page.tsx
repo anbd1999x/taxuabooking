@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/og";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSettings } from "@/lib/queries";
@@ -7,12 +8,12 @@ import { CommitmentIntro, FiveKhongBlock, PeopleColumn, PromisesBlock } from "@/
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta({
   title: "Cam kết uy tín",
   description:
     "Cam kết uy tín của Tà Xùa Booking: website thật, người thật. Chi trả đến 100 triệu nếu nhận tiền mà không cung cấp dịch vụ, bồi thường 10 triệu nếu báo cao hơn giá niêm yết.",
-  alternates: { canonical: "/cam-ket" },
-};
+  path: "/cam-ket",
+});
 
 export default async function CommitmentPage() {
   const settings = await getSettings();

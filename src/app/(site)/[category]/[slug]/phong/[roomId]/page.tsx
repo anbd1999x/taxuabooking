@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ogBlock } from "@/lib/og";
 import { notFound } from "next/navigation";
 import { getRoomDetail, getSettings } from "@/lib/queries";
 import { CATEGORIES } from "@/lib/constants";
@@ -30,7 +31,7 @@ export async function generateMetadata({
     title,
     description,
     alternates: { canonical: path },
-    openGraph: { title, description, url: `${SITE.url}${path}`, images: [{ url: cover ?? "/hero-taxua.jpg" }] },
+    openGraph: ogBlock({ title, description, path, image: cover, alt: `${room.name} – ${svc.title}` }),
   };
 }
 

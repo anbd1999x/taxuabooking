@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { BookingStatus } from "@prisma/client";
 import { ST, CAT_BADGE, CAT_OPTIONS, type BookingRow } from "./BookingsListClient";
 
@@ -77,6 +77,16 @@ export default function BookingsCalendar({
     () => base.filter((r) => (st !== "all" ? r.status === st : showCancel || r.status !== "CANCELLED")),
     [base, st, showCancel],
   );
+
+  // Màn hẹp (lịch tháng cuộn ngang): đưa cột của ngày đang chọn vào giữa khung nhìn.
+  useEffect(() => {
+    if (view !== "month") return;
+    const box = document.getElementById("bk-month-scroll");
+    if (!box || box.scrollWidth <= box.clientWidth) return;
+    const col = (weekday(sel) + 6) % 7;
+    const cellW = box.scrollWidth / 7;
+    box.scrollTo({ left: col * cellW - (box.clientWidth - cellW) / 2, behavior: "smooth" });
+  }, [view, sel, y, m]);
 
   function pickDay(k: string) {
     setSel(k);
@@ -234,13 +244,15 @@ export default function BookingsCalendar({
 
     return (
       <div className="grid items-start gap-3.5 2xl:grid-cols-[minmax(0,1fr)_400px]">
-        <div className="min-w-0 rounded-[20px] border border-gray-200 bg-white p-2 md:p-3.5">
-          <div className="mb-1.5 grid grid-cols-7 gap-[3px] md:gap-1.5">
+        {/* Màn hẹp: lịch giữ nguyên ô đầy đủ (tên khách, số khách, doanh thu) và CUỘN NGANG. */}
+        <div id="bk-month-scroll" className="min-w-0 overflow-x-auto overscroll-x-contain rounded-[20px] border border-gray-200 bg-white p-2 md:p-3.5">
+         <div className="min-w-[760px]">
+          <div className="mb-1.5 grid grid-cols-7 gap-1.5">
             {WD_SHORT.map((n) => (
               <div key={n} className={`py-1 text-center text-xs font-extrabold tracking-wide ${n === "CN" ? "text-red-600" : "text-gray-500"}`}>{n}</div>
             ))}
           </div>
-          <div className="grid grid-cols-7 gap-[3px] md:gap-1.5">
+          <div className="grid grid-cols-7 gap-1.5">
             {cells.map((k) => {
               const inM = k.slice(0, 7) === ym;
               const list = F.filter((r) => (mode === "arrive" ? r.useDate === k : r.useDate === k || (r.useDate < k && k < endOf(r))));
@@ -254,7 +266,7 @@ export default function BookingsCalendar({
                   type="button"
                   onClick={() => pickDay(k)}
                   style={{ background: isS ? "oklch(0.97 0.03 70)" : cellHeat(list.length) }}
-                  className={`flex min-h-[62px] min-w-0 flex-col gap-1 rounded-xl border-[1.5px] p-1 text-left transition-colors hover:border-forest-400 md:min-h-[112px] md:p-[7px] 2xl:min-h-[124px] ${
+                  className={`flex min-h-[112px] min-w-0 flex-col gap-1 rounded-xl border-[1.5px] p-[7px] text-left transition-colors hover:border-forest-400 2xl:min-h-[124px] ${
                     isS ? "border-forest-800" : isT ? "border-sunset-500" : "border-gray-200"
                   } ${inM ? "" : "opacity-40"}`}
                 >
@@ -272,12 +284,11 @@ export default function BookingsCalendar({
                     {list.length > 0 && (
                       <span className="whitespace-nowrap text-[11px] font-extrabold text-forest-700">
                         {list.length}
-                        <span className="hidden md:inline"> đơn</span>
+                        {" đơn"}
                       </span>
                     )}
                   </div>
-                  {/* Màn rộng: tên khách từng đơn */}
-                  <div className="hidden w-full min-w-0 flex-col gap-[3px] md:flex">
+                  <div className="flex w-full min-w-0 flex-col gap-[3px]">
                     {list.slice(0, 3).map((r, i) => {
                       const meta = ST[r.status];
                       const cont = r.useDate !== k;
@@ -302,22 +313,17 @@ export default function BookingsCalendar({
                       </span>
                     )}
                   </div>
-                  <div className="hidden flex-1 md:block" />
+                  <div className="flex-1" />
                   {list.length > 0 && (
-                    <div className="hidden w-full truncate text-[11px] font-semibold text-gray-500 md:block">
+                    <div className="w-full truncate text-[11px] font-semibold text-gray-500">
                       {guests} khách{rev ? ` · ${short(rev)}` : ""}
                     </div>
                   )}
-                  {/* Màn hẹp: chấm màu theo trạng thái */}
-                  <div className="flex flex-wrap gap-[3px] pl-0.5 md:hidden">
-                    {list.slice(0, 6).map((r) => (
-                      <span key={r.id} className={`h-[7px] w-[7px] rounded-full ${ST[r.status].dot}`} />
-                    ))}
-                  </div>
                 </button>
               );
             })}
           </div>
+         </div>
         </div>
 
         {/* Panel ngày đang chọn */}

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ogImages } from "@/lib/og";
 import { notFound } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -26,12 +27,14 @@ export async function generateMetadata({
     alternates: { canonical: `/kinh-nghiem/${a.slug}` },
     openGraph: {
       type: "article",
+      locale: "vi_VN",
+      siteName: SITE.name,
       publishedTime: a.createdAt.toISOString(),
       modifiedTime: a.updatedAt.toISOString(),
       title: a.title,
       description: a.excerpt ?? a.title,
       url: `${SITE.url}/kinh-nghiem/${a.slug}`,
-      images: a.coverImage ? [{ url: a.coverImage }] : undefined,
+      images: ogImages(a.coverImage, a.title),
     },
   };
 }

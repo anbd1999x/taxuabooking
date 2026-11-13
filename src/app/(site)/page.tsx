@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { ogBlock } from "@/lib/og";
+import { SITE } from "@/lib/site";
 import Link from "next/link";
 import Image from "next/image";
 import { HeroSearch } from "@/components/home/HeroSearch";
@@ -17,7 +19,16 @@ import { getComboOrigins } from "@/lib/combo";
 export const dynamic = "force-dynamic";
 
 // Đường dẫn chính thức của trang chủ (tránh trùng nội dung khi có tham số trên URL).
-export const metadata: Metadata = { alternates: { canonical: "/" } };
+// Thẻ chia sẻ mạng xã hội của trang chủ (dán taxuabooking.com): dòng giới thiệu chung + ảnh biển mây.
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+  openGraph: ogBlock({
+    title: `${SITE.name} - Đặt xe - Đặt phòng Tà Xùa chỉ với một chạm`,
+    description: SITE.description,
+    path: "/",
+    alt: "Biển mây Tà Xùa",
+  }),
+};
 
 export default async function HomePage() {
   const [services, articles, settings, cabinPrices, route, comboOrigins] = await Promise.all([

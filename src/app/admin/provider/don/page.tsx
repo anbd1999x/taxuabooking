@@ -6,7 +6,7 @@ import { toDateKey, today } from "@/lib/dates";
 import { resolveRoomInfo } from "@/lib/provider-commission";
 import { providerUnlocked } from "@/lib/booking-flow";
 import { ProviderOrders, type ProviderOrderVM, type POStatus } from "@/components/admin/ProviderOrders";
-import { bookingPax } from "@/lib/occupancy";
+import { durationLabel, bookingCountLabel } from "@/lib/occupancy";
 
 export const dynamic = "force-dynamic";
 
@@ -59,8 +59,8 @@ export default async function ProviderOrdersPage() {
     const c = cal(ci);
     const stay =
       (co ? `${dmy(ci)} → ${dmy(co)}` : dmy(ci)) +
-      (b.nights ? ` · ${b.nights} đêm` : "") +
-      ` · ${bookingPax(b)} người`;
+      (durationLabel(b) ? ` · ${durationLabel(b)}` : "") +
+      ` · ${bookingCountLabel(b)}`;
 
     let gross: number, discount: number, mainTag: "PH" | "XE", room: string, moneyLabel: string, showBusLine: boolean, canStatus: boolean, canPay: boolean, canCancel: boolean, busLabel: string, busPrice: number, collected: number;
 

@@ -3,6 +3,7 @@ import { getSettings } from "@/lib/queries";
 import { Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 import { SITE } from "@/lib/site";
+import { ogImages } from "@/lib/og";
 
 const beVietnam = Be_Vietnam_Pro({
   variable: "--font-be-vietnam",
@@ -34,7 +35,7 @@ export const metadata: Metadata = {
     siteName: SITE.name,
     title: `${SITE.name} - Đặt xe - Đặt phòng Tà Xùa chỉ với một chạm`,
     description: SITE.description,
-    images: [{ url: "/hero-taxua.jpg", width: 1920, height: 1080, alt: "Biển mây Tà Xùa" }],
+    images: ogImages(),
   },
   robots: { index: true, follow: true },
   // Mã xác minh Google Search Console (đặt GOOGLE_SITE_VERIFICATION trong .env server).

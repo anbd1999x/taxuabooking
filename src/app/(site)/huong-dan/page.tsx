@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/og";
 import Link from "next/link";
 import { getSettings } from "@/lib/queries";
 import { SITE } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta({
   title: "Hướng dẫn đặt dịch vụ",
   description: "Hướng dẫn chi tiết cách đặt xe cabin, homestay, thuê xe máy, combo và tra cứu đơn tại Tà Xùa Booking.",
-  alternates: { canonical: "/huong-dan" },
-};
+  path: "/huong-dan",
+});
 
 export default async function GuidePage() {
   const settings = await getSettings();

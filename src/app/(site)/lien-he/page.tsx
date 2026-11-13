@@ -1,14 +1,15 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/og";
 import { getSettings } from "@/lib/queries";
 import { SITE } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMeta({
   title: "Liên hệ Tà Xùa Booking: hotline, Zalo đặt xe, đặt phòng",
   description: "Liên hệ Tà Xùa Booking qua hotline, Zalo để được tư vấn và đặt xe cabin, homestay, combo đi Tà Xùa. Hỗ trợ xem chỗ trống, báo giá và xác nhận đơn nhanh.",
-  alternates: { canonical: "/lien-he" },
-};
+  path: "/lien-he",
+});
 
 export default async function ContactPage() {
   const s = await getSettings();
