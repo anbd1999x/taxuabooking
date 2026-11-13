@@ -106,10 +106,62 @@ export function statusHoldsInventory(status: string): boolean {
  * hold = true: tự chọn phòng trống và đánh dấu "Đã đặt" theo đơn.
  * hold = false: trả lại các phòng đã gán cho đơn này.
  */
+/**
+ * Phòng của đơn đang bị khoá (đơn khác / sheet / khoá tay) trong khoảng ngày cần giữ.
+ * `message` mô tả tình trạng hiện tại để giao diện hỏi admin có GHI ĐÈ không.
+ */
+export class RoomConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RoomConflictError";
+  }
+}
+
+const ROOM_STATUS_VI: Record<string, string> = { BOOKED: "Đã đặt", PENDING: "Chờ xác nhận", CLOSED: "Đóng" };
+
+/** Mô tả các ô đang khoá: "Phòng Mây: 14/11 Đã đặt (đơn TX-ABC · Lan), 15/11 Đóng (khoá tay/sheet)". */
+async function describeRoomConflicts(
+  tx: Prisma.TransactionClient,
+  rooms: { id: string; name: string }[],
+  nights: Date[],
+  ownBookingId: string,
+): Promise<string> {
+  const cells = await tx.roomDayStatus.findMany({
+    where: {
+      roomId: { in: rooms.map((r) => r.id) },
+      date: { in: nights },
+      status: { not: "AVAILABLE" },
+      NOT: { bookingId: ownBookingId },
+    },
+    orderBy: [{ roomId: "asc" }, { date: "asc" }],
+  });
+  const holderIds = [...new Set(cells.map((c) => c.bookingId).filter((x): x is string => !!x))];
+  const holders = new Map(
+    (holderIds.length
+      ? await tx.bookingRequest.findMany({ where: { id: { in: holderIds } }, select: { id: true, code: true, customerName: true } })
+      : []
+    ).map((h) => [h.id, `đơn ${h.code} · ${h.customerName}`]),
+  );
+  const nameOf = new Map(rooms.map((r) => [r.id, r.name]));
+  const byRoom = new Map<string, string[]>();
+  for (const c of cells) {
+    const k = toDateKey(c.date);
+    const who = c.bookingId ? (holders.get(c.bookingId) ?? "đơn khác") : c.note ? `nguồn ${c.note}` : "khoá tay";
+    const list = byRoom.get(c.roomId) ?? [];
+    list.push(`${k.slice(8, 10)}/${k.slice(5, 7)} ${ROOM_STATUS_VI[c.status] ?? c.status} (${who})`);
+    byRoom.set(c.roomId, list);
+  }
+  return [...byRoom.entries()]
+    .map(([rid, l]) => `• ${nameOf.get(rid) ?? "Phòng"}: ${l.slice(0, 6).join(", ")}${l.length > 6 ? ` … (+${l.length - 6} đêm)` : ""}`)
+    .join("\n");
+}
+
 export async function assignRoomsForBooking(
   tx: Prisma.TransactionClient,
   booking: BookingRequest,
   hold: boolean,
+  /** force = admin đã đồng ý GHI ĐÈ lên các ô đang khoá (đơn khác / sheet / khoá tay). */
+  opts: { force?: boolean } = {},
 ): Promise<void> {
   if (!booking.roomTypeId) return;
   const roomTypeId = booking.roomTypeId;
@@ -155,12 +207,20 @@ export async function assignRoomsForBooking(
     if (conflict === 0) assigned.push(room.id);
   }
   // Không đủ phòng trống → báo lỗi để rollback, tránh "xác nhận" mà không giữ phòng nào.
+  // Admin đồng ý ghi đè (force) ⇒ lấy luôn các phòng đang khoá cho đủ số (theo thứ tự phòng).
   if (assigned.length < need) {
-    throw new Error(
-      pinnedIds
-        ? `Phòng khách chọn đã kín trong khoảng ngày này (giữ được ${assigned.length}/${need} phòng) — kiểm tra lịch phòng trước khi xác nhận.`
-        : `Chỉ còn ${assigned.length}/${need} phòng trống trong khoảng ngày này — không thể giữ chỗ.`,
-    );
+    const blocked = rooms.filter((r) => !assigned.includes(r.id)).slice(0, need - assigned.length);
+    if (opts.force && assigned.length + blocked.length >= need) {
+      assigned.push(...blocked.map((r) => r.id));
+    } else {
+      const detail = await describeRoomConflicts(tx, pinnedIds ? rooms : blocked, nights, booking.id);
+      throw new RoomConflictError(
+        (pinnedIds
+          ? `Phòng khách chọn đã kín trong khoảng ngày này (giữ được ${assigned.length}/${need} phòng) — kiểm tra lịch phòng trước khi xác nhận.`
+          : `Chỉ còn ${assigned.length}/${need} phòng trống trong khoảng ngày này — không thể giữ chỗ.`) +
+          (detail ? `\n\nTình trạng hiện tại:\n${detail}` : ""),
+      );
+    }
   }
 
   for (const roomId of assigned) {

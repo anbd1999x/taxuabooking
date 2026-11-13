@@ -9,7 +9,7 @@ import { toNumber, formatPrice } from "@/lib/format";
 import { bookingStatusSchema } from "@/lib/validation";
 import { generateBookingCode, normalizeFacebookUrl } from "@/lib/utils";
 import { BOOKING_STATUS_META } from "@/lib/constants";
-import { adjustInventory, assignRoomsForBooking, statusHoldsInventory } from "@/lib/inventory";
+import { adjustInventory, assignRoomsForBooking, statusHoldsInventory, RoomConflictError } from "@/lib/inventory";
 import { canRoleAct, type BookingRole } from "@/lib/booking-flow";
 import { enumerateNights, isValidDateKey, parseDateOnly, toDateKey } from "@/lib/dates";
 import { parseSurcharges, type BookingSurcharge } from "@/lib/surcharges";
@@ -21,7 +21,11 @@ export interface BookingActionState {
   ok?: boolean;
   error?: string;
   message?: string;
+  /** Phòng đang bị khoá: `error` là cảnh báo tình trạng hiện tại — admin đồng ý thì gửi lại kèm force=1 để ghi đè. */
+  needConfirm?: boolean;
 }
+
+const OVERRIDE_ASK = "\n\nVẫn lưu và GHI ĐÈ lên lịch phòng hiện tại?";
 
 const REVALIDATE = [
   "/admin/bookings",
@@ -229,11 +233,14 @@ export async function bulkUpdateBookingStatus(
   const cancelReason = String(formData.get("cancelReason") ?? "").trim() || "Huỷ nhanh từ danh sách";
   const by = await sessionName();
   const label = BOOKING_STATUS_META[status].label;
+  const wantForce = formData.get("force") === "1";
+  const conflicts: string[] = []; // đơn bị chặn vì phòng đang khoá (admin có thể đồng ý ghi đè)
 
   let done = 0;
   for (const id of ids.slice(0, 100).map(String)) {
     const role = await canManage(id);
     if (!role) continue;
+    const force = wantForce && role === "ADMIN"; // chỉ admin được ghi đè lịch phòng
     try {
       await prisma.$transaction(async (tx) => {
         const booking = await tx.bookingRequest.findUnique({ where: { id } });
@@ -244,7 +251,19 @@ export async function bulkUpdateBookingStatus(
         const shouldHold = statusHoldsInventory(status);
         let inventoryApplied = booking.inventoryApplied;
         if (shouldHold && !booking.inventoryApplied) {
-          if (booking.roomTypeId) await assignRoomsForBooking(tx, booking, true);
+          if (booking.roomTypeId) {
+            try {
+              await assignRoomsForBooking(tx, booking, true);
+            } catch (err) {
+              if (!(err instanceof RoomConflictError) || role !== "ADMIN") throw err;
+              if (!force) {
+                conflicts.push(`Đơn ${booking.code}: ${err.message}`);
+                throw err;
+              }
+              await assignRoomsForBooking(tx, booking, true, { force: true });
+              await log(tx, id, "SYSTEM", "Ghi đè lịch phòng đang khoá", err.message, by);
+            }
+          }
           if (booking.cabinTripId || booking.rentalVehicleId) await adjustInventory(tx, booking, -1);
           inventoryApplied = true;
         } else if (!shouldHold && booking.inventoryApplied) {
@@ -269,6 +288,17 @@ export async function bulkUpdateBookingStatus(
     }
   }
 
+  if (conflicts.length) {
+    for (const p of REVALIDATE) revalidatePath(p);
+    return {
+      needConfirm: true,
+      error:
+        (done > 0 ? `Đã chuyển ${done} đơn; còn ${conflicts.length} đơn có phòng đang bị khoá:\n\n` : "") +
+        conflicts.slice(0, 5).join("\n\n") +
+        (conflicts.length > 5 ? `\n\n… và ${conflicts.length - 5} đơn khác` : "") +
+        OVERRIDE_ASK,
+    };
+  }
   if (done === 0) return { error: "Không có đơn nào được cập nhật (có thể hết chỗ hoặc không đủ quyền)." };
   for (const p of REVALIDATE) revalidatePath(p);
   for (const id of ids) revalidatePath(`/admin/bookings/${id}`);
@@ -293,6 +323,7 @@ export async function saveBookingStage(
   const role = await canManage(id);
   if (!role) return { error: "Không có quyền thao tác đơn này." };
   const by = await sessionName();
+  const force = formData.get("force") === "1" && role === "ADMIN"; // chỉ admin được ghi đè lịch phòng
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -306,7 +337,16 @@ export async function saveBookingStage(
       const shouldHold = statusHoldsInventory(status);
       let inventoryApplied = booking.inventoryApplied;
       if (shouldHold && !booking.inventoryApplied) {
-        if (booking.roomTypeId) await assignRoomsForBooking(tx, booking, true);
+        if (booking.roomTypeId) {
+          try {
+            await assignRoomsForBooking(tx, booking, true);
+          } catch (err) {
+            // Phòng đang khoá: admin đã đồng ý (force) ⇒ ghi đè + ghi nhật ký; chưa thì ném ra để hỏi.
+            if (!(err instanceof RoomConflictError) || !force) throw err;
+            await assignRoomsForBooking(tx, booking, true, { force: true });
+            await log(tx, id, "SYSTEM", "Ghi đè lịch phòng đang khoá", err.message, by);
+          }
+        }
         if (booking.cabinTripId || booking.rentalVehicleId) await adjustInventory(tx, booking, -1);
         inventoryApplied = true;
       } else if (!shouldHold && booking.inventoryApplied) {
@@ -331,6 +371,10 @@ export async function saveBookingStage(
       );
     });
   } catch (err) {
+    // Admin: phòng đang khoá ⇒ trả cảnh báo tình trạng hiện tại để hỏi có ghi đè không.
+    if (err instanceof RoomConflictError && role === "ADMIN") {
+      return { needConfirm: true, error: err.message + OVERRIDE_ASK };
+    }
     return { error: err instanceof Error ? err.message : "Có lỗi xảy ra." };
   }
   revalidateDetail(id);

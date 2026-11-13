@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import type { BookingStatus } from "@prisma/client";
 import { showToast } from "./Toast";
 import {
@@ -23,7 +23,7 @@ function useResultToast(state: BookingActionState, onOk?: () => void) {
     if (state.ok) {
       showToast(state.message || "Đã lưu", "ok");
       onOk?.();
-    } else if (state.error) showToast(state.error, "error");
+    } else if (state.error && !state.needConfirm) showToast(state.error, "error"); // needConfirm: form tự hỏi lại
   }, [state, onOk]);
 }
 
@@ -83,6 +83,20 @@ export function StatusPanel({
   const [picked, setPicked] = useState<BookingStatus>(status);
   const [state, action, pending] = useActionState<BookingActionState, FormData>(saveBookingStage, {});
   useResultToast(state);
+  // Phòng của đơn đang bị khoá (đơn khác / sheet / khoá tay): hiện cảnh báo tình trạng hiện tại,
+  // admin đồng ý thì gửi lại kèm force=1 để ghi đè.
+  const asked = useRef(state);
+  useEffect(() => {
+    if (state === asked.current) return;
+    asked.current = state;
+    if (!state.needConfirm) return;
+    if (!confirm(state.error || "Phòng đang bị khoá. Vẫn ghi đè?")) return;
+    const fd = new FormData();
+    fd.set("id", id);
+    fd.set("status", picked);
+    fd.set("force", "1");
+    startTransition(() => action(fd));
+  }, [state, action, id, picked]);
   const cur = STATUS_OPTS.find((o) => o.value === picked)!;
 
   return (

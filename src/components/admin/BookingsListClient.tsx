@@ -146,10 +146,19 @@ export default function BookingsListClient({
   function setStatus(ids: string[], status: BookingStatus, clearSelection = false) {
     if (status === "CANCELLED" && !confirm(`Huỷ ${ids.length > 1 ? ids.length + " đơn" : "đơn này"}?`)) return;
     startTransition(async () => {
-      const fd = new FormData();
-      fd.set("ids", JSON.stringify(ids));
-      fd.set("status", status);
-      const res = await bulkUpdateBookingStatus({}, fd);
+      const send = (force: boolean) => {
+        const fd = new FormData();
+        fd.set("ids", JSON.stringify(ids));
+        fd.set("status", status);
+        if (force) fd.set("force", "1");
+        return bulkUpdateBookingStatus({}, fd);
+      };
+      let res = await send(false);
+      // Phòng của đơn đang bị khoá: hiện cảnh báo tình trạng hiện tại, đồng ý thì ghi đè.
+      if (res.needConfirm) {
+        if (!confirm(res.error || "Phòng đang bị khoá. Vẫn ghi đè?")) return;
+        res = await send(true);
+      }
       if (res.ok) {
         showToast(res.message || "Đã cập nhật", "ok");
         if (clearSelection) setSel({});
