@@ -3,7 +3,7 @@ import { CATEGORIES } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
 import { addDays, parseDateOnly } from "@/lib/dates";
 import type { Prisma } from "@prisma/client";
-import BookingsListClient, { type BookingRow } from "@/components/admin/BookingsListClient";
+import BookingsListClient, { type BookingRow, type BookingsView } from "@/components/admin/BookingsListClient";
 import { bookingPax } from "@/lib/occupancy";
 import { bookingCabinBerths } from "@/lib/combo-pricing";
 import { getAutoCancelHours } from "@/lib/booking-auto-cancel";
@@ -64,7 +64,14 @@ export default async function AdminBookingsPage({
     filterLabel = `Chủ dịch vụ: ${ownerName}${rangeLabel}`;
   }
 
-  const [bookings, totalInDb] = await Promise.all([
+  // Hôm nay theo giờ Việt Nam (server có thể chạy UTC) — mốc cho chế độ lịch.
+  const now = new Date();
+  const todayKey = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Ho_Chi_Minh" }).format(now);
+  const viewParam = str(sp.view);
+  const initialView: BookingsView =
+    viewParam === "month" || viewParam === "agenda" || viewParam === "year" ? viewParam : "list";
+
+  const [bookings, totalInDb, calBookings] = await Promise.all([
     prisma.bookingRequest.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -73,11 +80,21 @@ export default async function AdminBookingsPage({
       include: { ctv: { select: { name: true } } },
     }),
     prisma.bookingRequest.count({ where }),
+    // Chế độ lịch: lấy theo NGÀY DÙNG (từ đầu năm ngoái trở đi) thay vì 400 đơn mới tạo nhất,
+    // để lịch tháng / cả năm không thiếu đơn.
+    prisma.bookingRequest.findMany({
+      where: { AND: [where, { useDate: { gte: parseDateOnly(`${Number(todayKey.slice(0, 4)) - 1}-01-01`) } }] },
+      orderBy: { useDate: "asc" },
+      take: 5000,
+      include: { ctv: { select: { name: true } } },
+    }),
   ]);
 
   // Ngày LÊN XE / XE VỀ thực của đơn có chuyến cabin (cabin + combo) — lấy từ CabinTrip.
   const tripIds = [
-    ...new Set(bookings.flatMap((b) => [b.cabinTripId, b.cabinReturnTripId]).filter((x): x is string => !!x)),
+    ...new Set(
+      [...bookings, ...calBookings].flatMap((b) => [b.cabinTripId, b.cabinReturnTripId]).filter((x): x is string => !!x),
+    ),
   ];
   const tripDate = new Map(
     (tripIds.length
@@ -86,7 +103,7 @@ export default async function AdminBookingsPage({
     ).map((t) => [t.id, t.departureDate]),
   );
 
-  const rows: BookingRow[] = bookings.map((b) => {
+  const toRow = (b: (typeof bookings)[number]): BookingRow => {
     const chips: string[] = [];
     if (b.selectionLabel) chips.push(b.selectionLabel);
     if (b.nights) chips.push(`${b.nights} đêm`);
@@ -126,6 +143,7 @@ export default async function AdminBookingsPage({
       useDate: startDate.toISOString().slice(0, 10),
       endDate: finishDate ? finishDate.toISOString().slice(0, 10) : null,
       qty: b.quantity,
+      pax: paxUnit === "SL" ? b.quantity : bookingPax(b),
       paxLabel: paxUnit === "SL" ? `SL ${b.quantity}` : `${bookingPax(b)} khách`,
       price,
       collected,
@@ -135,12 +153,22 @@ export default async function AdminBookingsPage({
       createdAt: b.createdAt.toISOString(),
       note: b.note,
     };
-  });
+  };
+  const rows = bookings.map(toRow);
+  const calRows = calBookings.map(toRow);
 
   return (
     <>
       <AutoCancelSetting hours={await getAutoCancelHours()} />
-      <BookingsListClient rows={rows} totalInDb={totalInDb} filterLabel={filterLabel} />
+      <BookingsListClient
+        rows={rows}
+        totalInDb={totalInDb}
+        filterLabel={filterLabel}
+        calRows={calRows}
+        todayKey={todayKey}
+        nowMs={now.getTime()}
+        initialView={initialView}
+      />
     </>
   );
 }

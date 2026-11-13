@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Cam kết uy tín",
   description:
-    "Cam kết uy tín của Tà Xùa Booking: website thật, người thật, không scam. Chi trả đến 100 triệu nếu nhận tiền mà không cung cấp dịch vụ và không hoàn tiền; bồi thường 10 triệu nếu cố ý báo cao hơn giá niêm yết; sự cố ngoài ý muốn có phương án thay thế hoặc hoàn tiền.",
+    "Cam kết uy tín của Tà Xùa Booking: website thật, người thật. Chi trả đến 100 triệu nếu nhận tiền mà không cung cấp dịch vụ, bồi thường 10 triệu nếu báo cao hơn giá niêm yết.",
   alternates: { canonical: "/cam-ket" },
 };
 
@@ -25,6 +25,7 @@ export default async function CommitmentPage() {
       className="bg-forest-50/40"
       style={{ fontFamily: "'Be Vietnam Pro',system-ui,sans-serif", color: "oklch(0.22 0.03 160)" }}
     >
+      <h1 className="sr-only">Cam kết uy tín của Tà Xùa Booking</h1>
       <div className="container-page py-8 sm:py-12">
         {/* Thẻ chính: 2 cột như popup */}
         <div

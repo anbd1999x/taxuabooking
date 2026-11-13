@@ -5,8 +5,8 @@ import { SITE } from "@/lib/site";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Thông tin liên hệ",
-  description: "Liên hệ Tà Xùa Booking để được tư vấn và đặt dịch vụ du lịch Tà Xùa.",
+  title: "Liên hệ Tà Xùa Booking: hotline, Zalo đặt xe, đặt phòng",
+  description: "Liên hệ Tà Xùa Booking qua hotline, Zalo để được tư vấn và đặt xe cabin, homestay, combo đi Tà Xùa. Hỗ trợ xem chỗ trống, báo giá và xác nhận đơn nhanh.",
   alternates: { canonical: "/lien-he" },
 };
 

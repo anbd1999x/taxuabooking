@@ -56,13 +56,31 @@ export async function generateMetadata({
   if (!service) return {};
   const cat = CATEGORIES[service.category];
   const cover = service.images.find((i) => i.isCover)?.url ?? service.images[0]?.url;
+  // Tiêu đề tìm kiếm: tên + loại dịch vụ + "Tà Xùa" (tên trần như "Nhà bên suối" không nói lên trang bán gì).
+  const t = service.title.trim();
+  const tx = /tà xùa/i.test(t) ? "" : " Tà Xùa";
+  const title =
+    service.category === "HOMESTAY" || service.category === "BUNGALOW"
+      ? `${t}${/homestay|homstay|bungalow|retreat|home|house|village|garden/i.test(t) ? "" : " Homestay"}${tx}: giá phòng & lịch trống`
+      : service.category === "CABIN"
+        ? `${t}: xe cabin Hà Nội – Tà Xùa`
+        : `${t}${tx}`;
+  // Mô tả: phần chủ cơ sở viết thường rất ngắn ⇒ nối thêm khu vực + lời mời xem giá/đặt chỗ.
+  const base = (service.summary ?? "").trim().replace(/[.\s]+$/, "");
+  const tail =
+    service.category === "HOMESTAY" || service.category === "BUNGALOW"
+      ? `${service.area && !/^tà xùa$/i.test(service.area.trim()) ? ` Khu ${service.area}.` : ""} Xem giá từng phòng, lịch trống theo ngày và đặt phòng tại Tà Xùa Booking.`
+      : service.category === "CABIN"
+        ? " Xem giá vé khứ hồi theo điểm đón, giờ chạy, chỗ trống theo ngày và đặt vé tại Tà Xùa Booking."
+        : " Xem giá, tình trạng theo ngày và đặt tại Tà Xùa Booking.";
+  const description = base.length >= 120 ? base + "." : `${base ? base + "." : t + "."}${tail}`;
   return {
-    title: service.title,
-    description: service.summary,
+    title,
+    description,
     alternates: { canonical: `/${cat.slug}/${service.slug}` },
     openGraph: {
-      title: service.title,
-      description: service.summary,
+      title,
+      description,
       url: `${SITE.url}/${cat.slug}/${service.slug}`,
       images: cover ? [{ url: cover }] : undefined,
     },
@@ -281,8 +299,38 @@ export default async function ServiceDetailPage({
       ? await getCabinFareOptions(service.id, Boolean(toKey) || service.contactOnly)
       : null;
 
+  // JSON-LD cho Google: dịch vụ (nhà xe, thuê xe…) + breadcrumb.
+  const svcUrl = `${SITE.url}/${cat.slug}/${service.slug}`;
+  const svcPrice = Number(service.basePrice ?? 0);
+  const svcJsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Service",
+        "@id": `${svcUrl}#service`,
+        name: service.title,
+        serviceType: cat.label,
+        description: service.summary,
+        url: svcUrl,
+        image: service.images.slice(0, 5).map((i) => `${SITE.url}${i.url}`),
+        areaServed: "Tà Xùa, Sơn La",
+        provider: { "@type": "TravelAgency", name: SITE.name, url: SITE.url, telephone: phone.replace(/\s/g, "") },
+        ...(svcPrice > 0 ? { offers: { "@type": "Offer", price: svcPrice, priceCurrency: "VND", url: svcUrl, availability: "https://schema.org/InStock" } } : {}),
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Trang chủ", item: SITE.url },
+          { "@type": "ListItem", position: 2, name: cat.shortLabel, item: `${SITE.url}/${cat.slug}` },
+          { "@type": "ListItem", position: 3, name: service.title, item: svcUrl },
+        ],
+      },
+    ],
+  };
+
   return (
     <div className="container-page py-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(svcJsonLd) }} />
       <nav className="mb-4 text-sm text-gray-500">
         <Link href="/" className="hover:text-forest-700">Trang chủ</Link>
         <span className="mx-2">/</span>

@@ -1,0 +1,15 @@
+import { bookingInputSchema, comboBookingSchema } from "../../src/lib/validation";
+import { isInternalError } from "../../src/lib/api-error";
+import { Prisma } from "@prisma/client";
+const base = { serviceId: "x", quantity: 1, customerName: "Nguyen Van A", phone: "0983746215" };
+const t = (name: string, ok: boolean) => console.log(ok ? "PASS" : "FAIL", name);
+t("homestay 2026-02-31 bị chặn", !bookingInputSchema.safeParse({ ...base, useDate: "2026-02-31" }).success);
+t("homestay ngày hợp lệ qua", bookingInputSchema.safeParse({ ...base, useDate: "2026-12-20", endDate: "2026-12-21" }).success);
+t("homestay endDate 2026-13-01 bị chặn", !bookingInputSchema.safeParse({ ...base, useDate: "2026-12-20", endDate: "2026-13-01" }).success);
+t("homestay endDate null vẫn qua", bookingInputSchema.safeParse({ ...base, useDate: "2026-12-20", endDate: null }).success);
+const cb = { ...base, people: 2, roomIds: ["r"], outboundTripId: "a", returnTripId: "b" };
+t("combo 2026-04-31 bị chặn", !comboBookingSchema.safeParse({ ...cb, fromKey: "2026-04-31", toKey: "2026-05-02" }).success);
+t("combo hợp lệ qua", comboBookingSchema.safeParse({ ...cb, fromKey: "2026-12-20", toKey: "2026-12-22" }).success);
+t("lỗi Prisma = nội bộ", isInternalError(new Prisma.PrismaClientKnownRequestError("x", { code: "P2002", clientVersion: "6" })));
+t("lỗi nghiệp vụ không phải nội bộ", !isInternalError(new Error("Ngày đi đã qua")));
+console.log(JSON.stringify(bookingInputSchema.safeParse({ ...base, useDate: "2026-12-20" }).error?.issues.map((i) => i.path.join(".") + ": " + i.message)));

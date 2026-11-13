@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { HeroSearch } from "@/components/home/HeroSearch";
@@ -14,6 +15,9 @@ import {
 import { getComboOrigins } from "@/lib/combo";
 
 export const dynamic = "force-dynamic";
+
+// Đường dẫn chính thức của trang chủ (tránh trùng nội dung khi có tham số trên URL).
+export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 export default async function HomePage() {
   const [services, articles, settings, cabinPrices, route, comboOrigins] = await Promise.all([
@@ -47,11 +51,11 @@ export default async function HomePage() {
         <div className="container-page flex flex-col gap-3 pb-28 pt-10 text-white sm:gap-5 sm:pb-36 sm:pt-12">
           {/* dòng định vị: địa danh + toạ độ */}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] font-bold uppercase tracking-[.22em] sm:text-xs" style={{ textShadow: "0 1px 10px oklch(0.15 0.05 270 / .6)" }}>
-            <span>Tà Xùa · Bắc Yên · Sơn La</span>
+            <h1 className="m-0 text-[length:inherit] font-[inherit] tracking-[inherit]">Đặt xe cabin, homestay Tà Xùa · Sơn La</h1>
             <span aria-hidden className="hidden h-px w-10 bg-white/50 sm:block" />
             <span className="font-mono text-[11px] font-semibold tracking-[.1em] text-white/80">21°16′B · 104°26′Đ · 2.865 m</span>
           </div>
-          <h1 className="max-w-[980px] text-balance text-[clamp(40px,7.4vw,96px)] font-extrabold leading-[.98] tracking-[-.04em]" style={{ textShadow: "0 2px 30px oklch(0.15 0.06 270 / .45)" }}>
+          <p className="max-w-[980px] text-balance text-[clamp(40px,7.4vw,96px)] font-extrabold leading-[.98] tracking-[-.04em]" style={{ textShadow: "0 2px 30px oklch(0.15 0.06 270 / .45)" }}>
             {heroLead}
             {heroRest && (
               <>
@@ -59,7 +63,7 @@ export default async function HomePage() {
                 <span className="bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(100deg, oklch(0.93 0.1 88) 0%, oklch(0.86 0.15 72) 45%, oklch(0.8 0.16 48) 100%)", textShadow: "none" }}>{heroRest}</span>
               </>
             )}
-          </h1>
+          </p>
           <p className="hidden max-w-[580px] text-pretty text-base leading-relaxed text-white/90 sm:block sm:text-[19px]" style={{ textShadow: "0 1px 14px oklch(0.15 0.05 270 / .6)" }}>
             Xe cabin, homestay, xe máy, xe ôm, taxi. Chọn ngày là thấy giá và chỗ trống, gửi yêu cầu là có người gọi lại xác nhận.
           </p>

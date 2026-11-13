@@ -6,6 +6,15 @@ import type { BookingStatus } from "@prisma/client";
 import { showToast } from "./Toast";
 import { PaymentRecordForm, NoteForm } from "./BookingDetailClient";
 import { bulkDeleteBookings, bulkUpdateBookingStatus } from "@/app/admin/bookings/actions";
+import BookingsCalendar from "./BookingsCalendar";
+
+export type BookingsView = "list" | "month" | "agenda" | "year";
+const VIEWS: [BookingsView, string][] = [
+  ["list", "Danh sách"],
+  ["month", "Tháng"],
+  ["agenda", "Theo ngày"],
+  ["year", "Cả năm"],
+];
 
 /** Một dòng đơn đã được server dựng sẵn (chỉ dữ liệu thuần, không Decimal/Date). */
 export interface BookingRow {
@@ -20,6 +29,8 @@ export interface BookingRow {
   useDate: string; // yyyy-mm-dd
   endDate: string | null;
   qty: number;
+  /** Số khách (dịch vụ không tính theo khách thì = số lượng) — cộng dồn ở chế độ lịch. */
+  pax: number;
   paxLabel: string;
   price: number | null;
   collected: number;
@@ -30,7 +41,7 @@ export interface BookingRow {
   note: string | null;
 }
 
-const ST: Record<BookingStatus, { name: string; dot: string; bd: string; bg: string; fg: string }> = {
+export const ST: Record<BookingStatus, { name: string; dot: string; bd: string; bg: string; fg: string }> = {
   NEW: { name: "Mới", dot: "bg-sky-500", bd: "border-sky-300", bg: "bg-sky-50", fg: "text-sky-700" },
   CONTACTING: { name: "Đang liên hệ", dot: "bg-amber-500", bd: "border-amber-300", bg: "bg-amber-50", fg: "text-amber-700" },
   CONFIRMED: { name: "Đã xác nhận", dot: "bg-forest-500", bd: "border-forest-300", bg: "bg-forest-50", fg: "text-forest-700" },
@@ -39,7 +50,7 @@ const ST: Record<BookingStatus, { name: string; dot: string; bd: string; bg: str
 };
 const ST_LIST = Object.keys(ST) as BookingStatus[];
 
-const CAT_BADGE: Record<string, [string, string]> = {
+export const CAT_BADGE: Record<string, [string, string]> = {
   COMBO: ["CB", "bg-sky-100 text-sky-700"],
   CABIN: ["XE", "bg-sky-100 text-sky-700"],
   HOMESTAY: ["HS", "bg-forest-100 text-forest-700"],
@@ -49,7 +60,7 @@ const CAT_BADGE: Record<string, [string, string]> = {
   XEOM: ["XO", "bg-yellow-100 text-yellow-700"],
 };
 
-const CAT_OPTIONS: [string, string][] = [
+export const CAT_OPTIONS: [string, string][] = [
   ["COMBO", "Combo"],
   ["CABIN", "Xe cabin"],
   ["HOMESTAY", "Homestay"],
@@ -93,9 +104,19 @@ export default function BookingsListClient({
   rows: all,
   totalInDb,
   filterLabel = null,
+  calRows,
+  todayKey,
+  nowMs,
+  initialView = "list",
 }: {
   rows: BookingRow[];
   totalInDb: number;
+  /** Đơn cho chế độ lịch (Tháng / Theo ngày / Cả năm) — lấy theo NGÀY DÙNG, không giới hạn 400 đơn mới nhất. */
+  calRows: BookingRow[];
+  /** Hôm nay yyyy-mm-dd (giờ VN) + thời điểm dựng trang — để lịch tính "cần gấp" khớp server/client. */
+  todayKey: string;
+  nowMs: number;
+  initialView?: BookingsView;
   /** Đang lọc phía server (vd theo chủ dịch vụ từ trang Thống kê) — hiện dải thông báo + nút bỏ lọc. */
   filterLabel?: string | null;
 }) {
@@ -110,6 +131,17 @@ export default function BookingsListClient({
   const [sel, setSel] = useState<Record<string, boolean>>({});
   const [drawerId, setDrawerId] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const [view, setViewState] = useState<BookingsView>(initialView);
+
+  /** Đổi chế độ xem + ghi vào URL (?view=) để tải lại / gửi link vẫn giữ. */
+  function setView(v: BookingsView) {
+    setViewState(v);
+    const sp = new URLSearchParams(window.location.search);
+    if (v === "list") sp.delete("view");
+    else sp.set("view", v);
+    const qs = sp.toString();
+    window.history.replaceState(null, "", qs ? `?${qs}` : window.location.pathname);
+  }
 
   function setStatus(ids: string[], status: BookingStatus, clearSelection = false) {
     if (status === "CANCELLED" && !confirm(`Huỷ ${ids.length > 1 ? ids.length + " đơn" : "đơn này"}?`)) return;
@@ -208,7 +240,7 @@ export default function BookingsListClient({
     showToast(`Đã xuất ${list.length} đơn ra file Excel (CSV)`, "ok");
   }
 
-  const dx = drawerId ? all.find((r) => r.id === drawerId) : null;
+  const dx = drawerId ? (all.find((r) => r.id === drawerId) ?? calRows.find((r) => r.id === drawerId)) : null;
   const gridCols = "lg:grid-cols-[32px_minmax(0,1fr)_minmax(0,1.9fr)_115px_110px_125px_130px_118px]";
 
   const tiles: { k: string; v: number; key: "urgent" | BookingStatus; dot: string; sub?: string; subC?: string }[] = [
@@ -233,14 +265,30 @@ export default function BookingsListClient({
             {totalInDb} đơn · {n("NEW")} mới chưa xử lý · {nUrg} cần gấp
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={exportCsv}
-            className="whitespace-nowrap rounded-full border-[1.5px] border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-ink hover:bg-gray-50"
-          >
-            Xuất Excel
-          </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-[14px] bg-gray-200/70 p-1">
+            {VIEWS.map(([k, name]) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setView(k)}
+                className={`whitespace-nowrap rounded-[11px] px-3 py-2 text-sm font-extrabold transition ${
+                  view === k ? "bg-white text-forest-800 shadow-sm" : "text-gray-600 hover:text-ink"
+                }`}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+          {view === "list" && (
+            <button
+              type="button"
+              onClick={exportCsv}
+              className="whitespace-nowrap rounded-full border-[1.5px] border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-ink hover:bg-gray-50"
+            >
+              Xuất Excel
+            </button>
+          )}
           <Link
             href="/admin/bookings/new"
             title="Nhập đơn khách gọi/nhắn trực tiếp: chọn dịch vụ, trạng thái, tiền cọc"
@@ -260,6 +308,18 @@ export default function BookingsListClient({
         </div>
       )}
 
+      {view !== "list" ? (
+        <BookingsCalendar
+          rows={calRows}
+          view={view}
+          onView={setView}
+          todayKey={todayKey}
+          nowMs={nowMs}
+          onStatus={(ids, status) => setStatus(ids, status)}
+          onOpen={setDrawerId}
+        />
+      ) : (
+      <>
       {/* Thẻ trạng thái */}
       <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-6">
         {tiles.map((t) => {
@@ -521,6 +581,9 @@ export default function BookingsListClient({
           <span className="hidden sm:block">Dòng viền cam bên trái = cần xử lý gấp (đơn mới quá 30 phút hoặc đi trong 48h chưa xác nhận)</span>
         </div>
       </div>
+
+      </>
+      )}
 
       {/* Drawer xử lý nhanh */}
       {dx && (

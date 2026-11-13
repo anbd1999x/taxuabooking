@@ -268,6 +268,24 @@ export function HomestayList({
   // suốt vĩnh viễn, nhìn như "không có dữ liệu". Sau mỗi lần đổi lọc HOẶC nhận
   // items mới (bấm Tìm kiếm → router.refresh): hiện ngay mọi thẻ (hiệu ứng
   // reveal chỉ dành cho lần tải đầu).
+  // Số thẻ đang dựng: bắt đầu 24, cuộn tới cuối danh sách thì thêm 24. Đổi bộ lọc / dữ liệu ⇒ về 24
+  // (so khoá lọc thay vì setState trong effect).
+  const PAGE = 24;
+  const fkey = JSON.stringify([q, ci, co, adults, childAges, price, type, zone, home, sort, amen, all.length]);
+  const [lim, setLim] = useState({ k: fkey, n: PAGE });
+  const limit = lim.k === fkey ? lim.n : PAGE;
+  const moreRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = moreRef.current;
+    if (!el || !("IntersectionObserver" in window)) return;
+    const io = new IntersectionObserver(
+      (es) => { if (es.some((e) => e.isIntersecting)) setLim({ k: fkey, n: limit + PAGE }); },
+      { rootMargin: "600px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [fkey, limit]);
+
   const firstRender = useRef(true);
   useEffect(() => {
     if (firstRender.current) { firstRender.current = false; return; }
@@ -275,7 +293,7 @@ export function HomestayList({
       el.style.opacity = "1";
       el.style.transform = "none";
     });
-  }, [q, ci, co, adults, childAges, price, type, zone, home, sort, amen, all]);
+  }, [q, ci, co, adults, childAges, price, type, zone, home, sort, amen, all, limit]);
 
   // Mở trang với sẵn ngày (từ trang chủ) → cuộn xuống danh sách để thấy kết quả
   // ngay trên mobile. Không chạy khi đang gõ lọc trực tiếp.
@@ -568,8 +586,8 @@ export function HomestayList({
           <div data-in="0" className="flex gap-2 text-sm opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease, transform .9s cubic-bezier(.2,.7,.2,1)", color: "oklch(0.9 0.02 220)" }}>
             <span>Trang chủ</span><span>/</span><span className="font-bold text-white">Homestay</span>
           </div>
-          <div data-in="1" className="mt-4 text-[13px] font-bold uppercase tracking-[0.14em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .1s, transform .9s cubic-bezier(.2,.7,.2,1) .1s", color: "oklch(0.88 0.12 80)" }}>Tà Xùa · 2.865m · Bắc Yên, Sơn La</div>
-          <h1 data-in="2" className="mt-3.5 max-w-[760px] text-[clamp(32px,6vw,60px)] font-extrabold leading-[1.02] tracking-[-0.035em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .2s, transform .9s cubic-bezier(.2,.7,.2,1) .2s", textShadow: "0 2px 24px oklch(0.2 0.05 260 / .4)" }}>Giữa rừng Tây Bắc, thức dậy trên biển mây</h1>
+          <h1 data-in="1" className="mt-4 text-[13px] font-bold uppercase tracking-[0.14em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .1s, transform .9s cubic-bezier(.2,.7,.2,1) .1s", color: "oklch(0.88 0.12 80)" }}>Homestay Tà Xùa · giá & phòng trống theo ngày</h1>
+          <p data-in="2" className="mt-3.5 max-w-[760px] text-[clamp(32px,6vw,60px)] font-extrabold leading-[1.02] tracking-[-0.035em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .2s, transform .9s cubic-bezier(.2,.7,.2,1) .2s", textShadow: "0 2px 24px oklch(0.2 0.05 260 / .4)" }}>Giữa rừng Tây Bắc, thức dậy trên biển mây</p>
           <p data-in="3" className="mt-3.5 max-w-[520px] text-[clamp(15px,1.7vw,18px)] leading-[1.5] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .3s, transform .9s cubic-bezier(.2,.7,.2,1) .3s", color: "oklch(0.97 0.02 80)" }}>Homestay và bungalow giữa núi rừng Tà Xùa, sát điểm săn mây. Chọn ngày để xem phòng trống và giá đêm đó.</p>
         </div>
       </section>
@@ -739,7 +757,7 @@ export function HomestayList({
           </div>
         )}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] sm:gap-[22px]">
-          {items.map((s, i) => (
+          {items.slice(0, limit).map((s, i) => (
             <Link
               key={s.id}
               href={`/homestay/${s.slug}${dateQS}${partyQS}`}
@@ -808,6 +826,13 @@ export function HomestayList({
             </Link>
           ))}
         </div>
+        {items.length > limit && (
+          <div ref={moreRef} className="mt-6 flex justify-center">
+            <button type="button" onClick={() => setLim({ k: fkey, n: limit + PAGE })} className="rounded-full border border-[oklch(0.88_0.02_230)] bg-white px-6 py-3 text-sm font-bold text-ink hover:bg-gray-50">
+              Xem thêm {Math.min(PAGE, items.length - limit)} phòng (còn {items.length - limit})
+            </button>
+          </div>
+        )}
         {items.length === 0 && (
           <div className="flex flex-col items-center gap-2.5 rounded-[22px] border border-dashed border-[oklch(0.85_0.02_230)] bg-white px-6 py-14 text-center">
             <div className="text-[19px] font-extrabold text-ink">Không có phòng phù hợp</div>

@@ -17,6 +17,35 @@ import { ComboHero } from "@/components/combo/ComboHero";
 import { FilterBar } from "@/components/FilterBar";
 import { ScrollToResults } from "@/components/ScrollToResults";
 import { SITE } from "@/lib/site";
+import { SeoBlock } from "@/components/SeoBlock";
+
+/** Tiêu đề + mô tả tìm kiếm riêng cho 3 trang đặt dịch vụ chính (các danh mục khác dùng mẫu chung). */
+const SEO_META: Record<string, { title: string; description: string }> = {
+  MOTORBIKE: {
+    title: "Thuê xe máy Tà Xùa: giá thuê theo ngày & xe còn trống",
+    description: "Thuê xe máy ở Tà Xùa đi săn mây: xe số bền, khoẻ, leo đèo tốt, giá thuê theo ngày. Chọn ngày nhận, ngày trả để xem xe còn trống và gửi yêu cầu đặt xe nhanh.",
+  },
+  XEOM: {
+    title: "Xe ôm Tà Xùa: tài xế bản địa, giá theo tuyến",
+    description: "Xe ôm Tà Xùa do tài xế bản địa chở tới Sống lưng khủng long, Mỏm cá heo, Cây cô đơn và các điểm đường khó. Xem giá từng tuyến và gửi yêu cầu đặt xe.",
+  },
+  TAXI: {
+    title: "Taxi Tà Xùa: xe 4–7 chỗ, giá theo tuyến",
+    description: "Taxi Tà Xùa xe 4 đến 7 chỗ đưa đón Bắc Yên – Tà Xùa và các điểm săn mây, hợp với gia đình có người lớn tuổi, trẻ nhỏ. Xem giá từng tuyến và đặt xe nhanh.",
+  },
+  CABIN: {
+    title: "Xe cabin Hà Nội – Tà Xùa: giá vé & chỗ trống",
+    description: "Đặt xe cabin giường nằm Hà Nội – Tà Xùa và các tỉnh: vé khứ hồi từ 500.000đ, chạy đêm 21h tới 6h sáng. Xem nhà xe còn chỗ theo ngày, đặt vé cả hai chiều.",
+  },
+  HOMESTAY: {
+    title: "Homestay Tà Xùa: giá & phòng trống theo ngày",
+    description: "Hơn 30 homestay, bungalow Tà Xùa view biển mây ở trung tâm, Đỉnh Gió, Khe Cải. Xem giá từng phòng và phòng trống theo ngày, đặt phòng không cần thanh toán online.",
+  },
+  COMBO: {
+    title: "Combo Tà Xùa: xe cabin khứ hồi + homestay trọn gói",
+    description: "Combo Tà Xùa ghép sẵn xe cabin khứ hồi và phòng homestay còn trống đúng ngày bạn đi. Nhập ngày, số người, ngân sách để xem giá trọn gói mỗi người.",
+  },
+};
 import { addDays, parseDateOnly, toDateKey, today, isValidDateKey } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
@@ -35,13 +64,14 @@ export async function generateMetadata({
   const { category } = await params;
   const cat = categoryBySlug(category);
   if (!cat) return {};
-  const title = `${cat.label} — Giá & tình trạng còn chỗ`;
-  const description = `${cat.label}: ${cat.tagline}. Xem giá và tình trạng còn chỗ theo ngày, gửi yêu cầu đặt nhanh tại Tà Xùa Booking.`;
+  const custom = SEO_META[cat.key];
+  const title = custom?.title ?? `${cat.label}: giá & tình trạng còn chỗ`;
+  const description = custom?.description ?? `${cat.label}: ${cat.tagline}. Xem giá và tình trạng còn chỗ theo ngày, gửi yêu cầu đặt nhanh tại Tà Xùa Booking.`;
   return {
     title,
     description,
     alternates: { canonical: `/${cat.slug}` },
-    openGraph: { title, description, url: `${SITE.url}/${cat.slug}` },
+    openGraph: { title, description, url: `${SITE.url}/${cat.slug}`, images: [{ url: "/hero-taxua.jpg", width: 1920, height: 1080, alt: "Biển mây Tà Xùa" }] },
   };
 }
 
@@ -74,7 +104,12 @@ export default async function CategoryPage({
       getCabinOperators(from ?? null, to ?? null, pickup),
       getComboOrigins(),
     ]);
-    return <CabinList operators={operators} from={from ?? ""} to={to ?? ""} pickup={pickup ?? ""} pickups={pickups} pax={paxParam(sp.pax)} />;
+    return (
+      <>
+        <CabinList operators={operators} from={from ?? ""} to={to ?? ""} pickup={pickup ?? ""} pickups={pickups} pax={paxParam(sp.pax)} />
+        <SeoBlock kind="CABIN" />
+      </>
+    );
   }
 
   // ----- Combo: tìm xe + phòng khớp giá mong muốn -----
@@ -199,7 +234,9 @@ export default async function CategoryPage({
         </div>
         </ScrollToResults>
 
-        <section className="mt-12 border-t border-gray-200 pt-6">
+        <div className="-mx-4 mt-10 sm:mx-0"><SeoBlock kind="COMBO" /></div>
+
+        <section className="mt-2 border-t border-gray-200 pt-6">
           <h2 className="text-sm font-semibold text-gray-500">Dịch vụ khác tại Tà Xùa</h2>
           <div className="mt-3 flex flex-wrap gap-2">
             {CATEGORY_LIST.filter((c) => c.slug !== cat.slug).map((c) => (
@@ -218,13 +255,16 @@ export default async function CategoryPage({
   if (cat.key === "HOMESTAY") {
     const homestays = await getHomestayRoomCards(str(sp.from) ?? null, str(sp.to) ?? null);
     return (
-      <HomestayList
-        items={homestays}
-        initialFrom={str(sp.from) ?? ""}
-        initialTo={str(sp.to) ?? ""}
-        initialQ={str(sp.q) ?? ""}
-        initialPeople={Math.min(20, Math.max(0, Math.trunc(Number(str(sp.people))) || 0))}
-      />
+      <>
+        <HomestayList
+          items={homestays}
+          initialFrom={str(sp.from) ?? ""}
+          initialTo={str(sp.to) ?? ""}
+          initialQ={str(sp.q) ?? ""}
+          initialPeople={Math.min(20, Math.max(0, Math.trunc(Number(str(sp.people))) || 0))}
+        />
+        <SeoBlock kind="HOMESTAY" />
+      </>
     );
   }
 

@@ -10,9 +10,9 @@ import { roadPath } from "@/lib/road-path";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Bản đồ vệ tinh Tà Xùa — điểm check-in & cung đường theo lịch trình",
+  title: "Bản đồ Tà Xùa: điểm check-in & cung đường",
   description:
-    "Bản đồ các điểm check-in quanh Tà Xùa tính từ chợ trung tâm: Cây cô đơn, Sống lưng khủng long, Mỏm cá heo, thảo nguyên, đồi chè cổ thụ. Chọn lịch trình 2N1Đ, 3N2Đ để xem cung đường từng ngày.",
+    "Bản đồ vệ tinh Tà Xùa với các điểm check-in: Cây cô đơn, Sống lưng khủng long, Mỏm cá heo, thảo nguyên. Chọn lịch trình 2N1Đ, 3N2Đ để xem cung đường từng ngày.",
   alternates: { canonical: "/ban-do" },
 };
 

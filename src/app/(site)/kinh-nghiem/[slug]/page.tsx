@@ -20,10 +20,14 @@ export async function generateMetadata({
   const a = await getArticle(slug);
   if (!a) return {};
   return {
-    title: a.title,
+    // Tiêu đề đã dài thì không nối thêm "| Tà Xùa Booking" (Google cắt ở ~60 ký tự).
+    title: a.title.length > 48 ? { absolute: a.title } : a.title,
     description: a.excerpt ?? a.title,
     alternates: { canonical: `/kinh-nghiem/${a.slug}` },
     openGraph: {
+      type: "article",
+      publishedTime: a.createdAt.toISOString(),
+      modifiedTime: a.updatedAt.toISOString(),
       title: a.title,
       description: a.excerpt ?? a.title,
       url: `${SITE.url}/kinh-nghiem/${a.slug}`,
@@ -61,6 +65,30 @@ export default async function ArticlePage({
       : [];
   const related = [...sameTopic, ...fill];
 
+  // Câu hỏi thường gặp trong bài (mục "## Câu hỏi thường gặp", mỗi câu là "### …") → dữ liệu FAQPage.
+  const plain = (t: string) =>
+    t.replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/[*_`>#]/g, "").replace(/\s+/g, " ").trim();
+  const faqPart = a.content.split(/^## Câu hỏi thường gặp.*$/m)[1]?.split(/^## /m)[0] ?? "";
+  const faqs = faqPart
+    .split(/^### /m)
+    .slice(1)
+    .map((b) => { const [q, ...rest] = b.split("\n"); return { q: plain(q), a: plain(rest.join(" ")) }; })
+    .filter((x) => x.q && x.a);
+  const pageUrl = `${SITE.url}/kinh-nghiem/${a.slug}`;
+  const extraLd = [
+    {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Trang chủ", item: SITE.url },
+        { "@type": "ListItem", position: 2, name: "Kinh nghiệm Tà Xùa", item: `${SITE.url}/kinh-nghiem` },
+        { "@type": "ListItem", position: 3, name: a.title, item: pageUrl },
+      ],
+    },
+    ...(faqs.length >= 2
+      ? [{ "@type": "FAQPage", mainEntity: faqs.map((x) => ({ "@type": "Question", name: x.q, acceptedAnswer: { "@type": "Answer", text: x.a } })) }]
+      : []),
+  ];
+
   // JSON-LD Article cho Google.
   const jsonLd = {
     "@context": "https://schema.org",
@@ -79,6 +107,7 @@ export default async function ArticlePage({
   return (
     <article className="container-page max-w-3xl py-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@graph": extraLd }) }} />
       <nav className="mb-4 text-sm text-gray-500">
         <a href="/kinh-nghiem" className="hover:text-forest-700">Kinh nghiệm</a>
         <span className="mx-2">/</span>

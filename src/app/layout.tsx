@@ -34,6 +34,7 @@ export const metadata: Metadata = {
     siteName: SITE.name,
     title: `${SITE.name} - Đặt xe - Đặt phòng Tà Xùa chỉ với một chạm`,
     description: SITE.description,
+    images: [{ url: "/hero-taxua.jpg", width: 1920, height: 1080, alt: "Biển mây Tà Xùa" }],
   },
   robots: { index: true, follow: true },
   // Mã xác minh Google Search Console (đặt GOOGLE_SITE_VERIFICATION trong .env server).

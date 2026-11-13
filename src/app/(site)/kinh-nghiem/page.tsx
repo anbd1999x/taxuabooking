@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Kinh nghiệm du lịch Tà Xùa",
   description:
-    "Tổng hợp kinh nghiệm, mẹo và lịch trình du lịch săn mây Tà Xùa mới nhất.",
+    "Kinh nghiệm du lịch Tà Xùa mới nhất: mùa mây, đặt xe cabin, chọn homestay, điểm check-in, lịch trình 2N1Đ, 3N2Đ, chi phí và mẹo đi lần đầu.",
   alternates: { canonical: "/kinh-nghiem" },
 };
 

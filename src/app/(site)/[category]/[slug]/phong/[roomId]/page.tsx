@@ -20,9 +20,17 @@ export async function generateMetadata({
   const room = await getRoomDetail(slug, roomId);
   if (!room) return {};
   const svc = room.roomType.service;
+  const title = `${room.name} – ${svc.title}: phòng homestay Tà Xùa`;
+  const own = (room.description ?? "").trim().replace(/[.\s]+$/, "");
+  const tail = ` Phòng ${room.capacity} khách tại ${svc.title}, Tà Xùa. Xem ảnh, giá từng đêm, lịch trống và đặt phòng tại Tà Xùa Booking.`;
+  const description = own.length >= 120 ? own + "." : `${own ? own + "." : `${room.name} (${room.roomType.name}).`}${tail}`;
+  const path = `/${CATEGORIES[svc.category].slug}/${svc.slug}/phong/${room.id}`;
+  const cover = room.images[0]?.url ?? room.roomType.images.find((i) => !/\.(mp4|webm|mov)$/i.test(i.url))?.url;
   return {
-    title: `${room.name} — ${svc.title}`,
-    description: room.description || `${room.name} tại ${svc.title}, ${room.roomType.name}.`,
+    title,
+    description,
+    alternates: { canonical: path },
+    openGraph: { title, description, url: `${SITE.url}${path}`, images: [{ url: cover ?? "/hero-taxua.jpg" }] },
   };
 }
 

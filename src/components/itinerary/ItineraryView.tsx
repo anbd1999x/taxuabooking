@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { MediaSlider, type MediaItem } from "./MediaSlider";
-import { ItineraryScene, type SceneStop } from "./ItineraryScene";
+import type { SceneStop } from "./ItineraryScene";
 import { ItineraryHero, type HeroPlan } from "./ItineraryHero";
 import type { StopKind } from "@/lib/itinerary";
 import { cn } from "@/lib/utils";
@@ -71,8 +71,7 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
   const [closed, setClosed] = useState<Record<string, boolean>>({});
   const [tab, setTab] = useState<Tab>("checkin");
   const [only, setOnly] = useState(false);
-  const [cur, setCur] = useState(0); // cảnh đang chiếu (chỉ số điểm dừng đã trải phẳng)
-  const [playing, setPlaying] = useState(true);
+  const [cur, setCur] = useState(0); // điểm dừng đang chọn (chỉ số đã trải phẳng) — tô nổi trong danh sách
 
   // Chiều cao thanh menu (sticky) — cột đặt combo bên phải neo ngay bên dưới.
   const [headerH, setHeaderH] = useState(64);
@@ -197,13 +196,8 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
   });
   const jumpPlan = (k: string) => { pickPlan(k); go("plan"); };
   const jumpTab = (t: Tab) => { setTab(t); setTimeout(() => go("place"), 30); };
-  // Chiếu cảnh của một điểm dừng; cảnh đang khuất phía trên thì cuộn lên cho thấy.
-  const jumpTo = (i: number) => {
-    setCur(i);
-    setPlaying(true);
-    const el = document.getElementById("lt-scene");
-    if (el && el.getBoundingClientRect().top < 60) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 84, behavior: "smooth" });
-  };
+  // Bấm một điểm dừng ⇒ tô nổi điểm đó trong danh sách.
+  const jumpTo = (i: number) => setCur(i);
 
   // Thẻ của một tab (đã áp ô lọc "chỉ điểm có trong lịch trình").
   const cardsOf = (t: Tab) => places.filter((p) => p.kind === t && (!only || inPlan.has(p.id)));
@@ -236,23 +230,6 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
                 </button>
               ))}
             </div>
-          </div>
-
-          {/* Phim lịch trình: cuộn theo trang (không neo dưới thanh menu). */}
-          <div>
-            <ItineraryScene
-              flat={flat}
-              cur={ci}
-              playing={playing}
-              onAdvance={() => setCur((c) => (c + 1) % (flat.length || 1))}
-              onPrev={() => setCur((ci - 1 + flat.length) % (flat.length || 1))}
-              onNext={() => setCur((ci + 1) % (flat.length || 1))}
-              onToggle={() => setPlaying((p) => !p)}
-              onJump={jumpTo}
-            />
-          </div>
-          <div className="-mt-3 text-[13px] text-[oklch(0.5_0.02_160)]">
-            Phim lịch trình tự chạy qua từng điểm. Bấm một điểm trong lịch trình bên dưới để xem cảnh đó.
           </div>
 
           <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
@@ -332,7 +309,7 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
                             >
                               {s.thumb && (
                                 <div className="relative hidden h-[76px] w-[76px] flex-none overflow-hidden rounded-[14px] min-[560px]:block">
-                                  <Image src={s.thumb} alt="" fill sizes="76px" className="object-cover" />
+                                  <Image src={s.thumb} alt={`${s.name} – Tà Xùa`} fill sizes="76px" className="object-cover" />
                                 </div>
                               )}
                               <div className="flex min-w-0 flex-col gap-[5px]">

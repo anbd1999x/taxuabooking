@@ -67,6 +67,14 @@ export function ItineraryHero({
     const t0 = performance.now();
     let raf = 0;
 
+    // khói phanh: bể hạt tái sử dụng
+    const puffs = Array.from(wrap.current?.querySelectorAll<HTMLElement>("[data-smoke]") ?? []);
+    const born: number[] = puffs.map(() => -9), px: number[] = puffs.map(() => 0), py: number[] = puffs.map(() => 0);
+    let nextPuff = 0, lastEmit = 0;
+    const emit = (t: number, x: number, y: number) => {
+      if (!puffs.length || t - lastEmit < 0.045) return;
+      lastEmit = t; born[nextPuff] = t; px[nextPuff] = x; py[nextPuff] = y; nextPuff = (nextPuff + 1) % puffs.length;
+    };
     const tick = (t: number) => {
       const H = host.offsetHeight, W = host.offsetWidth, sy = window.scrollY || 0;
       const e = reduce ? 1 : 1 - Math.pow(1 - Math.min(1, t / 5), 3); // mặt trời mọc trong ~5 giây
@@ -88,35 +96,60 @@ export function ItineraryHero({
       if (bike && wEl && cEl) {
         const wr = wEl.getBoundingClientRect(), cr = cEl.getBoundingClientRect();
         const cL = cr.left - wr.left, cR = cr.right - wr.left, cT = cr.top - wr.top;
-        const BW = 44, BH = 34, V = 80;
+        const BW = 44, BH = 34, V = 300, V2 = 230; // chạy nhanh trên sườn núi / trên mép thẻ
         // mặt đường trên sườn núi (nhấp nhô nhẹ theo chiều ngang)
         const gY = (x: number) => { const q = (x + 60) / (W + 120); return H * 0.85 - BH + Math.sin(q * Math.PI * 4) * -10 - Math.sin(q * Math.PI * 1.3) * 18; };
         const wideL = cL >= 70, wideR = W - cR >= 70; // có chỗ trống bên trái / phải thẻ (màn rộng)
         const xs = wideL ? cL - BW - 6 : cL + 6; // chỗ dừng xe để bê lên
         const xe = cL + 10, xr = cR - BW - 10, topY = cT - BH + 3; // chạy trên mép trên của thẻ
-        const t1 = wideL ? (xs + 60) / V : 0, t2 = 2.8, t3 = Math.max(1, (xr - xe) / V), t4 = wideR ? 0.8 : 0.6, t5 = wideR ? (W + 60 - (cR + 14)) / V : 0;
-        let u = t % (t1 + t2 + t3 + t4 + t5);
-        let x = 0, y = 0, rot = 0, z = 2, carry = false, flag = 0, op = 1;
+        // quãng phanh: đang phóng thì phanh gấp, trượt thêm một đoạn rồi dừng hẳn (bốc khói)
+        const SK1 = wideL ? Math.min(110, xs + 60) : 0, TB1 = wideL ? 0.6 : 0; // phanh trước thẻ
+        const SK2 = Math.min(90, Math.max(0, xr - xe - 20)), TB2 = 0.5; // phanh ở cuối mép thẻ
+        const t1 = wideL ? Math.max(0, xs - SK1 + 60) / V : 0, t2 = 2.4, t3 = Math.max(0.3, (xr - SK2 - xe) / V2), t4 = wideR ? 0.55 : 0.6, t5 = wideR ? (W + 60 - (cR + 14)) / V : 0;
+        let u = t % (t1 + TB1 + 0.35 + t2 + t3 + TB2 + 0.3 + t4 + t5);
+        let x = 0, y = 0, rot = 0, z = 2, carry = false, flag = 0, op = 1, smoke = false;
+        const skid = (k: number) => 1 - (1 - k) * (1 - k); // giảm tốc đều tới 0
         if (u < t1) {
-          x = -60 + u * V; y = gY(x) + Math.sin(t * 22) * 0.8; rot = (gY(x + 6) - gY(x - 6)) * 2.2;
-        } else if ((u -= t1) < t2) {
-          // xuống xe (20% đầu) → hai người đội xe đi lên mép thẻ → ngồi lại (cuối)
-          const k = u / t2, e0 = Math.min(1, Math.max(0, (k - 0.2) / 0.7)), e = e0 * e0 * (3 - 2 * e0);
+          x = -60 + u * V; y = gY(x) + Math.sin(t * 40) * 1; rot = (gY(x + 6) - gY(x - 6)) * 2.2 - 4;
+        } else if ((u -= t1) < TB1 + 0.35) {
+          // phanh gấp: chúi đầu, bánh sau bốc khói; dừng hẳn 0,35s cho khói tan
+          const k = Math.min(1, u / (TB1 || 1));
+          x = xs - SK1 + SK1 * skid(k); y = gY(x); rot = (gY(x + 6) - gY(x - 6)) * 2.2 + 13 * Math.sin(Math.min(1, k * 1.15) * Math.PI);
+          smoke = k < 0.95;
+        } else if ((u -= TB1 + 0.35) < t2) {
+          // xuống xe (15% đầu) → hai người đội xe đi lên mép thẻ → ngồi lại (cuối)
+          const k = u / t2, e0 = Math.min(1, Math.max(0, (k - 0.15) / 0.75)), e = e0 * e0 * (3 - 2 * e0);
           const y0 = wideL ? gY(xs) : cT + 16;
           x = xs + (xe - xs) * e; y = y0 + (topY - y0) * e;
           carry = k < 0.92;
-          if (carry && e0 > 0 && e0 < 1) y -= Math.abs(Math.sin(t * 9)) * 2;
+          if (carry && e0 > 0 && e0 < 1) y -= Math.abs(Math.sin(t * 11)) * 2;
           rot = carry ? -8 * Math.sin(e * Math.PI) : 0;
           z = wideL || e > 0.6 ? 6 : 4; // màn hẹp: nhô lên từ sau mép thẻ
         } else if ((u -= t2) < t3) {
-          x = xe + u * V; y = topY + Math.sin(t * 22) * 0.8; z = 6; flag = Math.min(1, u / 0.9);
-        } else if ((u -= t3) < t4) {
+          // rồ ga phóng trên mép thẻ (bốc đầu nhẹ lúc xuất phát), băng rôn bung ra
+          x = xe + u * V2; y = topY + Math.sin(t * 40) * 1; z = 6; flag = Math.min(1, u / 0.5); rot = -9 * Math.max(0, 1 - u / 0.35);
+          smoke = u < 0.25;
+        } else if ((u -= t3) < TB2 + 0.3) {
+          // phanh cháy khói ở cuối thẻ
+          const k = Math.min(1, u / TB2); z = 6; flag = 1;
+          x = xr - SK2 + SK2 * skid(k); y = topY; rot = 13 * Math.sin(Math.min(1, k * 1.15) * Math.PI);
+          smoke = k < 0.95;
+        } else if ((u -= TB2 + 0.3) < t4) {
           const k = u / t4; z = 6; flag = 1;
           if (wideR) { const y1 = gY(cR + 14); x = xr + (cR + 14 - xr) * k; y = topY + (y1 - topY) * k * k - Math.sin(k * Math.PI) * 16; rot = 14 * Math.sin(k * Math.PI); }
           else { x = xr + k * 30; y = topY; op = 1 - k; }
         } else {
-          u -= t4; x = cR + 14 + u * V; y = gY(x) + Math.sin(t * 22) * 0.8; rot = (gY(x + 6) - gY(x - 6)) * 2.2; flag = 1;
+          u -= t4; x = cR + 14 + u * V; y = gY(x) + Math.sin(t * 40) * 1; rot = (gY(x + 6) - gY(x - 6)) * 2.2 - 4; flag = 1;
         }
+        if (smoke) emit(t, x + 2 + Math.sin(t * 91) * 3, y + BH - 9);
+        // khói: phồng to, trôi ngược ra sau và bay lên, mờ dần trong 0,8s
+        puffs.forEach((p, i) => {
+          const a = (t - born[i]) / 0.8;
+          if (a < 0 || a >= 1) { if (p.style.opacity !== "0") p.style.opacity = "0"; return; }
+          p.style.transform = `translate(${px[i] - 9 - a * 34 - (i % 3) * 3}px, ${py[i] - a * (16 + (i % 4) * 5)}px) scale(${0.5 + a * 2.1})`;
+          p.style.opacity = String((1 - a) * 0.85);
+          p.style.zIndex = String(z);
+        });
         bike.style.transform = `translate(${x}px, ${y}px) rotate(${rot}deg)`;
         bike.style.zIndex = String(z);
         bike.style.opacity = String(op);
@@ -201,7 +234,11 @@ export function ItineraryHero({
         </div>
       </section>
 
-      {/* xe máy 2 người: chạy trên sườn núi, tới thẻ lịch trình thì bê xe lên mép thẻ chạy tiếp, kéo băng rôn */}
+      {/* khói phanh của xe máy */}
+      {Array.from({ length: 14 }, (_, i) => (
+        <div key={i} data-smoke aria-hidden className="pointer-events-none absolute left-0 top-0 h-[22px] w-[22px] rounded-full will-change-transform" style={{ opacity: 0, background: i % 3 === 0 ? "oklch(0.5 0.015 250 / .9)" : i % 3 === 1 ? "oklch(0.68 0.012 250 / .9)" : "oklch(0.9 0.005 250 / .95)", filter: "blur(2px)" }} />
+      ))}
+      {/* xe máy 2 người: phóng nhanh trên sườn núi, tới thẻ lịch trình thì phanh cháy khói, bê xe lên mép thẻ chạy tiếp, kéo băng rôn */}
       <div data-bike aria-hidden className="pointer-events-none absolute left-0 top-0 z-[2] h-[34px] w-11 will-change-transform" style={{ transform: "translate(-80px,0)" }}>
         <div data-flag className="absolute right-full top-[3px] flex origin-right items-center" style={{ transform: "scaleX(0)", opacity: 0 }}>
           <span className="lth-flag whitespace-nowrap rounded-[3px] px-2 py-[3px] text-[11px] font-extrabold leading-tight" style={{ background: "oklch(0.58 0.22 27)", color: "oklch(0.93 0.16 95)", boxShadow: "0 3px 8px -2px oklch(0.2 0.04 260 / .5)", animation: "lth-wave 1.1s ease-in-out infinite", transformOrigin: "right center" }}>Đi Tà Xùa thôi!</span>
