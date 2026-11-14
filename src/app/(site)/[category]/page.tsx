@@ -175,7 +175,7 @@ export default async function CategoryPage({
           ) : result == null ? (
             (() => {
               // Khách thường chọn "Ngày đi" = ngày muốn NHẬN PHÒNG → gợi ý lùi 1 ngày kèm link tìm lại.
-              const fmtD = (k: string) => `${k.slice(8, 10)}/${k.slice(5, 7)}`;
+              const fmtD = (k: string) => `${k.slice(8, 10)}/${k.slice(5, 7)}/${k.slice(0, 4)}`;
               const valid = isValidDateKey(from!) && isValidDateKey(to!);
               let fixFrom = "", fixTo = "", fixUrl = "";
               if (valid) {

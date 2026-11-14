@@ -1,3 +1,4 @@
+import { dmy } from "@/lib/date-format";
 import "server-only";
 import type { BookingRequest, Prisma, AvailabilityStatus } from "@prisma/client";
 import { enumerateNights, enumerateDays, addDays, toDateKey } from "./dates";
@@ -64,7 +65,7 @@ export async function adjustInventory(
       if (!row) continue; // ngày chưa cập nhật -> bỏ qua
       // Trừ xe: phải đủ xe thật — kẹp âm thầm sẽ làm lệch tồn khi huỷ (cộng lại dư).
       if (direction === -1 && row.availableUnits < booking.quantity) {
-        throw new Error(`Ngày ${toDateKey(date)} chỉ còn ${row.availableUnits} xe — không đủ ${booking.quantity} xe để xác nhận.`);
+        throw new Error(`Ngày ${dmy(date)} chỉ còn ${row.availableUnits} xe — không đủ ${booking.quantity} xe để xác nhận.`);
       }
       const next = Math.max(0, row.availableUnits + delta);
       await tx.rentalAvailability.update({
@@ -85,7 +86,7 @@ export async function adjustInventory(
       });
       if (!row) continue;
       if (direction === -1 && row.availableRooms < booking.quantity) {
-        throw new Error(`Đêm ${toDateKey(date)} chỉ còn ${row.availableRooms} phòng — không đủ ${booking.quantity} phòng để xác nhận.`);
+        throw new Error(`Đêm ${dmy(date)} chỉ còn ${row.availableRooms} phòng — không đủ ${booking.quantity} phòng để xác nhận.`);
       }
       const next = Math.max(0, row.availableRooms + delta);
       await tx.roomAvailability.update({
@@ -148,7 +149,7 @@ async function describeRoomConflicts(
     const k = toDateKey(c.date);
     const who = c.bookingId ? (holders.get(c.bookingId) ?? "đơn khác") : c.note ? `nguồn ${c.note}` : "khoá tay";
     const list = byRoom.get(c.roomId) ?? [];
-    list.push(`${k.slice(8, 10)}/${k.slice(5, 7)} ${ROOM_STATUS_VI[c.status] ?? c.status} (${who})`);
+    list.push(`${dmy(k)} ${ROOM_STATUS_VI[c.status] ?? c.status} (${who})`);
     byRoom.set(c.roomId, list);
   }
   return [...byRoom.entries()]

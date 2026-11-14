@@ -554,6 +554,78 @@ export default async function BookingDetailPage({
         : (b.service?.title ?? b.serviceTitle),
   }));
 
+  // ----- Tin nhắn gửi CHỦ DỊCH VỤ (dán Zalo): mỗi bên một tin riêng — combo tách NHÀ XE / HOMESTAY. -----
+  // Không kèm hotline. Tiền ghi theo phần bên đó THỰC NHẬN (bán ra − chiết khấu sàn). SĐT khách chỉ
+  // kèm khi đơn đã cọc / thanh toán (cùng quy tắc ẩn SĐT ở trang đơn của chủ dịch vụ).
+  const showGuestPhone = b.paymentStatus !== "UNPAID" || b.status === "COMPLETED";
+  const guestLine = `- Khách: ${b.customerName}${showGuestPhone ? ` · ${b.phone}` : ""}`;
+  const moneyLines = (side: "room" | "bus", what: string) => {
+    const p = payouts.find((x) => x.side === side);
+    if (!p || p.gross <= 0) return [`- ${what}: chờ xác nhận giá`];
+    return [
+      p.discount > 0
+        ? `- ${what} thực nhận: ${formatPrice(p.payable)} (giá bán ${formatPrice(p.gross)} − chiết khấu ${formatPrice(p.discount)})`
+        : `- ${what}: ${formatPrice(p.payable)}`,
+      ...(p.paid > 0 ? [`- Tà Xùa Booking đã chuyển: ${formatPrice(p.paid)} · còn lại ${formatPrice(p.remaining)}`] : []),
+    ];
+  };
+  const guestNote = b.note?.split(" · ").filter((x) => !x.startsWith("Tạm tính:")).join(" · ") || "";
+  const noteLine = guestNote ? [`- Ghi chú của khách: ${guestNote}`] : [];
+  const providerMsgs: { key: string; label: string; text: string }[] = [];
+  const hasBusSide = !!outTrip && (b.category === "COMBO" || b.category === "CABIN");
+  if (hasBusSide && outTrip) {
+    providerMsgs.push({
+      key: "bus",
+      label: b.category === "COMBO" ? "Chép tin cho nhà xe" : "Chép tin cho chủ dịch vụ",
+      text: [
+        `Tà Xùa Booking gửi ${outTrip.service.title} đơn ${b.code}:`,
+        guestLine,
+        `- Số khách: ${b.quantity} khách${seatsLabel ? ` · ${seatsLabel}` : ""}`,
+        `- Loại vé: ${retTrip ? "Khứ hồi" : "Một chiều"}`,
+        `- Chiều đi: ${outTrip.departureTime} ngày ${formatDate(outTrip.departureDate)}${outPickup2 ? `, đón tại ${outPickup2}` : ""}`,
+        ...(retTrip
+          ? [`- Chiều về: ${retTrip.departureTime} ngày ${formatDate(retTrip.departureDate)}${dropChosen || pickupChosen ? `, trả tại ${dropChosen || pickupChosen}` : ""}`]
+          : []),
+        ...moneyLines("bus", "Tiền vé"),
+        ...(b.category === "CABIN" ? noteLine : []),
+        "Nhờ nhà xe giữ chỗ giúp. Cảm ơn!",
+      ].join("\n"),
+    });
+  }
+  if (b.category !== "CABIN") {
+    const svcName = b.service?.title ?? b.serviceTitle;
+    const stayish = b.category === "COMBO" || b.category === "HOMESTAY" || b.category === "BUNGALOW";
+    providerMsgs.push({
+      key: "room",
+      label: b.category === "COMBO" ? "Chép tin cho homestay" : "Chép tin cho chủ dịch vụ",
+      text: [
+        `Tà Xùa Booking gửi ${svcName} đơn ${b.code}:`,
+        guestLine,
+        ...(stayish
+          ? [
+              ...(roomsConfirmLabel ? [`- Phòng: ${roomsConfirmLabel}`] : []),
+              ...(isStay
+                ? [
+                    `- Nhận phòng: từ ${STAY_CHECKIN_TIME} ngày ${formatDate(b.useDate)}`,
+                    `- Trả phòng: trước ${STAY_CHECKOUT_TIME} ngày ${formatDate(b.endDate!)} (${b.nights} đêm)`,
+                  ]
+                : [`- Ngày: ${formatDate(b.useDate)}`]),
+              `- Số khách: ${partyLabelStr}`,
+            ]
+          : isRental
+            ? [...rentLines.map((l) => `- ${l}`), `- Số xe: ${partyLabelStr}`]
+            : [
+                `- Ngày: ${formatDate(b.useDate)}${b.endDate ? ` → ${formatDate(b.endDate)}` : ""}`,
+                ...(b.selectionLabel ? [`- Dịch vụ: ${b.selectionLabel}`] : []),
+                `- Số lượng: ${partyLabelStr}`,
+              ]),
+        ...moneyLines("room", stayish ? "Tiền phòng" : "Tiền dịch vụ"),
+        ...noteLine,
+        stayish ? "Nhờ home giữ phòng giúp. Cảm ơn!" : "Nhờ anh/chị xác nhận giúp. Cảm ơn!",
+      ].join("\n"),
+    });
+  }
+
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-4">
       {/* Thanh trên: quay lại + điều hướng đơn + sao chép */}
@@ -579,7 +651,6 @@ export default async function BookingDetailPage({
         </div>
         <span className="flex-1" />
         <CopyChip text={b.code} label={`Chép mã ${b.code}`} toast="Đã chép mã đơn" />
-        <CopyChip text={summaryText} label="Chép tóm tắt cho nhà xe" toast="Đã chép tóm tắt, dán vào Zalo nhà cung cấp" />
       </div>
 
       {/* Thẻ đầu: mã + badge + liên hệ + stepper */}
@@ -641,6 +712,10 @@ export default async function BookingDetailPage({
             )}
             <CopyChip text={customerMsg} label="Chép tin nhắn cho khách" toast="Đã chép tin nhắn mẫu" className="border-[1.5px] py-2.5" />
             <CopyChip text={confirmMsg} label="Chép xác nhận chốt đơn" toast="Đã chép nội dung xác nhận gửi khách" className="border-[1.5px] border-forest-300 bg-forest-50 py-2.5 text-forest-700 hover:bg-forest-100" />
+            {/* Tin nhắn cho chủ dịch vụ: combo có 2 nút riêng (nhà xe / homestay). */}
+            {providerMsgs.map((m) => (
+              <CopyChip key={m.key} text={m.text} label={m.label} toast="Đã chép tin nhắn, dán vào Zalo chủ dịch vụ" className="border-[1.5px] border-sky-300 bg-sky-50 py-2.5 text-sky-800 hover:bg-sky-100" />
+            ))}
           </div>
         </div>
 

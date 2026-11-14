@@ -1,7 +1,7 @@
 "use client";
 
+import { dmy } from "@/lib/date-format";
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import type { BookingStatus } from "@prisma/client";
 import { ST, CAT_BADGE, CAT_OPTIONS, type BookingRow } from "./BookingsListClient";
 
@@ -27,7 +27,7 @@ const keyOf = (y: number, m: number, d: number) => new Date(Date.UTC(y, m, d)).t
 const utc = (k: string) => Date.UTC(Number(k.slice(0, 4)), Number(k.slice(5, 7)) - 1, Number(k.slice(8, 10)));
 const diffDays = (a: string, b: string) => Math.round((utc(b) - utc(a)) / 864e5);
 const weekday = (k: string) => new Date(utc(k)).getUTCDay();
-const dm = (k: string) => `${k.slice(8, 10)}/${k.slice(5, 7)}`;
+const dm = (k: string) => dmy(k); // dd/mm/yyyy
 const money = (n: number) => n.toLocaleString("vi-VN") + "đ";
 const short = (n: number) =>
   n >= 1e6 ? (n / 1e6).toFixed(1).replace(".", ",").replace(",0", "") + "tr" : Math.round(n / 1000) + "k";
@@ -164,11 +164,12 @@ export default function BookingsCalendar({
         key={r.id}
         className={`flex min-w-0 animate-[fadeIn_.2s_ease_both] flex-col gap-2 rounded-2xl border bg-white px-3.5 py-3 ${urg ? "border-sunset-300" : "border-gray-200"}`}
       >
-        {/* Bấm vào phần thông tin đơn → trang chi tiết (nút "Xử lý" bên dưới vẫn mở ngăn xử lý nhanh). */}
-        <Link
-          href={`/admin/bookings/${r.id}`}
-          title={`Mở chi tiết đơn ${r.code}`}
-          className="-m-1 flex items-start gap-2.5 rounded-xl p-1 transition hover:bg-forest-50/60"
+        {/* Bấm vào phần thông tin đơn → mở ngăn xử lý nhanh NGAY TẠI trang (không chuyển sang trang chi tiết). */}
+        <button
+          type="button"
+          onClick={() => onOpen(r.id)}
+          title={`Xem & xử lý đơn ${r.code} ngay tại đây`}
+          className="-m-1 flex items-start gap-2.5 rounded-xl p-1 text-left transition hover:bg-forest-50/60"
         >
           <span className={`flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[9px] text-[11px] font-extrabold ${catTone}`}>{catK}</span>
           <div className="min-w-0 flex-1">
@@ -188,7 +189,7 @@ export default function BookingsCalendar({
             <div className="text-[15px] font-extrabold text-ink">{r.price != null ? money(r.price) : "—"}</div>
             <div className="text-xs text-gray-500">{r.paxLabel}</div>
           </div>
-        </Link>
+        </button>
         <div className="flex flex-wrap gap-1.5">
           {chips.map((c, i) => (
             <span key={i} className="max-w-full truncate rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-700">{c}</span>
@@ -321,11 +322,14 @@ export default function BookingsCalendar({
                       const meta = ST[r.status];
                       const cont = r.useDate !== k;
                       return (
-                        <Link
+                        <button
+                          type="button"
                           key={r.id}
-                          href={`/admin/bookings/${r.id}`}
-                          onClick={(ev) => ev.stopPropagation()}
-                          title={`${r.code} · ${r.name} · ${meta.name} — bấm để mở chi tiết đơn`}
+                          onClick={(ev) => {
+                            ev.stopPropagation();
+                            onOpen(r.id);
+                          }}
+                          title={`${r.code} · ${r.name} · ${meta.name} — bấm để xử lý đơn ngay tại đây`}
                           className={`min-w-0 items-center gap-1 rounded-md px-1.5 py-[3px] text-[11px] font-bold hover:ring-1 hover:ring-current ${meta.bg} ${meta.fg} ${cont ? "opacity-60" : ""} ${
                             i === 2 ? "hidden 2xl:flex" : "flex"
                           }`}
@@ -333,7 +337,7 @@ export default function BookingsCalendar({
                           <span className={`h-1.5 w-1.5 flex-none rounded-full ${meta.dot}`} />
                           <span className="flex-none text-[10px] font-extrabold opacity-75">{(CAT_BADGE[r.cat] ?? ["DV"])[0]}</span>
                           <span className="truncate">{(cont ? "↳ " : "") + r.name.trim().split(/\s+/).slice(-2).join(" ")}</span>
-                        </Link>
+                        </button>
                       );
                     })}
                     {list.length > 2 && (

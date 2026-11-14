@@ -1,3 +1,4 @@
+import { dmy as dmyDate } from "@/lib/date-format";
 import { NextResponse } from "next/server";
 import type { RoomStatus } from "@prisma/client";
 import { getSession } from "@/lib/auth";
@@ -77,7 +78,7 @@ export async function POST(request: Request) {
           bookingId: bk.id,
           kind: "SYSTEM",
           title: "Sửa tay tình trạng phòng",
-          body: `Phòng ${room.name} ngày ${date}: ${STATUS_LABEL[existing.status]} → ${STATUS_LABEL[status as RoomStatus]} (ghi đè ô do đơn giữ chỗ)`,
+          body: `Phòng ${room.name} ngày ${dmyDate(date)}: ${STATUS_LABEL[existing.status]} → ${STATUS_LABEL[status as RoomStatus]} (ghi đè ô do đơn giữ chỗ)`,
           by: session.name || session.username || "Admin",
         },
       });

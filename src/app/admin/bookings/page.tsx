@@ -1,3 +1,4 @@
+import { dmy } from "@/lib/date-format";
 import { prisma } from "@/lib/prisma";
 import { CATEGORIES } from "@/lib/constants";
 import { toNumber } from "@/lib/format";
@@ -125,7 +126,7 @@ export default async function AdminBookingsPage({
     const retDate = b.cabinReturnTripId ? tripDate.get(b.cabinReturnTripId) : undefined;
     const startDate = outDate ?? (isCombo ? addDays(b.useDate, -1) : b.useDate);
     const finishDate = retDate ?? b.endDate;
-    if (isCombo) chips.push(`nhận phòng ${b.useDate.toISOString().slice(8, 10)}/${b.useDate.toISOString().slice(5, 7)}`);
+    if (isCombo) chips.push(`nhận phòng ${dmy(b.useDate)}`);
 
     const price = toNumber(b.referencePrice);
     const collected = toNumber(b.amountCollected) ?? 0;

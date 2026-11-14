@@ -1,3 +1,4 @@
+import { vnDateTime } from "@/lib/date-format";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
@@ -779,7 +780,7 @@ export default async function EditServicePage({
                     <div className="text-[12px] text-gray-500">
                       {service.sheetSyncedAt ? (
                         <>
-                          Lần gần nhất: {service.sheetSyncedAt.toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}
+                          Lần gần nhất: {vnDateTime(service.sheetSyncedAt)}
                           {service.sheetSyncResult ? <> · {service.sheetSyncResult}</> : null}
                         </>
                       ) : (

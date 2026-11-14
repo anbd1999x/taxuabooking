@@ -10,6 +10,7 @@ const TIME_FMT = new Intl.DateTimeFormat("vi-VN", {
   minute: "2-digit",
   day: "2-digit",
   month: "2-digit",
+  year: "numeric",
 });
 const FULL_FMT = new Intl.DateTimeFormat("vi-VN", {
   timeZone: "Asia/Ho_Chi_Minh",
@@ -110,7 +111,7 @@ export default async function SheetSyncPage() {
                   <ul className="mt-2 divide-y divide-gray-50 border-t border-gray-100 text-xs">
                     {s.sheetSyncLogs.map((log) => (
                       <li key={log.id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 py-1.5">
-                        <span className="w-24 shrink-0 tabular-nums text-gray-400" title={FULL_FMT.format(log.createdAt)}>
+                        <span className="w-32 shrink-0 tabular-nums text-gray-400" title={FULL_FMT.format(log.createdAt)}>
                           {TIME_FMT.format(log.createdAt)}
                         </span>
                         <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${log.source === "CRON" ? "bg-sky-50 text-sky-700" : "bg-amber-50 text-amber-700"}`}>

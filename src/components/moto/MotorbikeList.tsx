@@ -1,5 +1,6 @@
 "use client";
 
+import { wdDmy } from "@/lib/date-format";
 import { SitePhone } from "@/components/SiteContact";
 import Link from "next/link";
 import Image from "next/image";
@@ -53,9 +54,7 @@ function rnd(i: number, kk: number) {
 }
 function fmtD(ds: string) {
   if (!ds) return "";
-  const [y, m, d] = ds.split("-").map(Number);
-  const wd = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"][new Date(y, m - 1, d).getDay()];
-  return `${wd}, ${d}/${m}`;
+  return wdDmy(ds); // "T7, 05/12/2026"
 }
 
 export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: string; to: string }) {

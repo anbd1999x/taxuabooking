@@ -1,5 +1,6 @@
 "use client";
 
+import { dmy } from "@/lib/date-format";
 import { SupportHoursNote } from "@/components/SupportHours";
 import { ItineraryLink } from "@/components/itinerary/ItineraryLink";
 import { We } from "@/components/SiteContact";
@@ -852,8 +853,7 @@ function ComboPlanCard({
 }
 
 function fmtDayKey(key: string): string {
-  const [, m, d] = key.split("-");
-  return `${d}/${m}`;
+  return dmy(key);
 }
 
 /** Modal ảnh + nội dung: bottom sheet mobile, hộp giữa desktop (theo thiết kế Combo Kết quả). */

@@ -1,5 +1,6 @@
 "use client";
 
+import { dmy } from "@/lib/date-format";
 import { SupportHoursNote } from "@/components/SupportHours";
 import { ItineraryLink } from "@/components/itinerary/ItineraryLink";
 import { VoiceText } from "@/components/SiteContact";
@@ -363,7 +364,7 @@ export function HomestayBooking({
 
   const dname = (k: string) => {
     const d = parseKey(k);
-    return WD[wdIndex(d)] + ", " + String(d.getUTCDate()).padStart(2, "0") + "/" + String(d.getUTCMonth() + 1).padStart(2, "0");
+    return WD[wdIndex(d)] + ", " + dmy(k);
   };
   const calHint = !ci
     ? "Bấm chọn ngày nhận phòng"

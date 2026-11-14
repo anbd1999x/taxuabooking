@@ -1,5 +1,6 @@
 "use client";
 
+import { dmy } from "@/lib/date-format";
 import { useState } from "react";
 import { DateField } from "@/components/DateField";
 import { QtyInput } from "@/components/QtyInput";
@@ -16,10 +17,9 @@ function addD(key: string, n: number): string {
   const dt = new Date(Date.UTC(y, m - 1, d + n));
   return dt.toISOString().slice(0, 10);
 }
-/** "2026-12-14" → "14/12" cho dễ đọc. */
+/** "2026-12-14" → "14/12/2026" (chuẩn dd/mm/yyyy toàn hệ thống). */
 function fmtD(key: string): string {
-  const [, m, d] = key.split("-");
-  return `${d}/${m}`;
+  return dmy(key);
 }
 /** Số đêm giữa 2 key (b − a). */
 function diffDays(a: string, b: string): number {

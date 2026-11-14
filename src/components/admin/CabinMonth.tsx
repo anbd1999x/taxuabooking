@@ -1,5 +1,6 @@
 "use client";
 
+import { dmy } from "@/lib/date-format";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -308,7 +309,7 @@ function DayPanel({
     <>
       <div style={{ position: "sticky", top: 0, zIndex: 1, background: "white", padding: "14px 16px 12px", borderBottom: "1px solid oklch(0.94 0.01 150)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 800 }}>{dName}, {Number(dk.slice(8, 10))}/{Number(dk.slice(5, 7))}</div>
+          <div style={{ fontSize: 18, fontWeight: 800 }}>{dName}, {dmy(dk)}</div>
           <div style={{ fontSize: 13, color: M, marginTop: 2 }}>{dayBooked} vé đã đặt</div>
         </div>
         {mobile && <div onClick={closeDay} style={{ cursor: "pointer", fontSize: 15, fontWeight: 700, padding: "10px 16px", borderRadius: 12, background: G, color: "white" }}>Xong</div>}

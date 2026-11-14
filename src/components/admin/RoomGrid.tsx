@@ -1,5 +1,6 @@
 "use client";
 
+import { dmy } from "@/lib/date-format";
 import { useState } from "react";
 import type { RoomStatus } from "@prisma/client";
 
@@ -140,7 +141,7 @@ export function RoomGrid({
                           type="button"
                           onClick={() => cycle(r.id, date)}
                           className={`h-7 w-full rounded ${c.cls} text-[11px] font-medium transition`}
-                          title={`${r.name} · ${date}`}
+                          title={`${r.name} · ${dmy(date)}`}
                         >
                           {c.label}
                         </button>

@@ -1,3 +1,4 @@
+import { dmy, vnDateTime } from "@/lib/date-format";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { toNumber } from "@/lib/format";
@@ -13,7 +14,6 @@ export const dynamic = "force-dynamic";
 
 const DOW = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"];
 const cal = (d: Date) => ({ mon: "TH " + (d.getUTCMonth() + 1), day: d.getUTCDate(), dow: DOW[d.getUTCDay()] });
-const dmy = (d: Date) => d.getUTCDate() + "/" + (d.getUTCMonth() + 1);
 const two = (n: number) => String(n).padStart(2, "0");
 
 function mapStatus(status: string, pay: string): POStatus {
@@ -124,7 +124,7 @@ export default async function ProviderOrdersPage() {
     return {
       id: b.id,
       code: b.code,
-      createdText: `${dmy(b.createdAt)} ${two(b.createdAt.getHours())}:${two(b.createdAt.getMinutes())}`,
+      createdText: vnDateTime(b.createdAt), // giờ VN, dd/mm/yyyy
       createdSort: b.createdAt.toISOString(),
       st,
       src: b.ctvId ? "ctv" : "web",
@@ -163,7 +163,7 @@ export default async function ProviderOrdersPage() {
 
   const scopeLabel = myServices.length === 1 ? myServices[0].title : `${myServices.length} dịch vụ`;
   const now = new Date();
-  const todayText = `Hôm nay ${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
+  const todayText = `Hôm nay ${vnDateTime(now).split(" ")[1]}`;
 
   return <ProviderOrders orders={orders} scopeLabel={scopeLabel} todayText={todayText} todayKey={toDateKey(today())} />;
 }

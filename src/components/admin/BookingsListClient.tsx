@@ -1,5 +1,6 @@
 "use client";
 
+import { wdDmy, vnDateTime } from "@/lib/date-format";
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import type { BookingStatus } from "@prisma/client";
@@ -79,7 +80,8 @@ const RANGES: [string, string][] = [
 ];
 
 const K = (n: number) => n.toLocaleString("vi-VN") + "đ";
-const fmtDM = (ds: string) => `${ds.slice(8, 10)}/${ds.slice(5, 7)}`;
+/** Ngày dùng trong danh sách: kèm THỨ + đủ dd/mm/yyyy — "T7, 05/12/2026". */
+const fmtDM = (ds: string) => wdDmy(ds);
 
 /** Số ngày từ hôm nay (theo giờ máy admin) tới ngày dùng. */
 function daysTo(ds: string) {
@@ -236,7 +238,7 @@ export default function BookingsListClient({
         r.pay === "full" ? "Đã thu đủ" : r.pay === "dep" ? "Đã cọc" : "Chưa thu",
         ST[r.status].name,
         r.ctvName ? `CTV ${r.ctvName}` : "Web",
-        new Date(r.createdAt).toLocaleString("vi-VN"),
+        vnDateTime(r.createdAt),
       ]
         .map((v) => `"${String(v).replace(/"/g, '""')}"`)
         .join(","),
@@ -478,7 +480,7 @@ export default function BookingsListClient({
                 onChange={() => setSel({ ...sel, [r.id]: !sel[r.id] })}
                 className="h-4 w-4 accent-forest-700"
               />
-              <Link href={`/admin/bookings/${r.id}`} className="min-w-0 overflow-hidden">
+              <button type="button" onClick={() => setDrawerId(r.id)} title="Xem & xử lý đơn ngay tại đây" className="min-w-0 overflow-hidden text-left">
                 <span className="flex flex-wrap items-center gap-1.5">
                   <span className="font-mono text-[13px] font-extrabold tracking-tight text-ink">{r.code}</span>
                   <span
@@ -518,8 +520,8 @@ export default function BookingsListClient({
                   <span className={soonHot ? "font-semibold text-sunset-600" : "text-gray-500"}>{soon}</span>
                   <span className="font-extrabold text-ink">{r.price != null ? K(r.price) : ""}</span>
                 </span>
-              </Link>
-              <Link href={`/admin/bookings/${r.id}`} className="hidden min-w-0 overflow-hidden lg:block">
+              </button>
+              <button type="button" onClick={() => setDrawerId(r.id)} title="Xem & xử lý đơn ngay tại đây" className="hidden min-w-0 overflow-hidden text-left lg:block">
                 <span className="flex min-w-0 items-start gap-1.5">
                   <span className={`mt-0.5 flex-none rounded-md px-1.5 py-0.5 text-[10px] font-extrabold ${catTone}`}>{catK}</span>
                   <span className="line-clamp-2 min-w-0 break-words text-sm font-bold leading-snug text-ink">{r.title}</span>
@@ -531,10 +533,10 @@ export default function BookingsListClient({
                     ))}
                   </span>
                 )}
-              </Link>
+              </button>
               <div className="hidden min-w-0 overflow-hidden lg:block">
                 <div className="text-[13px] font-bold leading-snug text-ink">
-                  {r.endDate && r.endDate !== r.useDate ? `${fmtDM(r.useDate)} → ${fmtDM(r.endDate)}` : `${fmtDM(r.useDate)}/${r.useDate.slice(0, 4)}`}
+                  {r.endDate && r.endDate !== r.useDate ? `${fmtDM(r.useDate)} → ${fmtDM(r.endDate)}` : fmtDM(r.useDate)}
                 </div>
                 <div className={`mt-0.5 text-xs ${soonHot ? "font-semibold text-sunset-600" : "text-gray-500"}`} suppressHydrationWarning>{soon}</div>
               </div>
@@ -568,6 +570,13 @@ export default function BookingsListClient({
                 >
                   Gọi
                 </a>
+                <EditBookingPopup
+                  bookingId={r.id}
+                  title="Sửa đơn ngay tại đây (popup)"
+                  className="whitespace-nowrap rounded-full border-[1.5px] border-forest-700 px-2.5 py-1.5 text-[13px] font-bold text-forest-700 hover:bg-forest-50 disabled:opacity-60"
+                >
+                  ✎ Sửa
+                </EditBookingPopup>
                 <button
                   type="button"
                   onClick={() => setDrawerId(r.id)}
@@ -648,7 +657,7 @@ export default function BookingsListClient({
                 <div className="text-[15px] font-extrabold text-ink">{dx.catLabel} · {dx.title}</div>
                 {[
                   ["Khách", `${dx.name} · ${dx.phone}`],
-                  ["Ngày dùng", dx.endDate && dx.endDate !== dx.useDate ? `${fmtDM(dx.useDate)} → ${fmtDM(dx.endDate)}/${dx.useDate.slice(0, 4)}` : `${fmtDM(dx.useDate)}/${dx.useDate.slice(0, 4)}`],
+                  ["Ngày dùng", dx.endDate && dx.endDate !== dx.useDate ? `${fmtDM(dx.useDate)} → ${fmtDM(dx.endDate)}` : fmtDM(dx.useDate)],
                   ["Số lượng", dx.paxLabel],
                   ...(dx.chips.length ? [["Chi tiết", dx.chips.join(" · ")]] : []),
                   ["Nguồn", dx.ctvName ? `Qua CTV ${dx.ctvName}` : "Khách tự đặt trên website"],

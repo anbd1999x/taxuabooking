@@ -1,3 +1,4 @@
+import { dmy } from "@/lib/date-format";
 import "server-only";
 import { prisma } from "./prisma";
 import { parseDateOnly, toDateKey, addDays, enumerateNights, today } from "./dates";
@@ -963,7 +964,7 @@ export async function createComboBooking(
     for (const d of nights) {
       const p = priceForDay(d, pricing, null);
       // Đêm giá ≤ 0 (IB/chưa nhập) → không tự tính được (trước đây cộng 0đ cho đêm đó).
-      if (p <= 0) throw new Error(`Phòng ${r.name} chưa có giá đêm ${toDateKey(d)} — vui lòng liên hệ để báo giá.`);
+      if (p <= 0) throw new Error(`Phòng ${r.name} chưa có giá đêm ${dmy(d)} — vui lòng liên hệ để báo giá.`);
       c += p;
     }
     return c;
@@ -1065,9 +1066,9 @@ export async function createComboBooking(
 
   const busSvc = await prisma.service.findUnique({ where: { id: outbound.serviceId }, select: { title: true, busCommission: true } });
   const selectionLabel =
-    `Combo: xe ${outbound.operatorName || busSvc?.title || "cabin"} (đi ${toDateKey(outbound.departureDate)} ${outbound.departureTime}, ` +
-    `về ${toDateKey(ret.departureDate)} ${ret.departureTime}${origin ? `, đón tại ${origin}` : ""}) + ${svc.title} · ${roomsLabel}, ` +
-    `${nights.length} đêm (${toDateKey(checkIn)}→${toDateKey(to)}) · ${partyLabel(adults, childrenAges)}` +
+    `Combo: xe ${outbound.operatorName || busSvc?.title || "cabin"} (đi ${dmy(outbound.departureDate)} ${outbound.departureTime}, ` +
+    `về ${dmy(ret.departureDate)} ${ret.departureTime}${origin ? `, đón tại ${origin}` : ""}) + ${svc.title} · ${roomsLabel}, ` +
+    `${nights.length} đêm (${dmy(checkIn)} → ${dmy(to)}) · ${partyLabel(adults, childrenAges)}` +
     (freeKids > 0 ? ` (${freeKids} trẻ miễn phí, ở cùng)` : "") +
     ` · xe nằm: ${[nDouble ? `${nDouble} khách nằm ghép (cabin đôi)` : null, nSingle ? `${nSingle} khách nằm riêng (cabin đơn)` : null].filter(Boolean).join(" + ")}`;
 

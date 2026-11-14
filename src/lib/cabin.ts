@@ -1,3 +1,4 @@
+import { dmy } from "@/lib/date-format";
 import "server-only";
 import { unstable_cache } from "next/cache";
 import type { AvailabilityStatus, CabinDirection, ServiceCategory } from "@prisma/client";
@@ -72,7 +73,7 @@ function label(d: Date) {
   return {
     key: toDateKey(d),
     wd: WD[d.getUTCDay()],
-    dd: `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}`,
+    dd: dmy(d), // dd/mm/yyyy (ô dải ngày chỉ lấy 2 ký tự đầu = số ngày)
   };
 }
 
@@ -376,8 +377,8 @@ export async function createCabinBooking(
   // Ngày: không đặt chuyến đã chạy; chiều về không được trước chiều đi; ngày hết vé không bán.
   if (outView.departureDate < today()) throw new Error("Chuyến đi đã qua ngày khởi hành.");
   if (retView && retView.departureDate < outView.departureDate) throw new Error("Ngày về phải cùng hoặc sau ngày đi.");
-  if (outView.closed) throw new Error(`Ngày đi ${toDateKey(outView.departureDate)} nhà xe đã hết vé — vui lòng chọn ngày khác.`);
-  if (retView?.closed) throw new Error(`Ngày về ${toDateKey(retView.departureDate)} nhà xe đã hết vé — vui lòng chọn ngày khác.`);
+  if (outView.closed) throw new Error(`Ngày đi ${dmy(outView.departureDate)} nhà xe đã hết vé — vui lòng chọn ngày khác.`);
+  if (retView?.closed) throw new Error(`Ngày về ${dmy(retView.departureDate)} nhà xe đã hết vé — vui lòng chọn ngày khác.`);
 
   const outbound = await materializeTrip(input.outboundTripId);
   if (!outbound) throw new Error("Chuyến đi không hợp lệ.");
@@ -430,8 +431,8 @@ export async function createCabinBooking(
       ? `chờ báo giá (${ret ? "khứ hồi" : "1 chiều"} từ ${origin})`
       : `${fmt(fare)}/khách ${ret ? "khứ hồi" : "1 chiều"} từ ${origin}`;
   const selectionLabel = ret
-    ? `Khứ hồi · ${tickets} · ${fareText} · đi ${toDateKey(outbound.departureDate)} ${outbound.departureTime}, về ${toDateKey(ret.departureDate)} ${ret.departureTime}`
-    : `Một chiều · ${tickets} · ${fareText} · ${toDateKey(outbound.departureDate)} ${outbound.departureTime}`;
+    ? `Khứ hồi · ${tickets} · ${fareText} · đi ${dmy(outbound.departureDate)} ${outbound.departureTime}, về ${dmy(ret.departureDate)} ${ret.departureTime}`
+    : `Một chiều · ${tickets} · ${fareText} · ${dmy(outbound.departureDate)} ${outbound.departureTime}`;
 
   const noteParts = [
     input.note?.trim() || null,

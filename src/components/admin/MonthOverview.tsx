@@ -1,5 +1,6 @@
 "use client";
 
+import { dmy } from "@/lib/date-format";
 import { useEffect, useState } from "react";
 import type { RoomStatus } from "@prisma/client";
 import type { RoomGroup } from "./RoomGrid";
@@ -179,7 +180,7 @@ export function MonthOverview({
       }));
 
   const selWd = sel ? ["CN", "T2", "T3", "T4", "T5", "T6", "T7"][dow(sel)] : "";
-  const panelTitle = sel ? `${selWd}, ${sel.slice(8, 10)}/${sel.slice(5, 7)}` : "Đêm còn trống theo phòng";
+  const panelTitle = sel ? `${selWd}, ${dmy(sel)}` : "Đêm còn trống theo phòng";
   const panelSub = sel ? `${freeOf(sel)}/${total} phòng trống` : monthLabel;
 
   const listItems = (

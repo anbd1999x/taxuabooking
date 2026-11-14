@@ -1,5 +1,6 @@
 "use server";
 
+import { dmy } from "@/lib/date-format";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { BookingStatus, PaymentStatus, Prisma } from "@prisma/client";
@@ -80,7 +81,7 @@ export async function quoteAdminBooking(
   if (service.category === "CABIN") {
     const map = (t: { id: string; departureDate: Date; departureTime: string; route: string; price: unknown; seatsAvailable: number; status: string }): CabinTripItem => ({
       id: t.id,
-      label: `${toDateKey(t.departureDate)} ${t.departureTime} · ${t.route}`,
+      label: `${dmy(t.departureDate)} ${t.departureTime} · ${t.route}`,
       price: toNumber(t.price as never),
       seatsAvailable: t.seatsAvailable,
       status: t.status,
@@ -325,10 +326,10 @@ async function buildAdminBookingData(
     busCommission = busCommissionFor(bus.busCommission, people, 2);
     const tickets = [shared ? `${shared} khách nằm ghép (cabin đôi)` : null, solo ? `${solo} khách nằm riêng (cabin đơn)` : null].filter(Boolean).join(" + ");
     const busWhen =
-      `đi ${toDateKey(outbound.departureDate)} ${outbound.departureTime}, về ${toDateKey(ret.departureDate)} ${ret.departureTime}`;
+      `đi ${dmy(outbound.departureDate)} ${outbound.departureTime}, về ${dmy(ret.departureDate)} ${ret.departureTime}`;
     selectionLabel =
       `Combo: xe ${bus.title} từ ${origin} (${busWhen}) · ${rooms.map((o) => o.name).join(", ") || "chưa chọn phòng"} · ` +
-      `${nights ?? 0} đêm (${checkInKey}→${endDateRaw}) · ${people} khách · xe: ${tickets}` +
+      `${nights ?? 0} đêm (${dmy(checkInKey)} → ${dmy(endDateRaw)}) · ${people} khách · xe: ${tickets}` +
       (comboExtra.cost > 0 ? ` · +${comboExtra.extraGuests} khách phụ thu ${formatPrice(comboExtra.cost)}` : "");
   } else if (service.category === "CABIN") {
     const shared = int(fd, "shared");
@@ -370,8 +371,8 @@ async function buildAdminBookingData(
       .join(" + ");
     const when = outbound
       ? ret
-        ? `đi ${toDateKey(outbound.departureDate)} ${outbound.departureTime}, về ${toDateKey(ret.departureDate)} ${ret.departureTime}`
-        : `${toDateKey(outbound.departureDate)} ${outbound.departureTime}`
+        ? `đi ${dmy(outbound.departureDate)} ${outbound.departureTime}, về ${dmy(ret.departureDate)} ${ret.departureTime}`
+        : `${dmy(outbound.departureDate)} ${outbound.departureTime}`
       : "chưa gán chuyến";
     selectionLabel = `${ret || endDate ? "Khứ hồi" : "Một chiều"} từ ${origin} · ${tickets} · ${when}`;
   } else if (kind === "stay") {
@@ -602,7 +603,7 @@ export async function updateAdminBooking(
   if (old.commissionPaid && old.ctvId === data.ctvId) data.commissionAmount = old.commissionAmount;
 
   // Nhật ký: các trường đổi.
-  const fmtD = (d: Date | string | null | undefined) => (d ? (typeof d === "string" ? d.slice(0, 10) : toDateKey(d)) : "—");
+  const fmtD = (d: Date | string | null | undefined) => (d ? dmy(d) : "—");
   const num = (v: unknown) => (v == null ? null : Number(v));
   const changes: string[] = [];
   const diff = (label: string, a: unknown, c: unknown) => {

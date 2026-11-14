@@ -1,5 +1,6 @@
 "use server";
 
+import { dmy } from "@/lib/date-format";
 import { revalidatePath, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import type { BookingStatus, PaymentStatus, Prisma } from "@prisma/client";
@@ -685,7 +686,7 @@ export async function updateBookingInfo(
   };
 
   // Các trường đổi → nhật ký.
-  const fmtD = (d: Date | null) => (d ? toDateKey(d) : "—");
+  const fmtD = (d: Date | null) => (d ? dmy(d) : "—");
   const changes: string[] = [];
   const diff = (label: string, a: unknown, c: unknown) => {
     if (String(a ?? "") !== String(c ?? "")) changes.push(`${label}: ${a ?? "—"} → ${c ?? "—"}`);

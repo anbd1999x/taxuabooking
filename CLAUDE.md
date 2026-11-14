@@ -72,6 +72,7 @@ src/middleware.ts  Bảo vệ /admin + phân quyền theo vai trò
 - **Phiên** chứa `role`. `src/lib/auth.ts` (server-only: cookie + bcrypt) vs `src/lib/auth-token.ts` (ký/verify JWT, dùng được ở middleware edge).
 - **Upload**: `/api/admin/upload` (ảnh ≤5MB; video mp4/webm/mov ≤50MB chỉ cho hạng phòng) → lưu `public/uploads`. Gắn media theo `serviceId` (ServiceImage) / `roomTypeId` (RoomTypeImage, cho cả video) / `roomId` (RoomImage, chỉ ảnh).
 - Tiền dùng `Decimal(12,0)`; chuyển sang number qua `toNumber`, hiển thị qua `formatPrice` (`src/lib/format.ts`). Ngày @db.Date xử lý UTC trong `src/lib/dates.ts`.
+- **Ngày hiển thị luôn là `dd/mm/yyyy`** (toàn hệ thống, kể cả nhãn đơn/lịch sử/thông báo lỗi): dùng `dmy` / `wdDmy` ("T7, 05/12/2026") / `vnDateTime` trong `src/lib/date-format.ts` (file thuần, dùng được ở client) hoặc `formatDate` (`format.ts`). Không tự ghép `d/m` hay in key `yyyy-mm-dd` ra giao diện; chỉ ô lịch/lưới theo ngày mới hiện rút gọn.
 - Gallery ảnh (`Gallery`, `CardSlider`) là slider vuốt được (scroll-snap).
 
 ## 9. Lưu ý môi trường (Windows)
