@@ -64,7 +64,8 @@ export const COMBO_MOTORBIKE_PER_DAY = 170_000;
 export function comboMotorbikeDays(nights: number): number {
   return Math.max(1, Math.floor(nights) || 0);
 }
-/** Tiền thuê xe máy thêm vào combo = số xe × số ngày × 170k. */
+/** Tiền thuê xe máy kèm combo = số xe × số ngày × 170k. Dịch vụ TÍNH RIÊNG: không cộng vào
+ *  bill combo, khách thanh toán khi giao xe (chỉ ghi chú trong đơn). */
 export function comboMotorbikeCost(bikes: number, nights: number): number {
   return Math.max(0, Math.floor(bikes) || 0) * comboMotorbikeDays(nights) * COMBO_MOTORBIKE_PER_DAY;
 }

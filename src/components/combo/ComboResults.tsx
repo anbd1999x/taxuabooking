@@ -647,6 +647,11 @@ function ComboPlanCard({
                   <div className="mt-0.5 text-2xl font-extrabold text-ink">{done.code}</div>
                   <div className="mt-1 text-sm leading-relaxed text-gray-600"><We cap /> sẽ gọi <b>{phone}</b> để xác nhận xe, phòng và chốt giá. Chưa thanh toán online.</div>
                 </div>
+                {bikes > 0 && (
+                  <div className="rounded-xl border border-dashed border-sunset-300 bg-sunset-50 p-3.5 text-[13px] leading-relaxed text-gray-700">
+                    🏍️ <b className="text-ink">Thuê xe máy: {bikes} xe × {bikeDays} ngày = {vnd(bikeCost)}</b> — dịch vụ đi kèm, <b>tính riêng, không nằm trong bill combo</b>. Thanh toán trực tiếp khi giao xe.
+                  </div>
+                )}
                 <SupportHoursNote />
                 <button type="button" onClick={() => setOpenForm(false)} className="rounded-full bg-forest-600 py-3 text-center text-sm font-bold text-white hover:bg-forest-700">Xong</button>
               </div>
@@ -682,13 +687,19 @@ function ComboPlanCard({
                     </span>
                   </div>
                   <div className="mt-1 flex justify-between gap-2 border-t border-gray-200 pt-1.5"><span className="text-gray-500">Trọn gói</span><span className="text-right font-extrabold text-sunset-600">{hasStrike && <span className="mr-1.5 text-xs font-semibold text-gray-400 line-through">{vnd(ppOld!)}</span>}{vnd(pricePerPerson)}/khách · {vnd(total)} / {people} người</span></div>
-                  {bikes > 0 && (
-                    <>
-                      <div className="flex justify-between gap-2"><span className="text-gray-500">Thuê xe máy</span><span className="text-right font-bold text-ink">{bikes} xe × {bikeDays} ngày · + {vnd(bikeCost)}</span></div>
-                      <div className="flex justify-between gap-2 border-t border-gray-200 pt-1.5"><span className="font-bold text-ink">Tổng cộng</span><span className="text-right font-extrabold text-sunset-600">{vnd(total + bikeCost)}</span></div>
-                    </>
-                  )}
                 </div>
+
+                {/* Xe máy = dịch vụ đi kèm TÍNH RIÊNG: không cộng vào bill combo, trả khi giao xe */}
+                {bikes > 0 && (
+                  <div className="flex flex-col gap-1 rounded-xl border border-dashed border-sunset-300 bg-sunset-50 p-3.5 text-[13px]">
+                    <div className="flex justify-between gap-2">
+                      <span className="font-bold text-ink">🏍️ Thuê xe máy <span className="font-semibold text-gray-500">(dịch vụ kèm · tính riêng)</span></span>
+                      <span className="flex-none text-right font-extrabold text-ink">{vnd(bikeCost)}</span>
+                    </div>
+                    <div className="text-xs text-gray-600">{bikes} xe × {bikeDays} ngày × {vnd(COMBO_MOTORBIKE_PER_DAY)}</div>
+                    <div className="text-xs font-semibold leading-relaxed text-sunset-700">Không tính vào bill combo ở trên — thanh toán trực tiếp khi giao xe.</div>
+                  </div>
+                )}
 
                 {/* Chỗ nằm trên xe cabin: chọn nằm ghép (đôi) / nằm riêng (đơn) */}
                 <div className="flex flex-col gap-2.5 rounded-xl border border-gray-200 p-3.5">
@@ -722,6 +733,7 @@ function ComboPlanCard({
                     <span className="min-w-0">
                       <span className="block text-sm font-bold text-ink">🏍️ Thêm thuê xe máy</span>
                       <span className="block text-xs text-gray-500"><b className="text-forest-700">{vnd(COMBO_MOTORBIKE_PER_DAY)}/xe/ngày</b> · nhận xe tại Tà Xùa, tự đi săn mây & các điểm check-in</span>
+                      <span className="mt-0.5 block text-xs font-semibold text-sunset-700">Dịch vụ đi kèm, tính riêng — không cộng vào bill combo, thanh toán khi giao xe.</span>
                     </span>
                   </label>
                   {withBike && (

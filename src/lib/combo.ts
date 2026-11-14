@@ -1045,7 +1045,8 @@ export async function createComboBooking(
   const noDiscount = communal || roomList.some((r) => r.noComboDiscount);
   const total = Math.max(0, roomShare * people + busAmount - (noDiscount ? 0 : COMBO_DISCOUNT * people));
   // Tuỳ chọn THÊM XE MÁY (mặc định không chọn): số xe × số ngày (= số đêm) × 170k — tính lại ở server.
-  // Là khoản ngoài tiền phòng/tiền vé: cộng vào TỔNG khách trả, lưu thành phụ thu side "extra".
+  // Là DỊCH VỤ ĐI KÈM TÍNH RIÊNG: KHÔNG cộng vào bill combo (referencePrice/cọc/đối soát),
+  // khách trả tiền xe trực tiếp khi giao xe. Chỉ ghi chú rõ trong selectionLabel của đơn.
   const bikes = Math.min(Math.max(0, input.motorbikes ?? 0), people);
   const bikeDays = comboMotorbikeDays(nights.length);
   const bikeCost = comboMotorbikeCost(bikes, nights.length);
@@ -1077,7 +1078,9 @@ export async function createComboBooking(
     `${nights.length} đêm (${dmy(checkIn)} → ${dmy(to)}) · ${partyLabel(adults, childrenAges)}` +
     (freeKids > 0 ? ` (${freeKids} trẻ miễn phí, ở cùng)` : "") +
     ` · xe nằm: ${[nDouble ? `${nDouble} khách nằm ghép (cabin đôi)` : null, nSingle ? `${nSingle} khách nằm riêng (cabin đơn)` : null].filter(Boolean).join(" + ")}` +
-    (bikes > 0 ? ` · thuê xe máy: ${bikes} xe × ${bikeDays} ngày` : "");
+    (bikes > 0
+      ? ` · DỊCH VỤ KÈM (tính riêng, KHÔNG gồm trong bill): thuê xe máy ${bikes} xe × ${bikeDays} ngày = ${bikeCost.toLocaleString("vi-VN")}đ — khách thanh toán khi giao xe`
+      : "");
 
   let code = generateBookingCode();
   for (let i = 0; i < 5; i++) {
@@ -1117,12 +1120,9 @@ export async function createComboBooking(
       cabinShared: nDouble,
       cabinSolo: nSingle,
       selectionLabel,
-      referencePrice: total + bikeCost,
+      referencePrice: total, // KHÔNG gồm tiền thuê xe máy (tính riêng, trả khi giao xe)
       roomAmount,
       busAmount,
-      ...(bikes > 0
-        ? { surcharges: [{ id: "moto", label: `Thuê xe máy: ${bikes} xe × ${bikeDays} ngày`, amount: bikeCost, side: "extra" }] }
-        : {}),
       needsConfirmation: true,
       ctvId: ctvId ?? null,
       commissionAmount: ctvId ? comboRoomCommission : 0,
