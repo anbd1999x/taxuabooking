@@ -3,6 +3,7 @@
 import { dmy } from "@/lib/date-format";
 import { useEffect, useMemo, useState } from "react";
 import type { BookingStatus } from "@prisma/client";
+import { EditBookingPopup } from "./EditBookingPopup";
 import { ST, CAT_BADGE, CAT_OPTIONS, type BookingRow } from "./BookingsListClient";
 
 /**
@@ -220,6 +221,13 @@ export default function BookingsCalendar({
           >
             Gọi
           </a>
+          <EditBookingPopup
+            bookingId={r.id}
+            title="Sửa đơn ngay tại đây (popup)"
+            className="whitespace-nowrap rounded-full border-[1.5px] border-forest-700 bg-white px-3 py-2 text-[13px] font-bold text-forest-700 hover:bg-forest-50 disabled:opacity-60"
+          >
+            ✎ Sửa
+          </EditBookingPopup>
           <button
             type="button"
             onClick={() => onOpen(r.id)}
