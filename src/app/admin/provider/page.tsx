@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { toNumber, formatPrice } from "@/lib/format";
 import { comboSideCollected } from "@/lib/combo-pricing";
 import { resolveBusCommissions, resolveRoomCommissions } from "@/lib/provider-commission";
+import { effectiveDiscounts } from "@/lib/supplier-payout";
 import { OrdersTable } from "../ctv/page";
 
 export const dynamic = "force-dynamic";
@@ -47,7 +48,11 @@ export default async function ProviderHome() {
   const busSide = (b: B) => (b.category === "COMBO" ? b.service?.ownerId !== ownerId : b.category === "CABIN");
   const grossOf = (b: B) =>
     b.category === "COMBO" ? toNumber(busSide(b) ? b.busAmount : b.roomAmount) ?? 0 : toNumber(b.referencePrice) ?? 0;
-  const discOf = (b: B) => (busSide(b) ? busDisc.get(b.id) : roomDisc.get(b.id)) ?? 0;
+  // Chiết khấu hiệu lực (admin sửa tay số phải trả ⇒ bán ra − số sửa tay).
+  const discOf = (b: B) => {
+    const eff = effectiveDiscounts(b, roomDisc.get(b.id) ?? 0, busDisc.get(b.id) ?? 0);
+    return busSide(b) ? eff.bus : eff.room;
+  };
   const netOf = (b: B) => Math.max(0, grossOf(b) - discOf(b));
 
   const total = all.reduce((n, b) => n + netOf(b), 0);

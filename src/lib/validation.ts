@@ -104,6 +104,8 @@ export const comboBookingSchema = z
     // nằm ghép. Tổng ≠ số khách (client cũ) → server xếp mặc định cả đoàn nằm ghép.
     cabinSingle: z.coerce.number().int().min(0).max(30).default(0),
     cabinDouble: z.coerce.number().int().min(0).max(30).default(0),
+    // Tuỳ chọn thêm: số xe máy thuê kèm combo (0 = không thuê). Giá/ngày & số ngày do server tính.
+    motorbikes: z.coerce.number().int().min(0).max(30).default(0),
     customerName: z.string().trim().min(2, "Vui lòng nhập họ tên.").max(120),
     phone: phoneField,
     note: z.string().trim().max(1000).optional().nullable(),

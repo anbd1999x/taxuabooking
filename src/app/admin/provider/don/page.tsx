@@ -109,11 +109,15 @@ export default async function ProviderOrdersPage() {
         ? comboSideCollected(b.paymentStatus, toNumber(b.amountCollected), gross, net0)
         : Math.min(toNumber(b.amountCollected) ?? 0, net0);
     }
-    const net = Math.max(0, gross - discount);
-
     // Sàn thanh toán cho bên mình: cùng công thức với trang chi tiết đơn của admin.
     const mySide = (isCombo ? !homeSide : b.category === "CABIN") ? "bus" : "room";
     const po = supplierPayouts(b, roomDiscMap.get(b.id) ?? 0, busDiscMap.get(b.id) ?? 0).find((s) => s.side === mySide);
+    // Admin đã sửa tay số phải trả ⇒ tiền thực nhận hiển thị theo đúng số đó.
+    if (po?.overridden) {
+      discount = po.discount;
+      collected = Math.min(collected, po.payable);
+    }
+    const net = Math.max(0, gross - discount);
     const chot = b.status === "CONFIRMED" || b.status === "COMPLETED";
 
     // Chủ dịch vụ chỉ thấy SĐT khách sau khi đơn Đã cọc / Đã thanh toán đủ / Hoàn thành.

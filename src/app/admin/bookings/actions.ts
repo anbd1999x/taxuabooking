@@ -500,6 +500,60 @@ export async function recordSupplierPayout(
   return { ok: true, message: mode === "reset" ? "Đã đặt lại về 0" : "Đã ghi nhận thanh toán cho nhà cung cấp" };
 }
 
+/**
+ * SỬA TAY số tiền PHẢI TRẢ cho nhà cung cấp của một đơn (side: room | bus) — dùng khi hệ thống tính
+ * chưa đúng (thoả thuận riêng, lễ tết…). mode=auto ⇒ bỏ số sửa tay, quay về hệ thống tự tính.
+ * Số sửa tay được dùng ở mọi nơi: chi tiết đơn, trang chủ dịch vụ, báo cáo thanh toán. Chỉ ADMIN.
+ */
+export async function setSupplierPayable(
+  _prev: BookingActionState,
+  formData: FormData,
+): Promise<BookingActionState> {
+  const id = String(formData.get("id") ?? "");
+  const side = String(formData.get("side") ?? "");
+  const mode = String(formData.get("mode") ?? "set");
+  const label = String(formData.get("label") ?? "").slice(0, 120) || (side === "bus" ? "nhà xe" : "nhà cung cấp");
+  if (!id || (side !== "room" && side !== "bus")) return { error: "Dữ liệu không hợp lệ." };
+  const session = await getSession();
+  if (session?.role !== "ADMIN") return { error: "Chỉ admin sửa số tiền phải trả cho nhà cung cấp." };
+
+  const b = await prisma.bookingRequest.findUnique({ where: { id } });
+  if (!b) return { error: "Không tìm thấy yêu cầu." };
+  const [roomDisc, busDisc] = await Promise.all([resolveRoomCommissions([b]), resolveBusCommissions([b])]);
+  const cur = supplierPayouts(b, roomDisc.get(id) ?? 0, busDisc.get(id) ?? 0).find((s) => s.side === side);
+  if (!cur) return { error: "Đơn này không có phần tiền của bên đó." };
+
+  let value: number | null;
+  let title: string;
+  if (mode === "auto") {
+    if (!cur.overridden) return { error: "Số phải trả đang do hệ thống tự tính." };
+    value = null;
+    title = `Bỏ số phải trả sửa tay của ${label}: ${formatPrice(cur.payable)} → hệ thống tính ${formatPrice(cur.autoPayable)}`;
+  } else {
+    const amount = money(formData.get("amount"));
+    if (amount == null) return { error: "Nhập số tiền phải trả." };
+    if (amount === cur.payable) return { error: "Số phải trả không đổi." };
+    value = amount;
+    title = `Sửa số phải trả ${label}: ${formatPrice(cur.payable)} → ${formatPrice(amount)}`;
+  }
+  const next = value ?? cur.autoPayable;
+
+  const r = await prisma.bookingRequest.updateMany({
+    where: { id, updatedAt: b.updatedAt },
+    data: side === "room" ? { payableRoomOverride: value } : { payableBusOverride: value },
+  });
+  if (r.count === 0) return { error: "Đơn vừa được cập nhật ở nơi khác — tải lại trang rồi thử lại." };
+  await log(
+    prisma, id, "SUPPLIER", title,
+    cur.paid > next
+      ? `Lưu ý: đã trả ${formatPrice(cur.paid)}, nhiều hơn số phải trả mới ${formatPrice(cur.paid - next)}`
+      : value != null ? `Hệ thống tự tính: ${formatPrice(cur.autoPayable)}` : null,
+    await sessionName(),
+  );
+  revalidateDetail(id);
+  return { ok: true, message: value == null ? "Đã quay về số hệ thống tự tính" : `Đã sửa số phải trả thành ${formatPrice(value)}` };
+}
+
 /** Thêm GHI CHÚ NỘI BỘ vào nhật ký xử lý đơn. */
 export async function addBookingNote(
   _prev: BookingActionState,
@@ -592,10 +646,10 @@ export async function saveBookingSurcharge(
     surcharges: next as unknown as Prisma.InputJsonValue,
     ...(newPrice !== undefined ? { referencePrice: newPrice } : {}),
     ...(isCombo && item.side === "bus" && bump(b.busAmount) !== undefined ? { busAmount: bump(b.busAmount) } : {}),
-    ...(isCombo && item.side !== "bus" && bump(b.roomAmount) !== undefined ? { roomAmount: bump(b.roomAmount) } : {}),
+    ...(isCombo && item.side !== "bus" && item.side !== "extra" && bump(b.roomAmount) !== undefined ? { roomAmount: bump(b.roomAmount) } : {}),
     ...payData,
   };
-  const sideTxt = isCombo ? (item.side === "bus" ? " (nhà xe)" : " (homestay)") : "";
+  const sideTxt = isCombo ? (item.side === "bus" ? " (nhà xe)" : item.side === "extra" ? " (dịch vụ thêm)" : " (homestay)") : "";
   try {
     await prisma.$transaction(async (tx) => {
       // Khoá lạc quan theo updatedAt: 2 thao tác cùng lúc không đè mất phụ thu của nhau.

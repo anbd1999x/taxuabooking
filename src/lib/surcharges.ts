@@ -3,8 +3,9 @@ export interface BookingSurcharge {
   id: string;
   label: string;
   amount: number;
-  /** Combo: phụ thu thuộc bên nào (room = homestay, bus = nhà xe). */
-  side?: "room" | "bus";
+  /** Combo: phụ thu thuộc bên nào (room = homestay, bus = nhà xe, extra = dịch vụ thêm ngoài
+   *  hai bên — vd thuê xe máy kèm combo: chỉ cộng vào tổng khách trả, không vào tiền phòng/tiền vé). */
+  side?: "room" | "bus" | "extra";
 }
 
 /** Đọc danh sách phụ thu từ cột Json (bỏ phần tử hỏng). */
@@ -15,7 +16,7 @@ export function parseSurcharges(v: unknown): BookingSurcharge[] {
     const o = x as Record<string, unknown>;
     const amount = Number(o.amount);
     if (typeof o.id !== "string" || !Number.isFinite(amount)) return [];
-    const side = o.side === "room" || o.side === "bus" ? o.side : undefined;
+    const side = o.side === "room" || o.side === "bus" || o.side === "extra" ? o.side : undefined;
     return [{ id: o.id, label: String(o.label ?? "Phụ thu"), amount, ...(side ? { side } : {}) }];
   });
 }

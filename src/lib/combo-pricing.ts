@@ -58,6 +58,17 @@ export function busCostPerPerson(
 /** Tỉ lệ cọc combo: cọc = 50% tiền xe + 50% tiền phòng (mỗi bên nhận 50% phần của mình). */
 export const COMBO_DEPOSIT_RATE = 0.5;
 
+/** Tuỳ chọn THÊM XE MÁY khi đặt combo (mặc định không chọn): giá thuê mỗi xe mỗi ngày. */
+export const COMBO_MOTORBIKE_PER_DAY = 170_000;
+/** Số ngày thuê xe máy trong combo = số đêm ở Tà Xùa (tối thiểu 1 ngày). */
+export function comboMotorbikeDays(nights: number): number {
+  return Math.max(1, Math.floor(nights) || 0);
+}
+/** Tiền thuê xe máy thêm vào combo = số xe × số ngày × 170k. */
+export function comboMotorbikeCost(bikes: number, nights: number): number {
+  return Math.max(0, Math.floor(bikes) || 0) * comboMotorbikeDays(nights) * COMBO_MOTORBIKE_PER_DAY;
+}
+
 /**
  * Tiền ĐÃ THU quy về MỘT BÊN của đơn combo (nhà xe: tiền vé, homestay: tiền phòng):
  * - khách đã thanh toán đủ ⇒ bên đó nhận đủ phần của mình;

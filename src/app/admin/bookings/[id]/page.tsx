@@ -27,6 +27,7 @@ import {
   DeleteBookingButton,
   SurchargePanel,
   SupplierPayoutForm,
+  SupplierPayableForm,
 } from "@/components/admin/BookingDetailClient";
 import { supplierPayouts } from "@/lib/supplier-payout";
 import { resolveBusCommissions, resolveRoomCommissions } from "@/lib/provider-commission";
@@ -1157,11 +1158,12 @@ export default async function BookingDetailPage({
                       </div>
                     </div>
                   </div>
-                  {s.discount > 0 && (
+                  {s.discount !== 0 && (
                     <div className="text-[11px] text-gray-500">
-                      Bán ra {formatPrice(s.gross)} − chiết khấu sàn {formatPrice(s.discount)}
+                      Bán ra {formatPrice(s.gross)} {s.discount > 0 ? `− chiết khấu sàn ${formatPrice(s.discount)}` : `+ sàn bù ${formatPrice(-s.discount)}`}
                     </div>
                   )}
+                  <SupplierPayableForm id={b.id} side={s.side} label={s.name} payable={s.payable} autoPayable={s.autoPayable} overridden={s.overridden} />
                   <SupplierPayoutForm id={b.id} side={s.side} label={s.name} payable={s.payable} paid={s.paid} />
                 </div>
               ))

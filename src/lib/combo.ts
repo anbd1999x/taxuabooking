@@ -10,6 +10,7 @@ import { payingChildren, partyLabel, DEFAULT_CHILD_FREE_UNDER } from "./occupanc
 import type { ComboBookingInput } from "./validation";
 import { cabinAllocation, busCostPerPerson, cabinSeatTotal } from "./combo-pricing";
 import { busCommissionFor } from "./provider-commission";
+import { comboMotorbikeCost, comboMotorbikeDays } from "./combo-pricing";
 import { ensureServiceSheetFresh } from "./sheet-sync";
 import { tripsOnDate, peekTrip, materializeTrip, OPEN_SEATS, type TripView } from "./cabin-trips";
 export { cabinAllocation, busCostPerPerson } from "./combo-pricing";
@@ -1043,6 +1044,11 @@ export async function createComboBooking(
   // Không giảm combo: giường cộng đồng hoặc có phòng tick "không giảm 25k khi đặt combo".
   const noDiscount = communal || roomList.some((r) => r.noComboDiscount);
   const total = Math.max(0, roomShare * people + busAmount - (noDiscount ? 0 : COMBO_DISCOUNT * people));
+  // Tuỳ chọn THÊM XE MÁY (mặc định không chọn): số xe × số ngày (= số đêm) × 170k — tính lại ở server.
+  // Là khoản ngoài tiền phòng/tiền vé: cộng vào TỔNG khách trả, lưu thành phụ thu side "extra".
+  const bikes = Math.min(Math.max(0, input.motorbikes ?? 0), people);
+  const bikeDays = comboMotorbikeDays(nights.length);
+  const bikeCost = comboMotorbikeCost(bikes, nights.length);
   // Tách tiền từng bên: bill về homestay = tiền phòng, bill về nhà xe = tiền vé.
   // (referencePrice = TỔNG khách trả, đã trừ giảm giá combo cho phòng thường.)
   const roomAmount = roomCost; // đã là tổng tiền phòng cả đoàn
@@ -1070,7 +1076,8 @@ export async function createComboBooking(
     `về ${dmy(ret.departureDate)} ${ret.departureTime}${origin ? `, đón tại ${origin}` : ""}) + ${svc.title} · ${roomsLabel}, ` +
     `${nights.length} đêm (${dmy(checkIn)} → ${dmy(to)}) · ${partyLabel(adults, childrenAges)}` +
     (freeKids > 0 ? ` (${freeKids} trẻ miễn phí, ở cùng)` : "") +
-    ` · xe nằm: ${[nDouble ? `${nDouble} khách nằm ghép (cabin đôi)` : null, nSingle ? `${nSingle} khách nằm riêng (cabin đơn)` : null].filter(Boolean).join(" + ")}`;
+    ` · xe nằm: ${[nDouble ? `${nDouble} khách nằm ghép (cabin đôi)` : null, nSingle ? `${nSingle} khách nằm riêng (cabin đơn)` : null].filter(Boolean).join(" + ")}` +
+    (bikes > 0 ? ` · thuê xe máy: ${bikes} xe × ${bikeDays} ngày` : "");
 
   let code = generateBookingCode();
   for (let i = 0; i < 5; i++) {
@@ -1110,9 +1117,12 @@ export async function createComboBooking(
       cabinShared: nDouble,
       cabinSolo: nSingle,
       selectionLabel,
-      referencePrice: total,
+      referencePrice: total + bikeCost,
       roomAmount,
       busAmount,
+      ...(bikes > 0
+        ? { surcharges: [{ id: "moto", label: `Thuê xe máy: ${bikes} xe × ${bikeDays} ngày`, amount: bikeCost, side: "extra" }] }
+        : {}),
       needsConfirmation: true,
       ctvId: ctvId ?? null,
       commissionAmount: ctvId ? comboRoomCommission : 0,

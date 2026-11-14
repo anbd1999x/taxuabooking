@@ -27,7 +27,7 @@ export interface BookingEditProps {
     cancelReason: string | null;
     price: number | null; // tổng khách trả
     collected: number; // đã thu của khách
-    payouts: { side: PayoutSide; kind: string; name: string; gross: number; discount: number; payable: number; paid: number; remaining: number }[];
+    payouts: { side: PayoutSide; kind: string; name: string; gross: number; discount: number; payable: number; paid: number; remaining: number; autoPayable: number; overridden: boolean }[];
   };
 }
 

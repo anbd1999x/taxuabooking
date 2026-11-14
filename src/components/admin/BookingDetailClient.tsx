@@ -7,6 +7,7 @@ import {
   saveBookingStage,
   recordBookingPayment,
   recordSupplierPayout,
+  setSupplierPayable,
   addBookingNote,
   deleteBooking,
   saveBookingSurcharge,
@@ -328,6 +329,83 @@ export function SupplierPayoutForm({
 }
 
 /** Ô ghi chú nội bộ + chip ghi chú nhanh. */
+/**
+ * Sửa tay SỐ PHẢI TRẢ cho nhà cung cấp (khi hệ thống tính chưa đúng). Mặc định hệ thống tự tính;
+ * đã sửa tay thì hiện nhãn + nút quay về số hệ thống tính.
+ */
+export function SupplierPayableForm({
+  id,
+  side,
+  label,
+  payable,
+  autoPayable,
+  overridden,
+  onDone,
+}: {
+  id: string;
+  side: "room" | "bus";
+  label: string;
+  payable: number;
+  autoPayable: number;
+  overridden: boolean;
+  onDone?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [amt, setAmt] = useState("");
+  const [state, action, pending] = useActionState<BookingActionState, FormData>(setSupplierPayable, {});
+  useResultToast(state, () => {
+    setOpen(false);
+    setAmt("");
+    onDone?.();
+  });
+  const fmt = (n: number) => n.toLocaleString("vi-VN");
+
+  return (
+    <form action={action} className="flex flex-col gap-1.5">
+      <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="side" value={side} />
+      <input type="hidden" name="label" value={label} />
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]">
+        {overridden ? (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 font-bold text-amber-800">Phải trả: đã sửa tay · hệ thống tính {fmt(autoPayable)}đ</span>
+        ) : (
+          <span className="text-gray-500">Phải trả: hệ thống tự tính</span>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            setOpen((v) => !v);
+            setAmt(fmt(payable));
+          }}
+          className="font-bold text-forest-700 hover:underline"
+        >
+          {open ? "Đóng" : "✎ Sửa số phải trả"}
+        </button>
+        {overridden && (
+          <button name="mode" value="auto" disabled={pending} className="font-bold text-gray-600 hover:underline disabled:opacity-50">
+            Về số hệ thống tính
+          </button>
+        )}
+      </div>
+      {open && (
+        <div className="flex gap-1.5">
+          <input
+            name="amount"
+            value={amt}
+            onChange={(e) => setAmt(e.target.value)}
+            inputMode="numeric"
+            placeholder="Số tiền phải trả"
+            className="w-full min-w-0 flex-1 rounded-lg border-[1.5px] border-amber-300 bg-white px-3 py-1.5 text-sm font-bold"
+          />
+          <button name="mode" value="set" disabled={pending} className="whitespace-nowrap rounded-full bg-amber-600 px-3 py-1.5 text-[13px] font-bold text-white hover:bg-amber-700 disabled:opacity-50">
+            Lưu số phải trả
+          </button>
+        </div>
+      )}
+    </form>
+  );
+}
+
 export function NoteForm({ id }: { id: string }) {
   const [note, setNote] = useState("");
   const [state, action, pending] = useActionState<BookingActionState, FormData>(addBookingNote, {});
@@ -429,7 +507,7 @@ export function SurchargePanel({
                 {s.label}
                 {isCombo && (
                   <span className="ml-1.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-[11px] font-semibold text-gray-500">
-                    {s.side === "bus" ? "Nhà xe" : "Homestay"}
+                    {s.side === "bus" ? "Nhà xe" : s.side === "extra" ? "Dịch vụ thêm" : "Homestay"}
                   </span>
                 )}
               </span>

@@ -4,7 +4,7 @@ import { parseDateOnly, addDays } from "./dates";
 import { toNumber } from "./format";
 import { comboSideCollected } from "./combo-pricing";
 import { resolveBusCommissions, resolveRoomCommissions } from "./provider-commission";
-import { supplierPayouts } from "./supplier-payout";
+import { effectiveDiscounts, supplierPayouts } from "./supplier-payout";
 import { CATEGORIES } from "./constants";
 
 /** Một dòng thống kê (tổng, theo CTV, hoặc theo chủ dịch vụ). */
@@ -187,6 +187,8 @@ export async function computeStats(fromKey: string, toKey: string, ownerId?: str
       serviceTitle: true,
       paidToRoom: true,
       paidToBus: true,
+      payableRoomOverride: true,
+      payableBusOverride: true,
       service: { select: { id: true, title: true, category: true, ownerId: true, owner: { select: { name: true } } } },
     },
   });
@@ -195,8 +197,10 @@ export async function computeStats(fromKey: string, toKey: string, ownerId?: str
   // cũ chưa có snapshot) — để tiền thực nhận của chủ dịch vụ & doanh thu sàn đúng ngay.
   const [roomDisc, busDisc] = await Promise.all([resolveRoomCommissions(bookings), resolveBusCommissions(bookings)]);
   for (const b of bookings) {
-    (b as { roomCommission: unknown }).roomCommission = roomDisc.get(b.id) ?? 0;
-    (b as { busCommission: unknown }).busCommission = busDisc.get(b.id) ?? 0;
+    // Admin sửa tay số phải trả ⇒ chiết khấu hiệu lực = bán ra − số sửa tay (khớp báo cáo thanh toán).
+    const eff = effectiveDiscounts(b, roomDisc.get(b.id) ?? 0, busDisc.get(b.id) ?? 0);
+    (b as { roomCommission: unknown }).roomCommission = eff.room;
+    (b as { busCommission: unknown }).busCommission = eff.bus;
   }
 
   // Chủ nhà xe của các đơn combo (tra theo chuyến đi) — cho bảng theo chủ dịch vụ.
