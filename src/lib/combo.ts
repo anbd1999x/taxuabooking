@@ -417,6 +417,66 @@ function makePlan(
 }
 
 /**
+ * Gộp các phương án phòng thường TƯƠNG ĐƯƠNG với khách (cùng hạng, cùng giá, cùng sức chứa chuẩn,
+ * cùng số phòng, cùng tổng tiền) thành một — danh sách căn chọn được là hợp của các phương án.
+ * Trong một phương án, các nhóm giống nhau cũng được nhập lại ("1× A + 1× A" → "2× A").
+ */
+function mergeEquivalentPlans(serviceId: string, plans: ComboStayPlan[], people: number): ComboStayPlan[] {
+  const gsig = (g: ComboPlanGroup, ghep: boolean) =>
+    `${g.room.roomTypeId}|${g.unitCost}|${g.room.capacity}|${g.room.noComboDiscount ? 1 : 0}` +
+    (ghep ? `|${g.room.extraFeeStay}` : "");
+  // Ở ghép: chọn `count` căn BẤT KỲ trong nhóm (xấu nhất = các căn nhận ít khách nhất) vẫn phải đủ chỗ.
+  const fits = (groups: ComboPlanGroup[]) =>
+    groups.reduce((n, g) => {
+      const caps = g.options.map((o) => o.room.maxCapacity).sort((a, b) => a - b);
+      return n + caps.slice(0, g.count).reduce((s, c) => s + c, 0);
+    }, 0) >= people;
+  const union = (a: ComboPlanGroup, b: ComboPlanGroup, addCount: boolean): ComboPlanGroup => {
+    const options = [...a.options];
+    for (const o of b.options) if (!options.some((x) => x.roomId === o.roomId)) options.push(o);
+    const count = addCount ? a.count + b.count : a.count;
+    const roomIds = addCount ? [...new Set([...a.roomIds, ...b.roomIds])] : a.roomIds;
+    return { ...a, options, count, roomIds };
+  };
+
+  const out: { sig: string; plan: ComboStayPlan; keys: string[] }[] = [];
+  for (const p of plans) {
+    const ghep = p.extraGuests > 0;
+    // 1) Nhập các nhóm giống nhau trong cùng phương án.
+    const gm = new Map<string, ComboPlanGroup>();
+    for (const g of p.groups) {
+      const k = gsig(g, ghep);
+      const cur = gm.get(k);
+      gm.set(k, cur ? union(cur, g, true) : g);
+    }
+    let groups = [...gm.values()];
+    let keys = [...gm.keys()];
+    let safe = groups.every((g) => g.roomIds.length === g.count) && (!ghep || fits(groups));
+    if (!safe) { groups = p.groups; keys = p.groups.map((g) => gsig(g, ghep)); }
+    const sig = safe
+      ? `${keys.map((k, i) => `${k}×${groups[i].count}`).sort().join("+")}#${p.extraGuests}#${p.extraCost}#${p.roomCost}#${p.roomCostOld ?? ""}`
+      : `!${p.id}`;
+    const rebuild = (gs: ComboPlanGroup[]) =>
+      makePlan(serviceId, gs, p.roomCost, p.capacity, false, p.extraGuests, p.extraCost, p.roomCostOld);
+
+    // 2) Gộp với phương án tương đương đã có (nếu vẫn an toàn về sức chứa).
+    const hit = safe ? out.find((o) => o.sig === sig) : undefined;
+    if (hit) {
+      const mergedGroups = hit.plan.groups.map((g, i) => {
+        const j = keys.indexOf(hit.keys[i]);
+        return j >= 0 ? union(g, groups[j], false) : g;
+      });
+      if (!ghep || fits(mergedGroups)) {
+        hit.plan = makePlan(serviceId, mergedGroups, hit.plan.roomCost, hit.plan.capacity, false, hit.plan.extraGuests, hit.plan.extraCost, hit.plan.roomCostOld);
+        continue;
+      }
+    }
+    out.push({ sig, plan: groups === p.groups ? p : rebuild(groups), keys });
+  }
+  return out.map((o) => o.plan);
+}
+
+/**
  * Sinh các phương án ghép phòng ĐỦ CHỖ cho cả đoàn trong 1 homestay.
  *
  * Phòng thường: gộp phòng giống nhau thành nhóm rồi duyệt tổ hợp số phòng mỗi
@@ -534,6 +594,16 @@ export function buildStayPlans(rooms: ComboRoomOption[], people: number): ComboS
     if (newLabel) { seenLabel.add(plan.label); basePlans++; }
     for (const g of pgs) for (const o of g.options) covered.add(o.roomId);
     plans.push(plan);
+  }
+
+  // GỘP phương án tương đương: các căn CÙNG hạng + cùng giá + cùng sức chứa chuẩn chỉ khác
+  // "sức chứa tối đa / phụ thu ở ghép" bị DFS tách nhóm (vd Phòng 7 nhận tối đa 4, Phòng 5-6-8
+  // nhận tối đa 3) ⇒ trước đây ra 2 thẻ y hệt nhau về giá. Gộp lại 1 thẻ, khách chọn căn trong thẻ.
+  // Phương án Ở GHÉP chỉ gộp khi chọn căn nào trong nhóm cũng vẫn đủ chỗ & cùng mức phụ thu.
+  {
+    const merged = mergeEquivalentPlans(serviceId, plans, people);
+    plans.length = 0;
+    plans.push(...merged);
   }
 
   // --- Giường cộng đồng: xếp đủ người vào các phòng dorm rẻ nhất ---
