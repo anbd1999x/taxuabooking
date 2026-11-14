@@ -7,7 +7,9 @@ import { addDays, toDateKey, today } from "./dates";
 import { bookingPax } from "./occupancy";
 import { bookingCabinBerths } from "./combo-pricing";
 import { parseSurcharges } from "./surcharges";
-import type { ServiceCategory } from "@prisma/client";
+import { resolveBusCommissions, resolveRoomCommissions } from "./provider-commission";
+import { supplierPayouts, type PayoutSide } from "./supplier-payout";
+import type { BookingStatus, ServiceCategory } from "@prisma/client";
 import type { EditInit } from "@/components/admin/AdminCreateBooking";
 
 /** Mọi thứ form "Sửa đơn" (AdminCreateBooking chế độ edit) cần — dữ liệu thuần, gửi được xuống client. */
@@ -19,6 +21,14 @@ export interface BookingEditProps {
   todayKey: string;
   comboDiscount: number;
   edit: EditInit;
+  /** Phần "xử lý nhanh" của popup: trạng thái đơn, tiền đã thu của khách, tiền đã chi cho từng dịch vụ. */
+  ops: {
+    status: BookingStatus;
+    cancelReason: string | null;
+    price: number | null; // tổng khách trả
+    collected: number; // đã thu của khách
+    payouts: { side: PayoutSide; kind: string; name: string; gross: number; discount: number; payable: number; paid: number; remaining: number }[];
+  };
 }
 
 /**
@@ -40,7 +50,7 @@ export async function loadBookingEdit(id: string): Promise<BookingEditProps | nu
       orderBy: { name: "asc" },
     }),
     b.cabinTripId
-      ? prisma.cabinTrip.findUnique({ where: { id: b.cabinTripId }, select: { serviceId: true, departureDate: true } })
+      ? prisma.cabinTrip.findUnique({ where: { id: b.cabinTripId }, select: { serviceId: true, departureDate: true, service: { select: { title: true } } } })
       : null,
   ]);
 
@@ -94,7 +104,24 @@ export async function loadBookingEdit(id: string): Promise<BookingEditProps | nu
     inventoryApplied: b.inventoryApplied,
   };
 
+  // Sàn thanh toán cho nhà cung cấp — cùng công thức với trang chi tiết đơn.
+  const [roomDisc, busDisc] = await Promise.all([resolveRoomCommissions([b]), resolveBusCommissions([b])]);
+  const svcTitle = services.find((s) => s.id === b.serviceId)?.title ?? b.serviceTitle;
+  const stayish = b.category === "COMBO" || b.category === "HOMESTAY" || b.category === "BUNGALOW";
+  const payouts = supplierPayouts(b, roomDisc.get(b.id) ?? 0, busDisc.get(b.id) ?? 0).map((s) => ({
+    ...s,
+    kind: s.side === "bus" ? "Nhà xe" : stayish ? "Homestay" : "Dịch vụ",
+    name: s.side === "bus" ? (outTrip?.service.title ?? svcTitle) : svcTitle,
+  }));
+
   return {
+    ops: {
+      status: b.status,
+      cancelReason: b.cancelReason,
+      price: total,
+      collected: toNumber(b.amountCollected) ?? 0,
+      payouts,
+    },
     code: b.code,
     categories: CATEGORY_LIST.map((c) => ({ key: c.key, label: c.shortLabel, kind: c.availabilityKind })),
     services: services.map((s) => ({

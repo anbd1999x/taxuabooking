@@ -75,14 +75,17 @@ export function StatusPanel({
   id,
   status,
   cancelReason,
+  onDone,
 }: {
   id: string;
   status: BookingStatus;
   cancelReason: string | null;
+  /** Gọi sau khi lưu thành công (popup sửa nhanh nạp lại số liệu). */
+  onDone?: () => void;
 }) {
   const [picked, setPicked] = useState<BookingStatus>(status);
   const [state, action, pending] = useActionState<BookingActionState, FormData>(saveBookingStage, {});
-  useResultToast(state);
+  useResultToast(state, onDone);
   // Phòng của đơn đang bị khoá (đơn khác / sheet / khoá tay): hiện cảnh báo tình trạng hiện tại,
   // admin đồng ý thì gửi lại kèm force=1 để ghi đè.
   const asked = useRef(state);
@@ -154,14 +157,19 @@ export function PaymentRecordForm({
   id,
   price,
   collected,
+  onDone,
 }: {
   id: string;
   price: number | null;
   collected: number;
+  onDone?: () => void;
 }) {
   const [amt, setAmt] = useState("");
   const [state, action, pending] = useActionState<BookingActionState, FormData>(recordBookingPayment, {});
-  useResultToast(state, () => setAmt(""));
+  useResultToast(state, () => {
+    setAmt("");
+    onDone?.();
+  });
   const fmt = (n: number) => n.toLocaleString("vi-VN");
   const due = price != null ? Math.max(0, price - collected) : null;
   const quick: [string, number][] = [
@@ -232,16 +240,21 @@ export function SupplierPayoutForm({
   label,
   payable,
   paid,
+  onDone,
 }: {
   id: string;
   side: "room" | "bus";
   label: string;
   payable: number;
   paid: number;
+  onDone?: () => void;
 }) {
   const [amt, setAmt] = useState("");
   const [state, action, pending] = useActionState<BookingActionState, FormData>(recordSupplierPayout, {});
-  useResultToast(state, () => setAmt(""));
+  useResultToast(state, () => {
+    setAmt("");
+    onDone?.();
+  });
   const fmt = (n: number) => n.toLocaleString("vi-VN");
   const remaining = Math.max(0, payable - paid);
   const quick: [string, number][] =
