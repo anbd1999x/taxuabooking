@@ -12,6 +12,9 @@ const beVietnam = Be_Vietnam_Pro({
   display: "swap",
 });
 
+/** Mã vùng chứa thẻ Google (Google Ads cấp). Để chuỗi rỗng = tắt. */
+const GOOGLE_TAG_ID = "GTM-T89KS5CM";
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE.url),
   title: {
@@ -79,6 +82,20 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const phone = (await getSettings().catch(() => ({}) as Record<string, string>)).contactPhone || SITE.defaultPhone;
   return (
     <html lang="vi" className={`${beVietnam.variable} h-full`}>
+      <head>
+        {/* Thẻ Google (Google Ads — đo lượt chuyển đổi), vùng chứa GTM-T89KS5CM. Chỉ nạp ở bản
+            production để lúc dev không bắn dữ liệu đo lường. Mỗi trang chỉ 1 thẻ Google. */}
+        {GOOGLE_TAG_ID && process.env.NODE_ENV === "production" && (
+          <>
+            <script async src={`https://www.googletagmanager.com/gtm.js?id=${GOOGLE_TAG_ID}`} />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: "window.dataLayer = window.dataLayer || [];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());",
+              }}
+            />
+          </>
+        )}
+      </head>
       <body className="min-h-full flex flex-col bg-cloud text-ink">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd(phone)) }} />
         {children}
