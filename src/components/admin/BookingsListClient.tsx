@@ -1,6 +1,7 @@
 "use client";
 
 import { wdDmy, vnDateTime } from "@/lib/date-format";
+import { bookingDetailLines } from "@/lib/booking-detail-lines";
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import type { BookingStatus } from "@prisma/client";
@@ -662,7 +663,19 @@ export default function BookingsListClient({
                   ...(dx.chips.length ? [["Chi tiết", dx.chips.join(" · ")]] : []),
                   ["Nguồn", dx.ctvName ? `Qua CTV ${dx.ctvName}` : "Khách tự đặt trên website"],
                   ...(dx.note ? [["Khách ghi chú", dx.note]] : []),
-                ].map(([k, v]) => (
+                ].map(([k, v]) => k === "Chi tiết" ? (
+                  <div key={k} className="flex flex-col gap-1.5 border-y border-dashed border-gray-200 py-2 text-[13px]">
+                    <span className="text-gray-500">Chi tiết</span>
+                    <ul className="flex list-disc flex-col gap-1 pl-4 marker:text-gray-300">
+                      {bookingDetailLines(dx.chips).map((l, i) => (
+                        <li key={i} className="leading-snug text-ink">
+                          {l.label && <span className="text-gray-500">{l.label}: </span>}
+                          <b>{l.value}</b>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
                   <div key={k} className="flex justify-between gap-3 text-[13px]">
                     <span className="whitespace-nowrap text-gray-500">{k}</span>
                     <b className="text-right text-ink">{v}</b>
