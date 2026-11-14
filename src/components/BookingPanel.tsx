@@ -1,6 +1,7 @@
 "use client";
 
 import { SupportHoursNote } from "@/components/SupportHours";
+import { trackLeadConversion } from "@/lib/ads";
 import { ItineraryLink } from "@/components/itinerary/ItineraryLink";
 import { useState } from "react";
 import type { ServiceCategory, AvailabilityStatus } from "@prisma/client";
@@ -156,6 +157,7 @@ export function BookingPanel({
         setSubmitError(data.error ?? "Gửi yêu cầu thất bại.");
         if (data.fieldErrors) setFieldErrors(data.fieldErrors);
       } else {
+        trackLeadConversion();
         setResult(data);
       }
     } catch {

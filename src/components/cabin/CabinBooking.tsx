@@ -1,6 +1,7 @@
 "use client";
 
 import { SupportHoursNote } from "@/components/SupportHours";
+import { trackLeadConversion } from "@/lib/ads";
 import { VoiceText } from "@/components/SiteContact";
 import { useState } from "react";
 import type { CabinDirectionOptions, CabinTripAvail, CabinDay, CabinFareOption } from "@/lib/cabin";
@@ -184,6 +185,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
       if (!res.ok) {
         setErr(data.error ?? "Gửi yêu cầu thất bại.");
       } else {
+        trackLeadConversion();
         setCode(data.code);
         setNeedsConfirm(Boolean(data.needsConfirmation));
         setStep(4);

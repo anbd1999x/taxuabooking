@@ -1,6 +1,7 @@
 "use client";
 
 import { dmy } from "@/lib/date-format";
+import { trackLeadConversion } from "@/lib/ads";
 import { SupportHoursNote } from "@/components/SupportHours";
 import { ItineraryLink } from "@/components/itinerary/ItineraryLink";
 import { VoiceText } from "@/components/SiteContact";
@@ -471,7 +472,7 @@ export function HomestayBooking({
       });
       const data = await res.json();
       if (!res.ok) setErr(data.error ?? "Gửi yêu cầu thất bại, vui lòng thử lại.");
-      else setResult(data);
+      else { trackLeadConversion(); setResult(data); }
     } catch {
       setErr("Lỗi kết nối, vui lòng thử lại.");
     } finally {
