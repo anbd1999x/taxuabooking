@@ -1,5 +1,6 @@
 "use client";
 
+import { SupportHoursNote } from "@/components/SupportHours";
 import { VoiceText } from "@/components/SiteContact";
 import { useState } from "react";
 import type { CabinDirectionOptions, CabinTripAvail, CabinDay, CabinFareOption } from "@/lib/cabin";
@@ -495,6 +496,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
                   ? `Tụi mình sẽ gọi ${custPhone} để xác nhận chỗ. Yêu cầu được xác nhận sau khi nhà xe kiểm tra, chưa cần thanh toán.`
                   : `Tụi mình sẽ gọi ${custPhone} để xác nhận chi tiết. Chưa cần thanh toán.`} />
               </div>
+              <SupportHoursNote />
               <div className="mt-1 grid grid-cols-2 gap-2">
                 {zalo && (
                   <a href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="rounded-xl bg-sunset-500 py-2.5 text-center text-sm font-bold text-white">

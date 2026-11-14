@@ -31,8 +31,8 @@ const SEO_META: Record<string, { title: string; description: string }> = {
     description: "Xe ôm Tà Xùa do tài xế bản địa chở tới Sống lưng khủng long, Mỏm cá heo, Cây cô đơn và các điểm đường khó. Xem giá từng tuyến và gửi yêu cầu đặt xe.",
   },
   TAXI: {
-    title: "Taxi Tà Xùa: xe 4–7 chỗ, giá theo tuyến",
-    description: "Taxi Tà Xùa xe 4 đến 7 chỗ đưa đón Bắc Yên – Tà Xùa và các điểm săn mây, hợp với gia đình có người lớn tuổi, trẻ nhỏ. Xem giá từng tuyến và đặt xe nhanh.",
+    title: "Taxi Tà Xùa: xe 4–7 chỗ, giá theo ngày",
+    description: "Taxi Tà Xùa xe 4 đến 7 chỗ đưa đón Bắc Yên – Tà Xùa và các điểm săn mây, hợp với gia đình có người lớn tuổi, trẻ nhỏ. Xem giá thuê theo ngày và đặt xe nhanh.",
   },
   CABIN: {
     title: "Xe cabin Hà Nội – Tà Xùa: giá vé & chỗ trống",

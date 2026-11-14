@@ -1,5 +1,6 @@
 "use client";
 
+import { SupportHoursNote } from "@/components/SupportHours";
 import { ItineraryLink } from "@/components/itinerary/ItineraryLink";
 import { We } from "@/components/SiteContact";
 import Link from "next/link";
@@ -637,6 +638,7 @@ function ComboPlanCard({
                   <div className="mt-0.5 text-2xl font-extrabold text-ink">{done.code}</div>
                   <div className="mt-1 text-sm leading-relaxed text-gray-600"><We cap /> sẽ gọi <b>{phone}</b> để xác nhận xe, phòng và chốt giá. Chưa thanh toán online.</div>
                 </div>
+                <SupportHoursNote />
                 <button type="button" onClick={() => setOpenForm(false)} className="rounded-full bg-forest-600 py-3 text-center text-sm font-bold text-white hover:bg-forest-700">Xong</button>
               </div>
             ) : (

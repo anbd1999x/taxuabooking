@@ -178,12 +178,13 @@ export default async function RoomDetailPage({
 
         {/* Đặt phòng (homestay "chỉ liên hệ" → nhắn tin để nhận thông tin) */}
         <div>
-          {svc.contactOnly ? (
+          {svc.contactOnly || svc.inquiryOnly ? (
             <div className="flex flex-col gap-3 rounded-2xl bg-white p-5 shadow-md ring-1 ring-black/5 lg:sticky lg:top-20">
-              <div className="text-lg font-extrabold text-ink">Nhắn tin để nhận thông tin</div>
+              <div className="text-lg font-extrabold text-ink">{svc.contactOnly ? "Nhắn tin để nhận thông tin" : "Nhắn tin để biết chi tiết"}</div>
               <p className="text-sm leading-relaxed text-gray-600">
-                Homestay này không hiển thị lịch trống trên web. Nhắn tin hoặc gọi cho Tà Xùa Booking
-                để kiểm tra phòng trống, nhận báo giá chính xác và giữ phòng.
+                {svc.contactOnly
+                  ? "Homestay này không hiển thị lịch trống trên web. Nhắn tin hoặc gọi cho Tà Xùa Booking để kiểm tra phòng trống, nhận báo giá chính xác và giữ phòng."
+                  : "Homestay này không nhận đặt trực tiếp trên web. Xem phòng trống theo ngày ở trang homestay, rồi nhắn tin hoặc gọi cho Tà Xùa Booking để biết chi tiết và giữ phòng."}
               </p>
               <a
                 href={zalo ? `https://zalo.me/${zalo}` : `tel:${phone.replace(/\s/g, "")}`}

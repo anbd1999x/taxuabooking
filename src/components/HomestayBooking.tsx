@@ -1,5 +1,6 @@
 "use client";
 
+import { SupportHoursNote } from "@/components/SupportHours";
 import { ItineraryLink } from "@/components/itinerary/ItineraryLink";
 import { VoiceText } from "@/components/SiteContact";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -103,6 +104,7 @@ function resolveMap(mapUrl: string | null | undefined, fallbackQuery: string): {
 export function HomestayBooking({
   serviceId,
   contactOnly,
+  inquiryOnly,
   rooms,
   startKey,
   numDays,
@@ -130,6 +132,8 @@ export function HomestayBooking({
   initialChildAges?: number[];
   /** Không quản lý lịch trên web: ẩn lịch & form đặt, khách nhắn tin để nhận thông tin. */
   contactOnly?: boolean;
+  /** Nhắn tin để biết chi tiết (không đặt trực tiếp) nhưng VẪN hiện lịch & tình trạng phòng thật. */
+  inquiryOnly?: boolean;
   rooms: HomestayRoom[];
   startKey: string;
   numDays: number;
@@ -155,6 +159,7 @@ export function HomestayBooking({
 }) {
   const map = resolveMap(mapUrl, mapQuery);
   // Link nhắn tin cho homestay "chỉ liên hệ": ưu tiên Zalo, không có thì gọi điện.
+  const chatOnly = Boolean(contactOnly || inquiryOnly); // không có form đặt: mọi nút đặt → nhắn tin
   const chatUrl = zalo ? `https://zalo.me/${zalo}` : `tel:${phone.replace(/\s/g, "")}`;
   const policyLines = (policy ?? "")
     .split("\n")
@@ -602,6 +607,8 @@ export function HomestayBooking({
             <p className="mt-1 text-sm text-gray-500">
               {contactOnly
                 ? "Giá tham khảo từng phòng bên dưới — nhắn tin để nhận thông tin phòng trống & giữ phòng."
+                : inquiryOnly
+                  ? nN ? `Giá & tình trạng cho ${nN} đêm · ${dname(ci!)} → ${dname(coEff!)} — nhắn tin để biết chi tiết & giữ phòng.` : "Chọn ngày để xem phòng trống, rồi nhắn tin để biết chi tiết & giữ phòng."
                 : nN ? `Giá & tình trạng cho ${nN} đêm · ${dname(ci!)} → ${dname(coEff!)}.` : "Chọn ngày để xem giá và phòng trống cho cả kỳ ở."}
             </p>
             {!contactOnly && policyWarn && (
@@ -703,14 +710,14 @@ export function HomestayBooking({
                             {v.r.por || v.ib ? IB : nN ? fmt(v.stayPrice) : fmt(fromPrice(v.r))}
                           </div>
                         </div>
-                        {contactOnly ? (
+                        {chatOnly ? (
                           <a
                             href={chatUrl}
                             target={zalo ? "_blank" : undefined}
                             rel={zalo ? "noopener noreferrer" : undefined}
                             className="rounded-xl bg-sunset-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-sunset-600"
                           >
-                            💬 Nhắn tin nhận thông tin
+                            {contactOnly ? "💬 Nhắn tin nhận thông tin" : "💬 Nhắn tin để biết chi tiết"}
                           </a>
                         ) : (
                         <button
@@ -846,12 +853,13 @@ export function HomestayBooking({
       {/* ===== Cột phải: panel đặt phòng dính ===== */}
       <aside ref={panelRef} className="lg:sticky lg:top-20">
         <div className="flex flex-col gap-3.5 rounded-2xl bg-white p-5 shadow-md ring-1 ring-black/5">
-          {contactOnly ? (
+          {chatOnly ? (
             <div className="flex flex-col gap-3">
-              <div className="text-lg font-extrabold text-ink">Nhắn tin để nhận thông tin</div>
+              <div className="text-lg font-extrabold text-ink">{contactOnly ? "Nhắn tin để nhận thông tin" : "Nhắn tin để biết chi tiết"}</div>
               <p className="text-sm leading-relaxed text-gray-600">
-                Homestay này không hiển thị lịch trống trên web. Nhắn tin hoặc gọi cho Tà Xùa Booking
-                để kiểm tra phòng trống, nhận báo giá chính xác và giữ phòng — phản hồi nhanh trong giờ hành chính.
+                {contactOnly
+                  ? "Homestay này không hiển thị lịch trống trên web. Nhắn tin hoặc gọi cho Tà Xùa Booking để kiểm tra phòng trống, nhận báo giá chính xác và giữ phòng — phản hồi nhanh trong giờ hành chính."
+                  : "Homestay này không nhận đặt trực tiếp trên web. Chọn ngày để xem phòng còn trống, rồi nhắn tin hoặc gọi cho Tà Xùa Booking để biết chi tiết và giữ phòng."}
               </p>
               <a
                 href={chatUrl}
@@ -859,7 +867,7 @@ export function HomestayBooking({
                 rel={zalo ? "noopener noreferrer" : undefined}
                 className="rounded-xl bg-sunset-500 px-4 py-3.5 text-center text-base font-bold text-white transition hover:bg-sunset-600"
               >
-                💬 Nhắn tin nhận thông tin
+                {contactOnly ? "💬 Nhắn tin nhận thông tin" : "💬 Nhắn tin để biết chi tiết"}
               </a>
               <p className="text-center text-xs leading-relaxed text-gray-500">
                 Giá hiển thị là giá tham khảo theo bảng giá niêm yết của homestay.
@@ -874,6 +882,7 @@ export function HomestayBooking({
                   ? `Tụi mình sẽ gọi ${cphone} để xác nhận phòng (chưa thanh toán online).`
                   : `Tụi mình sẽ gọi ${cphone} để xác nhận chi tiết.`} />
               </p>
+              <SupportHoursNote />
               <button type="button" onClick={reset} className="mt-1 self-start rounded-lg bg-white px-4 py-2 text-sm font-bold text-forest-800 ring-1 ring-gray-200">
                 Đặt thêm
               </button>
@@ -1058,11 +1067,11 @@ export function HomestayBooking({
       </aside>
 
       {/* Thanh đáy dính (mobile) */}
-      {contactOnly ? (
+      {chatOnly ? (
         <div className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-between gap-3 border-t border-gray-200 bg-white px-4 py-3 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.2)] lg:hidden">
           <div className="min-w-0">
             <div className="truncate text-xs text-gray-500">Kiểm tra phòng trống & giữ phòng</div>
-            <div className="text-base font-extrabold text-ink">Nhắn tin nhận thông tin</div>
+            <div className="text-base font-extrabold text-ink">{contactOnly ? "Nhắn tin nhận thông tin" : "Nhắn tin để biết chi tiết"}</div>
           </div>
           <a
             href={chatUrl}

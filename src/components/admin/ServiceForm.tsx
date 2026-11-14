@@ -32,6 +32,7 @@ interface Initial {
   easyRoad?: boolean;
   pool?: boolean;
   contactOnly?: boolean;
+  inquiryOnly?: boolean;
   soldOutDates?: string[];
   ownerId?: string | null;
   ctvCommission?: number | null;
@@ -62,14 +63,17 @@ export function ServiceForm({
   const [state, formAction, pending] = useActionState(action, {});
   const [cat, setCat] = useState<ServiceCategory>(initial.category ?? "HOMESTAY");
   const [contactOnly, setContactOnly] = useState(initial.contactOnly ?? false);
+  const [inquiryOnly, setInquiryOnly] = useState((initial.inquiryOnly ?? false) && !(initial.contactOnly ?? false));
   // React 19 tự RESET form sau mỗi lần chạy action: ô <select>/<checkbox> có điều khiển (value/checked
   // theo state) bị DOM đưa về lựa chọn mặc định (select → mục ĐẦU danh sách = "Combo") trong khi state
   // không đổi → bấm Lưu lần 2 là gửi nhầm "Combo". Ghi lại giá trị state vào DOM sau mỗi lần lưu.
   const catRef = useRef<HTMLSelectElement>(null);
   const contactOnlyRef = useRef<HTMLInputElement>(null);
+  const inquiryOnlyRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (catRef.current) catRef.current.value = cat;
     if (contactOnlyRef.current) contactOnlyRef.current.checked = contactOnly;
+    if (inquiryOnlyRef.current) inquiryOnlyRef.current.checked = inquiryOnly;
     // Chỉ chạy lại sau mỗi lần action trả kết quả (lúc React vừa reset form).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
@@ -312,13 +316,19 @@ export function ServiceForm({
           <span className="text-sm text-gray-700">🏊 Hồ bơi (lọc combo)</span>
         </label>
         <label className="flex items-center gap-2">
-          <input ref={contactOnlyRef} type="checkbox" name="contactOnly" checked={contactOnly} onChange={(e) => setContactOnly(e.target.checked)} className="accent-forest-600 h-4 w-4" />
+          <input ref={contactOnlyRef} type="checkbox" name="contactOnly" checked={contactOnly} onChange={(e) => { setContactOnly(e.target.checked); if (e.target.checked) setInquiryOnly(false); }} className="accent-forest-600 h-4 w-4" />
           <span className="text-sm text-gray-700">
             {cat === "CABIN"
               ? "💬 Chỉ nhắn tin — không cho đặt trước trên web, khách nhắn Zalo để giữ vé (không ghép combo)"
               : "💬 Không quản lý lịch — khách nhắn tin nhận thông tin (luôn hiện khi tìm kiếm)"}
           </span>
         </label>
+        {(cat === "HOMESTAY" || cat === "BUNGALOW") && (
+          <label className="flex items-center gap-2">
+            <input ref={inquiryOnlyRef} type="checkbox" name="inquiryOnly" checked={inquiryOnly} onChange={(e) => { setInquiryOnly(e.target.checked); if (e.target.checked) setContactOnly(false); }} className="accent-forest-600 h-4 w-4" />
+            <span className="text-sm text-gray-700">💬 Nhắn tin để biết chi tiết — vẫn quản lý lịch (tìm kiếm hiện theo tình trạng phòng, không ghép combo)</span>
+          </label>
+        )}
       </div>
 
       {/* Homestay không quản lý lịch: khai các ngày hết phòng để ẩn khỏi kết quả tìm kiếm. */}

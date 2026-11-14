@@ -1,5 +1,6 @@
 "use client";
 
+import { SupportHoursNote } from "@/components/SupportHours";
 import { ItineraryLink } from "@/components/itinerary/ItineraryLink";
 import { useState } from "react";
 import type { ServiceCategory, AvailabilityStatus } from "@prisma/client";
@@ -189,6 +190,7 @@ export function BookingPanel({
               Chúng tôi sẽ liên hệ bạn sớm để xác nhận chi tiết.
             </p>
           )}
+          <SupportHoursNote className="mt-3" />
           <div className="mt-4 flex gap-2">
             <a
               href={`tel:${phone.replace(/\s/g, "")}`}

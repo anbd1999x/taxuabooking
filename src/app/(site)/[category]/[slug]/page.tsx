@@ -235,6 +235,7 @@ export default async function ServiceDetailPage({
         <HomestayBooking
           serviceId={service.id}
           contactOnly={service.contactOnly}
+          inquiryOnly={service.inquiryOnly && !service.contactOnly}
           rooms={rooms}
           startKey={toDateKey(start)}
           numDays={NUM_DAYS}
@@ -521,7 +522,7 @@ export default async function ServiceDetailPage({
                 <p className="mt-1">
                   <span className="text-gray-500">Giá: </span>
                   {service.transport.fixedPrice != null
-                    ? <span className="font-semibold text-forest-700">{formatPrice(service.transport.fixedPrice)}</span>
+                    ? <span className="font-semibold text-forest-700">{formatPrice(service.transport.fixedPrice)}{service.category === "TAXI" ? "/ngày" : ""}</span>
                     : <span className="font-medium text-sky-700">Liên hệ xác nhận giá</span>}
                 </p>
                 {service.transport.priceNote && (

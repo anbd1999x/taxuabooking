@@ -75,7 +75,7 @@ export default async function ProviderOrdersPage() {
     if (isCombo && !homeSide) {
       // Phía nhà xe: chỉ phần tiền vé, thuần xem (phòng & trạng thái do chủ homestay/sàn lo).
       gross = toNumber(b.busAmount) ?? 0;
-      discount = 0;
+      discount = busDiscMap.get(b.id) ?? 0; // chiết khấu nhà xe để lại cho sàn
       mainTag = "XE";
       room = "Vé xe cabin (combo)";
       moneyLabel = "Tiền vé của bạn";
@@ -85,12 +85,13 @@ export default async function ProviderOrdersPage() {
       canCancel = false;
       busLabel = "";
       busPrice = 0;
-      const net0 = gross;
+      const net0 = Math.max(0, gross - discount);
       collected = comboSideCollected(b.paymentStatus, toNumber(b.amountCollected), gross, net0);
     } else {
       const info = infoMap.get(b.id);
       gross = isCombo ? toNumber(b.roomAmount) ?? 0 : toNumber(b.referencePrice) ?? 0;
-      discount = info?.discount ?? 0;
+      // Đơn vé cabin: trừ chiết khấu NHÀ XE; còn lại (homestay/combo phía home): chiết khấu từng căn.
+      discount = b.category === "CABIN" ? busDiscMap.get(b.id) ?? 0 : info?.discount ?? 0;
       mainTag = "PH";
       // Tên phòng thực (vd "Phòng đôi (P201) + Phòng đôi (P202)"); fallback nhãn lựa chọn / tên dịch vụ.
       room = info?.label || b.selectionLabel || b.service?.title || b.serviceTitle;

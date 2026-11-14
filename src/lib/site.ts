@@ -9,4 +9,8 @@ export const SITE = {
     "Đặt xe cabin, homestay, bungalow, thuê xe máy, taxi và combo du lịch Tà Xùa. Xem giá và tình trạng còn chỗ theo ngày, gửi yêu cầu đặt nhanh chóng.",
   defaultPhone: "0357452952",
   defaultZalo: "0357452952",
+  /** Giờ hoạt động (có người hỗ trợ, xác nhận đơn) — giờ Việt Nam. */
+  supportHours: "8:00–23:00",
+  supportOpenHour: 8,
+  supportCloseHour: 23,
 } as const;

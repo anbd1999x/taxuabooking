@@ -136,6 +136,7 @@ export const serviceInputSchema = z.object({
   easyRoad: z.coerce.boolean().optional(),
   pool: z.coerce.boolean().optional(),
   contactOnly: z.coerce.boolean().optional(),
+  inquiryOnly: z.coerce.boolean().optional(),
   soldOutDates: z.array(z.string().regex(dateKeyRegex)).max(1500).optional(),
   ownerId: z.string().optional().nullable(),
   ctvCommission: z.coerce.number().int().min(0).optional().nullable(),

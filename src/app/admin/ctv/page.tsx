@@ -62,6 +62,8 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: "ok
 export function OrdersTable({
   bookings,
   settleCommission = false,
+  amounts,
+  amountLabel,
 }: {
   bookings: {
     id: string;
@@ -83,6 +85,9 @@ export function OrdersTable({
   }[];
   /** true ⇒ hiện nút đánh dấu "đã trả hoa hồng" (admin / chủ dịch vụ). */
   settleCommission?: boolean;
+  /** Chủ dịch vụ: id đơn → { net: tiền thực nhận, discount } — hiện THAY cho giá bán ra trên web. */
+  amounts?: Record<string, { net: number; discount: number }>;
+  amountLabel?: string;
 }) {
   return (
     <div className="mt-3 overflow-x-auto rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
@@ -92,7 +97,7 @@ export function OrdersTable({
             <th className="px-4 py-3">Mã</th>
             <th className="px-4 py-3">Dịch vụ</th>
             <th className="px-4 py-3 hidden sm:table-cell">Ngày dùng</th>
-            <th className="px-4 py-3 text-right">Giá</th>
+            <th className="px-4 py-3 text-right">{amountLabel ?? "Giá"}</th>
             <th className="px-4 py-3">Trạng thái</th>
             <th className="px-4 py-3 text-right">Hoa hồng</th>
             <th className="px-4 py-3">Trả HH</th>
@@ -112,8 +117,11 @@ export function OrdersTable({
                   <td className="px-4 py-3">{b.service?.title ?? b.serviceTitle}</td>
                   <td className="px-4 py-3 hidden sm:table-cell text-gray-600">{formatDate(b.useDate)}</td>
                   <td className="px-4 py-3 text-right font-semibold">
-                    {formatPrice(b.referencePrice as number)}
-                    {b.category === "COMBO" && b.roomAmount != null && (
+                    {amounts ? formatPrice(amounts[b.id]?.net ?? 0) : formatPrice(b.referencePrice as number)}
+                    {amounts && (amounts[b.id]?.discount ?? 0) > 0 && (
+                      <div className="mt-0.5 whitespace-nowrap text-[11px] font-normal text-gray-500">đã trừ chiết khấu {formatPrice(amounts[b.id].discount)}</div>
+                    )}
+                    {!amounts && b.category === "COMBO" && b.roomAmount != null && (
                       <div className="mt-0.5 whitespace-nowrap text-[11px] font-normal text-gray-500">
                         🛏 phòng {formatPrice(b.roomAmount as number)} · 🚌 xe {formatPrice(b.busAmount as number)}
                       </div>

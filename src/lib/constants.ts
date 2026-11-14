@@ -68,9 +68,9 @@ export const CATEGORIES: Record<ServiceCategory, CategoryMeta> = {
     slug: "taxi",
     label: "Taxi Tà Xùa",
     shortLabel: "Taxi",
-    tagline: "Xe 4-7 chỗ, đưa đón theo tuyến",
+    tagline: "Xe 4-7 chỗ, thuê theo ngày",
     availabilityKind: "transport",
-    priceUnit: "",
+    priceUnit: "/ngày",
   },
   COMBO: {
     key: "COMBO",

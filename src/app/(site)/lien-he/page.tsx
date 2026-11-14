@@ -28,6 +28,7 @@ export default async function ContactPage() {
 
       <div className="mt-6 space-y-3 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
         <p><span className="text-gray-500">📞 Điện thoại: </span><a href={`tel:${phone.replace(/\s/g, "")}`} className="font-semibold text-forest-700">{phone}</a></p>
+        <p><span className="text-gray-500">🕗 Giờ hoạt động: </span><span className="font-semibold text-ink">{SITE.supportHours} hằng ngày</span> <span className="text-gray-500">(đơn gửi ngoài giờ được xác nhận từ 8:00 hôm sau)</span></p>
         {zalo && <p><span className="text-gray-500">💬 Zalo: </span><a href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-forest-700">{zalo}</a></p>}
         {email && <p><span className="text-gray-500">✉️ Email: </span><a href={`mailto:${email}`} className="font-semibold text-forest-700">{email}</a></p>}
         {facebook && <p><span className="text-gray-500">📘 Facebook: </span><a href={facebook} target="_blank" rel="noopener noreferrer" className="font-semibold text-forest-700">{facebook}</a></p>}

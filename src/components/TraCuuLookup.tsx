@@ -48,7 +48,7 @@ const vnd = (n: number) => n.toLocaleString("vi-VN") + "đ";
 
 /** Màu + thông điệp theo trạng thái (bám thiết kế). */
 const ST: Record<LookupStatus, { label: string; bg: string; fg: string; bar: string; msg: string; msgBg: string; msgFg: string }> = {
-  new: { label: "Mới · chờ xác nhận", bg: "oklch(0.95 0.03 250)", fg: "oklch(0.42 0.1 250)", bar: "oklch(0.6 0.12 250)", msg: "Tụi mình đã nhận yêu cầu và sẽ gọi lại trong 30 phút (7:00–22:00) để xác nhận chỗ. Chưa cần chuyển tiền.", msgBg: "oklch(0.95 0.03 250)", msgFg: "oklch(0.35 0.1 250)" },
+  new: { label: "Mới · chờ xác nhận", bg: "oklch(0.95 0.03 250)", fg: "oklch(0.42 0.1 250)", bar: "oklch(0.6 0.12 250)", msg: "Tụi mình đã nhận yêu cầu và sẽ gọi lại trong 30 phút (giờ hoạt động 8:00–23:00; đơn gửi ngoài giờ được xác nhận từ 8:00) để xác nhận chỗ. Chưa cần chuyển tiền.", msgBg: "oklch(0.95 0.03 250)", msgFg: "oklch(0.35 0.1 250)" },
   contact: { label: "Đang liên hệ", bg: "oklch(0.95 0.06 70)", fg: "oklch(0.48 0.15 50)", bar: "oklch(0.7 0.14 70)", msg: "Tụi mình đang gọi cho bạn. Nếu lỡ cuộc gọi, nhắn Zalo để chốt nhanh.", msgBg: "oklch(0.95 0.06 70)", msgFg: "oklch(0.45 0.14 50)" },
   confirmed: { label: "Đã xác nhận", bg: "oklch(0.93 0.05 155)", fg: "oklch(0.38 0.1 155)", bar: "oklch(0.55 0.12 155)", msg: "Chỗ đã được giữ. Lịch trình chi tiết sẽ gửi qua Zalo trước ngày đi 1 ngày; cần cọc giữ chỗ tụi mình sẽ nhắn hướng dẫn.", msgBg: "oklch(0.93 0.05 155)", msgFg: "oklch(0.33 0.1 155)" },
   done: { label: "Hoàn thành", bg: "oklch(0.93 0.01 160)", fg: "oklch(0.35 0.02 160)", bar: G, msg: "Cảm ơn bạn đã đi cùng Tà Xùa Booking. Để lại đánh giá giúp khách sau chọn đúng chỗ nhé.", msgBg: "oklch(0.96 0.005 160)", msgFg: "oklch(0.35 0.02 160)" },

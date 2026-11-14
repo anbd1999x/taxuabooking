@@ -43,6 +43,7 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
           <h4 className="font-semibold text-white">Liên hệ</h4>
           <ul className="mt-3 space-y-2 text-sm text-forest-200">
             <li>📞 {formatPhone(phone)}</li>
+            <li>🕗 Giờ hoạt động: {SITE.supportHours}</li>
             {email && <li>✉️ {email}</li>}
             {facebook && (
               <li>

@@ -47,7 +47,6 @@ function rnd(i: number, kk: number) {
 export function TaxiList({ routes }: { routes: TaxiRouteCard[] }) {
   const [w, setW] = useState(1280);
   const [type, setType] = useState<"all" | TaxiRouteCard["kind"]>("all");
-  const [mode, setMode] = useState<"one" | "round">("one");
   const [pick, setPick] = useState("");
   const [day, setDay] = useState("");
   const [time, setTime] = useState("04:30");
@@ -262,7 +261,6 @@ export function TaxiList({ routes }: { routes: TaxiRouteCard[] }) {
 
   const wide = w >= 980;
   const heroH = w < 640 ? 520 : 600;
-  const round = mode === "round";
   const seats = qty <= 3 ? 4 : 7;
   const cars = qty > 6 ? Math.ceil(qty / 6) : 1;
   const timeTip = qty > 6 ? `${qty} người cần ${cars} xe 7 chỗ.` : `${qty} người, gợi ý xe ${seats} chỗ.`;
@@ -389,7 +387,7 @@ export function TaxiList({ routes }: { routes: TaxiRouteCard[] }) {
           <div data-in="0" className="flex gap-2 text-sm opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease, transform .9s cubic-bezier(.2,.7,.2,1)", color: "oklch(0.9 0.02 220)" }}>
             <Link href="/" className="!text-[oklch(0.9_0.02_220)] hover:!text-white">Trang chủ</Link><span>/</span><span className="font-bold text-white">Taxi</span>
           </div>
-          <h1 data-in="1" className="mt-4 text-[13px] font-bold uppercase tracking-[0.14em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .1s, transform .9s cubic-bezier(.2,.7,.2,1) .1s", color: "oklch(0.88 0.12 80)" }}>Taxi Tà Xùa · xe 4–7 chỗ, giá theo tuyến</h1>
+          <h1 data-in="1" className="mt-4 text-[13px] font-bold uppercase tracking-[0.14em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .1s, transform .9s cubic-bezier(.2,.7,.2,1) .1s", color: "oklch(0.88 0.12 80)" }}>Taxi Tà Xùa · xe 4–7 chỗ, giá theo ngày</h1>
           <p data-in="2" className="mt-3.5 max-w-[760px] text-[clamp(32px,6vw,60px)] font-extrabold leading-[1.02] tracking-[-0.035em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .2s, transform .9s cubic-bezier(.2,.7,.2,1) .2s", textShadow: "0 2px 24px oklch(0.2 0.05 260 / .4)" }}>Xe riêng cho cả nhóm, qua đèo tới biển mây</p>
           <p data-in="3" className="mt-3.5 max-w-[520px] text-[clamp(15px,1.7vw,18px)] leading-[1.5] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .3s, transform .9s cubic-bezier(.2,.7,.2,1) .3s", color: "oklch(0.97 0.02 80)" }}>Taxi 4 và 7 chỗ gầm cao, tài xế quen đường đèo Tà Xùa. Chọn tuyến, ngày và số người để gửi yêu cầu.</p>
         </div>
@@ -404,11 +402,7 @@ export function TaxiList({ routes }: { routes: TaxiRouteCard[] }) {
                 <button key={kk} type="button" onClick={() => setType(kk)} className="rounded-full px-3.5 py-2 text-sm font-bold transition" style={{ background: type === kk ? TH.G : "oklch(0.95 0.01 200)", color: type === kk ? "white" : "oklch(0.35 0.02 160)" }}>{kk === "all" ? "Tất cả" : kk}</button>
               ))}
             </div>
-            <div className="inline-flex gap-[3px] rounded-full bg-[oklch(0.95_0.01_200)] p-[3px]">
-              {([["one", "Một chiều"], ["round", "Khứ hồi"]] as const).map(([kk, n]) => (
-                <button key={kk} type="button" onClick={() => setMode(kk)} className="rounded-full px-3 py-1.5 text-[13px] font-bold transition" style={{ background: mode === kk ? "white" : "transparent", color: mode === kk ? TH.G : "oklch(0.42 0.02 160)", boxShadow: mode === kk ? "0 1px 3px oklch(0.2 0.03 160 / .15)" : "none" }}>{n}</button>
-              ))}
-            </div>
+            <span className="rounded-full bg-[oklch(0.95_0.01_200)] px-3.5 py-2 text-[13px] font-bold" style={{ color: TH.G }}>Thuê xe theo ngày</span>
           </div>
           <div className="grid gap-1.5" style={{ gridTemplateColumns: wide ? "1.4fr 1fr 0.8fr 150px auto" : "repeat(auto-fit,minmax(min(100%,150px),1fr))" }}>
             <label className={cell}>
@@ -442,7 +436,7 @@ export function TaxiList({ routes }: { routes: TaxiRouteCard[] }) {
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <div className="text-[clamp(22px,2.6vw,28px)] font-extrabold tracking-[-0.02em] text-ink">Tuyến taxi Tà Xùa</div>
-            <div className="mt-1 text-sm text-gray-500">{items.length} tuyến · xe 4 và 7 chỗ gầm cao · giá theo chuyến, xác nhận qua điện thoại</div>
+            <div className="mt-1 text-sm text-gray-500">{items.length} tuyến · xe 4 và 7 chỗ gầm cao · giá theo ngày, xác nhận qua điện thoại</div>
           </div>
           {items.length > 0 && (
             <div className="inline-flex gap-1 rounded-xl bg-[oklch(0.93_0.01_200)] p-1">
@@ -463,9 +457,7 @@ export function TaxiList({ routes }: { routes: TaxiRouteCard[] }) {
               const noPrice = r.price == null;
               const note = noPrice
                 ? r.priceNote || "Báo giá khi gọi lại"
-                : round
-                  ? "Khứ hồi: liên hệ xác nhận giá"
-                  : r.priceNote || "Giá cả xe, không tính theo người";
+                : r.priceNote || "Giá cả xe, không tính theo người";
               return (
                 <Link
                   key={r.id}
@@ -519,15 +511,15 @@ export function TaxiList({ routes }: { routes: TaxiRouteCard[] }) {
                         <div className="mt-0.5 truncate text-[15px] font-extrabold text-ink">{r.vehicleType || `Xe ${seats} chỗ`}</div>
                       </div>
                       <div className="bg-[oklch(0.975_0.006_200)] px-3 py-2.5">
-                        <div className="text-[11px] font-semibold text-gray-500">Chiều</div>
-                        <div className="mt-0.5 text-[15px] font-extrabold text-ink">{round ? "Khứ hồi" : "Một chiều"}</div>
+                        <div className="text-[11px] font-semibold text-gray-500">Thời gian thuê</div>
+                        <div className="mt-0.5 text-[15px] font-extrabold text-ink">Một ngày</div>
                       </div>
                     </div>
                     <div className="flex-1" />
                     <div className="flex items-end justify-between gap-2.5 border-t border-[oklch(0.94_0.01_200)] pt-3">
                       <div>
-                        <div className="text-xs text-gray-500">{noPrice ? "Giá" : "Một chiều / chuyến"}</div>
-                        <div className="font-extrabold tracking-[-0.02em]" style={{ fontSize: noPrice ? 16 : 22, color: noPrice ? "oklch(0.42 0.1 250)" : "oklch(0.6 0.18 45)" }}>{noPrice ? "Liên hệ xác nhận giá" : vnd(r.price!)}</div>
+                        <div className="text-xs text-gray-500">{noPrice ? "Giá" : "Giá thuê / ngày"}</div>
+                        <div className="font-extrabold tracking-[-0.02em]" style={{ fontSize: noPrice ? 16 : 22, color: noPrice ? "oklch(0.42 0.1 250)" : "oklch(0.6 0.18 45)" }}>{noPrice ? "Liên hệ xác nhận giá" : <>{vnd(r.price!)}<span className="text-sm font-bold text-gray-500">/ngày</span></>}</div>
                         <div className="text-xs font-semibold text-gray-500">{note}</div>
                       </div>
                       <span className="whitespace-nowrap rounded-full px-4 py-2.5 text-sm font-bold text-white transition group-hover:bg-sunset-500" style={{ background: TH.G }}>Gửi yêu cầu →</span>
@@ -540,7 +532,7 @@ export function TaxiList({ routes }: { routes: TaxiRouteCard[] }) {
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-[oklch(0.92_0.01_200)] bg-white px-[18px] py-4">
-          <div className="max-w-[640px] text-sm leading-[1.5] text-gray-600">Giá theo chuyến, đã gồm cầu đường. Sau khi bạn gửi yêu cầu, <We /> gọi lại xác nhận xe, tài xế và giờ đón.</div>
+          <div className="max-w-[640px] text-sm leading-[1.5] text-gray-600">Giá thuê xe theo ngày. Sau khi bạn gửi yêu cầu, <We /> gọi lại xác nhận xe, tài xế và giờ đón.</div>
           <SiteZaloLink className="whitespace-nowrap rounded-full px-4 py-2.5 text-sm font-bold text-white" style={{ background: "oklch(0.68 0.18 45)" }}>Hỏi nhanh qua Zalo</SiteZaloLink>
         </div>
 

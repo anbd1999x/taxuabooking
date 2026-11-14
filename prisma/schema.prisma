@@ -135,6 +135,7 @@ model Service {
   easyRoad    Boolean         @default(false) // đường dễ đi (dùng cho combo homestay)
   pool        Boolean         @default(false) // có hồ bơi (tiện ích homestay)
   contactOnly Boolean         @default(false) // không quản lý lịch trên web: luôn hiện "còn chỗ" khi tìm kiếm, khách nhắn tin để nhận thông tin (không đặt trực tiếp)
+  inquiryOnly Boolean         @default(false) // homestay: khách NHẮN TIN để biết chi tiết (không đặt trực tiếp) nhưng lịch VẪN quản lý — tìm kiếm/lịch hiện theo tình trạng phòng thật
   // NGÀY HẾT PHÒNG (yyyy-mm-dd, mỗi ngày = 1 đêm) cho homestay "không quản lý lịch" (contactOnly):
   // kỳ tìm kiếm trùng đêm nào trong danh sách thì home bị ẩn khỏi kết quả tìm homestay.
   soldOutDates String[] @default([])

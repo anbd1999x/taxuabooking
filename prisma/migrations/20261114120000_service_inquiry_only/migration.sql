@@ -1,0 +1,1 @@
+ALTER TABLE "Service" ADD COLUMN "inquiryOnly" BOOLEAN NOT NULL DEFAULT false;

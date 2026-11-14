@@ -940,7 +940,7 @@ export interface TaxiRoute {
   to: string;
   desc: string;
   vehicleType: string | null;
-  price: number | null; // giá cố định theo chuyến (cả xe); null = liên hệ
+  price: number | null; // giá cố định theo NGÀY (cả xe); null = liên hệ
   priceNote: string | null;
   kind: "Đưa đón Bắc Yên" | "Đường dài" | "Tham quan";
   image: string | null;

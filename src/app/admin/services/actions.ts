@@ -83,6 +83,7 @@ export async function createService(
     easyRoad: formData.get("easyRoad") === "on",
     pool: formData.get("pool") === "on",
     contactOnly: formData.get("contactOnly") === "on",
+    inquiryOnly: formData.get("inquiryOnly") === "on",
     soldOutDates: dateList(formData.get("soldOutDates")),
     ownerId: s(formData.get("ownerId")),
     ctvCommission: num(formData.get("ctvCommission")),
@@ -122,6 +123,8 @@ export async function createService(
       easyRoad: d.easyRoad ?? false,
       pool: d.pool ?? false,
       contactOnly: d.contactOnly ?? false,
+      // "Nhắn tin, theo tình trạng phòng" chỉ có nghĩa khi KHÔNG bật "không quản lý lịch".
+      inquiryOnly: (d.inquiryOnly ?? false) && !d.contactOnly,
       // Chỉ ghi khi form có gửi ô "ngày hết phòng" (form khác không gửi → giữ nguyên).
       ...(d.soldOutDates ? { soldOutDates: d.soldOutDates } : {}),
       ownerId: d.ownerId ?? null,
@@ -168,6 +171,7 @@ export async function createServiceFull(
     easyRoad: formData.get("easyRoad") === "on",
     pool: formData.get("pool") === "on",
     contactOnly: formData.get("contactOnly") === "on",
+    inquiryOnly: formData.get("inquiryOnly") === "on",
     soldOutDates: dateList(formData.get("soldOutDates")),
     ownerId: s(formData.get("ownerId")),
     ctvCommission: num(formData.get("ctvCommission")),
@@ -258,6 +262,8 @@ export async function createServiceFull(
       easyRoad: d.easyRoad ?? false,
       pool: d.pool ?? false,
       contactOnly: d.contactOnly ?? false,
+      // "Nhắn tin, theo tình trạng phòng" chỉ có nghĩa khi KHÔNG bật "không quản lý lịch".
+      inquiryOnly: (d.inquiryOnly ?? false) && !d.contactOnly,
       // Chỉ ghi khi form có gửi ô "ngày hết phòng" (form khác không gửi → giữ nguyên).
       ...(d.soldOutDates ? { soldOutDates: d.soldOutDates } : {}),
       ownerId: d.ownerId ?? null,
@@ -356,6 +362,7 @@ export async function updateService(
     easyRoad: formData.get("easyRoad") === "on",
     pool: formData.get("pool") === "on",
     contactOnly: formData.get("contactOnly") === "on",
+    inquiryOnly: formData.get("inquiryOnly") === "on",
     soldOutDates: dateList(formData.get("soldOutDates")),
     ownerId: s(formData.get("ownerId")),
     ctvCommission: num(formData.get("ctvCommission")),
@@ -396,6 +403,8 @@ export async function updateService(
       easyRoad: d.easyRoad ?? false,
       pool: d.pool ?? false,
       contactOnly: d.contactOnly ?? false,
+      // "Nhắn tin, theo tình trạng phòng" chỉ có nghĩa khi KHÔNG bật "không quản lý lịch".
+      inquiryOnly: (d.inquiryOnly ?? false) && !d.contactOnly,
       // Chỉ ghi khi form có gửi ô "ngày hết phòng" (form khác không gửi → giữ nguyên).
       ...(d.soldOutDates ? { soldOutDates: d.soldOutDates } : {}),
       ownerId: d.ownerId ?? null,

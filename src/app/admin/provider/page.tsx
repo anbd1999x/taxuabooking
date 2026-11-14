@@ -3,7 +3,7 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { toNumber, formatPrice } from "@/lib/format";
 import { comboSideCollected } from "@/lib/combo-pricing";
-import { resolveRoomCommissions } from "@/lib/provider-commission";
+import { resolveBusCommissions, resolveRoomCommissions } from "@/lib/provider-commission";
 import { OrdersTable } from "../ctv/page";
 
 export const dynamic = "force-dynamic";
@@ -12,39 +12,56 @@ export default async function ProviderHome() {
   const session = await getSession();
   const ownerId = session!.sub;
 
+  // Nhà xe: đơn COMBO gắn serviceId homestay nhưng đi qua CHUYẾN của nhà xe → vẫn là đơn của mình.
+  const myTrips = await prisma.cabinTrip.findMany({
+    where: { service: { ownerId, category: "CABIN" } },
+    select: { id: true },
+  });
+  const tripIds = myTrips.map((t) => t.id);
+  const mine = tripIds.length
+    ? { OR: [{ service: { ownerId } }, { cabinTripId: { in: tripIds } }, { cabinReturnTripId: { in: tripIds } }] }
+    : { service: { ownerId } };
+
   const [services, recent, all] = await Promise.all([
     prisma.service.findMany({ where: { ownerId }, select: { title: true } }),
     prisma.bookingRequest.findMany({
-      where: { service: { ownerId } },
+      where: mine,
       orderBy: { createdAt: "desc" },
       take: 10,
-      include: { service: { select: { title: true } } },
+      include: { service: { select: { title: true, ownerId: true } } },
     }),
     prisma.bookingRequest.findMany({
       // Doanh thu chỉ tính đơn đã chốt (xác nhận / hoàn thành).
-      where: { service: { ownerId }, status: { in: ["CONFIRMED", "COMPLETED"] } },
-      select: { id: true, category: true, referencePrice: true, roomAmount: true, roomCommission: true, roomId: true, roomIds: true, useDate: true, endDate: true, amountCollected: true, paymentStatus: true },
+      where: { AND: [mine, { status: { in: ["CONFIRMED", "COMPLETED"] } }] },
+      include: { service: { select: { ownerId: true } } },
     }),
   ]);
   // Chiết khấu hiệu lực mỗi đơn (snapshot, hoặc tính bù cho đơn cũ chưa backfill).
-  const discMap = await resolveRoomCommissions(all);
-  // Đơn combo: doanh thu phía homestay = PHẦN TIỀN PHÒNG (không gộp tiền vé xe);
-  // đã thu = 50% phần tiền phòng khi khách đã cọc, đủ phần khi thanh toán đủ (sàn thu hộ).
-  // Tiền chủ dịch vụ THỰC NHẬN = tiền bán ra − chiết khấu từng căn.
-  const grossOf = (b: (typeof all)[number]) =>
-    b.category === "COMBO" ? toNumber(b.roomAmount) ?? 0 : toNumber(b.referencePrice) ?? 0;
-  const discOf = (b: (typeof all)[number]) => discMap.get(b.id) ?? 0;
-  const netOf = (b: (typeof all)[number]) => Math.max(0, grossOf(b) - discOf(b));
+  const both = [...all, ...recent];
+  const [roomDisc, busDisc] = await Promise.all([resolveRoomCommissions(both), resolveBusCommissions(both)]);
+
+  // Tiền chủ dịch vụ THỰC NHẬN = phần tiền bán ra của bên mình − chiết khấu bên mình để lại cho sàn.
+  //  - Homestay (và đơn combo phía home): tiền phòng − chiết khấu từng căn.
+  //  - Nhà xe (đơn vé cabin, đơn combo đi qua chuyến của mình): tiền vé − chiết khấu nhà xe.
+  type B = (typeof both)[number];
+  const busSide = (b: B) => (b.category === "COMBO" ? b.service?.ownerId !== ownerId : b.category === "CABIN");
+  const grossOf = (b: B) =>
+    b.category === "COMBO" ? toNumber(busSide(b) ? b.busAmount : b.roomAmount) ?? 0 : toNumber(b.referencePrice) ?? 0;
+  const discOf = (b: B) => (busSide(b) ? busDisc.get(b.id) : roomDisc.get(b.id)) ?? 0;
+  const netOf = (b: B) => Math.max(0, grossOf(b) - discOf(b));
+
   const total = all.reduce((n, b) => n + netOf(b), 0);
   const discount = all.reduce((n, b) => n + discOf(b), 0);
   const collected = all.reduce((n, b) => {
     const net = netOf(b);
+    // Combo do sàn thu hộ: đã thu = 50% phần của mình khi khách cọc, đủ phần khi thanh toán đủ.
     const raw =
       b.category === "COMBO"
         ? comboSideCollected(b.paymentStatus, toNumber(b.amountCollected), grossOf(b), net)
         : toNumber(b.amountCollected) ?? 0;
     return n + Math.min(raw, net); // tiền đã thu quy về thực nhận, không vượt quá
   }, 0);
+  const amounts = Object.fromEntries(recent.map((b) => [b.id, { net: netOf(b), discount: discOf(b) }]));
 
   return (
     <div>
@@ -66,7 +83,12 @@ export default async function ProviderHome() {
       </div>
 
       <h2 className="mt-8 text-lg font-semibold text-ink">Đơn gần đây</h2>
-      <OrdersTable bookings={recent} />
+      {/* Đơn combo phía nhà xe: hoa hồng CTV là việc của homestay → không hiện cho nhà xe. */}
+      <OrdersTable
+        bookings={recent.map((b) => (b.category === "COMBO" && busSide(b) ? { ...b, commissionAmount: null } : b))}
+        amounts={amounts}
+        amountLabel="Thực nhận"
+      />
     </div>
   );
 }
