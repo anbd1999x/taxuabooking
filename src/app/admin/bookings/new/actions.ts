@@ -19,6 +19,7 @@ import { parseSurcharges } from "@/lib/surcharges";
 import { adminExtraCost } from "@/lib/occupancy";
 import { tripsOnDate, peekTrip, materializeTrip, ensureTripOnDate, type TripView } from "@/lib/cabin-trips";
 import type { CabinDirection } from "@prisma/client";
+import { loadBookingEdit, type BookingEditProps } from "@/lib/booking-edit";
 
 /** Chuyến thật của nhà xe theo id (id ảo ⇒ tạo chuyến thật cho ngày đó). Sai nhà xe/chiều ⇒ null. */
 async function resolveAdminTrip(id: string, serviceId: string, direction: CabinDirection) {
@@ -151,6 +152,14 @@ export async function quoteCabinFare(serviceId: string, outId: string, retId: st
 
 export interface CreateAdminBookingState {
   error?: string;
+  /** Sửa đơn trong POPUP (form gửi stay=1): lưu xong KHÔNG chuyển trang, trả ok để popup tự đóng. */
+  ok?: boolean;
+}
+
+/** Dữ liệu form "Sửa đơn" cho popup sửa ngay trên trang đang xem (chỉ admin). */
+export async function fetchBookingEdit(id: string): Promise<BookingEditProps | null> {
+  await requireAdmin();
+  return loadBookingEdit(id);
 }
 
 const STATUSES: BookingStatus[] = ["NEW", "CONTACTING", "CONFIRMED", "COMPLETED", "CANCELLED"];
@@ -654,5 +663,6 @@ export async function updateAdminBooking(
   for (const p of ["/admin/bookings", "/admin/reports", "/admin/provider/don", "/admin/availability", "/admin/ctv/don", `/admin/bookings/${id}`]) {
     revalidatePath(p);
   }
+  if (str(fd, "stay") === "1") return { ok: true }; // sửa trong popup → ở lại trang đang xem
   redirect(`/admin/bookings/${id}`);
 }

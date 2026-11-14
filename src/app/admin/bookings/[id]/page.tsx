@@ -17,6 +17,7 @@ import { formatPhone } from "@/lib/trust-popup";
 import { AUTO_CANCEL_FROM, getAutoCancelHours } from "@/lib/booking-auto-cancel";
 import { hoursLabel } from "@/lib/auto-cancel-config";
 import { ActionForm } from "@/components/admin/ActionForm";
+import { EditBookingPopup } from "@/components/admin/EditBookingPopup";
 import { MoneyInput } from "@/components/admin/MoneyInput";
 import {
   CopyChip,
@@ -607,13 +608,13 @@ export default async function BookingDetailPage({
             )}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link
-              href={`/admin/bookings/${b.id}/sua`}
+            <EditBookingPopup
+              bookingId={b.id}
               title="Sửa mọi thông tin: dịch vụ, homestay & phòng, nhà xe & chuyến, cách nằm, ngày, khách, tiền"
-              className="flex items-center gap-2 whitespace-nowrap rounded-full border-[1.5px] border-forest-700 bg-white px-4 py-2.5 text-sm font-bold text-forest-700 transition hover:bg-forest-50"
+              className="flex items-center gap-2 whitespace-nowrap rounded-full border-[1.5px] border-forest-700 bg-white px-4 py-2.5 text-sm font-bold text-forest-700 transition hover:bg-forest-50 disabled:opacity-60"
             >
               ✎ Sửa đơn
-            </Link>
+            </EditBookingPopup>
             <a
               href={`tel:${phoneDigits}`}
               className="flex items-center gap-2 whitespace-nowrap rounded-full bg-forest-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-sunset-500"

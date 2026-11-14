@@ -24,6 +24,8 @@ interface Props {
   comboDiscount: number;
   /** Có ⇒ chế độ SỬA ĐƠN: nạp sẵn dữ liệu đơn, lưu qua updateAdminBooking. */
   edit?: EditInit;
+  /** Có ⇒ form nằm trong POPUP sửa đơn: lưu xong không chuyển trang mà gọi hàm này (đóng popup). */
+  onSaved?: () => void;
 }
 
 /** Dữ liệu đơn hiện tại để nạp vào form sửa. */
@@ -136,8 +138,15 @@ function addDay(key: string): string {
   return d.toISOString().slice(0, 10);
 }
 
-export default function AdminCreateBooking({ categories, services, ctvs, todayKey, comboDiscount, edit }: Props) {
+export default function AdminCreateBooking({ categories, services, ctvs, todayKey, comboDiscount, edit, onSaved }: Props) {
   const [state, formAction, submitting] = useActionState(edit ? updateAdminBooking : createAdminBooking, {});
+  const onSavedRef = useRef(onSaved);
+  useEffect(() => {
+    onSavedRef.current = onSaved;
+  });
+  useEffect(() => {
+    if (state.ok) onSavedRef.current?.();
+  }, [state]);
   const [cat, setCat] = useState<ServiceCategory>(edit?.cat ?? categories[0]?.key ?? "HOMESTAY");
   const [serviceId, setServiceId] = useState(edit?.serviceId ?? "");
   const [from, setFrom] = useState(edit?.from ?? todayKey);
@@ -359,6 +368,7 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
   return (
     <form action={formAction} className="grid gap-4 lg:grid-cols-[1fr_340px]">
       {edit && <input type="hidden" name="bookingId" value={edit.bookingId} />}
+      {edit && onSaved && <input type="hidden" name="stay" value="1" />}
       <div className="flex min-w-0 flex-col gap-4">
         {/* 1. Dịch vụ */}
         <section className={card}>

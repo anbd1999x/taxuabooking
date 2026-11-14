@@ -7,6 +7,7 @@ import { showToast } from "./Toast";
 import { PaymentRecordForm, NoteForm } from "./BookingDetailClient";
 import { bulkDeleteBookings, bulkUpdateBookingStatus } from "@/app/admin/bookings/actions";
 import BookingsCalendar from "./BookingsCalendar";
+import { EditBookingPopup } from "./EditBookingPopup";
 
 export type BookingsView = "list" | "month" | "agenda" | "year";
 const VIEWS: [BookingsView, string][] = [
@@ -612,6 +613,12 @@ export default function BookingsListClient({
                 <div className="text-xs font-semibold text-gray-500">Xử lý nhanh</div>
                 <div className="font-mono text-[17px] font-extrabold text-ink">{dx.code}</div>
               </div>
+              <EditBookingPopup
+                bookingId={dx.id}
+                className="whitespace-nowrap rounded-full border-[1.5px] border-forest-700 bg-white px-3 py-2 text-[13px] font-bold text-forest-700 hover:bg-forest-50 disabled:opacity-60"
+              >
+                ✎ Sửa đơn
+              </EditBookingPopup>
               <Link
                 href={`/admin/bookings/${dx.id}`}
                 className="whitespace-nowrap rounded-full border-[1.5px] border-gray-200 bg-white px-3 py-2 text-[13px] font-bold text-ink hover:bg-gray-50"
