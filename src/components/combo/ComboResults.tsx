@@ -697,8 +697,8 @@ function ComboPlanCard({
                 {/* Xe máy = dịch vụ đi kèm TÍNH RIÊNG: không cộng vào bill combo, trả khi giao xe */}
                 {bikes > 0 && (
                   <div className="flex flex-col gap-1 rounded-xl border border-dashed border-sunset-300 bg-sunset-50 p-3.5 text-[13px]">
-                    <div className="flex justify-between gap-2">
-                      <span className="font-bold text-ink">🏍️ Thuê xe máy <span className="font-semibold text-gray-500">(dịch vụ kèm · tính riêng)</span></span>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="min-w-0 font-bold text-ink">🏍️ Thuê xe máy <span className="block font-semibold text-gray-500 sm:inline">(dịch vụ kèm · tính riêng)</span></span>
                       <span className="flex-none text-right font-extrabold text-ink">{vnd(bikeCost)}</span>
                     </div>
                     <div className="text-xs text-gray-600">{bikes} xe × {bikeDays} ngày × {vnd(COMBO_MOTORBIKE_PER_DAY)}</div>
@@ -742,8 +742,8 @@ function ComboPlanCard({
                     </span>
                   </label>
                   {withBike && (
-                    <div className="flex items-center justify-between gap-2 border-t border-dashed border-gray-200 pt-2.5">
-                      <div className="min-w-0">
+                    <div className="flex items-center justify-between gap-3 border-t border-dashed border-gray-200 pt-2.5">
+                      <div className="min-w-0 flex-1">
                         <div className="text-sm font-bold text-ink">Số xe</div>
                         <div className="text-xs text-gray-500">{bikes} xe × {bikeDays} ngày = <b className="text-sunset-600">{vnd(bikeCost)}</b></div>
                       </div>

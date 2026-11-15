@@ -472,7 +472,7 @@ export function TaxiList({ routes }: { routes: TaxiRouteCard[] }) {
                     ) : (
                       <div className="flex h-full items-center justify-center text-4xl">🚕</div>
                     )}
-                    <div className="pointer-events-none absolute left-3 right-3 top-3 flex items-start justify-between gap-1.5">
+                    <div className="pointer-events-none absolute left-2 right-2 top-2 flex flex-wrap items-start justify-between gap-1 sm:left-3 sm:right-3 sm:top-3 sm:gap-1.5">
                       <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[oklch(0.3_0.04_160)]">{r.kind}</span>
                       {r.featured && <span className="rounded-full bg-sunset-500 px-2.5 py-1 text-xs font-bold text-white">Nổi bật</span>}
                     </div>
@@ -506,23 +506,23 @@ export function TaxiList({ routes }: { routes: TaxiRouteCard[] }) {
                       </div>
                     )}
                     <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[14px] bg-[oklch(0.92_0.01_200)]">
-                      <div className="bg-[oklch(0.975_0.006_200)] px-3 py-2.5">
-                        <div className="text-[11px] font-semibold text-gray-500">Phương tiện</div>
-                        <div className="mt-0.5 truncate text-[15px] font-extrabold text-ink">{r.vehicleType || `Xe ${seats} chỗ`}</div>
+                      <div className="min-w-0 bg-[oklch(0.975_0.006_200)] px-2 py-2 sm:px-3 sm:py-2.5">
+                        <div className="truncate text-[11px] font-semibold text-gray-500">Phương tiện</div>
+                        <div className="mt-0.5 truncate text-[13px] font-extrabold text-ink sm:text-[15px]">{r.vehicleType || `Xe ${seats} chỗ`}</div>
                       </div>
-                      <div className="bg-[oklch(0.975_0.006_200)] px-3 py-2.5">
-                        <div className="text-[11px] font-semibold text-gray-500">Thời gian thuê</div>
-                        <div className="mt-0.5 text-[15px] font-extrabold text-ink">Một ngày</div>
+                      <div className="min-w-0 bg-[oklch(0.975_0.006_200)] px-2 py-2 sm:px-3 sm:py-2.5">
+                        <div className="truncate text-[11px] font-semibold text-gray-500">Thời gian thuê</div>
+                        <div className="mt-0.5 whitespace-nowrap text-[13px] font-extrabold text-ink sm:text-[15px]">Một ngày</div>
                       </div>
                     </div>
                     <div className="flex-1" />
-                    <div className="flex items-end justify-between gap-2.5 border-t border-[oklch(0.94_0.01_200)] pt-3">
-                      <div>
+                    <div className="flex flex-col gap-2 border-t border-[oklch(0.94_0.01_200)] pt-2.5 sm:flex-row sm:items-end sm:justify-between sm:gap-2.5 sm:pt-3">
+                      <div className="min-w-0">
                         <div className="text-xs text-gray-500">{noPrice ? "Giá" : "Giá thuê / ngày"}</div>
-                        <div className="font-extrabold tracking-[-0.02em]" style={{ fontSize: noPrice ? 16 : 22, color: noPrice ? "oklch(0.42 0.1 250)" : "oklch(0.6 0.18 45)" }}>{noPrice ? "Liên hệ xác nhận giá" : <>{vnd(r.price!)}<span className="text-sm font-bold text-gray-500">/ngày</span></>}</div>
-                        <div className="text-xs font-semibold text-gray-500">{note}</div>
+                        <div className={`font-extrabold tracking-[-0.02em] ${noPrice ? "text-[14px] leading-snug sm:text-[16px]" : "whitespace-nowrap text-[18px] sm:text-[22px]"}`} style={{ color: noPrice ? "oklch(0.42 0.1 250)" : "oklch(0.6 0.18 45)" }}>{noPrice ? "Liên hệ xác nhận giá" : <>{vnd(r.price!)}<span className="text-[11px] font-bold text-gray-500 sm:text-sm">/ngày</span></>}</div>
+                        <div className="text-[11px] font-semibold leading-snug text-gray-500 sm:text-xs">{note}</div>
                       </div>
-                      <span className="whitespace-nowrap rounded-full px-4 py-2.5 text-sm font-bold text-white transition group-hover:bg-sunset-500" style={{ background: TH.G }}>Gửi yêu cầu →</span>
+                      <span className="whitespace-nowrap rounded-full px-3 py-2 text-center text-xs font-bold text-white transition group-hover:bg-sunset-500 sm:px-4 sm:py-2.5 sm:text-sm" style={{ background: TH.G }}>Gửi yêu cầu →</span>
                     </div>
                   </div>
                 </Link>

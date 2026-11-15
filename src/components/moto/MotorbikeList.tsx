@@ -469,12 +469,12 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
                     ) : (
                       <div className="flex h-full items-center justify-center text-4xl">🛵</div>
                     )}
-                    <div className="pointer-events-none absolute left-3 right-3 top-3 flex items-start justify-between gap-1.5">
-                      <div className="flex gap-1.5">
-                        <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[oklch(0.3_0.04_160)]">{b.kind}</span>
-                        {b.featured && <span className="rounded-full bg-sunset-500 px-2.5 py-1 text-xs font-bold text-white">Nổi bật</span>}
+                    <div className="pointer-events-none absolute left-2 right-2 top-2 flex flex-wrap items-start justify-between gap-1 sm:left-3 sm:right-3 sm:top-3 sm:gap-1.5">
+                      <div className="flex flex-wrap gap-1 sm:gap-1.5">
+                        <span className="whitespace-nowrap rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-[oklch(0.3_0.04_160)] sm:px-2.5 sm:py-1 sm:text-xs">{b.kind}</span>
+                        {b.featured && <span className="whitespace-nowrap rounded-full bg-sunset-500 px-2 py-0.5 text-[11px] font-bold text-white sm:px-2.5 sm:py-1 sm:text-xs">Nổi bật</span>}
                       </div>
-                      <span className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: sm.bg, color: sm.fg }}>{status}</span>
+                      <span className="max-w-full truncate rounded-full px-2 py-0.5 text-[11px] font-bold sm:px-2.5 sm:py-1 sm:text-xs" style={{ background: sm.bg, color: sm.fg }}>{status}</span>
                     </div>
                   </div>
                   <div className="flex flex-1 flex-col gap-2 p-3 sm:gap-3 sm:p-5 sm:pt-[18px]">
@@ -493,16 +493,16 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
                       </div>
                     </div>
                     <div className="flex-1" />
-                    <div className="flex items-end justify-between gap-2 border-t border-[oklch(0.94_0.01_200)] pt-2 sm:gap-2.5 sm:pt-3">
+                    <div className="flex flex-col gap-2 border-t border-[oklch(0.94_0.01_200)] pt-2 sm:flex-row sm:items-end sm:justify-between sm:gap-2.5 sm:pt-3">
                       <div className="min-w-0">
                         <div className="text-[11px] text-gray-500 sm:text-xs">{days ? `${days} ngày × ${qty} xe` : "Giá thuê"}</div>
                         <div>
-                          <span className="text-[18px] font-extrabold tracking-[-0.02em] sm:text-[22px]" style={{ color: "oklch(0.34 0.07 160)" }}>{days ? vnd(total) : vnd(b.pricePerDay)}</span>
+                          <span className="whitespace-nowrap text-[18px] font-extrabold tracking-[-0.02em] sm:text-[22px]" style={{ color: "oklch(0.34 0.07 160)" }}>{days ? vnd(total) : vnd(b.pricePerDay)}</span>
                           {!days && <span className="text-[12px] text-gray-500 sm:text-[13px]">/ngày</span>}
                         </div>
                         <div className="truncate text-[11px] font-semibold text-gray-500 sm:text-xs">{feeText}</div>
                       </div>
-                      <span className="whitespace-nowrap rounded-full px-3 py-2 text-xs font-bold text-white transition group-hover:bg-sunset-500 sm:px-4 sm:py-2.5 sm:text-sm" style={{ background: full ? "oklch(0.6 0.01 160)" : TH.G }}>{full ? "Chọn ngày khác →" : "Đặt xe →"}</span>
+                      <span className="whitespace-nowrap rounded-full px-3 py-2 text-center text-xs font-bold text-white transition group-hover:bg-sunset-500 sm:px-4 sm:py-2.5 sm:text-sm" style={{ background: full ? "oklch(0.6 0.01 160)" : TH.G }}>{full ? "Chọn ngày khác →" : "Đặt xe →"}</span>
                     </div>
                   </div>
                 </Link>

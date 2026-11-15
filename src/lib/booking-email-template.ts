@@ -38,12 +38,13 @@ type StepState = "done" | "current" | "todo";
 function detailRow(k: string, v: string, last: boolean): string {
   const border = last ? "" : `border-bottom:1px solid ${C.line};`;
   const bold = /^Tiền /.test(k) ? "bold " : "";
-  return `<tr><td width="200" style="padding:9px 0;${border}font:14px/20px ${F};color:${C.mute};mso-line-height-rule:exactly;" valign="top">${esc(k)}</td><td align="right" style="padding:9px 0;${border}font:${bold}14px/20px ${F};color:${C.ink};mso-line-height-rule:exactly;" valign="top">${esc(v)}</td></tr>`;
+  // Cột nhãn rộng theo % (không cố định 200px): trên điện thoại cột giá trị vẫn đủ chỗ, chữ không bị ép/chồng.
+  return `<tr><td width="38%" style="width:38%;padding:9px 12px 9px 0;${border}font:14px/20px ${F};color:${C.mute};mso-line-height-rule:exactly;" valign="top">${esc(k)}</td><td align="right" style="padding:9px 0;${border}word-break:break-word;font:${bold}14px/20px ${F};color:${C.ink};mso-line-height-rule:exactly;" valign="top">${esc(v)}</td></tr>`;
 }
 
 function serviceCard(s: BookingFacts["sections"][number]): string {
   const rows = s.rows.map(([k, v], i) => detailRow(k, v, i === s.rows.length - 1)).join("");
-  return `<tr><td style="padding:10px 40px 0;" class="px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${C.line};border-radius:8px;"><tr><td style="padding:16px 20px 4px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="font:bold 16px/22px ${F};color:${C.ink};">${esc(s.name)}</td><td align="right" style="font:bold 11px/16px ${F};letter-spacing:1px;color:${C.forest};white-space:nowrap;">${esc(s.tag.toUpperCase())}</td></tr></table></td></tr><tr><td style="padding:4px 20px 10px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${rows}</table></td></tr></table></td></tr>`;
+  return `<tr><td style="padding:10px 40px 0;" class="px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${C.line};border-radius:8px;"><tr><td style="padding:16px 20px 4px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td valign="top" style="font:bold 16px/22px ${F};color:${C.ink};word-break:break-word;">${esc(s.name)}</td><td align="right" valign="top" style="padding-left:10px;font:bold 11px/22px ${F};letter-spacing:1px;color:${C.forest};white-space:nowrap;">${esc(s.tag.toUpperCase())}</td></tr></table></td></tr><tr><td style="padding:4px 20px 10px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">${rows}</table></td></tr></table></td></tr>`;
 }
 
 function sectionLabel(text: string): string {
@@ -51,11 +52,11 @@ function sectionLabel(text: string): string {
 }
 
 function moneyRow(k: string, v: string): string {
-  return `<tr><td style="padding:9px 0;font:14px/20px ${F};color:${C.mute};">${esc(k)}</td><td align="right" style="padding:9px 0;font:14px/20px ${F};color:${C.ink};">${esc(v)}</td></tr>`;
+  return `<tr><td valign="top" style="padding:9px 12px 9px 0;font:14px/20px ${F};color:${C.mute};">${esc(k)}</td><td align="right" valign="top" style="padding:9px 0;font:14px/20px ${F};color:${C.ink};white-space:nowrap;">${esc(v)}</td></tr>`;
 }
 
 function totalRow(k: string, v: string, color: string): string {
-  return `<tr><td style="padding:14px 0 4px;border-top:2px solid ${C.ink};font:bold 15px/22px ${F};color:${C.ink};">${esc(k)}</td><td align="right" style="padding:14px 0 4px;border-top:2px solid ${C.ink};font:bold 20px/26px ${F};color:${color};">${esc(v)}</td></tr>`;
+  return `<tr><td style="padding:14px 0 4px;border-top:2px solid ${C.ink};font:bold 15px/22px ${F};color:${C.ink};">${esc(k)}</td><td align="right" style="padding:14px 0 4px;border-top:2px solid ${C.ink};font:bold 20px/26px ${F};color:${color};white-space:nowrap;">${esc(v)}</td></tr>`;
 }
 
 /** 3 bước tiến trình: done = xanh, current = cam, todo = xám. */

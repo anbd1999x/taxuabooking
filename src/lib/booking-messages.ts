@@ -431,8 +431,8 @@ export async function buildBookingMessages(
         ? [
             ["Số xe", `${moto[1]} xe`],
             ["Thời gian thuê", `${moto[2]} ngày`],
-            ["Thanh toán", "Khi giao xe (tính riêng, không gồm trong tổng đơn)"],
-            ["Tiền thuê xe", `${moto[3]}đ`],
+            ["Thanh toán", "Trả khi nhận xe"],
+            ["Tiền thuê xe (tính riêng)", `${moto[3]}đ`],
           ]
         : [["Chi tiết", motoOld![1].trim()]],
     });
