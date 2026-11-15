@@ -23,6 +23,7 @@ import { Gallery } from "@/components/Gallery";
 import { Badge } from "@/components/ui/Badge";
 import { getT, lp, tLong } from "@/lib/i18n/server";
 import { i18nAlternates, i18nOg } from "@/lib/i18n/meta";
+import { renderMarkdown } from "@/lib/markdown";
 
 export const dynamic = "force-dynamic";
 
@@ -382,9 +383,11 @@ export default async function ServiceDetailPage({
 
           <section className="mt-6">
             <h2 className="text-lg font-semibold text-ink">{tr("Giới thiệu")}</h2>
-            <p className="mt-2 whitespace-pre-line leading-relaxed text-gray-700">
-              {await tLong(service.description)}
-            </p>
+            {/* Mô tả hỗ trợ markdown tối giản (## / ### / - / > / **đậm**); văn bản thường vẫn giữ xuống dòng như cũ */}
+            <div
+              className="mt-2 leading-relaxed text-gray-700 [&_a]:font-semibold [&_a]:text-forest-700 [&_a]:underline [&_blockquote]:my-3 [&_blockquote]:rounded-xl [&_blockquote]:border-l-4 [&_blockquote]:border-sunset-500 [&_blockquote]:bg-sunset-50 [&_blockquote]:px-4 [&_blockquote]:py-3 [&_blockquote]:text-ink [&_h2]:mt-5 [&_h2]:text-lg [&_h2]:font-bold [&_h2]:text-ink [&_h3]:mt-5 [&_h3]:font-bold [&_h3]:text-forest-700 [&_li]:my-1.5 [&_p]:my-2 [&_strong]:font-semibold [&_strong]:text-ink [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5"
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(await tLong(service.description)) }}
+            />
           </section>
 
           {/* Lộ trình (cabin) */}
