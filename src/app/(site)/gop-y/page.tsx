@@ -94,7 +94,7 @@ export default async function GopYPage() {
 
   const phone = settings.contactPhone || SITE.defaultPhone;
   const zalo = settings.contactZalo || SITE.defaultZalo;
-  const email = settings.contactEmail;
+  const email = SITE.email;
   const fbProfile = settings[FB_PROFILE_KEY] || settings.contactFacebook || "";
   const fbOwner = settings[FB_OWNER_KEY] || "Chủ Tà Xùa Booking";
   const fbPosts = parseFbPosts(settings[FB_POSTS_KEY]);

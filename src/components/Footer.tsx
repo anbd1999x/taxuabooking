@@ -5,7 +5,11 @@ import { formatPhone, parseTrustPopup, TRUST_POPUP_KEY } from "@/lib/trust-popup
 
 export function Footer({ settings }: { settings: Record<string, string> }) {
   const phone = settings.contactPhone || SITE.defaultPhone;
-  const email = "lienhe@taxuabooking.com";
+  const email = SITE.email;
+  // Thông tin pháp lý (SiteSettings: legalName, taxCode) — có thì mới hiện.
+  const legalName = settings.legalName || SITE.legalName;
+  const taxCode = settings.taxCode || SITE.taxCode;
+  const legalAddress = settings.legalAddress || SITE.legalAddress;
   // Facebook của từng chủ sở hữu (theo thứ tự ở /admin/popup); người bị ẩn thì không hiện.
   const FB_DEFAULT = ["https://www.facebook.com/an.danh.bui.2025", "https://www.facebook.com/tanglinhvxhg"];
   const [facebook, facebook2] = parseTrustPopup(settings[TRUST_POPUP_KEY])
@@ -59,7 +63,7 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
                 </a>
               </li>
             )}
-            <li>📍 {address}</li>
+            <li>📍 Khu vực hoạt động: {address}</li>
           </ul>
         </div>
 
@@ -71,14 +75,31 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
             <li><Link href="/lich-trinh" className="hover:text-white">Lịch trình Tà Xùa</Link></li>
             <li><Link href="/ban-do" className="hover:text-white">Bản đồ check-in</Link></li>
             <li><Link href="/kinh-nghiem" className="hover:text-white">Kinh nghiệm du lịch</Link></li>
-            <li><Link href="/lien-he" className="hover:text-white">Thông tin liên hệ</Link></li>
+            <li><Link href="/gioi-thieu" className="hover:text-white">Giới thiệu</Link></li>
+            <li><Link href="/lien-he"className="hover:text-white">Thông tin liên hệ</Link></li>
             <li><Link href="/chinh-sach-bao-mat" className="hover:text-white">Chính sách bảo mật</Link></li>
+            <li><Link href="/cam-ket/dieu-khoan" className="hover:text-white">Điều khoản & hoàn tiền</Link></li>
           </ul>
         </div>
       </div>
 
-      <div className="border-t border-white/10 py-5 text-center text-xs text-forest-300">
-        © {new Date().getFullYear()} Tà Xùa Booking. Dịch vụ du lịch Tà Xùa.
+      <div className="border-t border-white/10 py-5 text-center text-xs leading-relaxed text-forest-300">
+        <div className="container-page">
+          <p>
+            Tà Xùa Booking là đơn vị trung gian đặt dịch vụ du lịch tại Tà Xùa. Homestay, nhà xe và các dịch vụ
+            trên website do chính chủ cơ sở sở hữu và vận hành; tên, hình ảnh thuộc về các cơ sở đó.
+          </p>
+          {(legalName || taxCode) && (
+            <p className="mt-1">
+              {legalName}
+              {legalName && taxCode ? " · " : ""}
+              {taxCode && <>MST: {taxCode}</>}
+              {" · Địa chỉ đăng ký: "}
+              {legalAddress}
+            </p>
+          )}
+          <p className="mt-1">© {new Date().getFullYear()} Tà Xùa Booking. Dịch vụ du lịch Tà Xùa.</p>
+        </div>
       </div>
     </footer>
   );

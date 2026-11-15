@@ -2,7 +2,8 @@ import { getSettings } from "@/lib/queries";
 import { parseTrustPopup, TRUST_POPUP_KEY } from "@/lib/trust-popup";
 import { ActionForm } from "@/components/admin/ActionForm";
 import { AvatarPicker } from "@/components/admin/AvatarPicker";
-import { saveTrustPopup } from "./actions";
+import { SITE } from "@/lib/site";
+import { saveLegalInfo, saveTrustPopup } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -140,6 +141,33 @@ export default async function AdminPopupPage() {
 
         <button className="w-fit rounded-xl bg-forest-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-forest-700">
           Lưu cấu hình
+        </button>
+      </ActionForm>
+
+      <ActionForm action={saveLegalInfo} className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5" success="Đã lưu thông tin pháp lý.">
+        <div>
+          <h2 className="text-sm font-bold text-ink">Thông tin pháp lý</h2>
+          <p className="mt-0.5 text-xs text-gray-500">
+            Hiện ở chân trang, trang Giới thiệu, Liên hệ và mục “Bên cam kết” của điều khoản. Nên khớp với hồ sơ
+            thanh toán / xác minh nhà quảng cáo trên Google Ads.
+          </p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {(
+            [
+              ["legalName", "Tên đơn vị kinh doanh", settings.legalName || SITE.legalName, "text"],
+              ["taxCode", "Mã số thuế", settings.taxCode || SITE.taxCode, "text"],
+              ["legalAddress", "Địa chỉ đăng ký", settings.legalAddress || SITE.legalAddress, "text"],
+            ] as const
+          ).map(([name, label, value, type]) => (
+            <label key={name} className="flex flex-col gap-1">
+              <span className="text-[13px] font-semibold text-gray-600">{label}</span>
+              <input name={name} type={type} defaultValue={value} className="rounded-xl border border-gray-200 px-3 py-2 text-sm" />
+            </label>
+          ))}
+        </div>
+        <button className="w-fit rounded-xl bg-forest-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-forest-700">
+          Lưu thông tin pháp lý
         </button>
       </ActionForm>
     </div>

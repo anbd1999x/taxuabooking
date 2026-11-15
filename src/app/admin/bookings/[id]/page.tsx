@@ -556,8 +556,8 @@ export default async function BookingDetailPage({
   }));
 
   // ----- Tin nhắn gửi CHỦ DỊCH VỤ (dán Zalo): mỗi bên một tin riêng — combo tách NHÀ XE / HOMESTAY. -----
-  // Không kèm hotline. Tiền ghi theo phần bên đó THỰC NHẬN (bán ra − chiết khấu sàn). SĐT khách chỉ
-  // kèm khi đơn đã cọc / thanh toán (cùng quy tắc ẩn SĐT ở trang đơn của chủ dịch vụ).
+  // Không kèm hotline. Tin HOMESTAY/dịch vụ khác: tiền ghi theo phần THỰC NHẬN (bán ra − chiết khấu sàn),
+  // SĐT khách chỉ kèm khi đơn đã cọc / thanh toán. Tin NHÀ XE: luôn kèm SĐT khách, không ghi tiền.
   const showGuestPhone = b.paymentStatus !== "UNPAID" || b.status === "COMPLETED";
   const guestLine = `- Khách: ${b.customerName}${showGuestPhone ? ` · ${b.phone}` : ""}`;
   const moneyLines = (side: "room" | "bus", what: string) => {
@@ -580,14 +580,14 @@ export default async function BookingDetailPage({
       label: b.category === "COMBO" ? "Chép tin cho nhà xe" : "Chép tin cho chủ dịch vụ",
       text: [
         `Tà Xùa Booking gửi ${outTrip.service.title} đơn ${b.code}:`,
-        guestLine,
+        // Nhà xe cần SĐT để gọi đón khách ⇒ luôn kèm, kể cả đơn chưa cọc. Không ghi tiền (bán ra / thực nhận).
+        `- Khách: ${b.customerName} · ${b.phone}`,
         `- Số khách: ${b.quantity} khách${seatsLabel ? ` · ${seatsLabel}` : ""}`,
         `- Loại vé: ${retTrip ? "Khứ hồi" : "Một chiều"}`,
         `- Chiều đi: ${outTrip.departureTime} ngày ${formatDate(outTrip.departureDate)}${outPickup2 ? `, đón tại ${outPickup2}` : ""}`,
         ...(retTrip
           ? [`- Chiều về: ${retTrip.departureTime} ngày ${formatDate(retTrip.departureDate)}${dropChosen || pickupChosen ? `, trả tại ${dropChosen || pickupChosen}` : ""}`]
           : []),
-        ...moneyLines("bus", "Tiền vé"),
         ...(b.category === "CABIN" ? noteLine : []),
         "Nhờ nhà xe giữ chỗ giúp. Cảm ơn!",
       ].join("\n"),

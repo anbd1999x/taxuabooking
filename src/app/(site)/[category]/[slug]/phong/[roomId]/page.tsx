@@ -8,6 +8,7 @@ import { roomListPrice, isRoomPriceOnRequest } from "@/lib/availability";
 import { SITE } from "@/lib/site";
 import { Gallery } from "@/components/Gallery";
 import { BookingPanel } from "@/components/BookingPanel";
+import { AgentNote } from "@/components/AgentNote";
 import { Badge } from "@/components/ui/Badge";
 
 export const dynamic = "force-dynamic";
@@ -83,6 +84,7 @@ export default async function RoomDetailPage({
         <span className="mx-2">/</span>
         <span className="text-gray-700">{room.name}</span>
       </nav>
+      <AgentNote name={svc.title} />
 
       <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
         <div>

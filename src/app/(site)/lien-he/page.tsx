@@ -15,7 +15,7 @@ export default async function ContactPage() {
   const s = await getSettings();
   const phone = s.contactPhone || SITE.defaultPhone;
   const zalo = s.contactZalo || SITE.defaultZalo;
-  const email = s.contactEmail;
+  const email = SITE.email;
   const facebook = s.contactFacebook;
   const address = s.contactAddress || "Tà Xùa, Bắc Yên, Sơn La";
 
@@ -32,8 +32,16 @@ export default async function ContactPage() {
         {zalo && <p><span className="text-gray-500">💬 Zalo: </span><a href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-forest-700">{zalo}</a></p>}
         {email && <p><span className="text-gray-500">✉️ Email: </span><a href={`mailto:${email}`} className="font-semibold text-forest-700">{email}</a></p>}
         {facebook && <p><span className="text-gray-500">📘 Facebook: </span><a href={facebook} target="_blank" rel="noopener noreferrer" className="font-semibold text-forest-700">{facebook}</a></p>}
-        <p><span className="text-gray-500">📍 Địa chỉ: </span>{address}</p>
+        <p><span className="text-gray-500">📍 Khu vực hoạt động: </span>{address}</p>
+        <p><span className="text-gray-500">🏢 Đơn vị kinh doanh: </span>{s.legalName || SITE.legalName}</p>
+        <p><span className="text-gray-500">🧾 Mã số thuế: </span>{s.taxCode || SITE.taxCode}</p>
+        <p><span className="text-gray-500">🏠 Địa chỉ đăng ký: </span>{s.legalAddress || SITE.legalAddress}</p>
       </div>
+
+      <p className="mt-4 text-sm leading-relaxed text-gray-600">
+        Tà Xùa Booking là đơn vị trung gian đặt dịch vụ du lịch tại Tà Xùa: chúng tôi tiếp nhận yêu cầu, xác nhận chỗ
+        với chủ homestay/nhà xe rồi mới chốt đơn. Các cơ sở trên website do chính chủ cơ sở sở hữu và vận hành.
+      </p>
 
       <div className="mt-4 flex gap-2">
         <a href={`tel:${phone.replace(/\s/g, "")}`} className="rounded-xl bg-forest-600 px-5 py-3 font-semibold text-white hover:bg-forest-700">Gọi ngay</a>

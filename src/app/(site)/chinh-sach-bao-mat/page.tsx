@@ -15,8 +15,8 @@ export const metadata: Metadata = pageMeta({
 export default async function PrivacyPage() {
   const settings = await getSettings();
   const phone = settings.contactPhone || SITE.defaultPhone;
-  const email = settings.contactEmail || "";
-  const updated = "31/10/2026";
+  const email = SITE.email;
+  const updated = "15/11/2026";
 
   const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
     <section className="mt-6">
@@ -65,7 +65,14 @@ export default async function PrivacyPage() {
         <Section title="3. Cookie & đăng nhập">
           <p>
             Chúng tôi dùng cookie kỹ thuật để ghi nhớ phiên đăng nhập của bạn. Cookie này cần thiết để website
-            hoạt động và không dùng cho quảng cáo theo dõi.
+            hoạt động.
+          </p>
+          <p>
+            Website có gắn <b>Google Tag Manager / Google Ads</b> để đo lường hiệu quả quảng cáo (ví dụ: ghi nhận
+            khi một yêu cầu đặt dịch vụ được gửi thành công). Google có thể đặt cookie và thu thập dữ liệu sử dụng
+            theo chính sách quyền riêng tư của Google. Chúng tôi không gửi họ tên, số điện thoại của bạn cho mục
+            đích quảng cáo. Bạn có thể tắt quảng cáo cá nhân hoá tại{" "}
+            <a href="https://adssettings.google.com" target="_blank" rel="noopener noreferrer" className="font-semibold text-forest-700">adssettings.google.com</a>.
           </p>
         </Section>
 

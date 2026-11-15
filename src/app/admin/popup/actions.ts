@@ -11,6 +11,27 @@ async function requireAdmin(): Promise<void> {
   if (!s || s.role !== "ADMIN") throw new Error("Không có quyền.");
 }
 
+/** Khoá SiteSettings của thông tin pháp lý (hiện ở chân trang, /gioi-thieu, /lien-he, điều khoản). */
+const LEGAL_KEYS = ["legalName", "taxCode", "legalAddress"] as const;
+
+export async function saveLegalInfo(_prev: FormResult, fd: FormData): Promise<FormResult> {
+  await requireAdmin();
+  const v = Object.fromEntries(LEGAL_KEYS.map((k) => [k, String(fd.get(k) ?? "").trim()])) as Record<(typeof LEGAL_KEYS)[number], string>;
+  if (!v.legalName) return { error: "Cần nhập tên đơn vị kinh doanh." };
+  if (!v.legalAddress) return { error: "Cần nhập địa chỉ đăng ký." };
+
+  await prisma.$transaction(
+    LEGAL_KEYS.map((key) =>
+      prisma.siteSetting.upsert({ where: { key }, create: { key, value: v[key] }, update: { value: v[key] } }),
+    ),
+  );
+
+  updateTag("settings");
+  revalidatePath("/", "layout");
+  revalidatePath("/admin/popup", "page");
+  return { ok: true, message: "Đã lưu thông tin pháp lý. Tải lại trang web để thấy." };
+}
+
 export async function saveTrustPopup(_prev: FormResult, fd: FormData): Promise<FormResult> {
   await requireAdmin();
 

@@ -38,7 +38,8 @@ const DEFINITIONS: string[] = [
   "**Lỗi từ phía Tà Xùa Booking:** Tà Xùa Booking biết mà vẫn làm, hoặc không xử lý khi đã được yêu cầu. Ví dụ: nhận tiền rồi không cung cấp dịch vụ và không hoàn tiền; báo giá cao hơn giá niêm yết mà tụi mình đã biết; tự ý thu thêm phí chưa báo.",
   "**Sự cố ngoài ý muốn:** việc xảy ra không do Tà Xùa Booking chủ động gây ra. Ví dụ: xe hỏng, homestay khoá nhầm phòng, nhà cung cấp đổi giá mà không báo, thiên tai, sạt lở, cấm đường.",
   "**Giá niêm yết:** giá công khai của chính nhà cung cấp (fanpage, website, bảng giá) cho cùng dịch vụ, đang tồn tại tại thời điểm chốt bill.",
-  "**Kênh chính thức:** website taxuabooking.com / taxuabooking.vn, Zalo và hotline ghi ở cuối trang, tài khoản ngân hàng Bùi Danh An hoặc Tăng Mai Linh, và ví USDT do Tà Xùa Booking gửi qua Zalo chính thức.",
+  "**Kênh chính thức:** website taxuabooking.com / taxuabooking.vn, Zalo và hotline ghi ở cuối trang, và tài khoản ngân hàng Bùi Danh An hoặc Tăng Mai Linh.",
+  "**Vai trò của Tà Xùa Booking:** đơn vị trung gian tiếp nhận và điều phối đặt dịch vụ. Homestay, nhà xe và các dịch vụ khác do chính chủ cơ sở (nhà cung cấp) sở hữu và vận hành; Tà Xùa Booking không phải chủ sở hữu và không phải website riêng của các cơ sở đó.",
 ];
 
 const SECTIONS: Section[] = [
@@ -50,7 +51,7 @@ const SECTIONS: Section[] = [
       ok(
         [
           "Đơn hàng có mã do Tà Xùa Booking cấp và đã chốt bill qua Zalo chính thức.",
-          "Bạn thanh toán qua kênh chính thức (tài khoản Bùi Danh An, Tăng Mai Linh, hoặc ví USDT do Tà Xùa Booking gửi qua Zalo chính thức).",
+          "Bạn thanh toán qua kênh chính thức (tài khoản ngân hàng Bùi Danh An hoặc Tăng Mai Linh).",
           "Dịch vụ không được cung cấp, bạn không đồng ý phương án thay thế nào, và Tà Xùa Booking không hoàn tiền trong thời hạn trên.",
         ],
         "ÁP DỤNG KHI CÓ ĐỦ CÁC ĐIỀU KIỆN SAU",
@@ -59,13 +60,13 @@ const SECTIONS: Section[] = [
         "Tà Xùa Booking đã hoàn tiền đúng hạn, hoặc bạn đã đồng ý phương án thay thế.",
         "Sự cố ngoài ý muốn đã được xử lý theo mục 5 hoặc mục 6.",
         "Bạn thanh toán trực tiếp cho homestay, nhà xe. Khi đó tụi mình hỗ trợ làm việc với nhà cung cấp và vẫn chịu trách nhiệm với sai sót của chính tụi mình (báo sai giá, sai ngày, sai dịch vụ).",
-        "Bạn giao dịch với trang, tài khoản, số điện thoại hoặc ví không thuộc kênh chính thức.",
+        "Bạn giao dịch với trang, tài khoản hoặc số điện thoại không thuộc kênh chính thức.",
         "Bạn tự huỷ, đổi lịch hoặc không đến (no-show). Trường hợp này theo chính sách huỷ đã báo khi chốt bill.",
       ]),
       need([
         "Mã đơn (ví dụ TX-Z8Y45U).",
         "Ảnh chụp đoạn chốt bill trên Zalo.",
-        "Biên lai chuyển khoản hoặc mã giao dịch (TxID).",
+        "Biên lai chuyển khoản hoặc mã giao dịch ngân hàng.",
         "Tin nhắn yêu cầu hoàn tiền có ghi ngày.",
       ]),
     ],
@@ -187,7 +188,7 @@ const SECTIONS: Section[] = [
         items: [
           "Mỗi đơn hàng được chi trả một lần cho một sự việc.",
           "Thời hạn gửi yêu cầu: trong 30 ngày kể từ ngày dịch vụ dự kiến được cung cấp.",
-          "Tiền hoàn và bồi thường được chuyển vào tài khoản hoặc ví chính chủ của người đặt, theo đúng hình thức bạn đã thanh toán (VND hoặc USDT theo tỷ giá lúc thanh toán), trừ khi hai bên thống nhất khác.",
+          "Tiền hoàn và bồi thường được chuyển bằng chuyển khoản ngân hàng (VND) vào tài khoản chính chủ của người đặt, trừ khi hai bên thống nhất khác.",
           "Cam kết không bao gồm các thiệt hại gián tiếp như lỡ chuyến đi, vé xe, vé máy bay hoặc chi phí phát sinh ngoài đơn hàng.",
           "Cam kết không áp dụng khi thông tin đặt chỗ bạn cung cấp không chính xác, khi bạn vi phạm nội quy của nhà cung cấp, hoặc khi bằng chứng không xác thực được.",
           "Tụi mình có thể cập nhật điều khoản. Đơn đã chốt áp dụng điều khoản tại thời điểm chốt.",
@@ -229,9 +230,17 @@ export default async function TermsPage() {
   const tx = (s: string) =>
     soloVoice(s, solo)
       .replace("tài khoản ngân hàng Bùi Danh An hoặc Tăng Mai Linh", `tài khoản ngân hàng ${owners.join(" hoặc ")}`)
-      .replace("tài khoản Bùi Danh An, Tăng Mai Linh, hoặc ví", `tài khoản ${owners.join(", ")}, hoặc ví`);
+      .replace("(tài khoản ngân hàng Bùi Danh An hoặc Tăng Mai Linh)", `(tài khoản ngân hàng ${owners.join(" hoặc ")})`);
   const R = (s: string) => rich(tx(s));
-  const legal: [string, string][] = [["Người chịu trách nhiệm", owners[0]], ["Hotline", formatPhone(phone)], ...LEGAL.slice(1)];
+  // Thông tin pháp lý (tên đăng ký kinh doanh, MST, địa chỉ) lấy từ SiteSettings — có thì mới hiện.
+  const legal: [string, string][] = [
+    ["Đơn vị kinh doanh", settings.legalName || SITE.legalName],
+    ["Mã số thuế", settings.taxCode || SITE.taxCode],
+    ["Người chịu trách nhiệm", owners[0]],
+    ["Địa chỉ đăng ký", settings.legalAddress || SITE.legalAddress],
+    ["Hotline", formatPhone(phone)],
+    ...LEGAL.slice(1),
+  ];
   return (
     <div
       style={{
@@ -284,7 +293,7 @@ export default async function TermsPage() {
               Cam kết minh bạch – Tà Xùa Booking
             </h1>
             <div style={{ fontSize: 14, color: "oklch(0.48 0.02 160)", marginTop: 8 }}>
-              Áp dụng từ 01/11/2026 · Cập nhật lần cuối 12/11/2026
+              Áp dụng từ 01/11/2026 · Cập nhật lần cuối 15/11/2026
             </div>
             <p style={{ margin: "12px 0 0", fontSize: 16, lineHeight: 1.65, color: INK }}>{tx(INTRO)}</p>
           </div>

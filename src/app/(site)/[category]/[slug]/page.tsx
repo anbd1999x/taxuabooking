@@ -8,6 +8,7 @@ import { getServiceDetail, getSettings, getHomestayCards } from "@/lib/queries";
 import { CATEGORIES } from "@/lib/constants";
 import { formatPrice, toNumber } from "@/lib/format";
 import { SITE } from "@/lib/site";
+import { AgentNote } from "@/components/AgentNote";
 import { prisma } from "@/lib/prisma";
 import { roomPricing, roomListPrice, roomListDaysOfWeek, isRoomPriceOnRequest } from "@/lib/availability";
 import { today, toDateKey, addDays } from "@/lib/dates";
@@ -231,6 +232,7 @@ export default async function ServiceDetailPage({
           <span className="mx-2">/</span>
           <span className="text-gray-700">{service.title}</span>
         </nav>
+        <AgentNote name={service.title} />
 
         <HomestayBooking
           serviceId={service.id}
@@ -335,6 +337,7 @@ export default async function ServiceDetailPage({
         <span className="mx-2">/</span>
         <span className="text-gray-700">{service.title}</span>
       </nav>
+      <AgentNote name={service.title} />
 
       <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
         {/* Nội dung */}

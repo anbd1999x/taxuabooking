@@ -222,7 +222,7 @@ export function PeopleColumn({
           ))}
         </div>
         <div style={{ fontSize: 11, lineHeight: 1.5, color: "oklch(0.82 0.03 160)" }}>
-          Ngoài {OFFICIAL_SITES.length} địa chỉ này đều là giả mạo.
+          Tà Xùa Booking chỉ hoạt động trên {OFFICIAL_SITES.length} địa chỉ này.
         </div>
       </div>
     </div>
