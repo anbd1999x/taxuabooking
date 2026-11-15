@@ -16,6 +16,8 @@ import { enumerateNights, isValidDateKey, parseDateOnly, toDateKey } from "@/lib
 import { parseSurcharges, type BookingSurcharge } from "@/lib/surcharges";
 import { AUTO_CANCEL_HOURS_KEY, MAX_AUTO_CANCEL_HOURS } from "@/lib/auto-cancel-config";
 import { supplierPayouts } from "@/lib/supplier-payout";
+import { bookingMessagesById, type BookingMessages } from "@/lib/booking-messages";
+import { sendConfirmEmailIfDue } from "@/lib/booking-email";
 import { resolveBusCommissions, resolveRoomCommissions } from "@/lib/provider-commission";
 
 export interface BookingActionState {
@@ -125,6 +127,7 @@ export async function advanceBookingStatusResult(formData: FormData): Promise<{ 
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Có lỗi xảy ra." };
   }
+  void sendConfirmEmailIfDue(id); // đơn vừa xác nhận + khách có email ⇒ gửi thư xác nhận (1 lần)
   for (const p of [...REVALIDATE, `/admin/bookings/${id}`]) revalidatePath(p);
   return {};
 }
@@ -303,6 +306,7 @@ export async function bulkUpdateBookingStatus(
   if (done === 0) return { error: "Không có đơn nào được cập nhật (có thể hết chỗ hoặc không đủ quyền)." };
   for (const p of REVALIDATE) revalidatePath(p);
   for (const id of ids) revalidatePath(`/admin/bookings/${id}`);
+  for (const id of ids.slice(0, 100).map(String)) void sendConfirmEmailIfDue(id);
   return { ok: true, message: done === 1 ? `Đã chuyển đơn sang “${label}”` : `Đã chuyển ${done} đơn sang “${label}”` };
 }
 
@@ -378,6 +382,7 @@ export async function saveBookingStage(
     }
     return { error: err instanceof Error ? err.message : "Có lỗi xảy ra." };
   }
+  void sendConfirmEmailIfDue(id);
   revalidateDetail(id);
   return { ok: true, message: `Đã chuyển đơn sang “${BOOKING_STATUS_META[status].label}”` };
 }
@@ -978,6 +983,7 @@ export async function updateBookingStatus(
     return { error: err instanceof Error ? err.message : "Có lỗi xảy ra." };
   }
 
+  void sendConfirmEmailIfDue(id);
   revalidatePath("/admin/bookings");
   revalidatePath(`/admin/bookings/${id}`);
   revalidatePath("/admin/inventory");
@@ -1002,4 +1008,10 @@ export async function saveAutoCancelHours(
   revalidatePath("/admin/bookings");
   revalidatePath("/tra-cuu");
   return { ok: true, message: value === "0" ? "Đã tắt tự huỷ theo thời gian." : `Đơn chưa thanh toán sẽ tự huỷ sau ${value.replace(".", ",")} giờ.` };
+}
+
+/** Tin nhắn mẫu của một đơn (khách / chốt đơn / chủ dịch vụ) cho ngăn "Xử lý nhanh" — chỉ admin. */
+export async function getBookingMessages(id: string): Promise<BookingMessages | null> {
+  await requireAdmin();
+  return bookingMessagesById(id);
 }

@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import type { FormResult } from "@/components/admin/ActionForm";
 import { TRUST_POPUP_KEY, type TrustPopupConfig } from "@/lib/trust-popup";
+import { mailConfigured, SMTP_PASS_KEY } from "@/lib/mail";
+import { sendBookingEmail, type BookingEmailKind } from "@/lib/booking-email";
 
 async function requireAdmin(): Promise<void> {
   const s = await getSession();
@@ -76,4 +78,45 @@ export async function saveTrustPopup(_prev: FormResult, fd: FormData): Promise<F
   revalidatePath("/", "layout");
   revalidatePath("/admin/popup", "page");
   return { ok: true, message: "Đã lưu. Trang web cập nhật ngay (tải lại trang để thấy)." };
+}
+
+/**
+ * Gửi EMAIL THỬ tới một địa chỉ bất kỳ, dùng nội dung của một đơn thật (mã đơn, trống = đơn mới nhất)
+ * để kiểm tra cấu hình SMTP và trình bày thư. Không đổi dữ liệu đơn.
+ */
+export async function sendTestEmail(_prev: FormResult, fd: FormData): Promise<FormResult> {
+  await requireAdmin();
+  const to = String(fd.get("to") ?? "").trim();
+  const code = String(fd.get("code") ?? "").trim();
+  const kind: BookingEmailKind = fd.get("kind") === "confirmed" ? "confirmed" : "received";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return { error: "Nhập địa chỉ email nhận thư thử." };
+  if (!(await mailConfigured())) return { error: "Chưa có mật khẩu hộp thư gửi — nhập ở ô “Mật khẩu hộp thư” bên dưới rồi lưu trước." };
+  const b = code
+    ? await prisma.bookingRequest.findUnique({ where: { code }, select: { id: true } })
+    : await prisma.bookingRequest.findFirst({ orderBy: { createdAt: "desc" }, select: { id: true } });
+  if (!b) return { error: "Không tìm thấy đơn để lấy nội dung mẫu." };
+  const r = await sendBookingEmail(b.id, kind, to);
+  return r.ok ? { ok: true, message: `Đã gửi thư thử tới ${to}.` } : { error: `Gửi thất bại: ${r.error}` };
+}
+
+/**
+ * Lưu MẬT KHẨU HỘP THƯ GỬI (SMTP) vào SiteSetting `smtpPass` để bật gửi email ngay mà không cần sửa
+ * .env trên máy chủ. Không bao giờ hiển thị lại giá trị đã lưu. Để trống + tick "xoá" ⇒ gỡ mật khẩu.
+ */
+export async function saveSmtpPass(_prev: FormResult, fd: FormData): Promise<FormResult> {
+  await requireAdmin();
+  const pass = String(fd.get("smtpPass") ?? "");
+  if (fd.get("clear") === "on") {
+    await prisma.siteSetting.deleteMany({ where: { key: SMTP_PASS_KEY } });
+    revalidatePath("/admin/popup", "page");
+    return { ok: true, message: "Đã xoá mật khẩu hộp thư. Web sẽ ngừng gửi email." };
+  }
+  if (pass.length < 4) return { error: "Nhập mật khẩu hộp thư lienhe@taxuabooking.com." };
+  await prisma.siteSetting.upsert({
+    where: { key: SMTP_PASS_KEY },
+    create: { key: SMTP_PASS_KEY, value: pass },
+    update: { value: pass },
+  });
+  revalidatePath("/admin/popup", "page");
+  return { ok: true, message: "Đã lưu mật khẩu hộp thư. Bấm “Gửi thư thử” để kiểm tra." };
 }

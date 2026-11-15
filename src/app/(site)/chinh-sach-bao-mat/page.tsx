@@ -46,7 +46,7 @@ export default async function PrivacyPage() {
 
         <Section title="1. Thông tin chúng tôi thu thập">
           <ul className="list-disc space-y-1 pl-5">
-            <li><b>Khi đặt dịch vụ:</b> họ tên, số điện thoại, ngày sử dụng, lựa chọn dịch vụ (phòng/vé/xe) và ghi chú bạn cung cấp.</li>
+            <li><b>Khi đặt dịch vụ:</b> họ tên, số điện thoại, email (không bắt buộc, dùng để gửi thông tin và xác nhận đơn), ngày sử dụng, lựa chọn dịch vụ (phòng/vé/xe) và ghi chú bạn cung cấp.</li>
             <li><b>Khi tạo tài khoản để đánh giá:</b> số điện thoại và mật khẩu (mật khẩu được mã hoá, chúng tôi không lưu dạng gốc).</li>
             <li><b>Khi đăng nhập bằng Google / Facebook:</b> tên hiển thị và địa chỉ email từ tài khoản mạng xã hội của bạn (nếu bạn cho phép). Chúng tôi không lấy mật khẩu mạng xã hội của bạn.</li>
             <li><b>Nội dung bạn đăng:</b> số sao và nhận xét đánh giá dịch vụ.</li>

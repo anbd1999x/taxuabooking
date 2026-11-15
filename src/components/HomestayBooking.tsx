@@ -10,6 +10,7 @@ import Image from "next/image";
 import { billableOccupants, multiRoomExtraCost } from "@/lib/occupancy";
 import { CommitmentLink } from "@/components/trust/parts";
 import { vnPhoneError } from "@/lib/phone";
+import { BookingEmailField, emailLooksValid } from "@/components/BookingEmailField";
 
 export interface HomestayMedia {
   url: string;
@@ -197,6 +198,7 @@ export function HomestayBooking({
 
   const [name, setName] = useState("");
   const [cphone, setCphone] = useState("");
+  const [email, setEmail] = useState("");
   const [note, setNote] = useState("");
   const [tried, setTried] = useState(false);
   const [err, setErr] = useState("");
@@ -450,6 +452,7 @@ export function HomestayBooking({
       setErr(!name.trim() ? "Vui lòng nhập họ tên." : phoneErr ?? "");
       return;
     }
+    if (!emailLooksValid(email)) { setErr("Email không hợp lệ (có thể để trống)."); return; }
     setSubmitting(true);
     try {
       const res = await fetch("/api/bookings", {
@@ -467,6 +470,7 @@ export function HomestayBooking({
           roomTypeId: null,
           customerName: name.trim(),
           phone: cphone.trim(),
+          email: email.trim() || null,
           note: note.trim() || null,
         }),
       });
@@ -485,6 +489,7 @@ export function HomestayBooking({
     setSelected([]);
     setName("");
     setCphone("");
+    setEmail("");
     setNote("");
     setTried(false);
     setErr("");
@@ -1030,6 +1035,7 @@ export function HomestayBooking({
                   placeholder="Số điện thoại *"
                   className={`rounded-xl border px-3.5 py-3 text-base outline-none focus:ring-2 focus:ring-forest-200 ${tried && !phoneOk ? "border-red-400" : "border-gray-200 focus:border-forest-500"}`}
                 />
+                <BookingEmailField value={email} onChange={setEmail} inputClassName="rounded-xl border border-gray-200 px-3.5 py-3 text-base outline-none focus:border-forest-500 focus:ring-2 focus:ring-forest-200" />
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}

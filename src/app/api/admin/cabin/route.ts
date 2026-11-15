@@ -7,6 +7,7 @@ import { ensureTripOnDate } from "@/lib/cabin-trips";
 import { adjustInventory, assignRoomsForBooking } from "@/lib/inventory";
 import { generateBookingCode } from "@/lib/utils";
 import { resolveCommission } from "@/lib/commission";
+import { sendConfirmEmailIfDue } from "@/lib/booking-email";
 
 export const dynamic = "force-dynamic";
 
@@ -198,6 +199,7 @@ export async function POST(request: Request) {
           await tx.bookingRequest.update({ where: { id: bookingId }, data: { status: "CANCELLED", inventoryApplied: false } });
         }
       });
+      if (op === "confirm") void sendConfirmEmailIfDue(bookingId); // khách có email ⇒ gửi thư xác nhận (1 lần)
       return NextResponse.json({ ok: true });
     }
 

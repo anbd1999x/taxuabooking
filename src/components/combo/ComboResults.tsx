@@ -19,6 +19,7 @@ import type {
 import { ensureSheetFresh } from "@/components/ensureSheet";
 import { cabinAllocation, busCostPerPerson, cabinSeatTotal, COMBO_MOTORBIKE_PER_DAY, comboMotorbikeCost, comboMotorbikeDays } from "@/lib/combo-pricing";
 import { vnPhoneError } from "@/lib/phone";
+import { BookingEmailField, emailLooksValid } from "@/components/BookingEmailField";
 import { showGlobalLoading } from "@/components/useSearchNav";
 import { CommitmentLink } from "@/components/trust/parts";
 
@@ -358,6 +359,7 @@ function ComboPlanCard({
   const [openForm, setOpenForm] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState("");
@@ -392,6 +394,7 @@ function ComboPlanCard({
     if (people > bus.seatsAvailable) { setErr(`Xe chỉ còn ${bus.seatsAvailable} chỗ.`); return; }
     if (!name.trim()) { setErr("Vui lòng nhập họ tên."); return; }
     { const pe = vnPhoneError(phone); if (pe) { setErr(pe); return; } }
+    if (!emailLooksValid(email)) { setErr("Email không hợp lệ (có thể để trống)."); return; }
     setSubmitting(true);
     try {
       const res = await fetch("/api/combo/book", {
@@ -410,7 +413,8 @@ function ComboPlanCard({
           cabinDouble: cbDouble,
           motorbikes: bikes,
           customerName: name.trim(),
-          phone: phone.trim(),
+          phone: phone.trim(),
+          email: email.trim() || null,
           note: note.trim() || null,
         }),
       });
@@ -754,6 +758,7 @@ function ComboPlanCard({
 
                 <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Họ và tên *" className="rounded-xl border border-gray-200 px-3.5 py-3 text-sm outline-none focus:border-forest-500" />
                 <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="Số điện thoại *" className="rounded-xl border border-gray-200 px-3.5 py-3 text-sm outline-none focus:border-forest-500" />
+                <BookingEmailField value={email} onChange={setEmail} inputClassName="rounded-xl border border-gray-200 px-3.5 py-3 text-sm outline-none focus:border-forest-500" />
                 <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ghi chú (giờ đón, trẻ nhỏ…)" className="rounded-xl border border-gray-200 px-3.5 py-3 text-sm outline-none focus:border-forest-500" />
                 {err && <div className="text-sm font-semibold text-red-600">{err}</div>}
                 <button type="button" onClick={book} disabled={submitting} className="rounded-full bg-sunset-500 py-3.5 text-center text-sm font-bold text-white hover:bg-sunset-600 disabled:opacity-60">

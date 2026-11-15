@@ -1,5 +1,7 @@
 "use client";
 
+import { BookingEmailField, emailLooksValid } from "@/components/BookingEmailField";
+
 import { SupportHoursNote } from "@/components/SupportHours";
 import { trackLeadConversion } from "@/lib/ads";
 import { ItineraryLink } from "@/components/itinerary/ItineraryLink";
@@ -82,6 +84,7 @@ export function BookingPanel({
 
   const [name, setName] = useState("");
   const [custPhone, setCustPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -145,6 +148,7 @@ export function BookingPanel({
         cabinTripId: kind === "trip" ? selectedId : null,
         customerName: name,
         phone: custPhone,
+        email: email.trim() || null,
         note: note || null,
       };
       const res = await fetch("/api/bookings", {
@@ -440,6 +444,12 @@ export function BookingPanel({
             <span className="text-xs text-red-600">{fieldErrors.phone}</span>
           )}
         </label>
+        <BookingEmailField
+          value={email}
+          onChange={setEmail}
+          error={fieldErrors.email}
+          inputClassName="rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-200"
+        />
         <label className="flex flex-col gap-1">
           <span className="text-xs font-medium text-gray-500">Ghi chú</span>
           <textarea

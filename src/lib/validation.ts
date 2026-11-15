@@ -24,6 +24,11 @@ const phoneField = z
     if (e) ctx.addIssue({ code: z.ZodIssueCode.custom, message: e });
   })
   .transform(normalizeVnPhone);
+/** Email khách (tuỳ chọn): trống ⇒ null; có thì phải đúng dạng. Có email ⇒ gửi thông tin đơn qua email. */
+const emailField = z.preprocess(
+  (v) => (typeof v === "string" && v.trim() === "" ? null : v),
+  z.string().trim().toLowerCase().max(160).email("Email không hợp lệ.").optional().nullable(),
+);
 const dateKeyRegex = /^\d{4}-\d{2}-\d{2}$/;
 /** yyyy-mm-dd phải là NGÀY CÓ THẬT (regex không chặn 2026-02-31 → Date tự tràn sang 03/03, đơn lưu sai ngày). */
 const realDate = (v: string) => isValidDateKey(v);
@@ -50,6 +55,7 @@ export const bookingInputSchema = z
       .min(2, "Vui lòng nhập họ tên.")
       .max(120),
     phone: phoneField,
+    email: emailField,
     note: z.string().trim().max(1000).optional().nullable(),
   })
   .refine(
@@ -76,6 +82,7 @@ export const cabinBookingSchema = z
     drop: z.string().trim().max(200).optional().nullable(),
     customerName: z.string().trim().min(2, "Vui lòng nhập họ tên.").max(120),
     phone: phoneField,
+    email: emailField,
     note: z.string().trim().max(1000).optional().nullable(),
   })
   .refine((d) => d.shared + d.solo >= 1, {
@@ -108,6 +115,7 @@ export const comboBookingSchema = z
     motorbikes: z.coerce.number().int().min(0).max(30).default(0),
     customerName: z.string().trim().min(2, "Vui lòng nhập họ tên.").max(120),
     phone: phoneField,
+    email: emailField,
     note: z.string().trim().max(1000).optional().nullable(),
   })
   .refine((d) => (d.roomIds?.length ?? 0) > 0 || Boolean(d.roomId), {

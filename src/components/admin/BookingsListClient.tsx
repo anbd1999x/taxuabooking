@@ -2,16 +2,97 @@
 
 import { wdDmy, vnDateTime } from "@/lib/date-format";
 import { bookingDetailLines } from "@/lib/booking-detail-lines";
-import { useMemo, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import type { BookingStatus } from "@prisma/client";
 import { showToast } from "./Toast";
-import { PaymentRecordForm, NoteForm } from "./BookingDetailClient";
-import { bulkDeleteBookings, bulkUpdateBookingStatus } from "@/app/admin/bookings/actions";
+import { CopyChip, PaymentRecordForm, NoteForm, SupplierPayableForm, SupplierPayoutForm } from "./BookingDetailClient";
+import { bulkDeleteBookings, bulkUpdateBookingStatus, getBookingMessages } from "@/app/admin/bookings/actions";
+import type { BookingMessages } from "@/lib/booking-messages";
 import BookingsCalendar from "./BookingsCalendar";
 import { EditBookingPopup } from "./EditBookingPopup";
 
-export type BookingsView = "list" | "month" | "agenda" | "year";
+/**
+ * Phần nạp thêm của ngăn Xử lý nhanh: nút "Chép tin nhắn" (khách / chốt đơn / nhà xe / homestay) và
+ * khối "Trả cho nhà xe / homestay" (số phải trả, đã trả, ghi nhận lần trả) — khỏi mở trang đầy đủ.
+ */
+function QuickExtras({ id, stamp }: { id: string; stamp: string }) {
+  // Kết quả gắn với khoá (đơn + trạng thái/tiền + số lần vừa lưu): khoá đổi ⇒ nạp lại.
+  const [nonce, setNonce] = useState(0);
+  const key = `${id}|${stamp}|${nonce}`;
+  const [res, setRes] = useState<{ id: string; key: string; msgs: BookingMessages | null } | null>(null);
+  useEffect(() => {
+    let live = true;
+    getBookingMessages(id).then(
+      (m) => live && setRes({ id, key, msgs: m }),
+      () => live && setRes({ id, key, msgs: null }),
+    );
+    return () => {
+      live = false;
+    };
+  }, [id, key]);
+  // Cùng đơn thì giữ số liệu cũ trong lúc nạp lại (form đang nhập không bị giật); đổi đơn mới hiện "đang tải".
+  const cur = res?.id === id ? res : null;
+  const msgs = cur?.msgs ?? null;
+  const failed = !!cur && !cur.msgs;
+  // Giữ nguyên tham chiếu: form trả tiền gọi lại onDone mỗi khi hàm này đổi ⇒ không memo sẽ lặp vô hạn.
+  const reload = useCallback(() => setNonce((n) => n + 1), []);
+  const card = "flex flex-col gap-2 rounded-2xl border border-gray-100 bg-white px-4 py-3.5";
+
+  if (failed) return <div className={card}><p className="text-[13px] text-red-600">Không tải được tin nhắn mẫu và phần trả nhà cung cấp. Mở trang đầy đủ để xử lý.</p></div>;
+  if (!msgs) return <div className={card}><p className="text-[13px] text-gray-400">Đang tải tin nhắn mẫu…</p></div>;
+
+  return (
+    <>
+      <div className={card}>
+        <div className="text-xs font-bold text-gray-500">Chép tin nhắn</div>
+        <div className="flex flex-wrap gap-1.5">
+          <CopyChip text={msgs.customerMsg} label="Chép tin nhắn cho khách" toast="Đã chép tin nhắn mẫu" className="border-[1.5px]" />
+          <CopyChip text={msgs.confirmMsg} label="Chép xác nhận chốt đơn" toast="Đã chép nội dung xác nhận gửi khách" className="border-[1.5px] border-forest-300 bg-forest-50 text-forest-700 hover:bg-forest-100" />
+          {msgs.providerMsgs.map((m) => (
+            <CopyChip key={m.key} text={m.text} label={m.label} toast="Đã chép tin nhắn, dán vào Zalo chủ dịch vụ" className="border-[1.5px] border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100" />
+          ))}
+        </div>
+      </div>
+
+      {msgs.payouts.map((s) => {
+        const done = s.payable > 0 && s.remaining === 0;
+        return (
+          <div key={s.side} className={card}>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-gray-500">Trả cho {s.kind.toLowerCase()}</div>
+                <div className="truncate text-sm font-bold text-ink">{s.name}</div>
+              </div>
+              <span className={`whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-bold ${done ? "bg-forest-100 text-forest-700" : s.paid > 0 ? "bg-amber-100 text-amber-700" : "bg-red-50 text-red-600"}`}>
+                {done ? "Đã trả đủ" : s.paid > 0 ? "Trả một phần" : "Chưa trả"}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <div className="text-[11px] text-gray-500">Phải trả</div>
+                <div className="text-sm font-extrabold text-ink">{K(s.payable)}</div>
+              </div>
+              <div>
+                <div className="text-[11px] text-gray-500">Đã trả</div>
+                <div className="text-sm font-extrabold text-forest-700">{K(s.paid)}</div>
+              </div>
+              <div>
+                <div className="text-[11px] text-gray-500">Còn lại</div>
+                <div className={`text-sm font-extrabold ${s.remaining > 0 ? "text-sunset-600" : "text-forest-700"}`}>{K(s.remaining)}</div>
+              </div>
+            </div>
+            {s.discount !== 0 && <div className="text-[11px] text-gray-500">Bán ra {K(s.gross)} {s.discount > 0 ? `− chiết khấu sàn ${K(s.discount)}` : `+ sàn bù ${K(-s.discount)}`}</div>}
+            <SupplierPayableForm id={id} side={s.side} label={s.name} payable={s.payable} autoPayable={s.autoPayable} overridden={s.overridden} onDone={reload} />
+            <SupplierPayoutForm id={id} side={s.side} label={s.name} payable={s.payable} paid={s.paid} onDone={reload} />
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+export type BookingsView ="list" | "month" | "agenda" | "year";
 const VIEWS: [BookingsView, string][] = [
   ["list", "Danh sách"],
   ["month", "Tháng"],
@@ -653,6 +734,9 @@ export default function BookingsListClient({
                   Zalo
                 </a>
               </div>
+
+              {/* Chép tin nhắn + trả tiền nhà xe/homestay ngay tại đây (không cần mở trang đầy đủ). Đổi trạng thái/tiền ⇒ nạp lại. */}
+              <QuickExtras id={dx.id} stamp={`${dx.status}|${dx.pay}|${dx.collected}|${dx.price}`} />
 
               <div className="flex flex-col gap-2 rounded-2xl border border-gray-100 bg-white px-4 py-3.5">
                 <div className="text-[15px] font-extrabold text-ink">{dx.catLabel} · {dx.title}</div>

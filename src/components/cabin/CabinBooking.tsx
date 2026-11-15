@@ -7,6 +7,7 @@ import { useState } from "react";
 import type { CabinDirectionOptions, CabinTripAvail, CabinDay, CabinFareOption } from "@/lib/cabin";
 import { cabinSeatTotal } from "@/lib/combo-pricing";
 import { vnPhoneError } from "@/lib/phone";
+import { BookingEmailField, emailLooksValid } from "@/components/BookingEmailField";
 import { CommitmentLink } from "@/components/trust/parts";
 
 function vnd(n: number | null | undefined, fallback = "Liên hệ") {
@@ -73,6 +74,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
   const [drop, setDrop] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [custPhone, setCustPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [note, setNote] = useState("");
   const [tried, setTried] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -160,6 +162,10 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
       setErr(!name.trim() ? "Vui lòng nhập họ tên." : phoneErr);
       return;
     }
+    if (!emailLooksValid(email)) {
+      setErr("Email không hợp lệ (có thể để trống).");
+      return;
+    }
     setErr(null);
     setSubmitting(true);
     try {
@@ -178,6 +184,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
           drop,
           customerName: name,
           phone: custPhone,
+          email: email.trim() || null,
           note: note || null,
         }),
       });
@@ -457,6 +464,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
                   className={`rounded-xl border-[1.5px] px-3 py-2.5 text-base outline-none ${tried && !phoneOk ? "border-red-400" : "border-gray-200"}`}
                 />
               </Field>
+              <BookingEmailField value={email} onChange={setEmail} inputClassName="rounded-xl border-[1.5px] border-gray-200 px-3 py-2.5 text-base outline-none" />
               <Field label="Ghi chú">
                 <textarea
                   value={note}

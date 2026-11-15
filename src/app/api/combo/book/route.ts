@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import { attachPhoneIfMissing } from "@/lib/customer";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
 import { notifyNewBooking } from "@/lib/push";
+import { onBookingCreated } from "@/lib/booking-email";
 import { isIpBlocked, recordBookingSource, requestIp } from "@/lib/ip-block";
 import { ensureGeo } from "@/lib/visits";
 import { isInternalError } from "@/lib/api-error";
@@ -33,6 +34,7 @@ export async function POST(request: Request) {
     const ctvId = session?.role === "CTV" ? session.sub : null;
     const result = await createComboBooking(input, ctvId);
     await recordBookingSource(result.code, request.headers);
+    void onBookingCreated(result.code, input.email); // có email ⇒ lưu + gửi thư "đã nhận yêu cầu"
     void ensureGeo(requestIp(request.headers)); // tra khu vực/nhà mạng cho trang Chặn IP
     await attachPhoneIfMissing(input.phone).catch(() => {});
     void notifyNewBooking({ code: result.code, customerName: input.customerName, phone: input.phone, summary: "Combo xe + phòng" });

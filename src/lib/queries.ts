@@ -47,7 +47,8 @@ const TTL = 60; // giây — dữ liệu ít đổi (cài đặt, bảng giá, l
 const TTL_AVAIL = 30; // giây — dữ liệu gắn với tình trạng còn chỗ
 
 async function getSettingsImpl(): Promise<Record<string, string>> {
-  const rows = await prisma.siteSetting.findMany();
+  // `smtpPass` (mật khẩu hộp thư gửi) là bí mật — KHÔNG đưa vào settings dùng chung cho giao diện.
+  const rows = await prisma.siteSetting.findMany({ where: { key: { not: "smtpPass" } } });
   const s: Record<string, string> = Object.fromEntries(rows.map((r) => [r.key, r.value]));
   // SĐT/Zalo dùng chung toàn web = SĐT của chủ sở hữu được chọn ở /admin/popup (nếu đã chọn).
   const phone = sitePhoneOf(parseTrustPopup(s[TRUST_POPUP_KEY]));
