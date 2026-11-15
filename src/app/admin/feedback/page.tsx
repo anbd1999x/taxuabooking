@@ -19,6 +19,7 @@ import {
   toggleHidden,
   togglePin,
 } from "./actions";
+import { Stt } from "@/components/admin/Stt";
 
 export const dynamic = "force-dynamic";
 
@@ -145,7 +146,7 @@ export default async function AdminFeedbackPage({
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {rows.map((f) => {
+          {rows.map((f, i) => {
             const ty = feedbackType(f.type);
             const st = feedbackStatus(f.status);
             return (
@@ -155,6 +156,7 @@ export default async function AdminFeedbackPage({
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-1.5">
+                    <Stt n={i + 1} />
                     <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: ty.bg, color: ty.fg }}>{ty.short}</span>
                     <span className="rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: st.bg, color: st.fg }}>{st.name}</span>
                     {f.pinned && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-bold text-amber-700">📌 Ghim</span>}

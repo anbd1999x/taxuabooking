@@ -428,7 +428,8 @@ export async function buildBookingMessages(
   // Combo có thuê xe máy kèm: lưu trong mô tả lựa chọn ("… · DỊCH VỤ KÈM (tính riêng…): thuê xe máy 2 xe × 2 ngày
   // = 300.000đ — khách thanh toán khi giao xe"; đơn cũ: "thuê xe máy: …") ⇒ thêm 1 khối riêng trong email.
   const label = b.selectionLabel ?? "";
-  const moto = /thuê xe máy (?:([^:·]+): )?(\d+) xe × ([\d,]+) ngày(?: \(nhận ([\d:]+), trả ([\d:]+)\))?(?: × [\d.]+đ)? = ([\d.]+)đ/.exec(label);
+  // Ngoặc nhận/trả: đơn cũ chỉ có giờ "(nhận 06:00, trả 06:00)"; đơn mới có cả ngày "(nhận 06:00 12/12/2026, trả 18:00 13/12/2026)".
+  const moto = /thuê xe máy (?:([^:·]+): )?(\d+) xe × ([\d,]+) ngày(?: \(nhận ([^,)]+), trả ([^)]+)\))?(?: × [\d.]+đ)? = ([\d.]+)đ/.exec(label);
   const motoOld = moto ? null : /(?:^| · )thuê xe máy: ([^·]+)/.exec(label);
   if (b.category === "COMBO" && (moto || motoOld)) {
     sections.push({
@@ -438,7 +439,11 @@ export async function buildBookingMessages(
       rows: moto
         ? [
             ["Số xe", `${moto[2]} xe`],
-            ...(moto[4] && moto[5] ? ([["Giờ nhận – trả", `${moto[4]} – ${moto[5]}`]] as [string, string][]) : []),
+            ...(moto[4] && moto[5]
+              ? /\//.test(moto[4] + moto[5])
+                ? ([["Nhận xe", moto[4].trim()], ["Trả xe", moto[5].trim()]] as [string, string][])
+                : ([["Giờ nhận – trả", `${moto[4]} – ${moto[5]}`]] as [string, string][])
+              : []),
             ["Thời gian tính tiền", `${moto[3]} ngày`],
             ["Thanh toán", "Trả khi nhận xe"],
             ["Lưu ý", "Giá tham khảo, chưa phải giá cuối — giá chính thức tính theo giờ sử dụng xe thực tế"],

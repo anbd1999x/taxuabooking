@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { toNumber, formatPrice, formatDate } from "@/lib/format";
 import { BOOKING_STATUS_META } from "@/lib/constants";
 import { setBookingCommissionPaid } from "@/app/admin/bookings/actions";
+import { STT_TH, STT_TD } from "@/components/admin/Stt";
 
 export const dynamic = "force-dynamic";
 
@@ -97,6 +98,7 @@ export function OrdersTable({
       <table className="w-full text-sm">
         <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
           <tr>
+            <th className={STT_TH}>STT</th>
             <th className="px-4 py-3">Mã</th>
             <th className="px-4 py-3">Dịch vụ</th>
             <th className="px-4 py-3 hidden sm:table-cell">Ngày dùng</th>
@@ -108,14 +110,15 @@ export function OrdersTable({
         </thead>
         <tbody className="divide-y divide-gray-100">
           {bookings.length === 0 ? (
-            <tr><td colSpan={7} className="py-8 text-center text-gray-500">Chưa có đơn nào.</td></tr>
+            <tr><td colSpan={8} className="py-8 text-center text-gray-500">Chưa có đơn nào.</td></tr>
           ) : (
-            bookings.map((b) => {
+            bookings.map((b, i) => {
               const meta = BOOKING_STATUS_META[b.status];
               const comm = toNumber(b.commissionAmount) ?? 0;
               const settled = Boolean(b.commissionPaid);
               return (
                 <tr key={b.id} className="hover:bg-gray-50">
+                  <td className={STT_TD}>{i + 1}</td>
                   <td className="px-4 py-3 font-semibold text-forest-700">
                     {detailHref ? (
                       <Link href={`${detailHref}${b.id}`} className="underline decoration-forest-300 underline-offset-2 hover:text-forest-900">{b.code} →</Link>

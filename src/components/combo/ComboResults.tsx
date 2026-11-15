@@ -1,6 +1,6 @@
 "use client";
 
-import { dmy } from "@/lib/date-format";
+import { dmy, wdDmy } from "@/lib/date-format";
 import { trackLeadConversion } from "@/lib/ads";
 import { SupportHoursNote } from "@/components/SupportHours";
 import { ItineraryLink } from "@/components/itinerary/ItineraryLink";
@@ -17,7 +17,7 @@ import type {
   ComboSearchResult,
 } from "@/lib/combo";
 import { ensureSheetFresh } from "@/components/ensureSheet";
-import { cabinAllocation, busCostPerPerson, cabinSeatTotal, COMBO_MOTORBIKES, comboMotorbike, comboMotorbikeCost, comboMotorbikeDays, type ComboBikeKey } from "@/lib/combo-pricing";
+import { cabinAllocation, busCostPerPerson, cabinSeatTotal, COMBO_MOTORBIKES, comboMotorbike, comboMotorbikeCost, comboMotorbikeDays, comboMotorbikeValid, type ComboBikeKey } from "@/lib/combo-pricing";
 import { vnPhoneError } from "@/lib/phone";
 import { RENTAL_HOURS, RENTAL_DEFAULT_HOUR, rentalDaysLabel } from "@/lib/rental-days";
 import { BookingEmailField, emailLooksValid } from "@/components/BookingEmailField";
@@ -359,11 +359,36 @@ function ComboPlanCard({
   const bike = comboMotorbike(bikeType);
   const [bikeQty, setBikeQty] = useState(Math.max(1, Math.ceil(people / 2)));
   const bikes = withBike ? Math.min(bikeQty, people) : 0;
-  // Giờ nhận / giờ trả xe: số ngày thuê quy đổi theo mốc 24 giờ (mặc định 06:00 – 06:00 = đúng số đêm).
+  // Ngày nhận / trả xe: chọn trong khoảng lưu trú [check-in, check-out] (mặc định cả kỳ) — VD ở 3 ngày nhưng chỉ thuê 2 ngày.
+  const stayDays = useMemo(() => dayKeysBetween(checkIn, checkOut), [checkIn, checkOut]);
+  const [bikeFrom, setBikeFrom] = useState(checkIn);
+  const [bikeTo, setBikeTo] = useState(checkOut);
+  // Giờ nhận / giờ trả xe: số ngày thuê quy đổi theo mốc 24 giờ (mặc định 06:00 – 06:00 = đúng số ngày lịch).
   const [bikePickup, setBikePickup] = useState(RENTAL_DEFAULT_HOUR);
   const [bikeReturn, setBikeReturn] = useState(RENTAL_DEFAULT_HOUR);
-  const bikeDays = comboMotorbikeDays(nights, bikePickup, bikeReturn);
-  const bikeCost = comboMotorbikeCost(bikes, nights, bikeType, bikePickup, bikeReturn);
+  const bikeGap = Math.max(0, stayDays.indexOf(bikeTo) - stayDays.indexOf(bikeFrom));
+  const bikeTimeOk = comboMotorbikeValid(bikeGap, bikePickup, bikeReturn);
+  const bikeDays = comboMotorbikeDays(nights, bikePickup, bikeReturn, bikeGap);
+  const bikeCost = comboMotorbikeCost(bikes, nights, bikeType, bikePickup, bikeReturn, bikeGap);
+  const bikeWhenFrom = `${bikePickup} ${wdDmy(bikeFrom, tr)}`;
+  const bikeWhenTo = `${bikeReturn} ${wdDmy(bikeTo, tr)}`;
+  // Đổi ngày mà thành thuê TRONG NGÀY (nhận = trả) với giờ trả ≤ giờ nhận (vd mặc định 06:00–06:00)
+  // ⇒ tự đẩy giờ trả lên mốc sau giờ nhận để khỏi báo lỗi ngay.
+  function fixSameDay(from: string, to: string) {
+    if (from === to && bikeReturn <= bikePickup) {
+      setBikeReturn(RENTAL_HOURS.find((h) => h > bikePickup) ?? RENTAL_HOURS[RENTAL_HOURS.length - 1]);
+    }
+  }
+  function pickBikeFrom(k: string) {
+    const to = bikeTo < k ? k : bikeTo;
+    setBikeFrom(k);
+    setBikeTo(to);
+    fixSameDay(k, to);
+  }
+  function pickBikeTo(k: string) {
+    setBikeTo(k);
+    fixSameDay(bikeFrom, k);
+  }
 
   const [openForm, setOpenForm] = useState(false);
   const [name, setName] = useState("");
@@ -401,6 +426,7 @@ function ComboPlanCard({
     if (!bus) { setErr(tr("Vui lòng chọn xe cabin.")); return; }
     if (cabinCovered !== people) { setErr(tr("Chỗ nằm trên xe đang xếp {0}/{1} người.", [cabinCovered, people])); return; }
     if (people > bus.seatsAvailable) { setErr(tr("Xe chỉ còn {0} chỗ.", [bus.seatsAvailable])); return; }
+    if (bikes > 0 && !bikeTimeOk) { setErr(tr("Trả xe trong ngày nhận thì giờ trả phải sau giờ nhận xe.")); return; }
     if (!name.trim()) { setErr(tr("Vui lòng nhập họ tên.")); return; }
     { const pe = vnPhoneError(phone); if (pe) { setErr(pe); return; } }
     if (!emailLooksValid(email)) { setErr(tr("Email không hợp lệ (có thể để trống).")); return; }
@@ -424,6 +450,8 @@ function ComboPlanCard({
           motorbikeType: bikes > 0 ? bikeType : null,
           motorbikePickup: bikes > 0 ? bikePickup : null,
           motorbikeReturn: bikes > 0 ? bikeReturn : null,
+          motorbikePickupDate: bikes > 0 ? bikeFrom : null,
+          motorbikeReturnDate: bikes > 0 ? bikeTo : null,
           customerName: name.trim(),
           phone: phone.trim(),
           email: email.trim() || null,
@@ -666,7 +694,7 @@ function ComboPlanCard({
                 </div>
                 {bikes > 0 && (
                   <div className="rounded-xl border border-dashed border-sunset-300 bg-sunset-50 p-3.5 text-[13px] leading-relaxed text-gray-700">
-                    🏍️ <b className="text-ink">{tr("Thuê xe máy {0}: {1} xe × {2} (nhận {3}, trả {4}) ≈ {5}", [tr(bike.name), bikes, rentalDaysLabel(bikeDays, tr), tr(bikePickup), tr(bikeReturn), tr(vnd(bikeCost))])}</b> — <b>{tr("giá tham khảo, chưa phải giá cuối")}</b>{tr(". Dịch vụ đi kèm, tính riêng, không nằm trong bill combo; giá chính thức tính theo giờ sử dụng xe thực tế, thanh toán trực tiếp khi giao xe.")}
+                    🏍️ <b className="text-ink">{tr("Thuê xe máy {0}: {1} xe × {2} (nhận {3}, trả {4}) ≈ {5}", [tr(bike.name), bikes, rentalDaysLabel(bikeDays, tr), bikeWhenFrom, bikeWhenTo, tr(vnd(bikeCost))])}</b> — <b>{tr("giá tham khảo, chưa phải giá cuối")}</b>{tr(". Dịch vụ đi kèm, tính riêng, không nằm trong bill combo; giá chính thức tính theo giờ sử dụng xe thực tế, thanh toán trực tiếp khi giao xe.")}
                   </div>
                 )}
                 <SupportHoursNote />
@@ -713,7 +741,7 @@ function ComboPlanCard({
                       <span className="min-w-0 font-bold text-ink">{tr("🏍️ Thuê xe máy")}{" "}<span className="block font-semibold text-gray-500 sm:inline">{tr("(dịch vụ kèm · tính riêng)")}</span></span>
                       <span className="flex-none text-right font-extrabold text-ink"><span className="block text-[11px] font-semibold text-gray-500">{tr("Giá tham khảo")}</span>{tr(vnd(bikeCost))}</span>
                     </div>
-                    <div className="text-xs text-gray-600">{tr("{0} · {1} xe × {2} × {3} · nhận {4}, trả {5}", [tr(bike.name), bikes, rentalDaysLabel(bikeDays, tr), tr(vnd(bike.perDay)), tr(bikePickup), tr(bikeReturn)])}</div>
+                    <div className="text-xs text-gray-600">{tr("{0} · {1} xe × {2} × {3} · nhận {4}, trả {5}", [tr(bike.name), bikes, rentalDaysLabel(bikeDays, tr), tr(vnd(bike.perDay)), bikeWhenFrom, bikeWhenTo])}</div>
                     <div className="text-xs font-semibold leading-relaxed text-sunset-700">{tr("Không tính vào bill combo ở trên — thanh toán trực tiếp khi giao xe.")}</div>
                   </div>
                 )}
@@ -779,6 +807,20 @@ function ComboPlanCard({
                   {withBike && (
                     <div className="flex flex-col gap-2 border-t border-dashed border-gray-200 pt-2.5">
                       <div className="grid grid-cols-2 gap-2">
+                        <label className="flex flex-col gap-1">
+                          <span className="text-xs font-semibold text-gray-600">{tr("Ngày nhận xe")}</span>
+                          <select value={bikeFrom} onChange={(e) => pickBikeFrom(e.target.value)} aria-label={tr("Ngày nhận xe")} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-forest-500">
+                            {stayDays.map((k) => <option key={k} value={k}>{wdDmy(k, tr)}</option>)}
+                          </select>
+                        </label>
+                        <label className="flex flex-col gap-1">
+                          <span className="text-xs font-semibold text-gray-600">{tr("Ngày trả xe")}</span>
+                          <select value={bikeTo} onChange={(e) => pickBikeTo(e.target.value)} aria-label={tr("Ngày trả xe")} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-forest-500">
+                            {stayDays.filter((k) => k >= bikeFrom).map((k) => <option key={k} value={k}>{wdDmy(k, tr)}</option>)}
+                          </select>
+                        </label>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
                         {([
                           [tr("Giờ nhận xe"), bikePickup, setBikePickup],
                           [tr("Giờ trả xe"), bikeReturn, setBikeReturn],
@@ -792,7 +834,7 @@ function ComboPlanCard({
                         ))}
                       </div>
                       <p className="text-[11px] leading-relaxed text-gray-500">
-                        {tr("Nhận xe ngày nhận phòng, trả ngày trả phòng —")}{" "}<b className="text-ink">{tr("tính {0}", [rentalDaysLabel(bikeDays, tr)])}</b>{tr(". Mỗi 24 giờ kể từ giờ nhận = 1 ngày; trả trễ tới 6 giờ tính thêm nửa ngày, trễ hơn 6 giờ tính thêm 1 ngày.")}
+                        {bikeTimeOk ? <>{tr("Thuê trong khoảng lưu trú, không bắt buộc cả kỳ —")}{" "}<b className="text-ink">{tr("tính {0}", [rentalDaysLabel(bikeDays, tr)])}</b></> : <b className="text-red-600">{tr("Trả xe trong ngày nhận thì giờ trả phải sau giờ nhận xe.")}</b>}{tr(". Mỗi 24 giờ kể từ giờ nhận = 1 ngày; trả trễ tới 6 giờ tính thêm nửa ngày, trễ hơn 6 giờ tính thêm 1 ngày.")}
                       </p>
                     </div>
                   )}
@@ -965,6 +1007,16 @@ function ComboPlanCard({
 
 function fmtDayKey(key: string): string {
   return dmy(key);
+}
+
+/** Các khoá yyyy-mm-dd từ `from` tới `to` (gồm cả hai đầu). */
+function dayKeysBetween(from: string, to: string): string[] {
+  const out: string[] = [];
+  const end = Date.parse(`${to}T00:00:00Z`);
+  for (let t = Date.parse(`${from}T00:00:00Z`); Number.isFinite(t) && t <= end && out.length < 60; t += 86_400_000) {
+    out.push(new Date(t).toISOString().slice(0, 10));
+  }
+  return out.length ? out : [from];
 }
 
 /** Modal ảnh + nội dung: bottom sheet mobile, hộp giữa desktop (theo thiết kế Combo Kết quả). */

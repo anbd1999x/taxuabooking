@@ -2,6 +2,7 @@ import Link from "next/link";
 import { formatPrice } from "@/lib/format";
 import type { ServicePayRow, StatRow, StatsResult } from "@/lib/stats";
 import { StatsRangeFilter } from "./StatsRangeFilter";
+import { STT_TH, STT_TD } from "@/components/admin/Stt";
 
 /**
  * Bảng thống kê dùng chung cho admin & chủ dịch vụ.
@@ -110,6 +111,7 @@ function ServicePayTable({ rows }: { rows: ServicePayRow[] }) {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
             <tr>
+              <th className={STT_TH}>STT</th>
               <th className="px-3 py-3">Dịch vụ</th>
               <th className="px-3 py-3 text-center">Đơn</th>
               <th className="px-3 py-3 text-right">Tổng tiền</th>
@@ -121,10 +123,11 @@ function ServicePayTable({ rows }: { rows: ServicePayRow[] }) {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {rows.length === 0 ? (
-              <tr><td colSpan={7} className="py-8 text-center text-gray-500">Không có dữ liệu.</td></tr>
+              <tr><td colSpan={8} className="py-8 text-center text-gray-500">Không có dữ liệu.</td></tr>
             ) : (
-              rows.map((r) => (
+              rows.map((r, i) => (
                 <tr key={r.id} className="hover:bg-gray-50">
+                  <td className={STT_TD}>{i + 1}</td>
                   <td className="px-3 py-3">
                     <span className="font-medium text-ink">{r.name}</span>
                     <span className="ml-2 whitespace-nowrap rounded-md bg-gray-100 px-1.5 py-0.5 text-[11px] font-bold text-gray-600">{r.kind}</span>
@@ -144,6 +147,7 @@ function ServicePayTable({ rows }: { rows: ServicePayRow[] }) {
           {rows.length > 0 && (
             <tfoot className="bg-gray-50 font-bold text-ink">
               <tr>
+                <td />
                 <td className="px-3 py-3">Tổng</td>
                 <td className="px-3 py-3 text-center">{sum((r) => r.orders)}</td>
                 <td className="px-3 py-3 text-right">{formatPrice(sum((r) => r.total))}</td>
@@ -193,6 +197,7 @@ function StatTable({
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
             <tr>
+              <th className={STT_TH}>STT</th>
               <th className="px-3 py-3">{col}</th>
               <th className="px-3 py-3 text-center">Đơn</th>
               <th className="px-3 py-3 text-center">Hoàn thành</th>
@@ -206,10 +211,11 @@ function StatTable({
           </thead>
           <tbody className="divide-y divide-gray-100">
             {rows.length === 0 ? (
-              <tr><td colSpan={showPlatform ? 9 : 8} className="py-8 text-center text-gray-500">Không có dữ liệu.</td></tr>
+              <tr><td colSpan={showPlatform ? 10 : 9} className="py-8 text-center text-gray-500">Không có dữ liệu.</td></tr>
             ) : (
-              rows.map((r) => (
+              rows.map((r, i) => (
                 <tr key={r.id} className="hover:bg-gray-50">
+                  <td className={STT_TD}>{i + 1}</td>
                   <td className="px-3 py-3 font-medium text-ink">{r.name}</td>
                   <td className="px-3 py-3 text-center">
                     {ordersHref && r.orders > 0 ? (

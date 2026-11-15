@@ -7,6 +7,7 @@ import { showToast } from "./Toast";
 import { savePlace, togglePlacePublished, bulkPlaces, removePlace } from "@/app/admin/places/actions";
 import type { PlaceDTO } from "@/app/admin/places/place-dto";
 import { isVideoUrl } from "@/lib/utils";
+import { Stt } from "@/components/admin/Stt";
 
 type Kind = "RESTAURANT" | "CAFE" | "CHECKIN";
 const KINDS: Kind[] = ["RESTAURANT", "CAFE", "CHECKIN"];
@@ -351,7 +352,7 @@ export function PlacesManager({ initialPlaces, areas: areaProp }: { initialPlace
           <span>Quán</span><span>Khu vực</span><span>Giờ mở</span><span>Hoàn thiện</span><span>Trạng thái</span><span />
         </div>
 
-        {rows.map((r) => {
+        {rows.map((r, idx) => {
           const pct = completion(r);
           const pctColor = pct >= 80 ? "bg-forest-500" : pct >= 50 ? "bg-amber-400" : "bg-sunset-500";
           const [open, close] = parseHours(r.hours);
@@ -370,7 +371,7 @@ export function PlacesManager({ initialPlaces, areas: areaProp }: { initialPlace
                 )}
               </div>
               <button onClick={() => openEdit(r)} className="min-w-0 text-left">
-                <div className="truncate text-[15px] font-bold tracking-[-0.01em] text-ink">{r.name || "Quán chưa đặt tên"}</div>
+                <div className="flex min-w-0 items-center gap-1.5"><Stt n={idx + 1} /><span className="truncate text-[15px] font-bold tracking-[-0.01em] text-ink">{r.name || "Quán chưa đặt tên"}</span></div>
                 <div className="truncate text-xs text-gray-500">/{KIND_SLUG[r.kind as Kind]}/{r.slug}{r.desc ? "" : " · chưa có mô tả ngắn"}</div>
               </button>
 

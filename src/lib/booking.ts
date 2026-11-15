@@ -438,16 +438,16 @@ export async function createBooking(
     if (pricing && (input.transportMode === "LEG" || input.transportMode === "DAY")) {
       const mode = input.transportMode;
       const fromName = nameOf(input.fromPointId, input.fromOther);
-      const toName = mode === "LEG" ? nameOf(input.toPointId, input.toOther) : null;
+      const toName = nameOf(input.toPointId, input.toOther); // nguyên ngày: điểm muốn đến (tuỳ chọn)
       if (mode === "LEG" && (!fromName || !toName)) throw new Error("Vui lòng chọn điểm đón và điểm đến.");
-      if (mode === "LEG" && fromName === toName) throw new Error("Điểm đón và điểm đến phải khác nhau.");
+      if (fromName && toName && fromName === toName) throw new Error("Điểm đón và điểm đến phải khác nhau.");
       const drivers = input.drivers ?? 1;
       const q = quoteTransport(pricing, { mode, fromId: input.fromPointId, toId: input.toPointId, people: qty, drivers });
       if (q.error) throw new Error(q.error);
       const unit = pricing.bike ? "tài xế" : "xe";
       transportRouteId = q.leg?.id ?? null;
       selectionLabel =
-        (mode === "LEG" ? `${fromName} → ${toName} · 1 chiều` : `Thuê nguyên ngày${fromName ? ` · đón tại ${fromName}` : ""}`) +
+        (mode === "LEG" ? `${fromName} → ${toName} · 1 chiều` : `Thuê nguyên ngày${fromName ? ` · đón tại ${fromName}` : ""}${toName ? ` · đi ${toName}` : ""}`) +
         ` · ${qty} người · ${drivers} ${unit}${q.twos > 0 ? ` (${q.twos} xe chở 2)` : ""}` +
         (q.leg?.note ? ` · ${q.leg.note}` : "") +
         (q.total == null ? " · chờ báo giá" : "");
@@ -478,11 +478,11 @@ export async function createBooking(
       : null;
 
   // Mã yêu cầu không trùng.
-  let code = generateBookingCode();
+  let code = generateBookingCode(service.category);
   for (let i = 0; i < 5; i++) {
     const exists = await prisma.bookingRequest.findUnique({ where: { code } });
     if (!exists) break;
-    code = generateBookingCode();
+    code = generateBookingCode(service.category);
   }
 
   await prisma.bookingRequest.create({

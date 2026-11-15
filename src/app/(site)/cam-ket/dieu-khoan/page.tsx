@@ -66,7 +66,7 @@ const SECTIONS: Section[] = [
         "Bạn tự huỷ, đổi lịch hoặc không đến (no-show). Trường hợp này theo chính sách huỷ đã báo khi chốt bill.",
       ]),
       need([
-        "Mã đơn (ví dụ TX-Z8Y45U).",
+        "Mã đơn (ví dụ TX-CB-Z8Y45).",
         "Ảnh chụp đoạn chốt bill trên Zalo.",
         "Biên lai chuyển khoản hoặc mã giao dịch ngân hàng.",
         "Tin nhắn yêu cầu hoàn tiền có ghi ngày.",

@@ -3,6 +3,7 @@ import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/format";
 import { deleteArticle, toggleArticlePublished } from "./actions";
+import { Stt } from "@/components/admin/Stt";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +30,7 @@ export default async function ArticlesPage() {
             Chưa có bài viết nào. Bấm "Viết bài mới" để bắt đầu.
           </p>
         )}
-        {articles.map((a) => (
+        {articles.map((a, i) => (
           <div key={a.id} className="flex flex-wrap items-center gap-3 rounded-2xl bg-white p-3 shadow-sm ring-1 ring-black/5">
             <div className="relative h-14 w-24 flex-none overflow-hidden rounded-lg bg-gray-100">
               {a.coverImage ? (
@@ -39,8 +40,9 @@ export default async function ArticlesPage() {
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <Link href={`/admin/articles/${a.id}`} className="block truncate font-bold text-ink hover:text-forest-700">
-                {a.title}
+              <Link href={`/admin/articles/${a.id}`} className="flex min-w-0 items-center gap-1.5 font-bold text-ink hover:text-forest-700">
+                <Stt n={i + 1} />
+                <span className="truncate">{a.title}</span>
               </Link>
               <p className="truncate text-xs text-gray-500">/kinh-nghiem/{a.slug} · {formatDate(a.createdAt)}</p>
             </div>

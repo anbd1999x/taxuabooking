@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { Stt } from "@/components/admin/Stt";
 
 export const dynamic = "force-dynamic";
 
@@ -72,13 +73,14 @@ export default async function SheetSyncPage() {
       </div>
 
       <div className="mt-5 space-y-3">
-        {services.map((s) => {
+        {services.map((s, i) => {
           const err = s.sheetSyncResult?.startsWith("Lỗi");
           return (
             <div key={s.id} className="rounded-2xl border border-gray-200 bg-white p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
+                    <Stt n={i + 1} />
                     <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${err ? "bg-red-500" : s.sheetSyncedAt ? "bg-emerald-500" : "bg-gray-300"}`} />
                     <h2 className="truncate font-semibold text-ink">{s.title}</h2>
                   </div>

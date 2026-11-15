@@ -11,6 +11,7 @@ import { bulkDeleteBookings, bulkUpdateBookingStatus, getBookingMessages } from 
 import type { BookingMessages } from "@/lib/booking-messages";
 import BookingsCalendar from "./BookingsCalendar";
 import { EditBookingPopup } from "./EditBookingPopup";
+import { Stt } from "@/components/admin/Stt";
 
 /**
  * Phần nạp thêm của ngăn Xử lý nhanh: nút "Chép tin nhắn" (khách / chốt đơn / nhà xe / homestay) và
@@ -539,7 +540,7 @@ export default function BookingsListClient({
           <span className="text-right">Giá</span><span>Thanh toán</span><span>Trạng thái</span><span />
         </div>
 
-        {list.map((r) => {
+        {list.map((r, idx) => {
           const stMeta = ST[r.status];
           const [catK, catTone] = CAT_BADGE[r.cat] ?? ["DV", "bg-gray-100 text-gray-600"];
           const dt = daysTo(r.useDate);
@@ -567,6 +568,7 @@ export default function BookingsListClient({
               />
               <button type="button" onClick={() => setDrawerId(r.id)} title="Xem & xử lý đơn ngay tại đây" className="min-w-0 overflow-hidden text-left">
                 <span className="flex flex-wrap items-center gap-1.5">
+                  <Stt n={idx + 1} />
                   <span className="font-mono text-[13px] font-extrabold tracking-tight text-ink">{r.code}</span>
                   <span
                     title={r.ctvName ? `Đặt qua cộng tác viên ${r.ctvName}` : "Khách tự đặt trên website"}

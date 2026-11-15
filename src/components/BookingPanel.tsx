@@ -71,6 +71,7 @@ export function BookingPanel({
   phone,
   zalo,
   initialTransport,
+  transportData,
 }: {
   serviceId: string;
   category: ServiceCategory;
@@ -79,6 +80,8 @@ export function BookingPanel({
   zalo?: string | null;
   /** Taxi / xe ôm: lựa chọn mang sang từ trang danh sách (?from=&dpt=&dst=&tm=&pax=&drv=). */
   initialTransport?: { date?: string; from?: string; to?: string; mode?: string; pax?: number; drv?: number };
+  /** Taxi / xe ôm: điểm cố định + bảng giá dựng sẵn ở server ⇒ panel hiện lựa chọn & giá ngay, không cần "Kiểm tra giá". */
+  transportData?: { points: TransportPointDTO[]; pricing: TransportPricing } | null;
 }) {
   const tr = useT();
   const needsRange = kind === "stay" || kind === "rental";
@@ -102,16 +105,19 @@ export function BookingPanel({
   const [toPt, setToPt] = useState(initialTransport?.to ?? "");
   const [fromOther, setFromOther] = useState("");
   const [toOther, setToOther] = useState("");
-  const [tMode, setTMode] = useState<TransportMode>(initialTransport?.mode === "DAY" ? "DAY" : "LEG");
+  // Mặc định THUÊ NGUYÊN NGÀY; chỉ sang chặng 1 chiều khi khách chọn (hoặc mang từ trang danh sách).
+  const [tMode, setTMode] = useState<TransportMode>(initialTransport?.mode === "LEG" ? "LEG" : "DAY");
   const [drivers, setDrivers] = useState(Math.max(1, initialTransport?.drv ?? 1));
-  const legPoints = avail?.transport?.points ?? [];
-  const pricing = avail?.transport?.pricing;
+  const legPoints = transportData?.points ?? avail?.transport?.points ?? [];
+  const pricing = transportData?.pricing ?? avail?.transport?.pricing;
   const isTransport = kind === "transport" && Boolean(pricing);
   const ptName = (id: string, other: string) => (id === OTHER_POINT ? other.trim() : legPoints.find((p) => p.id === id)?.name ?? "");
   const fromName = ptName(fromPt, fromOther);
   const toName = ptName(toPt, toOther);
   const tQuote = pricing ? quoteTransport(pricing, { mode: tMode, fromId: fromPt, toId: toPt, people: quantity, drivers }) : null;
-  const legReady = tMode === "DAY" || (Boolean(fromName) && Boolean(toName) && fromName !== toName);
+  const samePoint = Boolean(fromName) && fromName === toName;
+  // Chặng: bắt buộc điểm đón + điểm đến. Nguyên ngày: điểm đến tuỳ chọn (nơi muốn đi chơi), chọn thì phải khác điểm đón.
+  const legReady = tMode === "DAY" ? !samePoint : Boolean(fromName) && Boolean(toName) && !samePoint;
   // Thuê xe máy: màu xe khách chọn ("" = màu nào cũng được). Đổi loại xe ⇒ chọn lại.
   const [color, setColor] = useState("");
 
@@ -191,7 +197,7 @@ export function BookingPanel({
         rentalVehicleId: kind === "rental" ? selectedId : null,
         cabinTripId: kind === "trip" ? selectedId : null,
         ...(isTransport
-          ? { transportMode: tMode, drivers, fromPointId: fromPt || null, toPointId: tMode === "LEG" ? toPt || null : null, fromOther: fromPt === OTHER_POINT ? fromOther : null, toOther: toPt === OTHER_POINT ? toOther : null }
+          ? { transportMode: tMode, drivers, fromPointId: fromPt || null, toPointId: toPt || null, fromOther: fromPt === OTHER_POINT ? fromOther : null, toOther: toPt === OTHER_POINT ? toOther : null }
           : {}),
         customerName: name,
         phone: custPhone,
@@ -281,9 +287,88 @@ export function BookingPanel({
     >
       <h3 className="text-lg font-bold text-ink">{tr("Đặt dịch vụ")}</h3>
       <p className="mt-0.5 text-xs text-gray-500">
-        {tr("Không cần tài khoản. Chọn ngày để xem giá và tình trạng.")}
+        {isTransport ? tr("Không cần tài khoản. Chọn hình thức, điểm đón và số người để xem giá.") : tr("Không cần tài khoản. Chọn ngày để xem giá và tình trạng.")}
       </p>
 
+      {/* Taxi / xe ôm: chọn như ô tìm kiếm — nguyên ngày (mặc định) / chặng 1 chiều, điểm đón, điểm đến, ngày, số người, số tài xế. */}
+      {isTransport && pricing && (
+        <div className="mt-4 space-y-3">
+          <div className="inline-flex w-full gap-1 rounded-xl bg-gray-100 p-1">
+            {(["DAY", "LEG"] as const).map((k) => (
+              <button key={k} type="button" onClick={() => setTMode(k)} className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${tMode === k ? "bg-white text-forest-700 shadow-sm" : "text-gray-500"}`}>
+                {k === "LEG" ? tr("Chặng 1 chiều") : tr("Thuê nguyên ngày")}
+              </button>
+            ))}
+          </div>
+          {([
+            [tr("Điểm đón"), fromPt, setFromPt, fromOther, setFromOther],
+            [tMode === "DAY" ? tr("Điểm muốn đến (không bắt buộc)") : tr("Điểm đến"), toPt, setToPt, toOther, setToOther],
+          ] as const).map(([label, val, setVal, other, setOther]) => (
+            <label key={label} className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-gray-500">{label}</span>
+              <select value={val} onChange={(e) => setVal(e.target.value)} className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-200 bg-white">
+                <option value="">{tr("Chọn điểm…")}</option>
+                {legPoints.map((p) => <option key={p.id} value={p.id}>{tr(p.name)}</option>)}
+                <option value={OTHER_POINT}>{tr("Điểm khác (nhắn tin báo giá)")}</option>
+              </select>
+              {val === OTHER_POINT && (
+                <input value={other} onChange={(e) => setOther(e.target.value)} maxLength={120} placeholder={tr("Ghi tên điểm, VD: homestay A, bản B…")} className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-200" />
+              )}
+            </label>
+          ))}
+          <label className="flex flex-col gap-1">
+            <span className="text-xs font-medium text-gray-500">{tr("Ngày đi")}</span>
+            <DateField value={from} min={todayKey()} onChange={setFrom} className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-200" displayClassName="px-3 text-sm text-gray-900" ariaLabel={tr("Ngày đi")} required />
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-gray-500">{tr("Số người")}</span>
+              <QtyInput min={1} max={40} value={quantity} onChange={(n) => setQuantity(n)} className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-200" ariaLabel={tr("Số người")} />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-xs font-medium text-gray-500">{pricing.bike ? tr("Số tài xế") : tr("Số xe")}</span>
+              <QtyInput min={1} max={20} value={drivers} onChange={(n) => setDrivers(n)} className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-200" ariaLabel={pricing.bike ? tr("Số tài xế") : tr("Số xe")} />
+            </label>
+          </div>
+          <p className="text-xs text-gray-500">
+            {pricing.bike ? tr("Mỗi xe máy chở tối đa {0} người kèm 1 tài xế.", [pricing.capacity === 1 ? 1 : 2]) : tr("Mỗi xe chở tối đa {0} khách, giá tính theo xe.", [pricing.capacity])}
+          </p>
+          {tQuote?.error ? (
+            <p className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700">
+              {tr(tQuote.error)}{" "}
+              <button type="button" onClick={() => setDrivers(minDrivers(pricing.bike, pricing.capacity, quantity))} className="font-semibold underline">{tr("Chọn {0}", [minDrivers(pricing.bike, pricing.capacity, quantity)])}</button>
+            </p>
+          ) : samePoint ? (
+            <p className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700">{tr("Điểm đón và điểm đến phải khác nhau.")}</p>
+          ) : !legReady ? (
+            <p className="rounded-xl bg-gray-50 px-3 py-2.5 text-sm text-gray-600">{tr("Chọn điểm đón và điểm đến để xem giá chặng.")}</p>
+          ) : tQuote?.total != null ? (
+            <div className="rounded-xl bg-forest-50 px-3 py-2.5">
+              <div className="text-xs text-gray-500">
+                {tMode === "LEG" ? `${tr(fromName)} → ${tr(toName)} · ${tr("1 chiều")}` : `${tr("Thuê nguyên ngày")}${toName ? ` · ${tr(toName)}` : ""}`} · {tr("{0} người", [quantity])} · {drivers} {pricing.bike ? tr("tài xế") : tr("xe")}
+                {tQuote.twos > 0 ? ` · ${tr("{0} xe chở 2", [tQuote.twos])}` : ""}
+              </div>
+              <div className="text-lg font-extrabold text-forest-700">
+                {tr(formatVnd(tQuote.total))}
+                {tMode === "DAY" && <span className="text-sm font-bold text-gray-500">{tr("/ngày")}</span>}
+              </div>
+              {tQuote.leg?.note && <div className="text-xs text-gray-500">{tr(tQuote.leg.note)}</div>}
+              <div className="mt-0.5 text-xs text-gray-500">{tr("Giá tạm tính, bác tài xác nhận lại khi nhận đơn.")}</div>
+            </div>
+          ) : (
+            <div className="rounded-xl bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
+              <div className="font-semibold">{tMode === "LEG" ? tr("Chặng này chưa có giá sẵn — nhắn tin để được báo giá.") : tr("Chưa có giá nguyên ngày — nhắn tin để được báo giá.")}</div>
+              <div className="mt-1 text-xs">{tr("Bạn vẫn có thể gửi yêu cầu, tụi mình sẽ báo giá trước khi chốt.")}</div>
+              {zalo && (
+                <a href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block rounded-lg bg-sunset-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-sunset-600">{tr("Nhắn Zalo hỏi giá")}</a>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {!isTransport && (
+        <>
       {/* Ngày */}
       <div className="mt-4 grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1">
@@ -364,6 +449,9 @@ export function BookingPanel({
       >
         {checking ? tr("Đang kiểm tra...") : tr("Kiểm tra giá & tình trạng")}
       </button>
+
+        </>
+      )}
 
       {availError && (
         <p className="mt-2 text-sm text-red-600">{tr(availError)}</p>
@@ -479,67 +567,6 @@ export function BookingPanel({
               ))
             ))}
 
-          {/* transport */}
-          {/* taxi / xe ôm: chặng 1 chiều hoặc nguyên ngày · số tài xế / xe ⇒ báo giá theo bảng giá của bác tài */}
-          {isTransport && pricing && (
-            <div className="space-y-3 rounded-xl border border-gray-200 p-3">
-              <div className="inline-flex w-full gap-1 rounded-xl bg-gray-100 p-1">
-                {(["LEG", "DAY"] as const).map((k) => (
-                  <button key={k} type="button" onClick={() => setTMode(k)} className={`flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition ${tMode === k ? "bg-white text-forest-700 shadow-sm" : "text-gray-500"}`}>
-                    {k === "LEG" ? tr("Chặng 1 chiều") : tr("Thuê nguyên ngày")}
-                  </button>
-                ))}
-              </div>
-              {([
-                [tr("Điểm đón"), fromPt, setFromPt, fromOther, setFromOther, true],
-                [tr("Điểm đến"), toPt, setToPt, toOther, setToOther, tMode === "LEG"],
-              ] as const).filter((x) => x[5]).map(([label, val, setVal, other, setOther]) => (
-                <label key={label} className="flex flex-col gap-1">
-                  <span className="text-xs font-medium text-gray-500">{label}</span>
-                  <select value={val} onChange={(e) => setVal(e.target.value)} className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-200">
-                    <option value="">{tr("Chọn điểm…")}</option>
-                    {legPoints.map((p) => <option key={p.id} value={p.id}>{tr(p.name)}</option>)}
-                    <option value={OTHER_POINT}>{tr("Điểm khác (nhắn tin báo giá)")}</option>
-                  </select>
-                  {val === OTHER_POINT && (
-                    <input value={other} onChange={(e) => setOther(e.target.value)} maxLength={120} placeholder={tr("Ghi tên điểm, VD: homestay A, bản B…")} className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-200" />
-                  )}
-                </label>
-              ))}
-              <label className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-gray-500">{pricing.bike ? tr("Số tài xế (mỗi xe máy chở tối đa {0} người)", [pricing.capacity === 1 ? 1 : 2]) : tr("Số xe (mỗi xe tối đa {0} khách)", [pricing.capacity])}</span>
-                <QtyInput min={1} max={20} value={drivers} onChange={(n) => setDrivers(n)} className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-200" ariaLabel={tr("Số tài xế")} />
-              </label>
-              {tQuote?.error ? (
-                <p className="text-sm text-red-600">
-                  {tr(tQuote.error)}{" "}
-                  <button type="button" onClick={() => setDrivers(minDrivers(pricing.bike, pricing.capacity, quantity))} className="font-semibold underline">{tr("Chọn {0}", [minDrivers(pricing.bike, pricing.capacity, quantity)])}</button>
-                </p>
-              ) : !legReady ? (
-                fromName && toName && fromName === toName ? <p className="text-sm text-red-600">{tr("Điểm đón và điểm đến phải khác nhau.")}</p> : null
-              ) : tQuote?.total != null ? (
-                <div className="rounded-xl bg-forest-50 px-3 py-2.5">
-                  <div className="text-xs text-gray-500">
-                    {tMode === "LEG" ? `${tr(fromName)} → ${tr(toName)} · ${tr("1 chiều")}` : tr("Thuê nguyên ngày")} · {tr("{0} người", [quantity])} · {drivers} {pricing.bike ? tr("tài xế") : tr("xe")}
-                    {tQuote.twos > 0 ? ` · ${tr("{0} xe chở 2", [tQuote.twos])}` : ""}
-                  </div>
-                  <div className="text-lg font-extrabold text-forest-700">{tr(formatVnd(tQuote.total))}</div>
-                  {tQuote.leg?.note && <div className="text-xs text-gray-500">{tr(tQuote.leg.note)}</div>}
-                </div>
-              ) : (
-                <div className="rounded-xl bg-amber-50 px-3 py-2.5 text-sm text-amber-800">
-                  <div className="font-semibold">{tMode === "LEG" ? tr("Chặng này chưa có giá sẵn — nhắn tin để được báo giá.") : tr("Chưa có giá nguyên ngày — nhắn tin để được báo giá.")}</div>
-                  <div className="mt-1 text-xs">{tr("Bạn vẫn có thể gửi yêu cầu, tụi mình sẽ báo giá trước khi chốt.")}</div>
-                  {zalo && (
-                    <a href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block rounded-lg bg-sunset-500 px-3 py-1.5 text-xs font-bold text-white hover:bg-sunset-600">{tr("Nhắn Zalo hỏi giá")}</a>
-                  )}
-                </div>
-              )}
-              {avail.transport?.note && <p className="text-xs text-gray-500">{tr(avail.transport.note)}</p>}
-              <p className="text-xs text-gray-500">{tr("Yêu cầu sẽ được xác nhận sau khi kiểm tra.")}</p>
-            </div>
-          )}
-
           {/* combo / manual */}
           {avail.manualConfirmOnly && (
             <div className="rounded-xl bg-sky-50 px-4 py-3 text-sm text-sky-800">
@@ -611,7 +638,7 @@ export function BookingPanel({
       </button>
       {kind === "stay" && avail && <ItineraryLink nights={avail.nights} className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-forest-700 transition hover:text-forest-900" />}
       <CommitmentLink />
-      {isTransport && !legOk && avail && (
+      {isTransport && !legOk && (
         <p className="mt-2 text-center text-xs text-gray-500">{tQuote?.error ? tr(tQuote.error) : tr("Vui lòng chọn điểm đón và điểm đến.")}</p>
       )}
       {requireSelection && !selectedId && avail && (

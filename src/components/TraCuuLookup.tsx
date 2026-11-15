@@ -166,7 +166,7 @@ export function TraCuuLookup({
           <div className="flex flex-col gap-2 text-center text-white">
             <h1 className="m-0 text-[clamp(26px,4vw,38px)] font-extrabold leading-[1.1] tracking-[-0.03em]">{tr("Tra cứu đơn đặt")}</h1>
             <p className="m-0 text-[15px]" style={{ color: "oklch(0.9 0.03 160)", textWrap: "balance" }}>
-              {tr("Nhập số điện thoại đã dùng khi đặt, hoặc mã đơn dạng TX-XXXXXX.")}
+              {tr("Nhập số điện thoại đã dùng khi đặt, hoặc mã đơn dạng TX-HT-XXXXX.")}
             </p>
           </div>
           <div className="flex flex-wrap gap-1.5 rounded-[20px] bg-white p-2" style={{ boxShadow: "0 24px 60px -24px oklch(0.25 0.06 220 / .45)" }}>
@@ -177,7 +177,7 @@ export function TraCuuLookup({
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") doSearch(); }}
-                placeholder={tr("0357452952 hoặc TX-BCLL5B")}
+                placeholder={tr("0357452952 hoặc TX-HT-BCL5B")}
                 inputMode="search"
                 className="min-w-0 flex-1 border-0 bg-transparent py-2 text-[17px] font-bold tracking-[0.01em] text-ink outline-none sm:text-lg"
               />

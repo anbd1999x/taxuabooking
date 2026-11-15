@@ -10,7 +10,7 @@ import { payingChildren, partyLabel, DEFAULT_CHILD_FREE_UNDER } from "./occupanc
 import type { ComboBookingInput } from "./validation";
 import { cabinAllocation, busCostPerPerson, cabinSeatTotal } from "./combo-pricing";
 import { busCommissionFor } from "./provider-commission";
-import { comboMotorbike, comboMotorbikeCost, comboMotorbikeDays } from "./combo-pricing";
+import { comboMotorbike, comboMotorbikeCost, comboMotorbikeDays, comboMotorbikeValid } from "./combo-pricing";
 import { isRentalTime, rentalDaysLabel } from "./rental-days";
 import { ensureServiceSheetFresh } from "./sheet-sync";
 import { tripsOnDate, peekTrip, materializeTrip, OPEN_SEATS, type TripView } from "./cabin-trips";
@@ -1119,10 +1119,26 @@ export async function createComboBooking(
   // Là DỊCH VỤ ĐI KÈM TÍNH RIÊNG: KHÔNG cộng vào bill combo (referencePrice/cọc/đối soát),
   // khách trả tiền xe trực tiếp khi giao xe. Chỉ ghi chú rõ trong selectionLabel của đơn.
   const bikes = Math.min(Math.max(0, input.motorbikes ?? 0), people);
-  const bikeDays = comboMotorbikeDays(nights.length, input.motorbikePickup, input.motorbikeReturn);
+  // Ngày nhận / trả xe: khách chọn trong khoảng lưu trú [check-in, check-out]; trống (client cũ) ⇒ cả kỳ.
+  const stayFromKey = toDateKey(checkIn);
+  const stayToKey = toDateKey(to);
+  const bikeFromKey = input.motorbikePickupDate || stayFromKey;
+  const bikeToKey = input.motorbikeReturnDate || stayToKey;
+  if (bikes > 0) {
+    if (bikeFromKey < stayFromKey || bikeToKey > stayToKey) {
+      throw new Error(`Ngày nhận / trả xe máy phải nằm trong thời gian lưu trú (${dmy(checkIn)} → ${dmy(to)}).`);
+    }
+    if (bikeToKey < bikeFromKey) throw new Error("Ngày trả xe máy phải sau hoặc bằng ngày nhận xe.");
+  }
+  const bikeGap = Math.round((parseDateOnly(bikeToKey).getTime() - parseDateOnly(bikeFromKey).getTime()) / 86_400_000);
+  if (bikes > 0 && !comboMotorbikeValid(bikeGap, input.motorbikePickup, input.motorbikeReturn)) {
+    throw new Error("Trả xe trong ngày nhận thì giờ trả phải sau giờ nhận xe.");
+  }
+  const bikeDays = comboMotorbikeDays(nights.length, input.motorbikePickup, input.motorbikeReturn, bikeGap);
   const bikeTimed = isRentalTime(input.motorbikePickup) && isRentalTime(input.motorbikeReturn);
   const bike = comboMotorbike(input.motorbikeType); // giá/ngày lấy theo loại xe ở server, không tin client
-  const bikeCost = comboMotorbikeCost(bikes, nights.length, bike.key, input.motorbikePickup, input.motorbikeReturn);
+  const bikeCost = comboMotorbikeCost(bikes, nights.length, bike.key, input.motorbikePickup, input.motorbikeReturn, bikeGap);
+  const bikeWhen = `nhận ${bikeTimed ? `${input.motorbikePickup} ` : ""}${dmy(bikeFromKey)}, trả ${bikeTimed ? `${input.motorbikeReturn} ` : ""}${dmy(bikeToKey)}`;
   // Tách tiền từng bên: bill về homestay = tiền phòng, bill về nhà xe = tiền vé.
   // (referencePrice = TỔNG khách trả, đã trừ giảm giá combo cho phòng thường.)
   const roomAmount = roomCost; // đã là tổng tiền phòng cả đoàn
@@ -1152,14 +1168,14 @@ export async function createComboBooking(
     (freeKids > 0 ? ` (${freeKids} trẻ miễn phí, ở cùng)` : "") +
     ` · xe nằm: ${[nDouble ? `${nDouble} khách nằm ghép (cabin đôi)` : null, nSingle ? `${nSingle} khách nằm riêng (cabin đơn)` : null].filter(Boolean).join(" + ")}` +
     (bikes > 0
-      ? ` · DỊCH VỤ KÈM (tính riêng, KHÔNG gồm trong bill): thuê xe máy ${bike.name}: ${bikes} xe × ${rentalDaysLabel(bikeDays)}${bikeTimed ? ` (nhận ${input.motorbikePickup}, trả ${input.motorbikeReturn})` : ""} × ${bike.perDay.toLocaleString("vi-VN")}đ = ${bikeCost.toLocaleString("vi-VN")}đ (GIÁ THAM KHẢO, chưa phải giá cuối — giá chính thức tính theo giờ sử dụng xe thực tế) — khách thanh toán khi giao xe`
+      ? ` · DỊCH VỤ KÈM (tính riêng, KHÔNG gồm trong bill): thuê xe máy ${bike.name}: ${bikes} xe × ${rentalDaysLabel(bikeDays)} (${bikeWhen}) × ${bike.perDay.toLocaleString("vi-VN")}đ = ${bikeCost.toLocaleString("vi-VN")}đ (GIÁ THAM KHẢO, chưa phải giá cuối — giá chính thức tính theo giờ sử dụng xe thực tế) — khách thanh toán khi giao xe`
       : "");
 
-  let code = generateBookingCode();
+  let code = generateBookingCode("COMBO");
   for (let i = 0; i < 5; i++) {
     const exists = await prisma.bookingRequest.findUnique({ where: { code } });
     if (!exists) break;
-    code = generateBookingCode();
+    code = generateBookingCode("COMBO");
   }
 
   await prisma.bookingRequest.create({

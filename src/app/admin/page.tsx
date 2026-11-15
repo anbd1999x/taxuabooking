@@ -4,6 +4,9 @@ import { BOOKING_STATUS_META } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
 import { getVisitStats } from "@/lib/visits";
 import { VisitStatsCards } from "@/components/admin/VisitStatsCards";
+import { STT_TH, STT_TD } from "@/components/admin/Stt";
+import { getDashboardBookings } from "@/lib/dashboard-stats";
+import { DashboardCharts } from "@/components/admin/DashboardCharts";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +19,7 @@ export default async function AdminDashboard() {
     processingBookings,
     recentBookings,
     visitStats,
+    dashBookings,
   ] = await Promise.all([
     prisma.service.count(),
     prisma.service.count({ where: { published: true } }),
@@ -24,6 +28,7 @@ export default async function AdminDashboard() {
     prisma.bookingRequest.count({ where: { status: "CONTACTING" } }),
     prisma.bookingRequest.findMany({ orderBy: { createdAt: "desc" }, take: 6 }),
     getVisitStats(),
+    getDashboardBookings(),
   ]);
 
   const stats = [
@@ -57,6 +62,9 @@ export default async function AdminDashboard() {
         ))}
       </div>
 
+      {/* eslint-disable-next-line react-hooks/purity -- mốc "hôm nay" dựng một lần ở server cho biểu đồ */}
+      <DashboardCharts bookings={dashBookings} now={Date.now()} />
+
       <div className="mt-8">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-ink">Yêu cầu gần đây</h2>
@@ -72,6 +80,7 @@ export default async function AdminDashboard() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
                 <tr>
+                  <th className={STT_TH}>STT</th>
                   <th className="px-4 py-3">Mã</th>
                   <th className="px-4 py-3">Khách</th>
                   <th className="px-4 py-3 hidden sm:table-cell">Dịch vụ</th>
@@ -80,10 +89,11 @@ export default async function AdminDashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {recentBookings.map((b) => {
+                {recentBookings.map((b, i) => {
                   const meta = BOOKING_STATUS_META[b.status];
                   return (
                     <tr key={b.id} className="hover:bg-gray-50">
+                      <td className={STT_TD}>{i + 1}</td>
                       <td className="px-4 py-3">
                         <Link href={`/admin/bookings/${b.id}`} className="font-semibold text-forest-700 hover:underline">
                           {b.code}

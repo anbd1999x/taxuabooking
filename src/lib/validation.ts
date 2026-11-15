@@ -133,6 +133,10 @@ export const comboBookingSchema = z
     // Giờ nhận / giờ trả xe máy ("HH:mm") — để quy đổi số ngày thuê; trống ⇒ tính theo số đêm.
     motorbikePickup: z.string().regex(timeRegex).optional().nullable(),
     motorbikeReturn: z.string().regex(timeRegex).optional().nullable(),
+    // NGÀY nhận / trả xe máy (yyyy-mm-dd) trong khoảng [check-in, check-out]; trống (client cũ) ⇒ nhận ngày
+    // check-in, trả ngày check-out. Khách có thể ở 3 ngày nhưng chỉ thuê xe 2 ngày.
+    motorbikePickupDate: z.string().regex(dateKeyRegex).refine(realDate).optional().nullable(),
+    motorbikeReturnDate: z.string().regex(dateKeyRegex).refine(realDate).optional().nullable(),
     customerName: z.string().trim().min(2, "Vui lòng nhập họ tên.").max(120),
     phone: phoneField,
     email: emailField,

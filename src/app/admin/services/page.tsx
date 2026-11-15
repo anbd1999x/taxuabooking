@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { CATEGORIES, CATEGORY_LIST } from "@/lib/constants";
 import { formatPrice } from "@/lib/format";
 import { toggleField } from "./actions";
+import { STT_TH, STT_TD } from "@/components/admin/Stt";
 
 export const dynamic = "force-dynamic";
 
@@ -95,6 +96,7 @@ export default async function AdminServicesPage({
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
             <tr>
+              <th className={STT_TH}>STT</th>
               <th className="px-4 py-3">Dịch vụ</th>
               <th className="px-4 py-3 hidden sm:table-cell">Danh mục</th>
               <th className="px-4 py-3 hidden md:table-cell">Giá</th>
@@ -105,10 +107,11 @@ export default async function AdminServicesPage({
           </thead>
           <tbody className="divide-y divide-gray-100">
             {services.length === 0 ? (
-              <tr><td colSpan={6} className="py-10 text-center text-gray-500">Chưa có bài đăng nào.</td></tr>
+              <tr><td colSpan={7} className="py-10 text-center text-gray-500">Chưa có bài đăng nào.</td></tr>
             ) : (
-              services.map((svc) => (
+              services.map((svc, i) => (
                 <tr key={svc.id} className="hover:bg-gray-50">
+                  <td className={STT_TD}>{i + 1}</td>
                   <td className="px-4 py-3">
                     <Link href={`/admin/services/${svc.id}`} className="font-medium text-forest-700 hover:underline">
                       {svc.title}

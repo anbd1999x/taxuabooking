@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/format";
 import { hideReview, showReview, deleteReview } from "./actions";
+import { Stt } from "@/components/admin/Stt";
 
 export const dynamic = "force-dynamic";
 
@@ -76,11 +77,12 @@ export default async function AdminReviewsPage({
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {reviews.map((r) => (
+          {reviews.map((r, i) => (
             <div key={r.id} className={`rounded-2xl bg-white p-4 shadow-sm ring-1 ${r.status === "HIDDEN" ? "ring-red-200" : "ring-black/5"}`}>
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
+                    <Stt n={i + 1} />
                     <Stars value={r.rating} />
                     {r.status === "HIDDEN" && <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-bold text-red-600">Đã ẩn</span>}
                   </div>

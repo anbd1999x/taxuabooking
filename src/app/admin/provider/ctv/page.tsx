@@ -4,6 +4,7 @@ import { ActionForm } from "@/components/admin/ActionForm";
 import { MoneyInput } from "@/components/admin/MoneyInput";
 import { toNumber } from "@/lib/format";
 import { createMyCtv, toggleMyCtv, deleteMyCtv, setMyCtvCommission } from "../actions";
+import { STT_TH, STT_TD } from "@/components/admin/Stt";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,7 @@ export default async function MyCtvPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
             <tr>
+              <th className={STT_TH}>STT</th>
               <th className="px-4 py-3">CTV</th>
               <th className="px-4 py-3 hidden sm:table-cell">SĐT</th>
               <th className="px-4 py-3 text-center">Đơn</th>
@@ -48,10 +50,11 @@ export default async function MyCtvPage() {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {ctvs.length === 0 ? (
-              <tr><td colSpan={6} className="py-8 text-center text-gray-500">Chưa có CTV nào.</td></tr>
+              <tr><td colSpan={7} className="py-8 text-center text-gray-500">Chưa có CTV nào.</td></tr>
             ) : (
-              ctvs.map((u) => (
+              ctvs.map((u, i) => (
                 <tr key={u.id} className="hover:bg-gray-50">
+                  <td className={STT_TD}>{i + 1}</td>
                   <td className="px-4 py-3"><div className="font-medium text-ink">{u.name}</div><div className="text-xs text-gray-400">@{u.username}</div></td>
                   <td className="px-4 py-3 hidden sm:table-cell text-gray-600">{u.phone ?? "—"}</td>
                   <td className="px-4 py-3 text-center">{u._count.ctvBookings}</td>

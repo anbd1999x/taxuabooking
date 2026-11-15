@@ -10,6 +10,7 @@ import {
   setBookingPaymentStep,
   setBookingCommissionPaid,
 } from "@/app/admin/bookings/actions";
+import { Stt } from "@/components/admin/Stt";
 
 /* Trạng thái gộp (đơn + thanh toán) để hiển thị theo thiết kế "Chủ dịch vụ - Đơn". */
 export type POStatus = "new" | "held" | "dep" | "paid" | "done" | "cancel";
@@ -549,7 +550,7 @@ export function ProviderOrders({
 
       {/* Danh sách đơn */}
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {list.map((o) => {
+        {list.map((o, idx) => {
           const st = ST[o.st];
           const rem = Math.max(0, o.net - o.collected);
           const pct = o.net > 0 ? Math.min(100, Math.round((o.collected / o.net) * 100)) : 0;
@@ -571,6 +572,7 @@ export function ProviderOrders({
                   </div>
                   <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <Stt n={idx + 1} />
                       <span onClick={() => openOrder(o)} style={{ cursor: "pointer", fontSize: 15, fontWeight: 800, color: "oklch(0.35 0.08 160)", letterSpacing: ".02em" }}>{o.code}</span>
                       <Badge bg={st.bg} fg={st.fg}>{W(st.label, o.unit)}</Badge>{o.st === "cancel" && isSoldOutCancel(o.cancelReason) && <Badge bg="oklch(0.96 0.03 15)" fg="oklch(0.52 0.19 15)">🛏️ Hết phòng</Badge>}
                       <Badge bg={srcBg} fg={srcFg}>{o.src === "ctv" ? "Từ CTV" : "Khách đặt web"}</Badge>

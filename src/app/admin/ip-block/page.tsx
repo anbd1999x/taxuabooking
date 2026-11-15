@@ -4,6 +4,7 @@ import { geoForIps } from "@/lib/visits";
 import { regionLabel } from "@/lib/track-labels";
 import { ActionForm } from "@/components/admin/ActionForm";
 import { blockIp, unblockIp } from "./actions";
+import { Stt } from "@/components/admin/Stt";
 
 export const dynamic = "force-dynamic";
 
@@ -97,12 +98,12 @@ export default async function IpBlockPage({
           <div className="px-4 py-8 text-center text-sm text-gray-500">Chưa chặn IP nào.</div>
         ) : (
           <ul className="divide-y divide-gray-100">
-            {blocked.map((b) => {
+            {blocked.map((b, i) => {
               const g = geo.get(b.ip);
               return (
                 <li key={b.ip} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
                   <div className="min-w-0 flex-1">
-                    <div className="font-mono font-bold text-ink">{b.ip}</div>
+                    <div className="flex items-center gap-1.5"><Stt n={i + 1} /><span className="font-mono font-bold text-ink">{b.ip}</span></div>
                     <div className="text-xs text-gray-500">
                       📍 {regionLabel(g)}{g?.isp ? ` · ${g.isp}` : ""} · {totalBy.get(b.ip) ?? 0} đơn
                     </div>
@@ -132,7 +133,7 @@ export default async function IpBlockPage({
           <div className="px-4 py-8 text-center text-sm text-gray-500">Chưa có dữ liệu.</div>
         ) : (
           <ul className="divide-y divide-gray-100">
-            {top.map((t) => {
+            {top.map((t, i) => {
               const g = geo.get(t.clientIp);
               const orders = recent.filter((r) => r.clientIp === t.clientIp).slice(0, 6);
               const isBlocked = blockedSet.has(t.clientIp);
@@ -140,6 +141,7 @@ export default async function IpBlockPage({
                 <li key={t.clientIp} className="flex flex-wrap items-start gap-x-4 gap-y-2 px-4 py-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
+                      <Stt n={i + 1} />
                       <span className="font-mono font-bold text-ink">{t.clientIp}</span>
                       <span className="rounded-full bg-sunset-50 px-2 py-0.5 text-xs font-bold text-sunset-700">{t._count._all} đơn</span>
                       {isBlocked && <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-bold text-red-700">Đã chặn</span>}

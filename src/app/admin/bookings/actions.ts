@@ -830,10 +830,10 @@ export async function duplicateBooking(formData: FormData): Promise<void> {
   const b = await prisma.bookingRequest.findUnique({ where: { id } });
   if (!b) return;
 
-  let code = generateBookingCode();
+  let code = generateBookingCode(b.category);
   for (let i = 0; i < 5; i++) {
     if (!(await prisma.bookingRequest.findUnique({ where: { code } }))) break;
-    code = generateBookingCode();
+    code = generateBookingCode(b.category);
   }
   const copy = await prisma.bookingRequest.create({
     data: {

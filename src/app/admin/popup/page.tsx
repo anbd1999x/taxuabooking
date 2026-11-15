@@ -274,7 +274,7 @@ export default async function AdminPopupPage() {
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-[13px] font-semibold text-gray-600">Mã đơn mẫu <span className="font-normal text-gray-400">(trống = đơn mới nhất)</span></span>
-            <input name="code" placeholder="TX-XXXXXX" className="rounded-xl border border-gray-200 px-3 py-2 text-sm" />
+            <input name="code" placeholder="TX-HT-XXXXX" className="rounded-xl border border-gray-200 px-3 py-2 text-sm" />
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-[13px] font-semibold text-gray-600">Loại thư</span>

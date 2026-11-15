@@ -14,7 +14,7 @@ import { quoteTransport, lowestPrice, minDrivers, effectiveCapacity, type Transp
 export function useTransportSearch(bike: boolean) {
   const [fromId, setFromId] = useState("");
   const [toId, setToId] = useState("");
-  const [mode, setMode] = useState<TransportMode>("LEG");
+  const [mode, setMode] = useState<TransportMode>("DAY"); // mặc định thuê nguyên ngày
   const [people, setPeopleRaw] = useState(bike ? 1 : 2);
   const [drivers, setDriversRaw] = useState(1);
   const [day, setDay] = useState("");
@@ -27,13 +27,14 @@ export function useTransportSearch(bike: boolean) {
     setDriversRaw((d) => clampDrivers(d, np));
   };
   const setDrivers = (d: number) => setDriversRaw(clampDrivers(d, people));
-  const active = mode === "DAY" || Boolean(fromId && toId);
+  // Đang "tìm": chặng đã đủ 2 điểm, hoặc nguyên ngày mà khách đã chỉnh gì đó (điểm / số người / số tài xế).
+  const active = mode === "LEG" ? Boolean(fromId && toId) : Boolean(fromId || toId) || people !== (bike ? 1 : 2) || drivers !== 1;
   const key = `${mode}|${fromId}|${toId}|${people}|${drivers}`;
   const detailTail = (() => {
     const p = new URLSearchParams();
     if (day) p.set("from", day);
     if (fromId) p.set("dpt", fromId);
-    if (mode === "LEG" && toId) p.set("dst", toId);
+    if (toId) p.set("dst", toId);
     p.set("tm", mode);
     p.set("pax", String(people));
     p.set("drv", String(drivers));
@@ -108,7 +109,7 @@ export function TransportSearchPanel({
     <>
       <div className="flex flex-wrap items-center justify-end gap-2 px-0.5">
         <div className="inline-flex gap-[3px] rounded-full bg-[oklch(0.95_0.01_200)] p-[3px]">
-          {([["LEG", tr("Chặng 1 chiều")], ["DAY", tr("Thuê nguyên ngày")]] as const).map(([k, n]) => (
+          {([["DAY", tr("Thuê nguyên ngày")], ["LEG", tr("Chặng 1 chiều")]] as const).map(([k, n]) => (
             <button
               key={k}
               type="button"
@@ -121,17 +122,15 @@ export function TransportSearchPanel({
           ))}
         </div>
       </div>
-      <div className="grid gap-1.5" style={{ gridTemplateColumns: wide ? (leg ? "1.2fr 1.2fr 1fr 130px 130px auto" : "1.6fr 1fr 130px 130px auto") : "repeat(auto-fit,minmax(min(100%,150px),1fr))" }}>
+      <div className="grid gap-1.5" style={{ gridTemplateColumns: wide ? "1.2fr 1.2fr 1fr 130px 130px auto" : "repeat(auto-fit,minmax(min(100%,150px),1fr))" }}>
         <label className={cell}>
           <span className="text-xs font-semibold text-gray-500">{tr("Điểm đón")}</span>
           {select(ts.fromId, ts.setFromId, tr("Chọn điểm đón"))}
         </label>
-        {leg && (
-          <label className={cell}>
-            <span className="text-xs font-semibold text-gray-500">{tr("Điểm đến")}</span>
-            {select(ts.toId, ts.setToId, tr("Chọn điểm đến"))}
-          </label>
-        )}
+        <label className={cell}>
+          <span className="text-xs font-semibold text-gray-500">{leg ? tr("Điểm đến") : tr("Điểm muốn đến")}</span>
+          {select(ts.toId, ts.setToId, leg ? tr("Chọn điểm đến") : tr("Không bắt buộc"))}
+        </label>
         <label className={cell}>
           <span className="text-xs font-semibold text-gray-500">{tr("Ngày")}</span>
           <DateField value={ts.day} onChange={ts.setDay} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel={tr("Ngày")} />
@@ -149,7 +148,7 @@ export function TransportSearchPanel({
         </button>
       </div>
       <div className="px-1.5 pb-1 text-[13px] font-semibold" style={{ color: "oklch(0.45 0.1 155)" }}>
-        {leg && ts.fromId && ts.toId && ts.fromId === ts.toId ? tr("Điểm đón và điểm đến phải khác nhau.") : hint}{" "}
+        {ts.fromId && ts.toId && ts.fromId === ts.toId ? tr("Điểm đón và điểm đến phải khác nhau.") : hint}{" "}
         {tr("Điểm không có trong danh sách: nhắn tin để được báo giá.")}
       </div>
     </>

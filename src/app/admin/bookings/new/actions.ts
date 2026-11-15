@@ -508,10 +508,10 @@ export async function createAdminBooking(
   const payMethod = str(fd, "payMethod") || "Chuyển khoản";
   const skipInventory = fd.get("skipInventory") === "on";
 
-  let code = generateBookingCode();
+  let code = generateBookingCode(data.category);
   for (let i = 0; i < 5; i++) {
     if (!(await prisma.bookingRequest.findUnique({ where: { code } }))) break;
-    code = generateBookingCode();
+    code = generateBookingCode(data.category);
   }
 
   let id: string;

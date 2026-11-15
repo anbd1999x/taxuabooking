@@ -6,6 +6,7 @@ import { MoneyInput } from "@/components/admin/MoneyInput";
 import { toNumber } from "@/lib/format";
 import { createAccount, toggleAccountActive, deleteAccount, resetAccountPassword, setCtvCommission, updateAccount } from "./actions";
 import { CATEGORIES } from "@/lib/constants";
+import { STT_TH, STT_TD } from "@/components/admin/Stt";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +66,7 @@ export default async function AccountsPage() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
             <tr>
+              <th className={STT_TH}>STT</th>
               <th className="px-4 py-3">Tài khoản</th>
               <th className="px-4 py-3">Vai trò</th>
               <th className="px-4 py-3 hidden sm:table-cell">SĐT</th>
@@ -76,11 +78,12 @@ export default async function AccountsPage() {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {users.length === 0 ? (
-              <tr><td colSpan={7} className="py-10 text-center text-gray-500">Chưa có tài khoản nào.</td></tr>
+              <tr><td colSpan={8} className="py-10 text-center text-gray-500">Chưa có tài khoản nào.</td></tr>
             ) : (
-              users.map((u) => (
+              users.map((u, i) => (
                 <Fragment key={u.id}>
                 <tr className="hover:bg-gray-50">
+                  <td className={STT_TD}>{i + 1}</td>
                   <td className="px-4 py-3">
                     <div className="font-medium text-ink">{u.name}</div>
                     <div className="text-xs text-gray-400">
@@ -133,7 +136,7 @@ export default async function AccountsPage() {
                   </td>
                 </tr>
                 <tr>
-                  <td colSpan={7} className="px-4 pb-3 pt-0">
+                  <td colSpan={8} className="px-4 pb-3 pt-0">
                     <EditAccount u={u} providers={providers} services={services} />
                   </td>
                 </tr>

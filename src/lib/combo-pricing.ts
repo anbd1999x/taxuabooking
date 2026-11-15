@@ -72,19 +72,27 @@ export function comboMotorbike(key?: string | null): (typeof COMBO_MOTORBIKES)[n
   return COMBO_MOTORBIKES.find((b) => b.key === key) ?? COMBO_MOTORBIKES[0];
 }
 /**
- * Số ngày thuê xe máy trong combo (nhận xe ngày check-in, trả ngày check-out — cách nhau `nights` ngày).
+ * Số ngày thuê xe máy trong combo. Khách chọn NGÀY nhận xe + NGÀY trả xe trong khoảng lưu trú
+ * [check-in, check-out] ⇒ `gap` = số ngày lịch giữa hai ngày đó (0 = trả trong ngày nhận); không truyền
+ * (đơn từ client cũ) ⇒ nhận ngày check-in, trả ngày check-out (gap = số đêm).
  * Có giờ nhận + giờ trả ⇒ quy đổi theo mốc 24 giờ như thuê xe lẻ (1 / 1,5 / 2…, xem rental-days.ts);
- * không có (đơn từ client cũ) ⇒ bằng số đêm. Tối thiểu 1 ngày.
+ * không có giờ ⇒ bằng số ngày lịch (tối thiểu 1). Tối thiểu 1 ngày.
  */
-export function comboMotorbikeDays(nights: number, pickup?: string | null, ret?: string | null): number {
-  const n = Math.max(1, Math.floor(nights) || 0);
-  if (isRentalTime(pickup) && isRentalTime(ret)) return rentalChargeDaysBySpan(n, pickup, ret) ?? n;
-  return n;
+export function comboMotorbikeDays(nights: number, pickup?: string | null, ret?: string | null, gap?: number | null): number {
+  const g = gap != null && Number.isFinite(gap) ? Math.max(0, Math.floor(gap)) : Math.max(1, Math.floor(nights) || 0);
+  if (isRentalTime(pickup) && isRentalTime(ret)) return rentalChargeDaysBySpan(g, pickup, ret) ?? Math.max(1, g);
+  return Math.max(1, g);
+}
+/** Giờ trả có hợp lệ không (trả trong ngày nhận thì giờ trả phải sau giờ nhận). */
+export function comboMotorbikeValid(gap: number, pickup?: string | null, ret?: string | null): boolean {
+  if (gap < 0) return false;
+  if (gap > 0 || !isRentalTime(pickup) || !isRentalTime(ret)) return true;
+  return rentalChargeDaysBySpan(0, pickup, ret) != null;
 }
 /** Tiền thuê xe máy kèm combo = số xe × số ngày × giá/ngày của loại xe đã chọn. Dịch vụ TÍNH RIÊNG: không cộng vào
  *  bill combo, khách thanh toán khi giao xe (chỉ ghi chú trong đơn). */
-export function comboMotorbikeCost(bikes: number, nights: number, key?: string | null, pickup?: string | null, ret?: string | null): number {
-  return Math.round(Math.max(0, Math.floor(bikes) || 0) * comboMotorbikeDays(nights, pickup, ret) * comboMotorbike(key).perDay);
+export function comboMotorbikeCost(bikes: number, nights: number, key?: string | null, pickup?: string | null, ret?: string | null, gap?: number | null): number {
+  return Math.round(Math.max(0, Math.floor(bikes) || 0) * comboMotorbikeDays(nights, pickup, ret, gap) * comboMotorbike(key).perDay);
 }
 
 /**

@@ -100,10 +100,10 @@ export async function POST(request: Request) {
       const trip = await ensureTripOnDate(serviceId, direction, date);
       if (!trip) return NextResponse.json({ error: "Nhà xe không hợp lệ." }, { status: 400 });
 
-      let code = generateBookingCode();
+      let code = generateBookingCode("CABIN");
       for (let i = 0; i < 5; i++) {
         if (!(await prisma.bookingRequest.findUnique({ where: { code } }))) break;
-        code = generateBookingCode();
+        code = generateBookingCode("CABIN");
       }
       await prisma.$transaction(async (tx) => {
         const booking = await tx.bookingRequest.create({

@@ -29,7 +29,7 @@ export default async function GuidePage() {
       body: [
         tr("Vào mục Xe cabin, chọn Ngày đi (và Ngày về nếu đi khứ hồi), bấm Tìm."),
         tr("Chọn nhà xe còn chỗ → chọn số vé (cabin đơn/đôi), điểm đón/trả, rồi điền thông tin liên hệ."),
-        tr("Gửi yêu cầu → nhận mã đơn (VD: TX-ABC123). Nhà xe sẽ gọi xác nhận."),
+        tr("Gửi yêu cầu → nhận mã đơn (VD: TX-XC-AB23K). Nhà xe sẽ gọi xác nhận."),
       ],
     },
     {
@@ -92,7 +92,7 @@ export default async function GuidePage() {
         {[
           ["1", tr("Chọn dịch vụ & ngày"), tr("Tìm theo ngày để xem giá và chỗ trống chính xác.")],
           ["2", tr("Chọn & điền thông tin"), tr("Chọn phòng/vé/xe rồi điền tên + số điện thoại.")],
-          ["3", tr("Nhận mã đơn"), tr("Hệ thống tạo mã đơn (VD: TX-ABC123) sau khi gửi.")],
+          ["3", tr("Nhận mã đơn"), tr("Hệ thống tạo mã đơn (VD: TX-HT-AB23K) sau khi gửi.")],
           ["4", tr("Xác nhận qua điện thoại"), tr("Chủ dịch vụ gọi chốt giá & giữ chỗ cho bạn.")],
         ].map(([n, t, d]) => (
           <li key={n} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">

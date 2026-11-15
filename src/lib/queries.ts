@@ -797,7 +797,7 @@ export interface RentalBikeCard {
 }
 
 /** Dữ liệu giá taxi / xe ôm của một bác tài (nguyên ngày + các chặng) cho thẻ danh sách. */
-function transportPricing(
+export function transportPricing(
   bike: boolean,
   t: { fixedPrice: unknown; dayPriceTwo: unknown; capacity: number | null } | null | undefined,
   routes: { id: string; fromPointId: string; toPointId: string; priceOneWay: unknown; priceTwo: unknown; note: string | null }[],

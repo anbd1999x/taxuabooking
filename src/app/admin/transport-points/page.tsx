@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { ActionForm } from "@/components/admin/ActionForm";
 import { deleteTransportPoint, saveTransportPoint } from "./actions";
+import { Stt } from "@/components/admin/Stt";
 
 export const dynamic = "force-dynamic";
 
@@ -27,13 +28,13 @@ export default async function TransportPointsPage() {
       </header>
 
       <div className="space-y-2">
-        {points.map((p) => {
+        {points.map((p, i) => {
           const used = p._count.routesFrom + p._count.routesTo;
           return (
             <ActionForm key={p.id} action={saveTransportPoint} className="grid grid-cols-2 items-end gap-2 rounded-xl bg-white p-3 shadow-sm ring-1 ring-black/5 sm:grid-cols-12">
               <input type="hidden" name="id" value={p.id} />
               <label className="col-span-2 flex flex-col gap-1 sm:col-span-4">
-                <span className="text-xs font-semibold text-gray-500">Tên điểm</span>
+                <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-500"><Stt n={i + 1} /> Tên điểm</span>
                 <input name="name" defaultValue={p.name} className={inp} />
               </label>
               <label className="flex flex-col gap-1 sm:col-span-3">

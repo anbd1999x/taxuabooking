@@ -4,7 +4,7 @@ import { unstable_cache } from "next/cache";
 import Link from "@/components/Link";
 import { notFound, redirect } from "next/navigation";
 import Image from "next/image";
-import { getServiceDetail, getSettings, getHomestayCards } from "@/lib/queries";
+import { getServiceDetail, getSettings, getHomestayCards, getTransportPoints, transportPricing } from "@/lib/queries";
 import { CATEGORIES } from "@/lib/constants";
 import { formatPrice, toNumber } from "@/lib/format";
 import { SITE } from "@/lib/site";
@@ -103,6 +103,7 @@ export default async function ServiceDetailPage({
     getSettings(),
   ]);
   if (!service) notFound();
+  const transportPoints = CATEGORIES[service.category]?.availabilityKind === "transport" ? await getTransportPoints() : [];
 
   const cat = CATEGORIES[service.category];
   // Chuẩn hoá URL: nếu sai danh mục, chuyển về URL đúng (tốt cho SEO).
@@ -650,6 +651,11 @@ export default async function ServiceDetailPage({
               kind={cat.availabilityKind}
               phone={phone}
               zalo={zalo}
+              transportData={
+                cat.availabilityKind === "transport"
+                  ? { points: transportPoints, pricing: transportPricing(service.category === "XEOM", service.transport, service.transportRoutes) }
+                  : null
+              }
               initialTransport={
                 cat.availabilityKind === "transport"
                   ? {

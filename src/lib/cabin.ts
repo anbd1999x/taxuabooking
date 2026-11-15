@@ -441,11 +441,11 @@ export async function createCabinBooking(
     total == null ? "Chờ báo giá" : `Tạm tính: ${fmt(total)}`,
   ].filter(Boolean);
 
-  let code = generateBookingCode();
+  let code = generateBookingCode("CABIN");
   for (let i = 0; i < 5; i++) {
     const exists = await prisma.bookingRequest.findUnique({ where: { code } });
     if (!exists) break;
-    code = generateBookingCode();
+    code = generateBookingCode("CABIN");
   }
 
   await prisma.bookingRequest.create({
