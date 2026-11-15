@@ -6,11 +6,12 @@ import type { BookingFacts } from "@/lib/booking-messages";
  * Mẫu HTML của email gửi khách (file thuần, không đụng DB):
  *  - "received": đã nhận yêu cầu, đang chờ xác nhận (điểm nhấn cam).
  *  - "confirmed": đơn đã được xác nhận (điểm nhấn xanh).
+ *  - "cancelled": đơn đã bị huỷ — khách/quản trị huỷ hoặc hệ thống tự huỷ (điểm nhấn đỏ, không có thanh tiến trình).
  * Bố cục theo mẫu claude.ai/design (project e7476083-6862-4b85-9b80-6150d019bddf):
  * "Email Da Nhan.html" + "Email Xac Nhan.html". Thư dùng bảng + style nội tuyến + font hệ thống
  * (Arial) để hiển thị đúng trên Gmail / Outlook / di động.
  */
-export type BookingEmailKind = "received" | "confirmed";
+export type BookingEmailKind = "received" | "confirmed" | "cancelled";
 export type EmailCompany = { legalName: string; taxCode: string; legalAddress: string; siteUrl: string };
 
 const C = {
@@ -24,6 +25,7 @@ const C = {
   panel: "#f5f8f6",
   bg: "#eef2ef",
   amber: "#c2410c",
+  red: "#b42318",
 };
 const F = "Arial,Helvetica,sans-serif";
 
@@ -77,23 +79,31 @@ export function renderBookingEmail(
   co: EmailCompany,
 ): { subject: string; html: string; text: string } {
   const confirmed = kind === "confirmed";
+  const cancelled = kind === "cancelled";
   const paidFull = f.price != null && f.price > 0 && f.collected >= f.price;
   const hasDue = f.due != null && f.due > 0;
-  const accent = confirmed ? C.forest : C.amber;
-  const subject = confirmed
+  const accent = cancelled ? C.red : confirmed ? C.forest : C.amber;
+  const subject = cancelled
+    ? `[${f.code}] Đơn đặt chỗ đã được huỷ – ${SITE.name}`
+    : confirmed
     ? `[${f.code}] Đơn đặt chỗ đã được xác nhận – ${SITE.name}`
     : `[${f.code}] Đã nhận yêu cầu đặt chỗ – ${SITE.name}`;
-  const badge = confirmed ? "ĐÃ XÁC NHẬN" : "ĐANG CHỜ XÁC NHẬN";
-  const headline = confirmed ? "Chuyến đi Tà Xùa của bạn đã sẵn sàng" : "Chúng tôi đã nhận yêu cầu đặt chỗ của bạn";
+  const badge = cancelled ? "ĐÃ HUỶ" : confirmed ? "ĐÃ XÁC NHẬN" : "ĐANG CHỜ XÁC NHẬN";
+  const headline = cancelled ? "Đơn đặt chỗ của bạn đã được huỷ" : confirmed ? "Chuyến đi Tà Xùa của bạn đã sẵn sàng" : "Chúng tôi đã nhận yêu cầu đặt chỗ của bạn";
   // Chỉ nói "đã nhận tiền" khi đơn thực sự có ghi nhận thu.
   const paidPhrase = f.collected > 0 ? (paidFull ? " và chúng tôi đã nhận đủ thanh toán" : " và chúng tôi đã nhận tiền cọc") : "";
-  const intro = confirmed
+  const intro = cancelled
+    ? `Đơn ${f.code} đã được huỷ${f.cancelReason ? `. Lý do: ${f.cancelReason}` : ""}. Chỗ đã giữ cho đơn này (nếu có) đã được trả lại.`
+    : confirmed
     ? `Đối tác đã xác nhận còn chỗ${paidPhrase}. Vui lòng lưu lại email này và mã đơn để đối chiếu khi sử dụng dịch vụ.`
     : `Cảm ơn bạn đã đặt dịch vụ qua ${SITE.name}. Chúng tôi đang kiểm tra chỗ với đối tác và sẽ gọi lại xác nhận trong giờ hoạt động (${SITE.supportHours}).`;
-  const preheader = confirmed
+  const preheader = cancelled
+    ? `Đơn ${f.code} đã được huỷ${f.cancelReason ? ` — ${f.cancelReason}` : ""}.`
+    : confirmed
     ? `Đơn ${f.code} đã được xác nhận. ${f.startLabel} ${f.startDate}.`
     : `Chúng tôi đã nhận yêu cầu ${f.code} và sẽ gọi lại xác nhận chỗ trong giờ hoạt động.`;
-  const trackUrl = `${co.siteUrl}/tra-cuu`;
+  // Kèm mã đơn: trang tra cứu đọc ?q= và hiện luôn kết quả, khách không phải nhập lại.
+  const trackUrl = `${co.siteUrl}/tra-cuu?q=${encodeURIComponent(f.code)}`;
   const today = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date());
   const hotlineDigits = f.hotline.replace(/\D/g, "");
   const depositPct = f.price && f.collected > 0 && !paidFull ? Math.round((f.collected / f.price) * 100) : null;
@@ -102,9 +112,15 @@ export function renderBookingEmail(
   const sideRows = f.sections.filter((s) => s.amount != null).map((s) => moneyRow(s.tag, formatPrice(s.amount!)));
   const surchargeRows = f.surcharges.map((s) => moneyRow(`Phụ thu ${s.label}`, `+ ${formatPrice(s.amount)}`));
   const priceText = f.price != null ? formatPrice(f.price) : "Đang xác nhận giá";
-  const showDeposit = !confirmed && f.deposit != null && hasDue && f.collected < f.deposit;
+  const showDeposit = !confirmed && !cancelled && f.deposit != null && hasDue && f.collected < f.deposit;
   const paidLabel = paidFull ? "Đã thanh toán" : depositPct != null ? `Đã thanh toán (cọc ${depositPct}%)` : "Đã thanh toán";
-  const money = confirmed
+  const money = cancelled
+    ? [
+        ...surchargeRows,
+        moneyRow("Giá trị đơn", priceText),
+        moneyRow("Đã thanh toán", f.collected > 0 ? formatPrice(f.collected) : "Chưa thanh toán"),
+      ].join("")
+    : confirmed
     ? [
         ...surchargeRows,
         moneyRow("Tổng giá trị đơn", priceText),
@@ -122,7 +138,14 @@ export function renderBookingEmail(
       ].join("");
 
   // ----- Hộp lưu ý -----
-  const notes: string[] = confirmed
+  const notes: string[] = cancelled
+    ? [
+        f.collected > 0
+          ? `Bạn đã thanh toán ${formatPrice(f.collected)} cho đơn này. Nhân viên ${SITE.name} sẽ liên hệ để xử lý khoản tiền theo điều khoản hoàn tiền; bạn cũng có thể gọi/Zalo ${f.hotline}.`
+          : "Bạn chưa thanh toán khoản nào cho đơn này nên không phát sinh chi phí.",
+        `Nếu đơn bị huỷ nhầm hoặc bạn vẫn muốn đi, hãy đặt lại trên website hoặc gọi/Zalo ${f.hotline} để được giữ chỗ lại (tuỳ tình trạng còn chỗ).`,
+      ]
+    : confirmed
     ? [
         ...(paidFull
           ? ["Đơn đã được thanh toán đủ."]
@@ -137,16 +160,16 @@ export function renderBookingEmail(
         ...(f.autoCancelNote ? [f.autoCancelNote] : []),
         "Giá trên là giá tạm tính; giá có hiệu lực là giá chốt khi xác nhận đơn.",
       ];
-  const noteTitle = confirmed ? (paidFull ? "Thông tin sử dụng dịch vụ" : "Thanh toán phần còn lại") : "Lưu ý quan trọng";
-  const noteBg = confirmed ? "#f1f8f4" : "#fdf3ec";
-  const noteBorder = confirmed ? "#cfe5d8" : "#f6d5bf";
+  const noteTitle = cancelled ? "Thông tin sau khi huỷ" : confirmed ? (paidFull ? "Thông tin sử dụng dịch vụ" : "Thanh toán phần còn lại") : "Lưu ý quan trọng";
+  const noteBg = cancelled ? "#fef3f2" : confirmed ? "#f1f8f4" : "#fdf3ec";
+  const noteBorder = cancelled ? "#fecdca" : confirmed ? "#cfe5d8" : "#f6d5bf";
   const noteBox = `<tr><td style="padding:20px 40px 0;" class="px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${noteBg}" style="background:${noteBg};border:1px solid ${noteBorder};border-radius:8px;"><tr><td style="padding:16px 20px;">
 <div style="font:bold 14px/20px ${F};color:${accent};">${esc(noteTitle)}</div>${notes.map((n) => `<div style="margin-top:6px;font:14px/22px ${F};color:${C.ink};">${esc(n)}</div>`).join("")}</td></tr></table></td></tr>`;
 
   const stepItems: [string, StepState][] = confirmed
     ? [["Đã nhận yêu cầu", "done"], [f.collected > 0 ? "Đã xác nhận & cọc" : "Đã xác nhận", "done"], ["Sử dụng dịch vụ", "todo"]]
-    : [["Đã nhận yêu cầu", "done"], ["Xác nhận & đặt cọc", "current"], ["Sử dụng dịch vụ", "todo"]];
-  const badgeBg = confirmed ? "#e6f2eb" : "#fdeee4";
+    : [["Đã nhận yêu cầu", "done"], ["Xác nhận & đặt cọc", "todo"], ["Sử dụng dịch vụ", "todo"]];
+  const badgeBg = cancelled ? "#fee4e2" : confirmed ? "#e6f2eb" : "#fdeee4";
 
   const html = `<!doctype html>
 <html lang="vi" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
@@ -177,7 +200,7 @@ ${summaryCell("40%", "Mã đơn", f.code, true)}
 ${summaryCell("30%", f.startLabel, f.startDate)}
 ${summaryCell("30%", f.partyLabel, f.party)}
 </tr></table></td></tr>
-${steps(stepItems)}
+${cancelled ? "" : steps(stepItems)}
 ${sectionLabel(`Chi tiết dịch vụ · ${f.categoryLabel}`)}
 ${f.sections.map(serviceCard).join("\n")}
 ${f.note ? `<tr><td style="padding:10px 40px 0;font:13px/20px ${F};color:${C.mute};" class="px">Ghi chú của bạn: <span style="color:${C.ink};">${esc(f.note)}</span></td></tr>` : ""}
@@ -209,8 +232,8 @@ ${esc(co.legalName)} · MST ${esc(co.taxCode)} · ${esc(co.legalAddress)}<br>
     ...f.sections.flatMap((s) => ["", `${s.tag.toUpperCase()} · ${s.name}`, ...s.rows.map(([k, v]) => `- ${k}: ${v}`)]),
     "",
     ...f.surcharges.map((s) => `Phụ thu ${s.label}: +${formatPrice(s.amount)}`),
-    `${confirmed ? "Tổng giá trị đơn" : "Tạm tính"}: ${priceText}`,
-    ...(confirmed || f.collected > 0 ? [`Đã thanh toán: ${f.collected > 0 ? formatPrice(f.collected) : "Chưa thanh toán"}`] : []),
+    `${cancelled ? "Giá trị đơn" : confirmed ? "Tổng giá trị đơn" : "Tạm tính"}: ${priceText}`,
+    ...(confirmed || cancelled || f.collected > 0 ? [`Đã thanh toán: ${f.collected > 0 ? formatPrice(f.collected) : "Chưa thanh toán"}`] : []),
     ...(confirmed && f.due != null ? [`Còn lại: ${formatPrice(f.due)}`] : []),
     ...(showDeposit ? [`Cọc giữ chỗ 50%: ${formatPrice(f.deposit!)} sau khi được xác nhận còn chỗ`] : []),
     "",

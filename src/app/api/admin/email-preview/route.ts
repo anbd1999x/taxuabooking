@@ -17,7 +17,8 @@ export async function GET(request: Request) {
   if (!session || session.role !== "ADMIN") return NextResponse.json({ error: "Không có quyền." }, { status: 403 });
   const url = new URL(request.url);
   const code = url.searchParams.get("code")?.trim();
-  const kind: BookingEmailKind = url.searchParams.get("kind") === "confirmed" ? "confirmed" : "received";
+  const k = url.searchParams.get("kind");
+  const kind: BookingEmailKind = k === "confirmed" || k === "cancelled" ? k : "received";
   const b = code
     ? await prisma.bookingRequest.findUnique({ where: { code }, select: { id: true } })
     : await prisma.bookingRequest.findFirst({ orderBy: { createdAt: "desc" }, select: { id: true } });

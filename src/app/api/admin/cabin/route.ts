@@ -199,7 +199,7 @@ export async function POST(request: Request) {
           await tx.bookingRequest.update({ where: { id: bookingId }, data: { status: "CANCELLED", inventoryApplied: false } });
         }
       });
-      if (op === "confirm") void sendConfirmEmailIfDue(bookingId); // khách có email ⇒ gửi thư xác nhận (1 lần)
+      void sendConfirmEmailIfDue(bookingId); // khách có email ⇒ gửi thư xác nhận (1 lần)
       return NextResponse.json({ ok: true });
     }
 

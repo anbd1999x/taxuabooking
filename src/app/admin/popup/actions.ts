@@ -88,7 +88,8 @@ export async function sendTestEmail(_prev: FormResult, fd: FormData): Promise<Fo
   await requireAdmin();
   const to = String(fd.get("to") ?? "").trim();
   const code = String(fd.get("code") ?? "").trim();
-  const kind: BookingEmailKind = fd.get("kind") === "confirmed" ? "confirmed" : "received";
+  const k = fd.get("kind");
+  const kind: BookingEmailKind = k === "confirmed" || k === "cancelled" ? k : "received";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return { error: "Nhập địa chỉ email nhận thư thử." };
   if (!(await mailConfigured())) return { error: "Chưa có mật khẩu hộp thư gửi — nhập ở ô “Mật khẩu hộp thư” bên dưới rồi lưu trước." };
   const b = code

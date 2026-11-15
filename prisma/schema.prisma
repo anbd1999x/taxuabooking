@@ -476,6 +476,7 @@ model BookingRequest {
   customerFacebook String? // link Facebook của khách (admin nhập khi đặt hộ / chăm sóc)
   customerEmail    String? // email khách tự điền khi đặt (có ⇒ gửi thông tin đơn qua email)
   confirmEmailSentAt DateTime? // đã gửi email XÁC NHẬN đơn (chống gửi trùng)
+  cancelEmailSentAt  DateTime? // đã gửi email BÁO HUỶ đơn (chống gửi trùng)
   note            String?
 
   useDate         DateTime      @db.Date // ngày đi / nhận phòng / nhận xe

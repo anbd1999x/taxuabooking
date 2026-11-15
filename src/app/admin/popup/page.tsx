@@ -281,6 +281,7 @@ export default async function AdminPopupPage() {
             <select name="kind" className="rounded-xl border border-gray-200 px-3 py-2 text-sm">
               <option value="received">Đã nhận yêu cầu</option>
               <option value="confirmed">Xác nhận đơn</option>
+              <option value="cancelled">Huỷ đơn</option>
             </select>
           </label>
         </div>

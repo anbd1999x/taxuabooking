@@ -50,7 +50,10 @@ async function cancelOne(tx: Prisma.TransactionClient, id: string, reason: strin
 /** Huỷ trong 1 transaction; đơn vừa đổi trạng thái / lỗi một đơn không làm hỏng cả lượt. */
 async function tryCancel(id: string, reason: string): Promise<boolean> {
   try {
-    return await prisma.$transaction((tx) => cancelOne(tx, id, reason));
+    const ok = await prisma.$transaction((tx) => cancelOne(tx, id, reason));
+    // Khách có điền email ⇒ báo huỷ qua email (nạp động: tránh vòng import + script thuần không cần mail).
+    if (ok) void import("./booking-email").then((m) => m.sendCancelEmailIfDue(id)).catch(() => {});
+    return ok;
   } catch (err) {
     if (!(err instanceof Error && err.message === "AUTO_CANCEL_SKIPPED")) console.error("[auto-cancel] không huỷ được đơn", id, err);
     return false;

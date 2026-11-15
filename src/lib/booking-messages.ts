@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { formatPrice, formatDate, toNumber } from "@/lib/format";
 import { SITE } from "@/lib/site";
 import { getSettings } from "@/lib/queries";
+import { sitePhoneOf, parseTrustPopup, TRUST_POPUP_KEY } from "@/lib/trust-popup";
 import { formatPhone } from "@/lib/trust-popup";
 import { AUTO_CANCEL_FROM, getAutoCancelHours } from "@/lib/booking-auto-cancel";
 import { hoursLabel } from "@/lib/auto-cancel-config";
@@ -58,8 +59,26 @@ export type BookingFacts = {
   hotline: string;
   mapUrl: string | null;
   note: string | null;
+  /** Lý do huỷ (đơn đã huỷ), null nếu không có. */
+  cancelReason: string | null;
 };
 export type BookingMessages = { customerMsg: string; confirmMsg: string; providerMsgs: ProviderMsg[]; payouts: QuickPayout[]; facts: BookingFacts };
+
+/**
+ * SĐT chung toàn web. `getSettings()` dùng cache của Next — khi chạy ngoài một request (bộ hẹn giờ tự huỷ
+ * đơn trong instrumentation) cache có thể chưa sẵn ⇒ đọc thẳng DB để email huỷ đơn vẫn dựng được.
+ */
+async function sitePhone(): Promise<string | null> {
+  try {
+    return (await getSettings()).contactPhone || null;
+  } catch {
+    const row = await prisma.siteSetting.findUnique({ where: { key: TRUST_POPUP_KEY } }).catch(() => null);
+    const viaPopup = sitePhoneOf(parseTrustPopup(row?.value));
+    if (viaPopup) return viaPopup;
+    const p = await prisma.siteSetting.findUnique({ where: { key: "contactPhone" } }).catch(() => null);
+    return p?.value || null;
+  }
+}
 
 export async function buildBookingMessages(
   b: MsgBooking,
@@ -90,7 +109,7 @@ export async function buildBookingMessages(
       ].filter(Boolean).join(" + ") || `${b.quantity} chỗ`;
 
   // Hotline = SĐT chung toàn web (chủ sở hữu được chọn ở /admin/popup), không gõ cứng.
-  const hotline = formatPhone((await getSettings()).contactPhone || SITE.defaultPhone);
+  const hotline = formatPhone((await sitePhone()) || SITE.defaultPhone);
   // Đơn còn chờ & chưa thu tiền sẽ tự huỷ sau số giờ admin thiết lập ở /admin/bookings (0 = tắt).
   const autoCancelHours = await getAutoCancelHours();
   // Giờ hạn chót luôn hiển thị theo giờ Việt Nam (máy chủ có thể chạy múi giờ khác).
@@ -398,6 +417,27 @@ export async function buildBookingMessages(
           ],
     });
   }
+  // Combo có thuê xe máy kèm: lưu trong mô tả lựa chọn ("… · DỊCH VỤ KÈM (tính riêng…): thuê xe máy 2 xe × 2 ngày
+  // = 300.000đ — khách thanh toán khi giao xe"; đơn cũ: "thuê xe máy: …") ⇒ thêm 1 khối riêng trong email.
+  const label = b.selectionLabel ?? "";
+  const moto = /thuê xe máy (d+) xe × (d+) ngày = ([d.]+)đ/.exec(label);
+  const motoOld = moto ? null : /(?:^| · )thuê xe máy: ([^·]+)/.exec(label);
+  if (b.category === "COMBO" && (moto || motoOld)) {
+    sections.push({
+      tag: "Thuê xe máy",
+      name: "Xe máy thuê kèm",
+      amount: null,
+      rows: moto
+        ? [
+            ["Số xe", `${moto[1]} xe`],
+            ["Thời gian thuê", `${moto[2]} ngày`],
+            ["Thanh toán", "Khi giao xe (tính riêng, không gồm trong tổng đơn)"],
+            ["Tiền thuê xe", `${moto[3]}đ`],
+          ]
+        : [["Chi tiết", motoOld![1].trim()]],
+    });
+  }
+
   const facts: BookingFacts = {
     code: b.code,
     customerName: b.customerName,
@@ -431,6 +471,7 @@ export async function buildBookingMessages(
     hotline,
     mapUrl,
     note: guestNote || null,
+    cancelReason: b.status === "CANCELLED" ? b.cancelReason || null : null,
   };
 
   return { customerMsg, confirmMsg, providerMsgs, payouts: quickPayouts, facts };
