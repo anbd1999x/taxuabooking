@@ -5,49 +5,55 @@ import { SITE } from "@/lib/site";
 
 /**
  * Gửi email qua SMTP (nodemailer).
- * Cấu hình: biến môi trường `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`
- * — thiếu thì dùng mặc định bên dưới (máy chủ thư của lienhe@taxuabooking.com).
- * MẬT KHẨU: ưu tiên env `SMTP_PASS`; không có thì đọc SiteSetting `smtpPass` do admin nhập ở
- * /admin/popup (để bật gửi thư trên production mà không cần sửa .env trên máy chủ). Khoá này bị loại
- * khỏi `getSettings()` nên không bao giờ lọt ra giao diện. KHÔNG commit mật khẩu vào mã nguồn.
+ * Cấu hình lấy theo thứ tự: SiteSetting do admin nhập ở /admin/popup (`smtpHost`, `smtpPort`,
+ * `smtpSecure`, `smtpUser`, `smtpPass`, `mailFrom`) → biến môi trường (`SMTP_HOST`, `SMTP_PORT`,
+ * `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`) → mặc định bên dưới.
+ * `smtpPass` là bí mật: bị loại khỏi `getSettings()` và không bao giờ in ra giao diện; KHÔNG commit.
  * Chưa có mật khẩu ⇒ `mailConfigured()` = false, mọi lệnh gửi bỏ qua êm (đơn vẫn tạo bình thường).
+ * Mỗi lần gửi ghi kết quả vào SiteSetting `mailLastResult` để admin xem lỗi gần nhất.
  */
 export const SMTP_PASS_KEY = "smtpPass";
+export const SMTP_KEYS = ["smtpHost", "smtpPort", "smtpSecure", "smtpUser", "mailFrom"] as const;
+export const MAIL_LAST_RESULT_KEY = "mailLastResult";
 
-const DEFAULTS = { host: "mail9234.maychuemail.com", port: 587, user: SITE.email };
+export const SMTP_DEFAULTS = { host: "mail9234.maychuemail.com", port: 587, user: SITE.email as string };
 
-type SmtpConfig = { host: string; port: number; secure: boolean; user: string; pass: string; from: string };
+export type SmtpConfig = { host: string; port: number; secure: boolean; user: string; pass: string; from: string };
+/** Cấu hình để hiển thị (không kèm mật khẩu). */
+export type SmtpView = Omit<SmtpConfig, "pass"> & { hasPass: boolean };
+export type MailLastResult = { at: string; ok: boolean; to: string; subject: string; error?: string };
 
-async function smtpConfig(): Promise<SmtpConfig | null> {
-  let pass = process.env.SMTP_PASS || "";
-  if (!pass) {
-    const row = await prisma.siteSetting.findUnique({ where: { key: SMTP_PASS_KEY } }).catch(() => null);
-    pass = row?.value ?? "";
-  }
-  if (!pass) return null;
-  const host = process.env.SMTP_HOST || DEFAULTS.host;
-  const port = Number(process.env.SMTP_PORT || DEFAULTS.port);
-  const user = process.env.SMTP_USER || DEFAULTS.user;
+async function loadConfig(): Promise<SmtpConfig> {
+  const rows = await prisma.siteSetting
+    .findMany({ where: { key: { in: [...SMTP_KEYS, SMTP_PASS_KEY] } } })
+    .catch(() => []);
+  const db: Record<string, string> = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  const host = db.smtpHost || process.env.SMTP_HOST || SMTP_DEFAULTS.host;
+  const port = Number(db.smtpPort || process.env.SMTP_PORT || SMTP_DEFAULTS.port) || SMTP_DEFAULTS.port;
+  const user = db.smtpUser || process.env.SMTP_USER || SMTP_DEFAULTS.user;
+  const secureRaw = db.smtpSecure || process.env.SMTP_SECURE || "";
   return {
     host,
     port,
-    secure: process.env.SMTP_SECURE ? process.env.SMTP_SECURE === "true" : port === 465,
+    // Cổng 465 = SSL/TLS ngay từ đầu; các cổng khác (587) = STARTTLS.
+    secure: secureRaw ? secureRaw === "true" : port === 465,
     user,
-    pass,
-    from: process.env.MAIL_FROM || `${SITE.name} <${user}>`,
+    pass: db.smtpPass || process.env.SMTP_PASS || "",
+    from: db.mailFrom || process.env.MAIL_FROM || `${SITE.name} <${user}>`,
   };
 }
 
-export async function mailConfigured(): Promise<boolean> {
-  return (await smtpConfig()) != null;
+export async function getSmtpView(): Promise<SmtpView> {
+  const { pass, ...rest } = await loadConfig();
+  return { ...rest, hasPass: Boolean(pass) };
 }
 
-// Giữ kết nối theo cấu hình hiện tại; đổi mật khẩu/máy chủ ⇒ tạo transporter mới.
-let cached: { key: string; t: Transporter } | null = null;
-function transporterFor(c: SmtpConfig): Transporter {
-  const key = `${c.host}|${c.port}|${c.secure}|${c.user}|${c.pass}`;
-  if (cached?.key === key) return cached.t;
-  const t = nodemailer.createTransport({
+export async function mailConfigured(): Promise<boolean> {
+  return Boolean((await loadConfig()).pass);
+}
+
+function createTransport(c: SmtpConfig): Transporter {
+  return nodemailer.createTransport({
     host: c.host,
     port: c.port,
     secure: c.secure,
@@ -56,15 +62,71 @@ function transporterFor(c: SmtpConfig): Transporter {
     greetingTimeout: 15_000,
     socketTimeout: 30_000,
   });
-  cached = { key, t };
-  return t;
+}
+
+// Giữ kết nối theo cấu hình hiện tại; đổi mật khẩu/máy chủ ⇒ tạo transporter mới.
+let cached: { key: string; t: Transporter } | null = null;
+function transporterFor(c: SmtpConfig): Transporter {
+  const key = `${c.host}|${c.port}|${c.secure}|${c.user}|${c.pass}`;
+  if (cached?.key === key) return cached.t;
+  cached = { key, t: createTransport(c) };
+  return cached.t;
+}
+
+/** Diễn giải lỗi SMTP thường gặp sang tiếng Việt để admin biết sửa ở đâu. */
+function explain(err: unknown): string {
+  const e = err as { code?: string; responseCode?: number; message?: string };
+  const raw = e?.message || String(err);
+  const hint =
+    e?.code === "EAUTH" || e?.responseCode === 535
+      ? "Sai tài khoản hoặc mật khẩu hộp thư."
+      : e?.code === "ETIMEDOUT" || e?.code === "ECONNREFUSED" || e?.code === "ESOCKET" || e?.code === "ECONNECTION"
+        ? "Máy chủ web không kết nối được tới máy chủ thư ở cổng này (nhà cung cấp VPS có thể chặn cổng gửi thư) — thử cổng khác (587 ↔ 465) hoặc nhờ nhà cung cấp VPS mở cổng."
+        : e?.code === "EDNS" || e?.code === "ENOTFOUND"
+          ? "Không tìm thấy tên máy chủ thư — kiểm tra lại ô Máy chủ SMTP."
+          : "";
+  return hint ? `${hint} (${raw})` : raw;
 }
 
 export type MailResult = { ok: true } | { ok: false; error: string };
 
+/** Thử kết nối + đăng nhập SMTP bằng cấu hình hiện tại (không gửi thư). */
+export async function verifySmtp(): Promise<MailResult & { view: SmtpView }> {
+  const c = await loadConfig();
+  const { pass, ...rest } = c;
+  const view: SmtpView = { ...rest, hasPass: Boolean(pass) };
+  if (!pass) return { ok: false, error: "Chưa nhập mật khẩu hộp thư.", view };
+  const t = createTransport(c);
+  try {
+    await t.verify();
+    return { ok: true, view };
+  } catch (err) {
+    return { ok: false, error: explain(err), view };
+  } finally {
+    t.close();
+  }
+}
+
+async function recordResult(r: MailLastResult): Promise<void> {
+  const value = JSON.stringify(r);
+  await prisma.siteSetting
+    .upsert({ where: { key: MAIL_LAST_RESULT_KEY }, create: { key: MAIL_LAST_RESULT_KEY, value }, update: { value } })
+    .catch(() => {});
+}
+
+export async function getMailLastResult(): Promise<MailLastResult | null> {
+  const row = await prisma.siteSetting.findUnique({ where: { key: MAIL_LAST_RESULT_KEY } }).catch(() => null);
+  try {
+    return row ? (JSON.parse(row.value) as MailLastResult) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function sendMail(opts: { to: string; subject: string; html: string; text: string }): Promise<MailResult> {
-  const c = await smtpConfig();
-  if (!c) return { ok: false, error: "Chưa có mật khẩu hộp thư gửi (nhập ở /admin/popup hoặc đặt SMTP_PASS)." };
+  const c = await loadConfig();
+  if (!c.pass) return { ok: false, error: "Chưa có mật khẩu hộp thư gửi (nhập ở /admin/popup)." };
+  const base = { at: new Date().toISOString(), to: opts.to, subject: opts.subject };
   try {
     await transporterFor(c).sendMail({
       from: c.from,
@@ -74,10 +136,13 @@ export async function sendMail(opts: { to: string; subject: string; html: string
       html: opts.html,
       text: opts.text,
     });
+    await recordResult({ ...base, ok: true });
     return { ok: true };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("sendMail error", msg);
-    return { ok: false, error: msg };
+    const error = explain(err);
+    console.error("sendMail error", error);
+    cached = null; // kết nối hỏng ⇒ lần sau tạo lại
+    await recordResult({ ...base, ok: false, error });
+    return { ok: false, error };
   }
 }

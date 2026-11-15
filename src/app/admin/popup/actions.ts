@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import type { FormResult } from "@/components/admin/ActionForm";
 import { TRUST_POPUP_KEY, type TrustPopupConfig } from "@/lib/trust-popup";
-import { mailConfigured, SMTP_PASS_KEY } from "@/lib/mail";
+import { mailConfigured, verifySmtp, sendMail, SMTP_PASS_KEY } from "@/lib/mail";
 import { sendBookingEmail, type BookingEmailKind } from "@/lib/booking-email";
 
 async function requireAdmin(): Promise<void> {
@@ -100,23 +100,63 @@ export async function sendTestEmail(_prev: FormResult, fd: FormData): Promise<Fo
 }
 
 /**
- * Lưu MẬT KHẨU HỘP THƯ GỬI (SMTP) vào SiteSetting `smtpPass` để bật gửi email ngay mà không cần sửa
- * .env trên máy chủ. Không bao giờ hiển thị lại giá trị đã lưu. Để trống + tick "xoá" ⇒ gỡ mật khẩu.
+ * Lưu CẤU HÌNH MÁY CHỦ THƯ (SMTP) vào SiteSetting: máy chủ, cổng, kiểu bảo mật, tài khoản, tên người gửi
+ * và mật khẩu. Ô mật khẩu để trống = giữ mật khẩu đang lưu (không bao giờ hiển thị lại giá trị cũ).
  */
-export async function saveSmtpPass(_prev: FormResult, fd: FormData): Promise<FormResult> {
+export async function saveSmtpConfig(_prev: FormResult, fd: FormData): Promise<FormResult> {
   await requireAdmin();
+  const get = (k: string) => String(fd.get(k) ?? "").trim();
+  const host = get("smtpHost");
+  const port = Number(get("smtpPort"));
+  const user = get("smtpUser");
+  const from = get("mailFrom");
+  const secure = get("smtpSecure") === "true" ? "true" : "false";
   const pass = String(fd.get("smtpPass") ?? "");
-  if (fd.get("clear") === "on") {
-    await prisma.siteSetting.deleteMany({ where: { key: SMTP_PASS_KEY } });
-    revalidatePath("/admin/popup", "page");
-    return { ok: true, message: "Đã xoá mật khẩu hộp thư. Web sẽ ngừng gửi email." };
-  }
-  if (pass.length < 4) return { error: "Nhập mật khẩu hộp thư lienhe@taxuabooking.com." };
-  await prisma.siteSetting.upsert({
-    where: { key: SMTP_PASS_KEY },
-    create: { key: SMTP_PASS_KEY, value: pass },
-    update: { value: pass },
+  if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(host)) return { error: "Máy chủ SMTP không hợp lệ (vd: mail9234.maychuemail.com)." };
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return { error: "Cổng không hợp lệ (thường là 587 hoặc 465)." };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user)) return { error: "Tài khoản đăng nhập phải là địa chỉ email đầy đủ." };
+  if (!from) return { error: "Nhập tên người gửi (vd: Tà Xùa Booking <lienhe@taxuabooking.com>)." };
+
+  const entries: [string, string][] = [
+    ["smtpHost", host],
+    ["smtpPort", String(port)],
+    ["smtpSecure", secure],
+    ["smtpUser", user],
+    ["mailFrom", from],
+    ...(pass ? ([[SMTP_PASS_KEY, pass]] as [string, string][]) : []),
+  ];
+  await prisma.$transaction(
+    entries.map(([key, value]) => prisma.siteSetting.upsert({ where: { key }, create: { key, value }, update: { value } })),
+  );
+  updateTag("settings");
+  revalidatePath("/admin/popup", "page");
+  return { ok: true, message: "Đã lưu cấu hình máy chủ thư. Bấm “Kiểm tra kết nối” để thử." };
+}
+
+/** Thử kết nối + đăng nhập máy chủ thư bằng cấu hình ĐÃ LƯU (không gửi thư). */
+export async function checkSmtp(_prev: FormResult, _fd: FormData): Promise<FormResult> {
+  await requireAdmin();
+  const r = await verifySmtp();
+  const where = `${r.view.host}:${r.view.port} (${r.view.secure ? "SSL/TLS" : "STARTTLS"}) · ${r.view.user}`;
+  revalidatePath("/admin/popup", "page");
+  return r.ok
+    ? { ok: true, message: `Kết nối & đăng nhập thành công: ${where}` }
+    : { error: `Kiểm tra thất bại — ${where}: ${r.error}` };
+}
+
+/** Gửi một THƯ NHÁP ngắn (không dùng dữ liệu đơn) tới địa chỉ nhập vào, để kiểm tra thư có tới hộp thư không. */
+export async function sendDraftEmail(_prev: FormResult, fd: FormData): Promise<FormResult> {
+  await requireAdmin();
+  const to = String(fd.get("to") ?? "").trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return { error: "Nhập địa chỉ email nhận thư nháp." };
+  const when = new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", dateStyle: "short", timeStyle: "medium" }).format(new Date());
+  const text = `Đây là thư nháp kiểm tra cấu hình gửi mail của Tà Xùa Booking.\nGửi lúc: ${when} (giờ Việt Nam).\nNếu bạn đọc được thư này thì máy chủ web đã gửi mail thành công.`;
+  const r = await sendMail({
+    to,
+    subject: `Thư nháp kiểm tra gửi mail – Tà Xùa Booking (${when})`,
+    text,
+    html: `<div style="font:15px/24px Arial,Helvetica,sans-serif;color:#1a2620;">${text.replace(/\n/g, "<br>")}</div>`,
   });
   revalidatePath("/admin/popup", "page");
-  return { ok: true, message: "Đã lưu mật khẩu hộp thư. Bấm “Gửi thư thử” để kiểm tra." };
+  return r.ok ? { ok: true, message: `Đã gửi thư nháp tới ${to}. Kiểm tra cả mục Spam.` } : { error: `Gửi thất bại: ${r.error}` };
 }

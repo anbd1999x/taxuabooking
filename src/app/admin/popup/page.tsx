@@ -3,14 +3,16 @@ import { parseTrustPopup, TRUST_POPUP_KEY } from "@/lib/trust-popup";
 import { ActionForm } from "@/components/admin/ActionForm";
 import { AvatarPicker } from "@/components/admin/AvatarPicker";
 import { SITE } from "@/lib/site";
-import { saveLegalInfo, saveSmtpPass, saveTrustPopup, sendTestEmail } from "./actions";
-import { mailConfigured } from "@/lib/mail";
+import { checkSmtp, saveLegalInfo, saveSmtpConfig, saveTrustPopup, sendDraftEmail, sendTestEmail } from "./actions";
+import { getMailLastResult, getSmtpView } from "@/lib/mail";
+import { vnDateTime } from "@/lib/date-format";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPopupPage() {
   const settings = await getSettings();
-  const mailReady = await mailConfigured();
+  const [smtp, mailLast] = await Promise.all([getSmtpView(), getMailLastResult()]);
+  const mailReady = smtp.hasPass;
   const config = parseTrustPopup(settings[TRUST_POPUP_KEY]);
   // SĐT toàn web: theo lựa chọn đã lưu; chưa lưu thì chọn sẵn người có số trùng số đang dùng.
   const cur = (settings.contactPhone || "").replace(/\D/g, "");
@@ -173,27 +175,85 @@ export default async function AdminPopupPage() {
         </button>
       </ActionForm>
 
-      <ActionForm action={saveSmtpPass} className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5" success="Đã lưu mật khẩu hộp thư.">
+      <section className="flex flex-col gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
         <div>
-          <h2 className="text-sm font-bold text-ink">Mật khẩu hộp thư gửi</h2>
+          <h2 className="text-sm font-bold text-ink">Máy chủ gửi email (SMTP)</h2>
           <p className="mt-0.5 text-xs text-gray-500">
-            Mật khẩu của hộp thư <b>lienhe@taxuabooking.com</b> (máy chủ mail9234.maychuemail.com, cổng 587). Lưu xong là web gửi
-            được email ngay, không cần sửa máy chủ. Mật khẩu đã lưu không hiển thị lại; nhập mật khẩu mới để thay.
+            Cấu hình hộp thư dùng để gửi email cho khách. Lưu xong có hiệu lực ngay, không cần sửa máy chủ. Trạng thái:{" "}
+            <b className={mailReady ? "text-forest-700" : "text-red-600"}>{mailReady ? "đã có mật khẩu" : "CHƯA có mật khẩu — web chưa gửi email"}</b>.
           </p>
         </div>
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="flex min-w-[240px] flex-1 flex-col gap-1">
-            <span className="text-[13px] font-semibold text-gray-600">Mật khẩu hộp thư {mailReady && <span className="font-normal text-forest-700">(đã lưu)</span>}</span>
-            <input name="smtpPass" type="password" autoComplete="new-password" placeholder={mailReady ? "••••••••" : "Nhập mật khẩu"} className="rounded-xl border border-gray-200 px-3 py-2 text-sm" />
-          </label>
-          <label className="flex items-center gap-1.5 pb-2 text-[13px] text-gray-600">
-            <input type="checkbox" name="clear" className="h-4 w-4 accent-red-600" /> Xoá mật khẩu (tắt gửi email)
-          </label>
+
+        <ActionForm action={saveSmtpConfig} className="flex flex-col gap-3" success="Đã lưu cấu hình máy chủ thư.">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex flex-col gap-1">
+              <span className="text-[13px] font-semibold text-gray-600">Máy chủ SMTP</span>
+              <input name="smtpHost" defaultValue={smtp.host} placeholder="mail9234.maychuemail.com" className="rounded-xl border border-gray-200 px-3 py-2 text-sm" />
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="flex flex-col gap-1">
+                <span className="text-[13px] font-semibold text-gray-600">Cổng</span>
+                <input name="smtpPort" type="number" defaultValue={smtp.port} placeholder="587" className="rounded-xl border border-gray-200 px-3 py-2 text-sm" />
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-[13px] font-semibold text-gray-600">Bảo mật</span>
+                <select name="smtpSecure" defaultValue={smtp.secure ? "true" : "false"} className="rounded-xl border border-gray-200 px-3 py-2 text-sm">
+                  <option value="false">STARTTLS (cổng 587)</option>
+                  <option value="true">SSL/TLS (cổng 465)</option>
+                </select>
+              </label>
+            </div>
+            <label className="flex flex-col gap-1">
+              <span className="text-[13px] font-semibold text-gray-600">Tên đăng nhập (email đầy đủ)</span>
+              <input name="smtpUser" defaultValue={smtp.user} placeholder="lienhe@taxuabooking.com" autoComplete="off" className="rounded-xl border border-gray-200 px-3 py-2 text-sm" />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="text-[13px] font-semibold text-gray-600">
+                Mật khẩu hộp thư {mailReady && <span className="font-normal text-forest-700">(đã lưu — để trống nếu không đổi)</span>}
+              </span>
+              <input name="smtpPass" type="password" autoComplete="new-password" placeholder={mailReady ? "••••••••" : "Nhập mật khẩu"} className="rounded-xl border border-gray-200 px-3 py-2 text-sm" />
+            </label>
+            <label className="flex flex-col gap-1 sm:col-span-2">
+              <span className="text-[13px] font-semibold text-gray-600">Tên người gửi (From)</span>
+              <input name="mailFrom" defaultValue={smtp.from} placeholder="Tà Xùa Booking <lienhe@taxuabooking.com>" className="rounded-xl border border-gray-200 px-3 py-2 text-sm" />
+            </label>
+          </div>
+          <button className="w-fit rounded-xl bg-forest-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-forest-700">
+            Lưu cấu hình
+          </button>
+        </ActionForm>
+
+        <div className="flex flex-col gap-3 border-t border-gray-100 pt-4">
+          <div className="text-[13px] font-semibold text-gray-600">Kiểm tra</div>
+          <div className="flex flex-wrap items-end gap-3">
+            <ActionForm action={checkSmtp} success="Kết nối thành công.">
+              <button className="rounded-xl border-[1.5px] border-forest-600 bg-white px-4 py-2 text-sm font-semibold text-forest-700 hover:bg-forest-50">
+                Kiểm tra kết nối
+              </button>
+            </ActionForm>
+            <ActionForm action={sendDraftEmail} className="flex flex-1 flex-wrap items-end gap-2" success="Đã gửi thư nháp.">
+              <label className="flex min-w-[220px] flex-1 flex-col gap-1">
+                <span className="text-[13px] text-gray-500">Gửi thư nháp tới</span>
+                <input name="to" type="email" placeholder="email@cuaban.com" className="rounded-xl border border-gray-200 px-3 py-2 text-sm" />
+              </label>
+              <button className="rounded-xl border-[1.5px] border-forest-600 bg-white px-4 py-2 text-sm font-semibold text-forest-700 hover:bg-forest-50">
+                Gửi thư nháp
+              </button>
+            </ActionForm>
+          </div>
+          <p className="text-xs text-gray-500">
+            “Kiểm tra kết nối” thử đăng nhập máy chủ thư bằng cấu hình <b>đã lưu</b> (lưu trước rồi mới kiểm tra). Kết quả hiện ở thông báo
+            góc màn hình.
+          </p>
+          {mailLast && (
+            <div className={`rounded-xl px-3 py-2.5 text-[13px] leading-relaxed ${mailLast.ok ? "bg-forest-50 text-forest-800" : "bg-red-50 text-red-700"}`}>
+              <b>Lần gửi gần nhất: {mailLast.ok ? "thành công" : "THẤT BẠI"}</b> · {vnDateTime(mailLast.at)} · tới {mailLast.to}
+              <div className="text-gray-600">{mailLast.subject}</div>
+              {!mailLast.ok && mailLast.error && <div className="mt-1 break-words font-medium">{mailLast.error}</div>}
+            </div>
+          )}
         </div>
-        <button className="w-fit rounded-xl bg-forest-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-forest-700">
-          Lưu mật khẩu
-        </button>
-      </ActionForm>
+      </section>
 
       <ActionForm action={sendTestEmail} className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5" success="Đã gửi thư thử.">
         <div>
@@ -201,7 +261,7 @@ export default async function AdminPopupPage() {
           <p className="mt-0.5 text-xs text-gray-500">
             Khách điền email khi đặt sẽ nhận thư “đã nhận yêu cầu”, và thư “xác nhận” khi đơn chuyển sang Đã xác nhận.
             Trạng thái SMTP:{" "}
-            <b className={mailReady ? "text-forest-700" : "text-red-600"}>{mailReady ? "đã có mật khẩu, sẵn sàng gửi" : "CHƯA có mật khẩu hộp thư — web chưa gửi email"}</b>.
+            <b className={mailReady ? "text-forest-700" : "text-red-600"}>{mailReady ? "đã có mật khẩu" : "CHƯA có mật khẩu hộp thư — web chưa gửi email"}</b>.
             Xem trước mẫu thư:{" "}
             <a href="/api/admin/email-preview?kind=received" target="_blank" className="font-semibold text-forest-700 underline">đã nhận yêu cầu</a>
             {" · "}
