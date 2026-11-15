@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { isSoldOutCancel } from "@/lib/cancel-reason";
 import { ProviderExtraForm } from "./BookingDetailClient";
 import {
   advanceBookingStatusResult as advanceBookingStatus,
@@ -571,7 +572,7 @@ export function ProviderOrders({
                   <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                       <span onClick={() => openOrder(o)} style={{ cursor: "pointer", fontSize: 15, fontWeight: 800, color: "oklch(0.35 0.08 160)", letterSpacing: ".02em" }}>{o.code}</span>
-                      <Badge bg={st.bg} fg={st.fg}>{W(st.label, o.unit)}</Badge>
+                      <Badge bg={st.bg} fg={st.fg}>{W(st.label, o.unit)}</Badge>{o.st === "cancel" && isSoldOutCancel(o.cancelReason) && <Badge bg="oklch(0.96 0.03 15)" fg="oklch(0.52 0.19 15)">🛏️ Hết phòng</Badge>}
                       <Badge bg={srcBg} fg={srcFg}>{o.src === "ctv" ? "Từ CTV" : "Khách đặt web"}</Badge>
                       {o.combo && <Badge bg="oklch(0.95 0.04 300)" fg="oklch(0.45 0.13 300)">Combo</Badge>}
                     </div>
@@ -718,7 +719,7 @@ function Drawer({
           <div>
             <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
               <span style={{ fontSize: 18, fontWeight: 800, color: "oklch(0.35 0.08 160)" }}>{o.code}</span>
-              <Badge bg={st.bg} fg={st.fg}>{W(st.label, o.unit)}</Badge>
+              <Badge bg={st.bg} fg={st.fg}>{W(st.label, o.unit)}</Badge>{o.st === "cancel" && isSoldOutCancel(o.cancelReason) && <Badge bg="oklch(0.96 0.03 15)" fg="oklch(0.52 0.19 15)">🛏️ Hết phòng</Badge>}
               <Badge bg={srcBg} fg={srcFg}>{o.src === "ctv" ? "Từ CTV" : "Khách đặt web"}</Badge>
               {o.combo && <Badge bg="oklch(0.95 0.04 300)" fg="oklch(0.45 0.13 300)">Combo</Badge>}
             </div>

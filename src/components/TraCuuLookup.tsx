@@ -38,6 +38,9 @@ export interface LookupOrder {
   name: string;
   phone: string;
   note: string | null;
+  /** Đơn đã huỷ: lý do huỷ; `soldOut` = huỷ vì phòng đã có khách khác đặt trước khi đơn được xác nhận. */
+  cancelReason?: string | null;
+  soldOut?: boolean;
   parts: LookupPart[];
   rebookHref: string;
   reviewHref: string | null;
@@ -253,6 +256,11 @@ export function TraCuuLookup({
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-mono text-[17px] font-extrabold tracking-[-0.01em]">{o.code}</span>
                           <span className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: st.bg, color: st.fg }}>{st.label}</span>
+                          {o.soldOut && (
+                            <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: "oklch(0.96 0.03 15)", color: "oklch(0.5 0.19 15)" }}>
+                              <span aria-hidden>🛏️</span>Hết phòng
+                            </span>
+                          )}
                         </div>
                         <div className="mt-1 text-[15px] font-bold leading-[1.35]">{o.title}</div>
                         <div className="mt-[3px] text-[13px]" style={{ color: "oklch(0.5 0.02 160)" }}>{o.when} · {o.pax} · đặt lúc {o.created}</div>
@@ -272,7 +280,7 @@ export function TraCuuLookup({
                       </div>
                     ))}
                   </div>
-                  <div className="mx-5 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold leading-[1.5]" style={{ background: st.msgBg, color: st.msgFg }}><VoiceText text={st.msg + (autoCancelHours > 0 && (o.st === "new" || o.st === "contact") ? ` Đơn tự huỷ nếu sau ${String(autoCancelHours).replace(".", ",")} giờ kể từ lúc đặt chưa xác nhận thanh toán.` : "")} /></div>
+                  <div className="mx-5 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold leading-[1.5]" style={{ background: st.msgBg, color: st.msgFg }}><VoiceText text={(o.soldOut ? `Rất tiếc, đơn đã tự huỷ vì HẾT PHÒNG: phòng bạn chọn đã có khách khác đặt trước khi đơn kịp xác nhận.${o.cancelReason ? ` (${o.cancelReason})` : ""} Bạn chưa thanh toán nên không mất phí — bấm "Đặt lại" để chọn phòng hoặc ngày khác.` : o.st === "cancel" && o.cancelReason ? `${st.msg} Lý do: ${o.cancelReason}.` : st.msg) + (autoCancelHours > 0 && (o.st === "new" || o.st === "contact") ? ` Đơn tự huỷ nếu sau ${String(autoCancelHours).replace(".", ",")} giờ kể từ lúc đặt chưa xác nhận thanh toán.` : "")} /></div>
                   {/* chi tiết */}
                   {isOpen && (
                     <div className="flex flex-col gap-2 px-5 pt-3.5">

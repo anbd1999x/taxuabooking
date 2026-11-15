@@ -57,7 +57,62 @@ export async function pushToAdmins(msg: {
   return ok;
 }
 
-/** Gửi thông báo ĐƠN MỚI tới mọi thiết bị admin đã bật. */
+/**
+ * Gửi 1 thông báo tới các thiết bị của NHỮNG TÀI KHOẢN chỉ định (chủ dịch vụ) đã bật thông báo.
+ * Trả về số thiết bị nhận thành công (-1 = chưa cấu hình VAPID).
+ */
+export async function pushToUsers(
+  userIds: string[],
+  msg: { title: string; body: string; url?: string; tag?: string },
+): Promise<number> {
+  if (!ensureConfigured()) return -1;
+  const ids = [...new Set(userIds.filter(Boolean))];
+  if (ids.length === 0) return 0;
+  const subs = await prisma.pushSubscription.findMany({ where: { userId: { in: ids }, role: "PROVIDER" } });
+  if (subs.length === 0) return 0;
+  const payload = JSON.stringify({ url: "/admin/provider/don", ...msg });
+  let ok = 0;
+  await Promise.allSettled(
+    subs.map(async (s) => {
+      try {
+        await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 6 * 3600 });
+        ok++;
+      } catch (err) {
+        const status = (err as { statusCode?: number }).statusCode;
+        if (status === 404 || status === 410) await prisma.pushSubscription.delete({ where: { id: s.id } }).catch(() => {});
+      }
+    }),
+  );
+  return ok;
+}
+
+/**
+ * Báo ĐƠN MỚI cho chủ dịch vụ liên quan: chủ của dịch vụ được đặt, và chủ nhà xe của chuyến (vé cabin / combo).
+ * Không kèm SĐT khách (chủ dịch vụ chỉ thấy SĐT sau khi sàn xác nhận đơn).
+ */
+async function notifyProvidersNewBooking(code: string, summary?: string | null): Promise<void> {
+  const b = await prisma.bookingRequest.findUnique({
+    where: { code },
+    select: { id: true, customerName: true, serviceTitle: true, useDate: true, cabinTripId: true, service: { select: { ownerId: true, title: true } } },
+  });
+  if (!b) return;
+  const owners = new Set<string>();
+  if (b.service?.ownerId) owners.add(b.service.ownerId);
+  if (b.cabinTripId) {
+    const t = await prisma.cabinTrip.findUnique({ where: { id: b.cabinTripId }, select: { service: { select: { ownerId: true } } } });
+    if (t?.service.ownerId) owners.add(t.service.ownerId);
+  }
+  if (owners.size === 0) return;
+  const d = b.useDate.toISOString().slice(0, 10);
+  await pushToUsers([...owners], {
+    title: `🔔 Đơn mới ${code}`,
+    body: `${b.customerName} · ${summary || b.service?.title || b.serviceTitle} · ngày ${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}. Tà Xùa Booking đang xác nhận với khách.`,
+    url: `/admin/provider/don?open=${b.id}`,
+    tag: `new-${code}`,
+  });
+}
+
+/** Gửi thông báo ĐƠN MỚI tới mọi thiết bị admin đã bật + chủ dịch vụ liên quan. */
 export async function notifyNewBooking(info: {
   code: string;
   customerName: string;
@@ -70,6 +125,7 @@ export async function notifyNewBooking(info: {
       body: `${info.customerName} · ${info.phone}${info.summary ? ` · ${info.summary}` : ""}`,
       url: "/admin/bookings",
     });
+    await notifyProvidersNewBooking(info.code, info.summary).catch((err) => console.error("notifyProvidersNewBooking", err));
   } catch (err) {
     console.error("notifyNewBooking", err);
   }

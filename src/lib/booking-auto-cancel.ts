@@ -2,6 +2,7 @@ import type { BookingRequest, Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import { adjustInventory, assignRoomsForBooking } from "./inventory";
 import { AUTO_CANCEL_HOURS_KEY, hoursLabel, parseAutoCancelHours } from "./auto-cancel-config";
+import { soldOutReason } from "./cancel-reason";
 
 /**
  * TỰ HUỶ ĐƠN CHƯA THANH TOÁN.
@@ -127,7 +128,7 @@ export async function cancelBookingsBlockedBySheet(serviceId: string, syncTag: s
     });
     if (!hit) continue;
     const d = hit.date.toISOString().slice(0, 10).split("-").reverse().join("/");
-    const ok = await tryCancel(b.id, `Phòng "${nameOf.get(hit.roomId)}" đã có khách đặt đêm ${d} (theo lịch đồng bộ của chủ nhà)`);
+    const ok = await tryCancel(b.id, soldOutReason(nameOf.get(hit.roomId) ?? "", d));
     if (ok) done.push(b.code);
   }
   return done;

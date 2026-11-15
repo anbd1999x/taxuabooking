@@ -1,3 +1,4 @@
+import { isSoldOutCancel } from "@/lib/cancel-reason";
 import { dmy } from "@/lib/date-format";
 import { prisma } from "@/lib/prisma";
 import { CATEGORIES } from "@/lib/constants";
@@ -155,6 +156,8 @@ export default async function AdminBookingsPage({
       ctvName: b.ctv?.name ?? null,
       createdAt: b.createdAt.toISOString(),
       note: b.note,
+      soldOut: b.status === "CANCELLED" && isSoldOutCancel(b.cancelReason),
+      cancelReason: b.status === "CANCELLED" ? b.cancelReason : null,
     };
   };
   const rows = bookings.map(toRow);

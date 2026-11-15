@@ -123,6 +123,9 @@ export interface BookingRow {
   ctvName: string | null;
   createdAt: string; // ISO
   note: string | null;
+  /** Đơn tự huỷ vì HẾT PHÒNG (lịch đồng bộ của chủ nhà báo phòng đã có người đặt). */
+  soldOut?: boolean;
+  cancelReason?: string | null;
 }
 
 export const ST: Record<BookingStatus, { name: string; dot: string; bd: string; bg: string; fg: string }> = {
@@ -573,6 +576,11 @@ export default function BookingsListClient({
                   >
                     {r.ctvName ?? "Web"}
                   </span>
+                  {r.soldOut && (
+                    <span title={r.cancelReason ?? "Hết phòng"} className="inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-rose-50 px-1.5 py-0.5 text-[10px] font-extrabold text-rose-600 ring-1 ring-rose-200">
+                      <span aria-hidden>🛏️</span>Hết phòng
+                    </span>
+                  )}
                 </span>
                 <span className="mt-0.5 block truncate text-[13px] font-semibold text-ink">
                   {r.name} · <span className="font-medium text-gray-500">{r.phone}</span>

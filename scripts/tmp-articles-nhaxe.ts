@@ -194,7 +194,7 @@ Ngày thường đặt trước 1 đến 2 ngày vẫn có chỗ. Tối thứ S�
 
 Theo lộ trình nhà xe công bố:
 
-- **21h00, 68 Mạc Thái Tông (Cầu Giấy):** khách lên xe, cất hành lý, nhận khoang. Với khách đón trong nội thành, lịch chuyến ghi giờ chạy 21h30, nên bạn sẽ được báo giờ chính xác khi xác nhận vé.
+- **21h00, 68 Mạc Thái Tông (Cầu Giấy):** khách lên xe, cất hành lý, nhận khoang. Nên có mặt trước giờ xe chạy 15 đến 20 phút.
 - **Khoảng 2h00, Phú Thọ:** dừng nghỉ, đi vệ sinh, mua nước.
 - **Khoảng 4h00, Bắc Yên:** nghỉ thêm một nhịp trước khi vào khoảng 15 km đèo cuối.
 - **Khoảng 6h00, Tà Xùa:** tới nơi đúng khung giờ mây đẹp nhất trong ngày.

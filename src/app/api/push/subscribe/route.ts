@@ -9,11 +9,11 @@ interface SubBody {
   keys?: { p256dh?: string; auth?: string };
 }
 
-/** Đăng ký nhận Web Push thông báo đơn mới (chỉ tài khoản ADMIN). */
+/** Đăng ký nhận Web Push: ADMIN (mọi đơn) và CHỦ DỊCH VỤ (đơn + nhắc lịch của dịch vụ mình). */
 export async function POST(request: Request) {
   const session = await getSession();
-  if (!session || session.role !== "ADMIN") {
-    return NextResponse.json({ error: "Chỉ tài khoản quản trị bật được thông báo." }, { status: 403 });
+  if (!session || (session.role !== "ADMIN" && session.role !== "PROVIDER")) {
+    return NextResponse.json({ error: "Tài khoản này không bật được thông báo." }, { status: 403 });
   }
   const body = (await request.json().catch(() => null)) as SubBody | null;
   const endpoint = body?.endpoint;

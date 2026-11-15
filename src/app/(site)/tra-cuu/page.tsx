@@ -8,6 +8,7 @@ import { toDateKey } from "@/lib/dates";
 import { SITE } from "@/lib/site";
 import { CATEGORIES } from "@/lib/constants";
 import { getSettings } from "@/lib/queries";
+import { isSoldOutCancel } from "@/lib/cancel-reason";
 import { bookingCabinBerths, cabinBerthsLabel, cabinBerthLines } from "@/lib/combo-pricing";
 import { TraCuuLookup, type LookupOrder, type LookupPart, type LookupStatus } from "@/components/TraCuuLookup";
 
@@ -158,6 +159,9 @@ export default async function LookupPage({
       name: b.customerName,
       phone: b.phone,
       note: b.note,
+      // Đơn đã huỷ: lý do (để khách biết vì sao) + cờ "hết phòng" khi phòng đã có khách khác đặt.
+      cancelReason: b.status === "CANCELLED" ? b.cancelReason ?? null : null,
+      soldOut: b.status === "CANCELLED" && isSoldOutCancel(b.cancelReason),
       parts,
       rebookHref,
       reviewHref: b.service?.slug ? svcHref : null,
