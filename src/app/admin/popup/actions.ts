@@ -110,17 +110,15 @@ export async function saveSmtpConfig(_prev: FormResult, fd: FormData): Promise<F
   const port = Number(get("smtpPort"));
   const user = get("smtpUser");
   const from = get("mailFrom");
-  const secure = get("smtpSecure") === "true" ? "true" : "false";
   const pass = String(fd.get("smtpPass") ?? "");
   if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(host)) return { error: "Máy chủ SMTP không hợp lệ (vd: mail9234.maychuemail.com)." };
-  if (!Number.isInteger(port) || port < 1 || port > 65535) return { error: "Cổng không hợp lệ (thường là 587 hoặc 465)." };
+  if (port !== 587 && port !== 465) return { error: "Cổng phải là 587 (STARTTLS) hoặc 465 (SSL/TLS)." };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user)) return { error: "Tài khoản đăng nhập phải là địa chỉ email đầy đủ." };
   if (!from) return { error: "Nhập tên người gửi (vd: Tà Xùa Booking <lienhe@taxuabooking.com>)." };
 
   const entries: [string, string][] = [
     ["smtpHost", host],
     ["smtpPort", String(port)],
-    ["smtpSecure", secure],
     ["smtpUser", user],
     ["mailFrom", from],
     ...(pass ? ([[SMTP_PASS_KEY, pass]] as [string, string][]) : []),

@@ -6,14 +6,14 @@ import { SITE } from "@/lib/site";
 /**
  * Gửi email qua SMTP (nodemailer).
  * Cấu hình lấy theo thứ tự: SiteSetting do admin nhập ở /admin/popup (`smtpHost`, `smtpPort`,
- * `smtpSecure`, `smtpUser`, `smtpPass`, `mailFrom`) → biến môi trường (`SMTP_HOST`, `SMTP_PORT`,
- * `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `MAIL_FROM`) → mặc định bên dưới.
+ * `smtpUser`, `smtpPass`, `mailFrom`) → biến môi trường (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`,
+ * `SMTP_PASS`, `MAIL_FROM`) → mặc định bên dưới. Kiểu bảo mật suy ra từ cổng (465 = SSL/TLS, còn lại STARTTLS).
  * `smtpPass` là bí mật: bị loại khỏi `getSettings()` và không bao giờ in ra giao diện; KHÔNG commit.
  * Chưa có mật khẩu ⇒ `mailConfigured()` = false, mọi lệnh gửi bỏ qua êm (đơn vẫn tạo bình thường).
  * Mỗi lần gửi ghi kết quả vào SiteSetting `mailLastResult` để admin xem lỗi gần nhất.
  */
 export const SMTP_PASS_KEY = "smtpPass";
-export const SMTP_KEYS = ["smtpHost", "smtpPort", "smtpSecure", "smtpUser", "mailFrom"] as const;
+export const SMTP_KEYS = ["smtpHost", "smtpPort", "smtpUser", "mailFrom"] as const;
 export const MAIL_LAST_RESULT_KEY = "mailLastResult";
 
 export const SMTP_DEFAULTS = { host: "mail9234.maychuemail.com", port: 587, user: SITE.email as string };
@@ -31,12 +31,12 @@ async function loadConfig(): Promise<SmtpConfig> {
   const host = db.smtpHost || process.env.SMTP_HOST || SMTP_DEFAULTS.host;
   const port = Number(db.smtpPort || process.env.SMTP_PORT || SMTP_DEFAULTS.port) || SMTP_DEFAULTS.port;
   const user = db.smtpUser || process.env.SMTP_USER || SMTP_DEFAULTS.user;
-  const secureRaw = db.smtpSecure || process.env.SMTP_SECURE || "";
   return {
     host,
     port,
-    // Cổng 465 = SSL/TLS ngay từ đầu; các cổng khác (587) = STARTTLS.
-    secure: secureRaw ? secureRaw === "true" : port === 465,
+    // Kiểu bảo mật LUÔN suy ra từ cổng (465 = SSL/TLS ngay từ đầu; 587/25 = STARTTLS). Không cho chọn tay:
+    // chọn lệch (vd 587 + SSL/TLS) gây lỗi "wrong version number" và không gửi được thư nào.
+    secure: port === 465,
     user,
     pass: db.smtpPass || process.env.SMTP_PASS || "",
     from: db.mailFrom || process.env.MAIL_FROM || `${SITE.name} <${user}>`,
@@ -58,9 +58,11 @@ function createTransport(c: SmtpConfig): Transporter {
     port: c.port,
     secure: c.secure,
     auth: { user: c.user, pass: c.pass },
-    connectionTimeout: 15_000,
-    greetingTimeout: 15_000,
-    socketTimeout: 30_000,
+    // Máy chủ thư này trả lời chào (banner 220) rất chậm: ~12 giây đo từ máy dev, lâu hơn nữa từ VPS.
+    // Hạn 15 giây mặc định làm mọi lần gửi từ production lỗi "Greeting never received" ⇒ nới rộng.
+    connectionTimeout: 30_000,
+    greetingTimeout: 90_000,
+    socketTimeout: 120_000,
   });
 }
 
@@ -78,10 +80,14 @@ function explain(err: unknown): string {
   const e = err as { code?: string; responseCode?: number; message?: string };
   const raw = e?.message || String(err);
   const hint =
-    e?.code === "EAUTH" || e?.responseCode === 535
+    /wrong version number/i.test(raw)
+      ? "Cổng và kiểu bảo mật không khớp (cổng 587 dùng STARTTLS, cổng 465 dùng SSL/TLS) — kiểm tra lại ô Cổng."
+      : e?.code === "EAUTH" || e?.responseCode === 535
       ? "Sai tài khoản hoặc mật khẩu hộp thư."
       : e?.code === "ETIMEDOUT" || e?.code === "ECONNREFUSED" || e?.code === "ESOCKET" || e?.code === "ECONNECTION"
-        ? "Máy chủ web không kết nối được tới máy chủ thư ở cổng này (nhà cung cấp VPS có thể chặn cổng gửi thư) — thử cổng khác (587 ↔ 465) hoặc nhờ nhà cung cấp VPS mở cổng."
+        ? /greeting never received/i.test(raw)
+          ? "Đã nối được tới máy chủ thư nhưng không nhận được lời chào trong thời gian chờ (máy chủ thư phản hồi quá chậm)."
+          : "Máy chủ web không kết nối được tới máy chủ thư ở cổng này (nhà cung cấp VPS có thể chặn cổng gửi thư) — thử cổng khác (587 ↔ 465) hoặc nhờ nhà cung cấp VPS mở cổng."
         : e?.code === "EDNS" || e?.code === "ENOTFOUND"
           ? "Không tìm thấy tên máy chủ thư — kiểm tra lại ô Máy chủ SMTP."
           : "";

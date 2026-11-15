@@ -190,19 +190,18 @@ export default async function AdminPopupPage() {
               <span className="text-[13px] font-semibold text-gray-600">Máy chủ SMTP</span>
               <input name="smtpHost" defaultValue={smtp.host} placeholder="mail9234.maychuemail.com" className="rounded-xl border border-gray-200 px-3 py-2 text-sm" />
             </label>
-            <div className="grid grid-cols-2 gap-3">
-              <label className="flex flex-col gap-1">
-                <span className="text-[13px] font-semibold text-gray-600">Cổng</span>
-                <input name="smtpPort" type="number" defaultValue={smtp.port} placeholder="587" className="rounded-xl border border-gray-200 px-3 py-2 text-sm" />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span className="text-[13px] font-semibold text-gray-600">Bảo mật</span>
-                <select name="smtpSecure" defaultValue={smtp.secure ? "true" : "false"} className="rounded-xl border border-gray-200 px-3 py-2 text-sm">
-                  <option value="false">STARTTLS (cổng 587)</option>
-                  <option value="true">SSL/TLS (cổng 465)</option>
-                </select>
-              </label>
-            </div>
+            <label className="flex flex-col gap-1">
+              <span className="text-[13px] font-semibold text-gray-600">
+                Cổng <span className="font-normal text-gray-400">(đang dùng {smtp.secure ? "SSL/TLS" : "STARTTLS"})</span>
+              </span>
+              {/* Kiểu bảo mật tự suy ra từ cổng để không thể chọn lệch (587 + SSL/TLS = không gửi được). */}
+              {/* key theo giá trị đã lưu: React không cập nhật defaultValue của <select> sau lần dựng đầu, nên
+                  lưu xong form tự reset về giá trị CŨ (trông như "không lưu được") — đổi key để dựng lại. */}
+              <select key={`port-${smtp.port}`} name="smtpPort" defaultValue={smtp.port === 465 ? "465" : "587"} className="rounded-xl border border-gray-200 px-3 py-2 text-sm">
+                <option value="587">587 — STARTTLS (khuyên dùng)</option>
+                <option value="465">465 — SSL/TLS</option>
+              </select>
+            </label>
             <label className="flex flex-col gap-1">
               <span className="text-[13px] font-semibold text-gray-600">Tên đăng nhập (email đầy đủ)</span>
               <input name="smtpUser" defaultValue={smtp.user} placeholder="lienhe@taxuabooking.com" autoComplete="off" className="rounded-xl border border-gray-200 px-3 py-2 text-sm" />
