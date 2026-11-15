@@ -4,8 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import type { TrustPopupConfig } from "@/lib/trust-popup";
 import { CommitmentIntro, FiveKhongBlock, PeopleColumn, PromisesBlock } from "@/components/trust/parts";
+import { useT } from "@/components/i18n/I18nProvider";
+import Link from "@/components/Link";
 
 export function TrustPopup({ config }: { config: TrustPopupConfig }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [wide, setWide] = useState(true);
   const pathname = usePathname();
@@ -57,7 +60,7 @@ export function TrustPopup({ config }: { config: TrustPopupConfig }) {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Cam kết uy tín"
+      aria-label={t("Cam kết uy tín")}
       style={{
         fontFamily: "'Be Vietnam Pro',system-ui,sans-serif",
         color: "oklch(0.22 0.03 160)",
@@ -126,7 +129,7 @@ export function TrustPopup({ config }: { config: TrustPopupConfig }) {
         {/* Nút đóng */}
         <div
           onClick={close}
-          title="Đóng"
+          title={t("Đóng")}
           style={{
             position: "absolute",
             top: 12,
@@ -174,14 +177,14 @@ export function TrustPopup({ config }: { config: TrustPopupConfig }) {
                 color: "white",
               }}
             >
-              Tôi đã hiểu, xem dịch vụ →
+              {t("Tôi đã hiểu, xem dịch vụ →")}
             </button>
-            <a
+            <Link
               href="/cam-ket/dieu-khoan"
               style={{ textAlign: "center", fontSize: 12, fontWeight: 600, color: "oklch(0.5 0.02 160)", textDecoration: "none" }}
             >
-              Xem điều khoản cam kết đầy đủ →
-            </a>
+              {t("Xem điều khoản cam kết đầy đủ →")}
+            </Link>
           </div>
         </div>
       </div>

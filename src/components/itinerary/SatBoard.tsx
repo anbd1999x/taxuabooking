@@ -1,9 +1,10 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/Link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
 import type { Map as LMap, Marker, LayerGroup } from "leaflet";
+import { useT } from "@/components/i18n/I18nProvider";
 
 type Pt = [number, number]; // [vĩ độ, kinh độ]
 export type BoardCat = "cam" | "cafe" | "start" | "center";
@@ -97,6 +98,7 @@ function prep(pts: Pt[]): Prepared {
 }
 
 export function SatBoard({ spots, plans, freeRoads, initialPlan }: { spots: BoardSpot[]; plans: BoardPlan[]; freeRoads: Pt[][]; initialPlan?: string }) {
+  const tr = useT();
   const [planId, setPlanId] = useState(initialPlan && plans.some((p) => p.id === initialPlan) ? initialPlan : "free");
   const [day, setDay] = useState(0); // -1 = cả lịch trình
   const [cat, setCat] = useState<"all" | "cam" | "cafe">("all");
@@ -164,7 +166,7 @@ export function SatBoard({ spots, plans, freeRoads, initialPlan }: { spots: Boar
       const L = (await import("leaflet")).default;
       if (dead || !box.current) return;
       map = L.map(box.current, { zoomControl: true, attributionControl: true, scrollWheelZoom: true, zoomSnap: 0.25 });
-      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "Ảnh vệ tinh © Esri, Maxar, Earthstar Geographics" }).addTo(map);
+      L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: tr("Ảnh vệ tinh © Esri, Maxar, Earthstar Geographics") }).addTo(map);
       L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, opacity: 0.85 }).addTo(map);
       const routes = L.layerGroup().addTo(map);
       const markers = new Map<string, Marker>();
@@ -263,7 +265,7 @@ export function SatBoard({ spots, plans, freeRoads, initialPlan }: { spots: Boar
 
   const spot = sel ? byId.get(sel) ?? null : null;
   const count = (k: "all" | "cam" | "cafe") => spots.filter((s) => (k === "all" ? s.cat === "cam" || s.cat === "cafe" : s.cat === k)).length;
-  const chips = ([["all", "Tất cả", G], ["cam", "Check-in & săn mây", CAT.cam[1]], ["cafe", "Cafe & ăn", CAT.cafe[1]]] as const).filter(([k]) => k === "all" || count(k) > 0);
+  const chips = ([["all", tr("Tất cả"), G], ["cam", tr("Check-in & săn mây"), CAT.cam[1]], ["cafe", tr("Cafe & ăn"), CAT.cafe[1]]] as const).filter(([k]) => k === "all" || count(k) > 0);
   const list = spots.filter(visible);
 
   return (
@@ -271,32 +273,32 @@ export function SatBoard({ spots, plans, freeRoads, initialPlan }: { spots: Boar
       <style>{CSS}</style>
       <div className="flex flex-wrap items-end justify-between gap-3.5">
         <div>
-          <h1 className="text-[clamp(24px,3.4vw,36px)] font-extrabold tracking-[-.03em]">Bản đồ vệ tinh Tà Xùa</h1>
-          <p className="mt-1 text-sm text-[oklch(0.45_0.02_160)]">Ảnh vệ tinh thật, đánh dấu các điểm check-in quanh Tà Xùa. Chọn lịch trình để xem đường đi từng ngày.</p>
+          <h1 className="text-[clamp(24px,3.4vw,36px)] font-extrabold tracking-[-.03em]">{tr("Bản đồ vệ tinh Tà Xùa")}</h1>
+          <p className="mt-1 text-sm text-[oklch(0.45_0.02_160)]">{tr("Ảnh vệ tinh thật, đánh dấu các điểm check-in quanh Tà Xùa. Chọn lịch trình để xem đường đi từng ngày.")}</p>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           {!P && chips.length > 2 && chips.map(([k, name, dot]) => (
             <button key={k} type="button" onClick={() => { setCat(k); setSel(null); }} className="flex cursor-pointer items-center gap-2 whitespace-nowrap rounded-full border-[1.5px] px-3.5 py-2 text-[13px] font-extrabold" style={{ background: cat === k ? G : "white", color: cat === k ? "white" : "oklch(0.3 0.03 160)", borderColor: cat === k ? G : "oklch(0.88 0.015 160)" }}>
               <span className="h-2.5 w-2.5 rounded-full" style={{ background: dot }} />
-              {name} <span className="opacity-70">{count(k)}</span>
+              {tr(name)} <span className="opacity-70">{count(k)}</span>
             </button>
           ))}
-          <Link href="/ban-do?view=3d" className="whitespace-nowrap rounded-full border-[1.5px] border-[oklch(0.88_0.015_160)] bg-white px-3.5 py-2 text-[13px] font-bold text-[oklch(0.4_0.08_160)] hover:text-[oklch(0.66_0.18_45)]">Xem bản đồ 3D</Link>
+          <Link href="/ban-do?view=3d" className="whitespace-nowrap rounded-full border-[1.5px] border-[oklch(0.88_0.015_160)] bg-white px-3.5 py-2 text-[13px] font-bold text-[oklch(0.4_0.08_160)] hover:text-[oklch(0.66_0.18_45)]">{tr("Xem bản đồ 3D")}</Link>
         </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-[oklch(0.92_0.01_160)] bg-white p-2">
-        <span className="px-1.5 text-[13px] font-extrabold text-[oklch(0.45_0.02_160)]">Lịch trình</span>
-        {[{ id: "free", name: "Khám phá tự do" }, ...plans].map((t) => (
-          <button key={t.id} type="button" onClick={() => { setPlanId(t.id); setDay(0); setSel(null); }} className="cursor-pointer whitespace-nowrap rounded-xl px-4 py-2 text-sm font-extrabold transition-colors" style={{ background: planId === t.id ? G : "oklch(0.96 0.005 160)", color: planId === t.id ? "white" : "oklch(0.3 0.03 160)" }}>{t.name}</button>
+        <span className="px-1.5 text-[13px] font-extrabold text-[oklch(0.45_0.02_160)]">{tr("Lịch trình")}</span>
+        {[{ id: "free", name: tr("Khám phá tự do") }, ...plans].map((t) => (
+          <button key={t.id} type="button" onClick={() => { setPlanId(t.id); setDay(0); setSel(null); }} className="cursor-pointer whitespace-nowrap rounded-xl px-4 py-2 text-sm font-extrabold transition-colors" style={{ background: planId === t.id ? G : "oklch(0.96 0.005 160)", color: planId === t.id ? "white" : "oklch(0.3 0.03 160)" }}>{tr(t.name)}</button>
         ))}
         {P && (
           <>
             <span className="mx-1 h-6 w-px bg-[oklch(0.9_0.01_160)]" />
-            {[{ k: -1, name: "Cả lịch trình", c: G }, ...P.days.map((_, i) => ({ k: i, name: `Ngày ${i + 1}`, c: DAYC[i % DAYC.length] }))].map((d) => (
+            {[{ k: -1, name: tr("Cả lịch trình"), c: G }, ...P.days.map((_, i) => ({ k: i, name: tr("Ngày {0}", [i + 1]), c: DAYC[i % DAYC.length] }))].map((d) => (
               <button key={d.k} type="button" onClick={() => setDay(d.k)} className="flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border-[1.5px] px-3 py-[7px] text-[13px] font-bold" style={{ borderColor: day === d.k ? d.c : "oklch(0.9 0.01 160)", background: day === d.k ? "oklch(0.97 0.02 155)" : "white" }}>
                 <span className="h-[9px] w-[9px] rounded-full" style={{ background: d.c }} />
-                {d.name}
+                {tr(d.name)}
               </button>
             ))}
           </>
@@ -307,8 +309,8 @@ export function SatBoard({ spots, plans, freeRoads, initialPlan }: { spots: Boar
         <div className="overflow-hidden rounded-[22px] border border-[oklch(0.88_0.02_160)] bg-[oklch(0.3_0.04_150)]">
           <div ref={box} className="sb-map relative z-0 isolate h-[70vh] min-h-[420px] w-full lg:h-[78vh]" />
           <div className="flex flex-wrap justify-between gap-2 bg-white px-3.5 py-2 text-xs text-[oklch(0.45_0.02_160)]">
-            <span>Kéo để di chuyển, chụm hai ngón hoặc bấm + − để phóng to. Bấm vào ghim để xem chi tiết.</span>
-            <span>Đường xe vẽ theo dữ liệu OpenStreetMap</span>
+            <span>{tr("Kéo để di chuyển, chụm hai ngón hoặc bấm + − để phóng to. Bấm vào ghim để xem chi tiết.")}</span>
+            <span>{tr("Đường xe vẽ theo dữ liệu OpenStreetMap")}</span>
           </div>
         </div>
 
@@ -317,19 +319,19 @@ export function SatBoard({ spots, plans, freeRoads, initialPlan }: { spots: Boar
             <div className="sb-rise flex flex-col gap-2 rounded-[20px] border-2 bg-white px-[18px] py-4" style={{ borderColor: CAT[spot.cat][1] }}>
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <div className="text-[11px] font-extrabold uppercase tracking-[.06em]" style={{ color: CAT[spot.cat][1] }}>{CAT[spot.cat][0]}{spot.sub ? ` · ${spot.sub}` : ""}</div>
-                  <div className="text-lg font-extrabold leading-[1.3]">{spot.name}</div>
+                  <div className="text-[11px] font-extrabold uppercase tracking-[.06em]" style={{ color: CAT[spot.cat][1] }}>{tr(CAT[spot.cat][0])}{spot.sub ? ` · ${tr(spot.sub)}` : ""}</div>
+                  <div className="text-lg font-extrabold leading-[1.3]">{tr(spot.name)}</div>
                 </div>
-                <button type="button" aria-label="Đóng" onClick={() => setSel(null)} className="flex h-[30px] w-[30px] flex-none cursor-pointer items-center justify-center rounded-full bg-[oklch(0.95_0.005_160)] font-extrabold">×</button>
+                <button type="button" aria-label={tr("Đóng")} onClick={() => setSel(null)} className="flex h-[30px] w-[30px] flex-none cursor-pointer items-center justify-center rounded-full bg-[oklch(0.95_0.005_160)] font-extrabold">×</button>
               </div>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              {spot.image && <img src={spot.image} alt={spot.name} loading="lazy" className="h-36 w-full rounded-xl object-cover" />}
-              {spot.desc && <p className="text-sm leading-[1.55] text-[oklch(0.38_0.02_160)]">{spot.desc}</p>}
-              {spot.best && <p className="text-[13px] font-bold text-[oklch(0.4_0.08_160)]">Đẹp nhất: {spot.best}</p>}
-              {spot.tip && <p className="rounded-xl bg-[oklch(0.97_0.03_85)] px-3 py-2 text-[13px] leading-[1.5] text-[oklch(0.4_0.06_70)]">Mẹo: {spot.tip}</p>}
+              {spot.image && <img src={spot.image} alt={tr(spot.name)} loading="lazy" className="h-36 w-full rounded-xl object-cover" />}
+              {spot.desc && <p className="text-sm leading-[1.55] text-[oklch(0.38_0.02_160)]">{tr(spot.desc)}</p>}
+              {spot.best && <p className="text-[13px] font-bold text-[oklch(0.4_0.08_160)]">{tr("Đẹp nhất: {0}", [tr(spot.best)])}</p>}
+              {spot.tip && <p className="rounded-xl bg-[oklch(0.97_0.03_85)] px-3 py-2 text-[13px] leading-[1.5] text-[oklch(0.4_0.06_70)]">{tr("Mẹo: {0}", [tr(spot.tip)])}</p>}
               <div className="flex flex-wrap gap-2">
-                <a href={spot.mapUrl} target="_blank" rel="noopener noreferrer" className="rounded-full px-3.5 py-[9px] text-[13px] font-extrabold text-white" style={{ background: G }}>Chỉ đường ↗</a>
-                {spot.href && <Link href={spot.href} className="rounded-full bg-[oklch(0.68_0.18_45)] px-3.5 py-[9px] text-[13px] font-extrabold text-white">Xem chi tiết</Link>}
+                <a href={spot.mapUrl} target="_blank" rel="noopener noreferrer" className="rounded-full px-3.5 py-[9px] text-[13px] font-extrabold text-white" style={{ background: G }}>{tr("Chỉ đường ↗")}</a>
+                {spot.href && <Link href={spot.href} className="rounded-full bg-[oklch(0.68_0.18_45)] px-3.5 py-[9px] text-[13px] font-extrabold text-white">{tr("Xem chi tiết")}</Link>}
               </div>
             </div>
           )}
@@ -337,28 +339,28 @@ export function SatBoard({ spots, plans, freeRoads, initialPlan }: { spots: Boar
           {P ? (
             <div className="flex max-h-[360px] flex-col gap-3 overflow-y-auto rounded-[20px] border border-[oklch(0.92_0.01_160)] bg-white px-[18px] py-4 lg:max-h-[60vh]">
               <div>
-                <div className="text-lg font-extrabold">Lịch trình {P.name}</div>
-                {P.sub && <div className="mt-0.5 text-[13px] leading-[1.5] text-[oklch(0.45_0.02_160)]">{P.sub}</div>}
+                <div className="text-lg font-extrabold">{tr("Lịch trình {0}", [tr(P.name)])}</div>
+                {P.sub && <div className="mt-0.5 text-[13px] leading-[1.5] text-[oklch(0.45_0.02_160)]">{tr(P.sub)}</div>}
               </div>
               {P.days.map((d, di) => (
                 <div key={di} className="flex flex-col gap-0.5" style={{ opacity: day < 0 || day === di ? 1 : 0.45 }}>
                   <button type="button" onClick={() => setDay(di)} className="mb-1 flex cursor-pointer items-center gap-2 text-left">
-                    <span className="rounded-full px-[9px] py-[3px] text-[11px] font-extrabold text-white" style={{ background: DAYC[di % DAYC.length] }}>Ngày {di + 1}</span>
-                    <span className="text-sm font-extrabold">{d.title}</span>
+                    <span className="rounded-full px-[9px] py-[3px] text-[11px] font-extrabold text-white" style={{ background: DAYC[di % DAYC.length] }}>{tr("Ngày {0}", [di + 1])}</span>
+                    <span className="text-sm font-extrabold">{tr(d.title)}</span>
                   </button>
                   {d.stops.map((s, si) => (
                     <button key={si} type="button" onClick={() => { setDay((cur) => (cur < 0 ? cur : di)); setSel(s.spotId); }} className="grid cursor-pointer grid-cols-[44px_22px_minmax(0,1fr)] items-start gap-1.5 rounded-[10px] px-1 py-[5px] text-left hover:bg-[oklch(0.97_0.01_155)]" style={{ background: sel === s.spotId && s.own ? "oklch(0.96 0.025 155)" : undefined }}>
-                      <span className="text-xs font-extrabold text-[oklch(0.45_0.02_160)]">{s.time}</span>
+                      <span className="text-xs font-extrabold text-[oklch(0.45_0.02_160)]">{tr(s.time)}</span>
                       <span className="flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-extrabold text-white" style={{ background: DAYC[di % DAYC.length] }}>{si + 1}</span>
                       <span className="min-w-0">
-                        <span className="block text-[13px] font-bold leading-[1.35]">{s.name}</span>
-                        {s.note && <span className="block text-xs text-[oklch(0.5_0.02_160)]">{s.note}</span>}
+                        <span className="block text-[13px] font-bold leading-[1.35]">{tr(s.name)}</span>
+                        {s.note && <span className="block text-xs text-[oklch(0.5_0.02_160)]">{tr(s.note)}</span>}
                       </span>
                     </button>
                   ))}
                 </div>
               ))}
-              <Link href="/combo" className="rounded-full bg-[oklch(0.68_0.18_45)] p-3 text-center text-sm font-extrabold text-white">Đặt combo {P.name} →</Link>
+              <Link href="/combo" className="rounded-full bg-[oklch(0.68_0.18_45)] p-3 text-center text-sm font-extrabold text-white">{tr("Đặt combo {0} →", [tr(P.name)])}</Link>
             </div>
           ) : (
             <div className="flex max-h-[360px] flex-col gap-1 overflow-y-auto rounded-[20px] border border-[oklch(0.92_0.01_160)] bg-white p-3 lg:max-h-[60vh]">
@@ -366,8 +368,8 @@ export function SatBoard({ spots, plans, freeRoads, initialPlan }: { spots: Boar
                 <button key={s.id} type="button" onClick={() => setSel(sel === s.id ? null : s.id)} className="flex cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2 text-left hover:bg-[oklch(0.97_0.01_155)]" style={{ background: sel === s.id ? "oklch(0.96 0.025 155)" : undefined }}>
                   <span className="h-[26px] w-[26px] flex-none -rotate-45 rounded-[50%_50%_50%_3px] border-2 border-white shadow-[0_2px_6px_-2px_oklch(0.1_0.02_160/.5)]" style={{ background: CAT[s.cat][1] }} />
                   <span className="min-w-0">
-                    <span className="block truncate text-sm font-bold">{s.name}</span>
-                    <span className="block text-xs text-[oklch(0.5_0.02_160)]">{CAT[s.cat][0]}</span>
+                    <span className="block truncate text-sm font-bold">{tr(s.name)}</span>
+                    <span className="block text-xs text-[oklch(0.5_0.02_160)]">{tr(CAT[s.cat][0])}</span>
                   </span>
                 </button>
               ))}

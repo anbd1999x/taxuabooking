@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/Link";
 import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { MediaSlider, type MediaItem } from "./MediaSlider";
@@ -8,6 +8,8 @@ import type { SceneStop } from "./ItineraryScene";
 import { ItineraryHero, type HeroPlan } from "./ItineraryHero";
 import type { StopKind } from "@/lib/itinerary";
 import { cn } from "@/lib/utils";
+import { useT } from "@/components/i18n/I18nProvider";
+import type { TFunc } from "@/lib/i18n/config";
 
 type Tab = "checkin" | "cafe" | "food";
 
@@ -64,9 +66,10 @@ const period = (t: string) => {
   const x = mins(t) / 60;
   return x < 5 ? "Rạng sáng" : x < 8 ? "Bình minh" : x < 11 ? "Buổi sáng" : x < 13.5 ? "Buổi trưa" : x < 17 ? "Buổi chiều" : x < 19 ? "Hoàng hôn" : "Buổi tối";
 };
-const hm = (m: number) => (m >= 60 ? `${Math.floor(m / 60)} giờ${m % 60 ? ` ${m % 60} phút` : ""}` : `${m} phút`);
+const hm = (m: number, t: TFunc) => (m >= 60 ? (m % 60 ? t("{0} giờ {1} phút", [Math.floor(m / 60), m % 60]) : t("{0} giờ", [Math.floor(m / 60)])) : t("{0} phút", [m]));
 
 export function ItineraryView({ plans, places, prep, initialPlan }: { plans: ViewPlan[]; places: ItineraryPlace[]; prep: string[]; initialPlan?: string }) {
+  const tr = useT();
   const [planKey, setPlanKey] = useState((initialPlan && plans.some((p) => p.id === initialPlan) ? initialPlan : plans[0]?.id) ?? "");
   const [closed, setClosed] = useState<Record<string, boolean>>({});
   const [tab, setTab] = useState<Tab>("checkin");
@@ -128,7 +131,7 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
         const nx = d.stops[si + 1];
         const stay = nx ? mins(nx.time) - mins(s.time) : 0;
         const chips: string[] = [];
-        if (stay > 0) chips.push(`Ở lại ${hm(stay)}`);
+        if (stay > 0) chips.push(tr("Ở lại {0}", [hm(stay, tr)]));
         if (s.fact) chips.push(s.fact);
         // chặng di chuyển tới điểm kế: ước lượng theo chênh lệch khoảng cách tới trung tâm
         let travel: { mode: string; text: string; bg: string; fg: string } | null = null;
@@ -138,12 +141,12 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
           if (dist != null) dayKm += dist;
           const km = dist != null ? `${String(dist).replace(".", ",")} km` : "";
           travel = shuttle
-            ? { mode: "Xe trung chuyển", text: gi === 0 ? "~40 phút lên Tà Xùa" : "Ra điểm đón xe", bg: "oklch(0.95 0.03 250)", fg: "oklch(0.42 0.1 250)" }
+            ? { mode: tr("Xe trung chuyển"), text: gi === 0 ? tr("~40 phút lên Tà Xùa") : tr("Ra điểm đón xe"), bg: "oklch(0.95 0.03 250)", fg: "oklch(0.42 0.1 250)" }
             : dist == null
-              ? { mode: "Di chuyển", text: "", bg: "oklch(0.95 0.005 160)", fg: "oklch(0.45 0.02 160)" }
+              ? { mode: tr("Di chuyển"), text: "", bg: "oklch(0.95 0.005 160)", fg: "oklch(0.45 0.02 160)" }
               : dist <= 1.5
-                ? { mode: "Đi bộ", text: `~${Math.round(dist * 12)} phút · ${km}`, bg: "oklch(0.95 0.04 155)", fg: "oklch(0.4 0.1 155)" }
-                : { mode: "Xe máy", text: `~${Math.round(dist * 3 + 5)} phút · ${km}`, bg: "oklch(0.95 0.05 70)", fg: "oklch(0.48 0.14 50)" };
+                ? { mode: tr("Đi bộ"), text: tr("~{0} phút · {1}", [Math.round(dist * 12), km]), bg: "oklch(0.95 0.04 155)", fg: "oklch(0.4 0.1 155)" }
+                : { mode: tr("Xe máy"), text: tr("~{0} phút · {1}", [Math.round(dist * 3 + 5), km]), bg: "oklch(0.95 0.05 70)", fg: "oklch(0.48 0.14 50)" };
         }
         // tab chứa thẻ chi tiết của điểm này (null = không có thẻ ở mục "Nên ghé")
         const target = s.placeId ? (shown.get(s.placeId)?.kind ?? null) : null;
@@ -164,17 +167,17 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
         open: !closed[id] || isCur, // ngày đang chiếu luôn mở
         chips: [
           `${d.stops[0].time} → ${d.stops[d.stops.length - 1].time}`,
-          ...(nCheck ? [`${nCheck} điểm check-in`] : []),
-          ...(nEat ? [`${nEat} quán ăn & cafe`] : []),
-          ...(dayKm >= 1 ? [`~${Math.round(dayKm)} km xe máy`] : []),
+          ...(nCheck ? [tr("{0} điểm check-in", [nCheck])] : []),
+          ...(nEat ? [tr("{0} quán ăn & cafe", [nEat])] : []),
+          ...(dayKm >= 1 ? [tr("~{0} km xe máy", [Math.round(dayKm)])] : []),
         ],
         stops,
       };
     });
     return { days, inPlan, stats: [
-      { v: count.checkin.size, k: "Điểm check-in" },
-      { v: count.cafe.size, k: "Quán cafe" },
-      { v: meals, k: "Bữa ăn" },
+      { v: count.checkin.size, k: tr("Điểm check-in") },
+      { v: count.cafe.size, k: tr("Quán cafe") },
+      { v: meals, k: tr("Bữa ăn") },
     ] };
   }, [plan, shown, ci, curDay, closed]);
 
@@ -190,8 +193,8 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
     return {
       id: p.id,
       name: p.name,
-      title: p.days.length > 1 ? `${p.days.length} ngày ${p.days.length - 1} đêm` : "Trong ngày",
-      meta: `${stops} điểm dừng${checkins ? ` · ${checkins} điểm check-in` : ""}`,
+      title: p.days.length > 1 ? tr("{0} ngày {1} đêm", [p.days.length, p.days.length - 1]) : tr("Trong ngày"),
+      meta: tr("{0} điểm dừng{1}", [stops, checkins ? tr(" · {0} điểm check-in", [checkins]) : ""]),
     };
   });
   const jumpPlan = (k: string) => { pickPlan(k); go("plan"); };
@@ -212,8 +215,8 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
         <section id="lt-plan" className="flex scroll-mt-20 flex-col gap-4">
           <div className="flex flex-wrap items-end justify-between gap-3.5">
             <div>
-              <h2 className="text-[clamp(22px,2.8vw,30px)] font-extrabold tracking-[-.02em] text-ink">Lịch trình gợi ý</h2>
-              <p className="mt-1 text-sm text-[oklch(0.48_0.02_160)]">{plan.sub}</p>
+              <h2 className="text-[clamp(22px,2.8vw,30px)] font-extrabold tracking-[-.02em] text-ink">{tr("Lịch trình gợi ý")}</h2>
+              <p className="mt-1 text-sm text-[oklch(0.48_0.02_160)]">{tr(plan.sub)}</p>
             </div>
             <div className="inline-flex gap-1 rounded-[14px] bg-[oklch(0.93_0.01_160)] p-1">
               {plans.map((p) => (
@@ -226,7 +229,7 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
                     p.id === plan.id ? "bg-[oklch(0.29_0.055_160)] text-white shadow" : "text-[oklch(0.4_0.02_160)]",
                   )}
                 >
-                  {p.name}
+                  {tr(p.name)}
                 </button>
               ))}
             </div>
@@ -254,14 +257,14 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
                       className="flex h-[58px] w-[58px] flex-col items-center justify-center rounded-[18px] leading-none text-white"
                       style={{ background: d.color, boxShadow: `0 8px 16px -8px ${d.color}` }}
                     >
-                      <span className="text-[10px] font-extrabold tracking-[.12em] opacity-85">NGÀY</span>
+                      <span className="text-[10px] font-extrabold tracking-[.12em] opacity-85">{tr("NGÀY")}</span>
                       <span className="mt-0.5 text-[26px] font-extrabold">{d.n}</span>
                     </div>
                     <div className="flex min-w-0 flex-col gap-1.5">
-                      <div className="text-lg font-extrabold leading-tight tracking-[-.015em] text-ink">{d.title}</div>
+                      <div className="text-lg font-extrabold leading-tight tracking-[-.015em] text-ink">{tr(d.title)}</div>
                       <div className="flex flex-wrap gap-1.5">
                         {d.chips.map((c) => (
-                          <span key={c} className="whitespace-nowrap rounded-full border border-[oklch(0.9_0.01_160)] bg-white px-[9px] py-1 text-xs font-bold text-[oklch(0.38_0.02_160)]">{c}</span>
+                          <span key={c} className="whitespace-nowrap rounded-full border border-[oklch(0.9_0.01_160)] bg-white px-[9px] py-1 text-xs font-bold text-[oklch(0.38_0.02_160)]">{tr(c)}</span>
                         ))}
                       </div>
                       <div className="flex max-w-[260px] gap-[3px]">
@@ -277,8 +280,8 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
                       {d.stops.map((s, si) => (
                         <div key={s.gi} className="grid grid-cols-[50px_30px_minmax(0,1fr)] gap-3 min-[560px]:grid-cols-[64px_30px_minmax(0,1fr)]">
                           <div className="pt-4 text-right">
-                            <div className="text-[17px] font-extrabold tracking-[-.01em]" style={{ color: s.on ? "oklch(0.6 0.18 45)" : "oklch(0.3 0.03 160)" }}>{s.time}</div>
-                            <div className="mt-0.5 text-[11px] font-bold text-[oklch(0.55_0.02_160)]">{s.period}</div>
+                            <div className="text-[17px] font-extrabold tracking-[-.01em]" style={{ color: s.on ? "oklch(0.6 0.18 45)" : "oklch(0.3 0.03 160)" }}>{tr(s.time)}</div>
+                            <div className="mt-0.5 text-[11px] font-bold text-[oklch(0.55_0.02_160)]">{tr(s.period)}</div>
                           </div>
                           <div className="flex flex-col items-center">
                             <span className="h-4 w-0.5" style={{ background: si === 0 ? "transparent" : LINE }} />
@@ -309,25 +312,25 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
                             >
                               {s.thumb && (
                                 <div className="relative hidden h-[76px] w-[76px] flex-none overflow-hidden rounded-[14px] min-[560px]:block">
-                                  <Image src={s.thumb} alt={`${s.name} – Tà Xùa`} fill sizes="76px" className="object-cover" />
+                                  <Image src={s.thumb} alt={tr("{0} – Tà Xùa", [tr(s.name)])} fill sizes="76px" className="object-cover" />
                                 </div>
                               )}
                               <div className="flex min-w-0 flex-col gap-[5px]">
                                 <div className="flex flex-wrap items-center gap-1.5">
-                                  <span className="whitespace-nowrap rounded-full px-2 py-[3px] text-[11px] font-extrabold" style={{ background: s.t[1], color: s.t[2] }}>{s.t[0]}</span>
+                                  <span className="whitespace-nowrap rounded-full px-2 py-[3px] text-[11px] font-extrabold" style={{ background: s.t[1], color: s.t[2] }}>{tr(s.t[0])}</span>
                                   {s.on && (
                                     <span className="flex items-center gap-[5px] whitespace-nowrap rounded-full bg-[oklch(0.68_0.18_45)] px-2 py-[3px] text-[11px] font-extrabold text-white">
                                       <span className="lt-blink h-1.5 w-1.5 rounded-full bg-white" />
-                                      Đang chiếu
+                                      {tr("Đang chiếu")}
                                     </span>
                                   )}
                                 </div>
-                                <div className="text-base font-extrabold leading-[1.3] text-ink">{s.name}</div>
-                                {s.note && <div className="text-pretty text-sm leading-normal text-[oklch(0.42_0.02_160)]">{s.note}</div>}
+                                <div className="text-base font-extrabold leading-[1.3] text-ink">{tr(s.name)}</div>
+                                {s.note && <div className="text-pretty text-sm leading-normal text-[oklch(0.42_0.02_160)]">{tr(s.note)}</div>}
                                 {(s.chips.length > 0 || s.target) && (
                                   <div className="flex flex-wrap items-center gap-1.5">
                                     {s.chips.map((c) => (
-                                      <span key={c} className="whitespace-nowrap rounded-full bg-[oklch(0.96_0.008_160)] px-[9px] py-[3px] text-xs font-bold text-[oklch(0.4_0.02_160)]">{c}</span>
+                                      <span key={c} className="whitespace-nowrap rounded-full bg-[oklch(0.96_0.008_160)] px-[9px] py-[3px] text-xs font-bold text-[oklch(0.4_0.02_160)]">{tr(c)}</span>
                                     ))}
                                     {s.target && (
                                       <button
@@ -335,7 +338,7 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
                                         onClick={(e) => { e.stopPropagation(); jumpTab(s.target!); }}
                                         className="whitespace-nowrap text-xs font-extrabold text-[oklch(0.45_0.1_160)] hover:text-sunset-500"
                                       >
-                                        Chi tiết ↓
+                                        {tr("Chi tiết ↓")}
                                       </button>
                                     )}
                                   </div>
@@ -344,8 +347,8 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
                             </div>
                             {s.travel && (
                               <div className="flex items-center gap-2 pb-1 pl-3 pt-0.5 text-xs font-bold text-[oklch(0.5_0.02_160)]">
-                                <span className="flex h-[22px] items-center justify-center whitespace-nowrap rounded-full px-[9px]" style={{ background: s.travel.bg, color: s.travel.fg }}>{s.travel.mode}</span>
-                                {s.travel.text && <span className="whitespace-nowrap">{s.travel.text}</span>}
+                                <span className="flex h-[22px] items-center justify-center whitespace-nowrap rounded-full px-[9px]" style={{ background: s.travel.bg, color: s.travel.fg }}>{tr(s.travel.mode)}</span>
+                                {s.travel.text && <span className="whitespace-nowrap">{tr(s.travel.text)}</span>}
                                 <span className="h-0 min-w-5 flex-1 border-t-2 border-dashed border-[oklch(0.88_0.015_160)]" />
                               </div>
                             )}
@@ -360,12 +363,12 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
 
             <aside className="flex flex-col gap-3 lg:sticky" style={{ top: headerH + 16 }}>
               <div className="flex flex-col gap-3.5 rounded-[22px] border border-[oklch(0.92_0.01_160)] bg-white px-5 py-[18px]">
-                <div className="text-[17px] font-extrabold text-ink">{plan.name} gồm những gì</div>
+                <div className="text-[17px] font-extrabold text-ink">{tr("{0} gồm những gì", [tr(plan.name)])}</div>
                 <div className="grid grid-cols-3 gap-2">
                   {stats.map((s) => (
                     <div key={s.k} className="rounded-[14px] bg-[oklch(0.97_0.008_160)] p-2.5">
                       <div className="text-xl font-extrabold text-ink">{s.v}</div>
-                      <div className="text-xs font-semibold text-[oklch(0.5_0.02_160)]">{s.k}</div>
+                      <div className="text-xs font-semibold text-[oklch(0.5_0.02_160)]">{tr(s.k)}</div>
                     </div>
                   ))}
                 </div>
@@ -373,18 +376,18 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
                   {prep.map((t) => (
                     <div key={t} className="flex gap-2">
                       <span className="font-extrabold text-[oklch(0.55_0.14_155)]">✓</span>
-                      <span>{t}</span>
+                      <span>{tr(t)}</span>
                     </div>
                   ))}
                 </div>
                 <Link href="/combo" className="rounded-full bg-[oklch(0.68_0.18_45)] p-[13px] text-center text-[15px] font-extrabold text-white transition hover:brightness-105">
-                  Đặt combo {plan.name} →
+                  {tr("Đặt combo {0} →", [tr(plan.name)])}
                 </Link>
                 <Link href={`/ban-do?plan=${encodeURIComponent(plan.id)}`} className="rounded-full border-[1.5px] border-[oklch(0.88_0.015_160)] p-[11px] text-center text-sm font-bold text-[oklch(0.4_0.08_160)] transition hover:text-sunset-500">
-                  Xem cung đường trên bản đồ
+                  {tr("Xem cung đường trên bản đồ")}
                 </Link>
                 <Link href="/kinh-nghiem" className="rounded-full border-[1.5px] border-[oklch(0.88_0.015_160)] p-[11px] text-center text-sm font-bold text-[oklch(0.4_0.08_160)] transition hover:text-sunset-500">
-                  Đọc thêm kinh nghiệm Tà Xùa
+                  {tr("Đọc thêm kinh nghiệm Tà Xùa")}
                 </Link>
               </div>
             </aside>
@@ -395,14 +398,14 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
         <section id="lt-places" className="flex scroll-mt-20 flex-col gap-4">
           <div className="flex flex-wrap items-end justify-between gap-3.5">
             <div>
-              <h2 className="text-[clamp(22px,2.8vw,30px)] font-extrabold tracking-[-.02em] text-ink">Nên ghé ở Tà Xùa</h2>
+              <h2 className="text-[clamp(22px,2.8vw,30px)] font-extrabold tracking-[-.02em] text-ink">{tr("Nên ghé ở Tà Xùa")}</h2>
               <p className="mt-1 text-sm text-[oklch(0.48_0.02_160)]">
-                Gợi ý của Tà Xùa Booking · giá tham khảo
+                {tr("Gợi ý của Tà Xùa Booking · giá tham khảo")}
               </p>
             </div>
             <label className="flex cursor-pointer items-center gap-2 whitespace-nowrap text-sm font-semibold text-ink">
               <input type="checkbox" checked={only} onChange={() => setOnly((o) => !o)} className="h-[17px] w-[17px] accent-[oklch(0.35_0.08_160)]" />
-              Chỉ điểm có trong {plan.name}
+              {tr("Chỉ điểm có trong")}{" "}{tr(plan.name)}
             </label>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -418,7 +421,7 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
                     on ? "border-[oklch(0.29_0.055_160)] bg-[oklch(0.29_0.055_160)] text-white" : "border-[oklch(0.9_0.01_160)] bg-white text-[oklch(0.3_0.03_160)]",
                   )}
                 >
-                  {name}
+                  {tr(name)}
                   <span className={cn("rounded-full px-2 py-0.5 text-xs font-extrabold", on ? "bg-white/[.18]" : "bg-[oklch(0.95_0.005_160)]")}>{cardsOf(k).length}</span>
                 </button>
               );
@@ -444,14 +447,14 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
                         className="flex h-full w-full items-end p-4 text-lg font-extrabold leading-tight text-white/90"
                         style={{ background: "linear-gradient(160deg, oklch(0.5 0.07 200), oklch(0.34 0.06 165) 60%, oklch(0.27 0.05 160))" }}
                       >
-                        {p.name}
+                        {tr(p.name)}
                       </div>
                     )}
                     <div className="pointer-events-none absolute inset-x-2.5 top-2.5 flex justify-between gap-1.5">
-                      <span className="whitespace-nowrap rounded-full bg-white px-2.5 py-[5px] text-xs font-extrabold text-ink">{p.badge}</span>
+                      <span className="whitespace-nowrap rounded-full bg-white px-2.5 py-[5px] text-xs font-extrabold text-ink">{tr(p.badge)}</span>
                       {daysIn && (
                         <span className="whitespace-nowrap rounded-full bg-[oklch(0.68_0.18_45)] px-2.5 py-[5px] text-xs font-extrabold text-white">
-                          Ngày {daysIn.join(", ")} · {plan.name}
+                          {tr("Ngày {0} · {1}", [daysIn.join(", "), tr(plan.name)])}
                         </span>
                       )}
                     </div>
@@ -459,27 +462,27 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
                   <div className="flex flex-1 flex-col gap-2 px-4 pb-4 pt-3.5">
                     <div>
                       <div className="text-[17px] font-extrabold leading-[1.3] tracking-[-.01em] text-ink">
-                        {p.href ? <Link href={p.href} className="hover:text-sunset-500">{p.name}</Link> : p.name}
+                        {p.href ? <Link href={p.href} className="hover:text-sunset-500">{tr(p.name)}</Link> : tr(p.name)}
                       </div>
-                      {p.sub && <div className="mt-0.5 text-[13px] font-semibold text-[oklch(0.5_0.02_160)]">{p.sub}</div>}
+                      {p.sub && <div className="mt-0.5 text-[13px] font-semibold text-[oklch(0.5_0.02_160)]">{tr(p.sub)}</div>}
                     </div>
-                    {p.desc && <div className="line-clamp-4 text-pretty text-sm leading-[1.55] text-[oklch(0.38_0.02_160)]">{p.desc}</div>}
+                    {p.desc && <div className="line-clamp-4 text-pretty text-sm leading-[1.55] text-[oklch(0.38_0.02_160)]">{tr(p.desc)}</div>}
                     {p.facts.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
                         {p.facts.map((f) => (
-                          <span key={f} className="whitespace-nowrap rounded-full bg-[oklch(0.95_0.025_155)] px-[9px] py-1 text-xs font-bold text-[oklch(0.36_0.08_155)]">{f}</span>
+                          <span key={f} className="whitespace-nowrap rounded-full bg-[oklch(0.95_0.025_155)] px-[9px] py-1 text-xs font-bold text-[oklch(0.36_0.08_155)]">{tr(f)}</span>
                         ))}
                       </div>
                     )}
                     {p.tip && (
                       <div className="text-[13px] leading-normal text-[oklch(0.48_0.13_50)]">
-                        <b>Mẹo:</b> {p.tip}
+                        <b>{tr("Mẹo:")}</b> {tr(p.tip)}
                       </div>
                     )}
                     <div className="flex-1" />
                     <div className="flex items-center justify-between gap-3 border-t border-[oklch(0.94_0.01_160)] pt-2.5 text-sm font-bold text-[oklch(0.4_0.08_160)]">
-                      <a href={p.mapUrl} target="_blank" rel="noopener noreferrer" className="hover:text-sunset-500">Chỉ đường Google Maps ↗</a>
-                      {p.href && <Link href={p.href} className="hover:text-sunset-500">Xem quán →</Link>}
+                      <a href={p.mapUrl} target="_blank" rel="noopener noreferrer" className="hover:text-sunset-500">{tr("Chỉ đường Google Maps ↗")}</a>
+                      {p.href && <Link href={p.href} className="hover:text-sunset-500">{tr("Xem quán →")}</Link>}
                     </div>
                   </div>
                 </article>
@@ -488,7 +491,7 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
           </div>
           {cards.length === 0 && (
             <div className="rounded-[20px] border-[1.5px] border-dashed border-[oklch(0.85_0.02_160)] bg-white px-5 py-10 text-center text-[15px] text-[oklch(0.45_0.02_160)]">
-              Lịch trình {plan.name} chưa có điểm loại này. Bỏ tích ô lọc để xem tất cả.
+              {tr("Lịch trình {0} chưa có điểm loại này. Bỏ tích ô lọc để xem tất cả.", [tr(plan.name)])}
             </div>
           )}
         </section>

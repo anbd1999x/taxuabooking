@@ -1,8 +1,9 @@
-import Link from "next/link";
+import Link from "@/components/Link";
 import { prisma } from "@/lib/prisma";
 import { getCustomer } from "@/lib/customer";
 import { toDateKey } from "@/lib/dates";
 import { ReviewForm } from "./ReviewForm";
+import { getT } from "@/lib/i18n/server";
 
 function Stars({ value, size = 16 }: { value: number; size?: number }) {
   return (
@@ -20,6 +21,7 @@ function fmtDate(d: Date): string {
 }
 
 export async function ServiceReviews({ serviceId, path }: { serviceId: string; path: string }) {
+  const t = await getT();
   const [reviews, customer] = await Promise.all([
     prisma.review.findMany({
       where: { serviceId, status: "APPROVED" },
@@ -36,14 +38,14 @@ export async function ServiceReviews({ serviceId, path }: { serviceId: string; p
   return (
     <section className="mt-10 border-t border-gray-200 pt-6">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 className="text-xl font-bold text-ink">Đánh giá</h2>
+        <h2 className="text-xl font-bold text-ink">{t("Đánh giá")}</h2>
         {count > 0 ? (
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <Stars value={Math.round(avg)} />
-            <span><b className="text-ink">{avg.toFixed(1)}</b>/5 · {count} đánh giá</span>
+            <span><b className="text-ink">{avg.toFixed(1)}</b>/5 · {count}{" "}{t("đánh giá")}</span>
           </div>
         ) : (
-          <span className="text-sm text-gray-500">Chưa có đánh giá nào.</span>
+          <span className="text-sm text-gray-500">{t("Chưa có đánh giá nào.")}</span>
         )}
       </div>
 
@@ -52,8 +54,8 @@ export async function ServiceReviews({ serviceId, path }: { serviceId: string; p
           <ReviewForm serviceId={serviceId} path={path} initialRating={mine?.rating ?? 0} initialComment={mine?.comment ?? ""} />
         ) : (
           <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-4 text-sm text-gray-600">
-            <Link href={`/tai-khoan?next=${encodeURIComponent(path)}`} className="font-bold text-forest-700">Đăng nhập</Link>{" "}
-            (hoặc tạo tài khoản bằng số điện thoại) để viết đánh giá cho dịch vụ này.
+            <Link href={`/tai-khoan?next=${encodeURIComponent(path)}`} className="font-bold text-forest-700">{t("Đăng nhập")}</Link>{" "}
+            {t("(hoặc tạo tài khoản bằng số điện thoại) để viết đánh giá cho dịch vụ này.")}
           </div>
         )}
       </div>
@@ -63,11 +65,11 @@ export async function ServiceReviews({ serviceId, path }: { serviceId: string; p
           {reviews.map((r) => (
             <li key={r.id} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
               <div className="flex items-center justify-between gap-2">
-                <div className="font-bold text-ink">{r.customer.name}</div>
-                <div className="text-xs text-gray-400">{fmtDate(r.createdAt)}</div>
+                <div className="font-bold text-ink">{t(r.customer.name)}</div>
+                <div className="text-xs text-gray-400">{t(fmtDate(r.createdAt))}</div>
               </div>
               <div className="mt-0.5"><Stars value={r.rating} /></div>
-              {r.comment && <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-gray-700">{r.comment}</p>}
+              {r.comment && <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-gray-700">{t(r.comment)}</p>}
             </li>
           ))}
         </ul>

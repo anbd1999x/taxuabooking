@@ -11,10 +11,12 @@ import { getSettings } from "@/lib/queries";
 import { isSoldOutCancel } from "@/lib/cancel-reason";
 import { bookingCabinBerths, cabinBerthsLabel, cabinBerthLines } from "@/lib/combo-pricing";
 import { TraCuuLookup, type LookupOrder, type LookupPart, type LookupStatus } from "@/components/TraCuuLookup";
+import { getT } from "@/lib/i18n/server";
+import { i18nMeta } from "@/lib/i18n/meta";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = pageMeta({
+export const generateMetadata = () => i18nMeta({
   title: "Tra cứu đơn đặt",
   description: "Tra cứu tình trạng đơn đặt dịch vụ Tà Xùa bằng số điện thoại hoặc mã đơn.",
   path: "/tra-cuu",
@@ -63,6 +65,7 @@ export default async function LookupPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const tr = await getT();
   const sp = await searchParams;
   const q = str(sp.q).trim();
   const digits = q.replace(/\D/g, "");
@@ -108,7 +111,7 @@ export default async function LookupPage({
         {
           k: "XE",
           name: comboLabel.slice(0, plusAt).trim().replace(/^xe\s+/i, ""),
-          d: berths ? `Vé khứ hồi · ${cabinBerthsLabel(berths)}` : null,
+          d: berths ? tr("Vé khứ hồi · {0}", [cabinBerthsLabel(berths, tr)]) : null,
           lines: berths ? cabinBerthLines(berths, busAmount) : undefined,
           price: busAmount,
         },
@@ -125,7 +128,7 @@ export default async function LookupPage({
       });
     }
     const berthsShort = berths
-      ? [berths.shared ? `${berths.shared} cabin đôi` : null, berths.solo ? `${berths.solo} cabin đơn` : null]
+      ? [berths.shared ? tr("{0} cabin đôi", [berths.shared]) : null, berths.solo ? tr("{0} cabin đơn", [berths.solo]) : null]
           .filter(Boolean)
           .join(" + ")
       : "";
@@ -133,10 +136,10 @@ export default async function LookupPage({
     const payTone = b.paymentStatus === "PAID" ? "paid" : b.paymentStatus === "DEPOSITED" ? "part" : "unpaid";
     const payLabel =
       b.paymentStatus === "PAID"
-        ? "Đã thanh toán"
+        ? tr("Đã thanh toán")
         : b.paymentStatus === "DEPOSITED"
-          ? `Đã cọc${collected ? " " + collected.toLocaleString("vi-VN") + "đ" : ""}`
-          : "Chưa thanh toán";
+          ? tr("Đã cọc{0}", [collected ? " " + collected.toLocaleString("vi-VN") + tr("đ") : ""])
+          : tr("Chưa thanh toán");
 
     // "Đặt lại": combo về trang combo; còn lại về trang dịch vụ (nếu còn) / danh mục.
     const catSlug = CATEGORIES[(b.service?.category ?? b.category) as ServiceCategory].slug;

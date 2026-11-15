@@ -1,7 +1,8 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import Link from "next/link";
+import Link from "@/components/Link";
+import { useT } from "@/components/i18n/I18nProvider";
 
 /** Công tắc "Hiển thị" phần cam kết (ở /admin/popup). Ngoài provider (vd trang admin) coi như đang bật. */
 const CommitmentEnabledContext = createContext(true);
@@ -12,6 +13,7 @@ export function CommitmentEnabledProvider({ enabled, children }: { enabled: bool
 
 /** Link "Cam kết uy tín" đặt dưới nút gửi yêu cầu đặt dịch vụ (mọi form đặt). Ẩn khi phần cam kết bị tắt. */
 export function CommitmentLink({ className }: { className?: string }) {
+  const t = useT();
   const enabled = useContext(CommitmentEnabledContext);
   if (!enabled) return null;
   return (
@@ -26,7 +28,7 @@ export function CommitmentLink({ className }: { className?: string }) {
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
         <path d="m9 12 2 2 4-4" />
       </svg>
-      Xem cam kết uy tín →
+      {t("Xem cam kết uy tín →")}
     </Link>
   );
 }

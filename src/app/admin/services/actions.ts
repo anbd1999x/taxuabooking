@@ -1219,7 +1219,9 @@ export async function upsertTransport(_prev: ActionState, formData: FormData): P
     fromPoint: s(formData.get("fromPoint")) ?? "",
     toArea: s(formData.get("toArea")) ?? "",
     vehicleType: s(formData.get("vehicleType")) ?? null,
-    fixedPrice: num(formData.get("fixedPrice")) ?? null,
+    fixedPrice: num(formData.get("fixedPrice")) ?? null, // giá chạy nguyên ngày (xe ôm: chở 1 người · taxi: cả xe)
+    dayPriceTwo: num(formData.get("dayPriceTwo")) ?? null, // xe ôm: nguyên ngày khi chở 2 người
+    capacity: num(formData.get("capacity")) ?? null, // xe ôm: 1 | 2 người · taxi: số khách / xe
     priceNote: s(formData.get("priceNote")) ?? null,
     driverName: s(formData.get("driverName")) ?? null,
     driverPhone: s(formData.get("driverPhone")) ?? null,
@@ -1513,4 +1515,48 @@ export async function applyCabinSchedule(
     ok: true,
     message: `Đã tạo ${created} chuyến mới, cập nhật ${updated}, bỏ qua ${skipped} (đã có).`,
   };
+}
+
+// ---------------- Chặng taxi / xe ôm (giá 1 chiều / 2 chiều giữa 2 điểm cố định) ----------------
+export async function upsertTransportRoute(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const serviceId = s(formData.get("serviceId"));
+  const id = s(formData.get("id"));
+  const fromPointId = s(formData.get("fromPointId"));
+  const toPointId = s(formData.get("toPointId"));
+  if (!serviceId) return { error: "Thiếu dịch vụ." };
+  if (!fromPointId || !toPointId) return { error: "Chọn điểm đón và điểm đến." };
+  if (fromPointId === toPointId) return { error: "Điểm đón và điểm đến phải khác nhau." };
+  const priceOneWay = num(formData.get("priceOneWay")) ?? null; // xe ôm: chở 1 người · taxi: cả xe
+  const priceTwo = num(formData.get("priceTwo")) ?? null; // xe ôm: chở 2 người
+  // Chặng dùng cho cả 2 hướng ⇒ không cho khai trùng (A → B và B → A) trong cùng một bác tài.
+  const dup = await prisma.transportRoute.findFirst({
+    where: {
+      serviceId,
+      ...(id ? { id: { not: id } } : {}),
+      OR: [{ fromPointId, toPointId }, { fromPointId: toPointId, toPointId: fromPointId }],
+    },
+    select: { id: true },
+  });
+  if (dup) return { error: "Chặng này (hoặc chiều ngược lại) đã có — sửa ở dòng đã có." };
+  const data = { fromPointId, toPointId, priceOneWay, priceTwo, note: s(formData.get("note"))?.slice(0, 200) ?? null, sortOrder: num(formData.get("sortOrder")) ?? 0 };
+  try {
+    if (id) await prisma.transportRoute.update({ where: { id }, data });
+    else {
+      const count = await prisma.transportRoute.count({ where: { serviceId } });
+      await prisma.transportRoute.create({ data: { serviceId, ...data, sortOrder: data.sortOrder || count + 1 } });
+    }
+  } catch {
+    return { error: "Lưu chặng thất bại." };
+  }
+  revalidatePath(`/admin/services/${serviceId}`);
+  return { ok: true, message: id ? "Đã lưu chặng" : "Đã thêm chặng" };
+}
+
+export async function deleteTransportRoute(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const id = s(formData.get("id"));
+  const serviceId = s(formData.get("serviceId"));
+  if (id) await prisma.transportRoute.delete({ where: { id } }).catch(() => {});
+  if (serviceId) revalidatePath(`/admin/services/${serviceId}`);
 }

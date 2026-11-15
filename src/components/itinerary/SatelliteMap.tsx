@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import "leaflet/dist/leaflet.css";
 import type { Map as LeafletMap, Marker } from "leaflet";
+import { useT } from "@/components/i18n/I18nProvider";
 
 export interface SatSpot {
   id: string;
@@ -20,6 +21,7 @@ const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&
  * toạ độ thật. Thay cho khung nhúng Google Maps (không tải được ảnh khi nhúng không có khoá API).
  */
 export function SatelliteMap({ spots, selected, onSelect }: { spots: SatSpot[]; selected: string | null; onSelect: (id: string) => void }) {
+  const t = useT();
   const box = useRef<HTMLDivElement>(null);
   const state = useRef<{ map: LeafletMap; markers: Map<string, Marker> } | null>(null);
   const live = useRef({ onSelect, selected });
@@ -34,7 +36,7 @@ export function SatelliteMap({ spots, selected, onSelect }: { spots: SatSpot[]; 
       map = L.map(box.current, { zoomControl: true, attributionControl: true, scrollWheelZoom: true });
       L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
         maxZoom: 19,
-        attribution: "Ảnh vệ tinh © Esri, Maxar, Earthstar Geographics",
+        attribution: t("Ảnh vệ tinh © Esri, Maxar, Earthstar Geographics"),
       }).addTo(map);
       // tên đường / địa danh phủ lên ảnh vệ tinh
       L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, opacity: 0.9 }).addTo(map);
@@ -43,10 +45,10 @@ export function SatelliteMap({ spots, selected, onSelect }: { spots: SatSpot[]; 
         const icon = L.divIcon({
           className: "",
           iconSize: [0, 0],
-          html: `<div class="sat-pin${s.main ? " sat-pin-main" : ""}" data-id="${esc(s.id)}"><span class="sat-dot"></span><span class="sat-label">${esc(s.name)}</span></div>`,
+          html: `<div class="sat-pin${s.main ? " sat-pin-main" : ""}" data-id="${esc(s.id)}"><span class="sat-dot"></span><span class="sat-label">${esc(t(s.name))}</span></div>`,
         });
         const m = L.marker([s.lat, s.lng], { icon, title: s.name }).addTo(map);
-        m.bindPopup(`<b>${esc(s.name)}</b><br/><a href="${esc(s.mapUrl)}" target="_blank" rel="noopener noreferrer">Chỉ đường Google Maps ↗</a>`, { offset: [0, -6] });
+        m.bindPopup(`<b>${esc(t(s.name))}</b><br/><a href="${esc(s.mapUrl)}" target="_blank" rel="noopener noreferrer">${esc(t("Chỉ đường Google Maps ↗"))}</a>`, { offset: [0, -6] });
         m.on("click", () => live.current.onSelect(s.id));
         markers.set(s.id, m);
       }

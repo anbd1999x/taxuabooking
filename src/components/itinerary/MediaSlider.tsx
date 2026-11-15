@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useRef, useState } from "react";
+import { useT } from "@/components/i18n/I18nProvider";
 
 export interface MediaItem {
   url: string;
@@ -10,6 +11,7 @@ export interface MediaItem {
 
 /** Khung ảnh/video vuốt ngang (scroll-snap) cho thẻ địa điểm trên trang lịch trình. */
 export function MediaSlider({ items, name }: { items: MediaItem[]; name: string }) {
+  const t = useT();
   const box = useRef<HTMLDivElement>(null);
   const [idx, setIdx] = useState(0);
   const many = items.length > 1;
@@ -45,20 +47,20 @@ export function MediaSlider({ items, name }: { items: MediaItem[]; name: string 
             {m.video ? (
               <video src={`${m.url}#t=0.1`} controls playsInline preload="metadata" className="h-full w-full object-cover" />
             ) : (
-              <Image src={m.url} alt={i ? `${name} ${i + 1}` : name} fill sizes="(max-width:640px) 100vw, 360px" className="object-cover" />
+              <Image src={m.url} alt={i ? `${t(name)} ${i + 1}` : t(name)} fill sizes="(max-width:640px) 100vw, 360px" className="object-cover" />
             )}
           </div>
         ))}
       </div>
       {many && (
         <>
-          <button type="button" aria-label="Ảnh trước" onClick={() => go(-1)} className={`${ARROW} left-2`}>‹</button>
-          <button type="button" aria-label="Ảnh sau" onClick={() => go(1)} className={`${ARROW} right-2`}>›</button>
+          <button type="button" aria-label={t("Ảnh trước")} onClick={() => go(-1)} className={`${ARROW} left-2`}>‹</button>
+          <button type="button" aria-label={t("Ảnh sau")} onClick={() => go(1)} className={`${ARROW} right-2`}>›</button>
           {/* video có thanh điều khiển ở đáy → chỉ hiện bộ đếm khi đang xem ảnh */}
           {!items[idx]?.video && (
             <span className="pointer-events-none absolute bottom-2.5 right-2.5 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-bold text-white">
               {idx + 1}/{items.length}
-              {items.some((m) => m.video) ? " · có video" : ""}
+              {items.some((m) => m.video) ? t(" · có video") : ""}
             </span>
           )}
         </>

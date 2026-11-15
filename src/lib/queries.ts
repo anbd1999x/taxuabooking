@@ -1,3 +1,4 @@
+import { lowestPrice, type TransportPricing, type TransportPointDTO } from "./transport-legs";
 import "server-only";
 import { parseTrustPopup, sitePhoneOf, TRUST_POPUP_KEY } from "@/lib/trust-popup";
 import { unstable_cache } from "next/cache";
@@ -363,6 +364,7 @@ export const getServiceDetail = reactCache(async (slug: string) => {
       },
       rentalVehicles: { orderBy: { sortOrder: "asc" } },
       transport: true,
+      transportRoutes: { include: { fromPoint: { select: { name: true } }, toPoint: { select: { name: true } } }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
       cabinPriceRows: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
       cabinRoutes: { include: { stops: { orderBy: { sortOrder: "asc" } } }, orderBy: { direction: "asc" } },
     },
@@ -794,6 +796,34 @@ export interface RentalBikeCard {
   state: "ok" | "low" | "full" | "unk";
 }
 
+/** Dữ liệu giá taxi / xe ôm của một bác tài (nguyên ngày + các chặng) cho thẻ danh sách. */
+function transportPricing(
+  bike: boolean,
+  t: { fixedPrice: unknown; dayPriceTwo: unknown; capacity: number | null } | null | undefined,
+  routes: { id: string; fromPointId: string; toPointId: string; priceOneWay: unknown; priceTwo: unknown; note: string | null }[],
+): TransportPricing {
+  return {
+    bike,
+    capacity: t?.capacity ?? (bike ? 2 : 4),
+    dayPrice: toNumber(t?.fixedPrice as never),
+    dayPriceTwo: toNumber(t?.dayPriceTwo as never),
+    legs: routes.map((r) => ({ id: r.id, fromId: r.fromPointId, toId: r.toPointId, oneWay: toNumber(r.priceOneWay as never), twoPax: toNumber(r.priceTwo as never), note: r.note })),
+  };
+}
+
+/** Điểm cố định (đang hiện) cho ô tìm kiếm taxi / xe ôm. */
+export async function getTransportPoints(): Promise<TransportPointDTO[]> {
+  return prisma.transportPoint.findMany({ where: { active: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true } });
+}
+
+/** Giá thấp nhất trong các tuyến có giá (null nếu không có tuyến nào có giá). */
+function routeMin(routes: { priceOneWay: unknown; priceRoundTrip: unknown }[]): number | null {
+  const ps = routes
+    .flatMap((r) => [toNumber(r.priceOneWay as never), toNumber(r.priceRoundTrip as never)])
+    .filter((p): p is number => p != null && p > 0);
+  return ps.length ? Math.min(...ps) : null;
+}
+
 /** Giá gạch hợp lệ cho một thẻ: có giá bán, có giá gốc, giá gốc CAO HƠN giá bán (và thẻ được phép gạch). */
 function strikeFor(price: number | null, original: number | null, allowed = true): number | null {
   return allowed && price != null && price > 0 && original != null && original > price ? original : null;
@@ -900,13 +930,13 @@ export interface XeomRoute {
   desc: string;
   vehicleType: string | null;
   price: number | null; // giá cố định 1 chiều/người; null = liên hệ
+  pricing: TransportPricing; // giá nguyên ngày + theo chặng (báo giá lại theo lựa chọn của khách)
   originalPrice: number | null; // giá gốc gạch ngang (chỉ khi cao hơn giá bán)
   priceNote: string | null;
   kind: "Điểm săn mây" | "Tour nửa ngày" | "Đưa đón bến xe";
   image: string | null;
   featured: boolean;
   driverName: string | null;
-  driverPhone: string | null;
   driverBirthYear: number | null;
 }
 
@@ -922,7 +952,7 @@ export async function getXeomRoutes(): Promise<XeomRoute[]> {
   const services = await prisma.service.findMany({
     where: { category: "XEOM", published: true },
     orderBy: [{ featured: "desc" }, { title: "asc" }],
-    include: { transport: true, images: { orderBy: { sortOrder: "asc" }, take: 1 } },
+    include: { transport: true, transportRoutes: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }, images: { orderBy: { sortOrder: "asc" }, take: 1 } },
   });
   return services.map((s) => {
     const t = s.transport;
@@ -936,14 +966,16 @@ export async function getXeomRoutes(): Promise<XeomRoute[]> {
       to,
       desc: s.summary,
       vehicleType: t?.vehicleType ?? null,
-      price: toNumber(t?.fixedPrice),
-      originalPrice: strikeFor(toNumber(t?.fixedPrice), toNumber(s.originalPrice)),
-      priceNote: t?.priceNote ?? null,
+      // Giá: nguyên ngày + theo chặng (xe ôm chở 1 / 2 người). Thẻ hiện giá "từ" thấp nhất; trang danh sách
+      // báo giá lại theo chặng / số người khách chọn (TransportSearch).
+      pricing: transportPricing(true, t, s.transportRoutes),
+      price: (toNumber(t?.fixedPrice) || lowestPrice(transportPricing(true, t, s.transportRoutes))),
+      originalPrice: strikeFor((toNumber(t?.fixedPrice) || lowestPrice(transportPricing(true, t, s.transportRoutes))), toNumber(s.originalPrice)),
+      priceNote: s.transportRoutes.length > 0 ? `${s.transportRoutes.length} chặng · chọn điểm đón & điểm đến để xem giá` : t?.priceNote ?? null,
       kind: xeomKind(`${s.title} ${to}`),
       image: s.images[0]?.url ?? null,
       featured: s.featured,
       driverName: t?.driverName ?? null,
-      driverPhone: t?.driverPhone ?? null,
       driverBirthYear: t?.driverBirthYear ?? null,
     };
   });
@@ -958,13 +990,13 @@ export interface TaxiRoute {
   desc: string;
   vehicleType: string | null;
   price: number | null; // giá cố định theo NGÀY (cả xe); null = liên hệ
+  pricing: TransportPricing;
   originalPrice: number | null; // giá gốc gạch ngang (chỉ khi cao hơn giá bán)
   priceNote: string | null;
   kind: "Đưa đón Bắc Yên" | "Đường dài" | "Tham quan";
   image: string | null;
   featured: boolean;
   driverName: string | null;
-  driverPhone: string | null;
   driverBirthYear: number | null;
 }
 
@@ -980,7 +1012,7 @@ export async function getTaxiRoutes(): Promise<TaxiRoute[]> {
   const services = await prisma.service.findMany({
     where: { category: "TAXI", published: true },
     orderBy: [{ featured: "desc" }, { title: "asc" }],
-    include: { transport: true, images: { orderBy: { sortOrder: "asc" }, take: 1 } },
+    include: { transport: true, transportRoutes: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }, images: { orderBy: { sortOrder: "asc" }, take: 1 } },
   });
   return services.map((s) => {
     const t = s.transport;
@@ -994,14 +1026,16 @@ export async function getTaxiRoutes(): Promise<TaxiRoute[]> {
       to,
       desc: s.summary,
       vehicleType: t?.vehicleType ?? null,
-      price: toNumber(t?.fixedPrice),
-      originalPrice: strikeFor(toNumber(t?.fixedPrice), toNumber(s.originalPrice)),
-      priceNote: t?.priceNote ?? null,
+      // Giá: nguyên ngày + theo chặng (xe ôm chở 1 / 2 người). Thẻ hiện giá "từ" thấp nhất; trang danh sách
+      // báo giá lại theo chặng / số người khách chọn (TransportSearch).
+      pricing: transportPricing(false, t, s.transportRoutes),
+      price: (toNumber(t?.fixedPrice) || lowestPrice(transportPricing(false, t, s.transportRoutes))),
+      originalPrice: strikeFor((toNumber(t?.fixedPrice) || lowestPrice(transportPricing(false, t, s.transportRoutes))), toNumber(s.originalPrice)),
+      priceNote: s.transportRoutes.length > 0 ? `${s.transportRoutes.length} chặng · chọn điểm đón & điểm đến để xem giá` : t?.priceNote ?? null,
       kind: taxiKind(`${s.title} ${to} ${from}`),
       image: s.images[0]?.url ?? null,
       featured: s.featured,
       driverName: t?.driverName ?? null,
-      driverPhone: t?.driverPhone ?? null,
       driverBirthYear: t?.driverBirthYear ?? null,
     };
   });

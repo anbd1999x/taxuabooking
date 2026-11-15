@@ -1,5 +1,9 @@
+"use client";
+
 import * as React from "react";
 import { OFFICIAL_SITES, telHref, zaloHref, type TrustPerson } from "@/lib/trust-popup";
+import { useT } from "@/components/i18n/I18nProvider";
+import Link from "@/components/Link";
 
 export { CommitmentLink } from "./CommitmentLink";
 
@@ -31,6 +35,7 @@ function PhoneIcon() {
 }
 
 export function PersonCard({ u, wide }: { u: TrustPerson; wide: boolean }) {
+  const tr = useT();
   const av = wide ? 96 : 72;
   const tel = telHref(u);
   const zalo = zaloHref(u);
@@ -68,21 +73,21 @@ export function PersonCard({ u, wide }: { u: TrustPerson; wide: boolean }) {
       >
         {u.avatar ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={u.avatar} alt={u.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <img src={u.avatar} alt={tr(u.name)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
         ) : (
-          initials(u.name)
+          tr(initials(u.name))
         )}
       </div>
       <div style={{ minWidth: 0, width: "100%" }}>
-        <div style={{ fontSize: 16, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{u.name}</div>
-        <div style={{ fontSize: 12, fontWeight: 600, color: "oklch(0.85 0.03 160)", marginTop: 2, whiteSpace: "nowrap" }}>{u.phone}</div>
+        <div style={{ fontSize: 16, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tr(u.name)}</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: "oklch(0.85 0.03 160)", marginTop: 2, whiteSpace: "nowrap" }}>{tr(u.phone)}</div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6, width: "100%" }}>
         <a
           href={u.facebook || "#"}
           target="_blank"
           rel="noopener noreferrer"
-          title={`Facebook ${u.name}`}
+          title={`Facebook ${tr(u.name)}`}
           style={{ height: 38, borderRadius: 12, background: "oklch(0.5 0.16 255)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, textDecoration: "none" }}
         >
           f
@@ -91,14 +96,14 @@ export function PersonCard({ u, wide }: { u: TrustPerson; wide: boolean }) {
           href={zalo || "#"}
           target="_blank"
           rel="noopener noreferrer"
-          title={`Zalo ${u.name}`}
+          title={`Zalo ${tr(u.name)}`}
           style={{ height: 38, borderRadius: 12, background: "oklch(0.6 0.14 245)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, textDecoration: "none" }}
         >
           Zalo
         </a>
         <a
           href={tel || "#"}
-          title={`Gọi ${u.name}`}
+          title={tr("Gọi {0}", [tr(u.name)])}
           style={{ height: 38, borderRadius: 12, background: "oklch(0.68 0.18 45)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none" }}
         >
           <PhoneIcon />
@@ -119,6 +124,7 @@ export function PeopleColumn({
   /** Bo góc bên trái (popup) hay bo cả (trang) — mặc định để component cha quyết định qua style wrapper. */
   rounded?: string;
 }) {
+  const tr = useT();
   return (
     <div
       style={{
@@ -144,7 +150,7 @@ export function PeopleColumn({
           color: "oklch(0.85 0.1 70)",
         }}
       >
-        {people.length > 1 ? "Xin chào, tụi mình là" : "Xin chào, mình là"}
+        {people.length > 1 ? tr("Xin chào, tụi mình là") : tr("Xin chào, mình là")}
       </div>
       <div
         style={{
@@ -168,8 +174,8 @@ export function PeopleColumn({
         }}
       >
         {people.length > 1
-          ? "Hai đứa mình trực tiếp nghe máy, tư vấn và giữ chỗ cho từng khách. Liên hệ ai cũng được."
-          : "Mình trực tiếp nghe máy, tư vấn và giữ chỗ cho từng khách."}
+          ? tr("Hai đứa mình trực tiếp nghe máy, tư vấn và giữ chỗ cho từng khách. Liên hệ ai cũng được.")
+          : tr("Mình trực tiếp nghe máy, tư vấn và giữ chỗ cho từng khách.")}
       </div>
 
       {/* Website chính thức duy nhất */}
@@ -194,7 +200,7 @@ export function PeopleColumn({
             color: "oklch(0.85 0.1 70)",
           }}
         >
-          Website chính thức duy nhất
+          {tr("Website chính thức duy nhất")}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, width: "100%" }}>
           {OFFICIAL_SITES.map((name) => (
@@ -217,12 +223,12 @@ export function PeopleColumn({
                 whiteSpace: "nowrap",
               }}
             >
-              {name}
+              {tr(name)}
             </a>
           ))}
         </div>
         <div style={{ fontSize: 11, lineHeight: 1.5, color: "oklch(0.82 0.03 160)" }}>
-          Tà Xùa Booking chỉ hoạt động trên {OFFICIAL_SITES.length} địa chỉ này.
+          {tr("Tà Xùa Booking chỉ hoạt động trên {0} địa chỉ này.", [OFFICIAL_SITES.length])}
         </div>
       </div>
     </div>
@@ -231,6 +237,7 @@ export function PeopleColumn({
 
 /** Nhãn + tiêu đề + mô tả phần cam kết. */
 export function CommitmentIntro({ showSub = true }: { showSub?: boolean }) {
+  const tr = useT();
   return (
     <div>
       <div
@@ -248,7 +255,7 @@ export function CommitmentIntro({ showSub = true }: { showSub?: boolean }) {
           color: "oklch(0.38 0.1 155)",
         }}
       >
-        ✓ Cam kết uy tín
+        {tr("✓ Cam kết uy tín")}
       </div>
       <h2
         style={{
@@ -259,11 +266,11 @@ export function CommitmentIntro({ showSub = true }: { showSub?: boolean }) {
           lineHeight: 1.12,
         }}
       >
-        Website thật, người thật, không scam.
+        {tr("Website thật, người thật, không scam.")}
       </h2>
       {showSub && (
         <div style={{ fontSize: 14, lineHeight: 1.6, color: "oklch(0.45 0.02 160)", marginTop: 8 }}>
-          Kết nối trực tiếp với nhà xe, homestay tại Tà Xùa. Mọi cam kết đều có điều kiện công khai để bạn tự kiểm chứng.
+          {tr("Kết nối trực tiếp với nhà xe, homestay tại Tà Xùa. Mọi cam kết đều có điều kiện công khai để bạn tự kiểm chứng.")}
         </div>
       )}
     </div>
@@ -287,6 +294,7 @@ function PromiseRow({
   border: string;
   children: React.ReactNode;
 }) {
+  const tr = useT();
   return (
     <div
       style={{
@@ -301,8 +309,8 @@ function PromiseRow({
       }}
     >
       <div style={{ textAlign: "center", minWidth: 96 }}>
-        <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1, color: amountColor }}>{amount}</div>
-        <div style={{ fontSize: 11, fontWeight: 700, color: subColor, marginTop: 3 }}>{sub}</div>
+        <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-.03em", lineHeight: 1, color: amountColor }}>{tr(amount)}</div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: subColor, marginTop: 3 }}>{tr(sub)}</div>
       </div>
       <div style={{ fontSize: 14, lineHeight: 1.5 }}>{children}</div>
     </div>
@@ -311,12 +319,13 @@ function PromiseRow({
 
 /** 2 cam kết bằng tiền (100 triệu + 10 triệu). `termsHref` có thì hiện link "Xem điều kiện áp dụng". */
 export function PromisesBlock({ termsHref, solo }: { termsHref?: string; /** chỉ 1 chủ sở hữu ⇒ xưng "mình" */ solo?: boolean }) {
-  const we = solo ? "mình" : "tụi mình";
+  const tr = useT();
+  const we = solo ? tr("mình") : tr("tụi mình");
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <PromiseRow
-        amount="100 triệu"
-        sub="100.000.000đ"
+        amount={tr("100 triệu")}
+        sub={tr("100.000.000đ")}
         amountColor="oklch(0.58 0.18 42)"
         subColor="oklch(0.5 0.1 50)"
         bg="oklch(0.97 0.03 70)"
@@ -324,18 +333,18 @@ export function PromisesBlock({ termsHref, solo }: { termsHref?: string; /** ch�
       >
         <span style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
           <span>
-            <b>Cam kết minh bạch.</b> Nếu Tà Xùa Booking đã nhận tiền mà không cung cấp dịch vụ và không hoàn tiền trong 3 ngày làm việc kể từ khi bạn yêu cầu, bạn được hoàn 100% và bồi thường thêm, tổng chi trả đến 100.000.000 đồng.
+            <b>{tr("Cam kết minh bạch.")}</b>{" "}{tr("Nếu Tà Xùa Booking đã nhận tiền mà không cung cấp dịch vụ và không hoàn tiền trong 3 ngày làm việc kể từ khi bạn yêu cầu, bạn được hoàn 100% và bồi thường thêm, tổng chi trả đến 100.000.000 đồng.")}
           </span>
           {termsHref && (
-            <a href={termsHref} style={{ fontSize: 12, fontWeight: 700, color: "oklch(0.5 0.15 45)", textDecoration: "none" }}>
-              Xem điều kiện áp dụng →
-            </a>
+            <Link href={termsHref} style={{ fontSize: 12, fontWeight: 700, color: "oklch(0.5 0.15 45)", textDecoration: "none" }}>
+              {tr("Xem điều kiện áp dụng →")}
+            </Link>
           )}
         </span>
       </PromiseRow>
       <PromiseRow
-        amount="10 triệu"
-        sub="10.000.000đ"
+        amount={tr("10 triệu")}
+        sub={tr("10.000.000đ")}
         amountColor="oklch(0.42 0.11 155)"
         subColor="oklch(0.45 0.08 155)"
         bg="oklch(0.97 0.02 155)"
@@ -343,15 +352,15 @@ export function PromisesBlock({ termsHref, solo }: { termsHref?: string; /** ch�
       >
         <span style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
           <span>
-            <b>Đúng giá niêm yết.</b> Nếu {we} đã biết giá niêm yết của chính nhà xe, homestay thấp hơn mà vẫn chốt giá cao hơn, bạn được hoàn phần chênh lệch và bồi thường 10.000.000 đồng. Nhà cung cấp đổi giá mà không báo thì bạn được hoàn đủ phần chênh lệch.
+            <b>{tr("Đúng giá niêm yết.")}</b>{" "}{tr("Nếu")}{" "}{tr(we)}{" "}{tr("đã biết giá niêm yết của chính nhà xe, homestay thấp hơn mà vẫn chốt giá cao hơn, bạn được hoàn phần chênh lệch và bồi thường 10.000.000 đồng. Nhà cung cấp đổi giá mà không báo thì bạn được hoàn đủ phần chênh lệch.")}
           </span>
           <span style={{ fontSize: 12, lineHeight: 1.5, color: "oklch(0.45 0.03 155)" }}>
-            Giá chốt qua Zalo là giá cuối cùng, không tăng sau khi bạn đồng ý. Giá trên web chỉ để tham khảo.
+            {tr("Giá chốt qua Zalo là giá cuối cùng, không tăng sau khi bạn đồng ý. Giá trên web chỉ để tham khảo.")}
           </span>
         </span>
       </PromiseRow>
       <div style={{ fontSize: 13, lineHeight: 1.55, color: "oklch(0.4 0.02 160)", padding: "0 4px" }}>
-        <b>Sự cố ngoài ý muốn</b> (xe hỏng, homestay khoá nhầm phòng, sạt lở, cấm đường…): {we} báo ngay và đưa phương án thay thế tương đương, hoặc hoàn tiền phần dịch vụ chưa sử dụng nếu bạn không đồng ý.
+        <b>{tr("Sự cố ngoài ý muốn")}</b>{" "}{tr("(xe hỏng, homestay khoá nhầm phòng, sạt lở, cấm đường…):")}{" "}{tr(we)}{" "}{tr("báo ngay và đưa phương án thay thế tương đương, hoặc hoàn tiền phần dịch vụ chưa sử dụng nếu bạn không đồng ý.")}
       </div>
     </div>
   );
@@ -359,14 +368,15 @@ export function PromisesBlock({ termsHref, solo }: { termsHref?: string; /** ch�
 
 /** Cam kết N Không (lưới đánh số). */
 export function FiveKhongBlock({ five }: { five: string[] }) {
+  const tr = useT();
   if (five.length === 0) return null;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
         <span style={{ fontSize: 20, fontWeight: 800, letterSpacing: "-.02em", color: "oklch(0.29 0.055 160)" }}>
-          Cam kết {five.length} Không
+          {tr("Cam kết {0} Không", [five.length])}
         </span>
-        <span style={{ fontSize: 12, fontWeight: 600, color: "oklch(0.5 0.02 160)" }}>của Tà Xùa Booking</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "oklch(0.5 0.02 160)" }}>{tr("của Tà Xùa Booking")}</span>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
         {five.map((t, i) => (
@@ -401,7 +411,7 @@ export function FiveKhongBlock({ five }: { five: string[] }) {
             >
               {i + 1}
             </span>
-            {t}
+            {tr(t)}
           </div>
         ))}
       </div>

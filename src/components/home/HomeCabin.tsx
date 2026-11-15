@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/Link";
 import { useEffect, useRef, useState } from "react";
+import { useT } from "@/components/i18n/I18nProvider";
 
 export interface FareRow { pickupPoint: string; price: number | null }
 export interface CabinStop { time: string; place: string; note: string | null; gap?: string | null }
@@ -42,6 +43,7 @@ export function HomeCabin({
   startInfo: string;
   pickupInfo: string;
 }) {
+  const t = useT();
   const [dir, setDir] = useState<"di" | "ve">("di");
   const carRef = useRef<HTMLDivElement>(null);
   const laneRef = useRef<HTMLDivElement>(null);
@@ -79,13 +81,13 @@ export function HomeCabin({
         {/* Header */}
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div className="flex max-w-2xl flex-col gap-3">
-            <div className="text-[13px] font-bold uppercase tracking-[0.1em]" style={{ color: "oklch(0.82 0.13 60)" }}>Xe cabin giường nằm · khứ hồi</div>
-            <h2 className="text-4xl font-extrabold leading-none tracking-tight sm:text-6xl">Cabin Tà Xùa</h2>
-            <div className="text-lg font-medium italic" style={{ color: "oklch(0.88 0.03 160)" }}>Đồng hành cùng bạn trên mọi nẻo đường.</div>
+            <div className="text-[13px] font-bold uppercase tracking-[0.1em]" style={{ color: "oklch(0.82 0.13 60)" }}>{t("Xe cabin giường nằm · khứ hồi")}</div>
+            <h2 className="text-4xl font-extrabold leading-none tracking-tight sm:text-6xl">{t("Cabin Tà Xùa")}</h2>
+            <div className="text-lg font-medium italic" style={{ color: "oklch(0.88 0.03 160)" }}>{t("Đồng hành cùng bạn trên mọi nẻo đường.")}</div>
           </div>
           <div className="flex flex-wrap gap-2.5">
-            <Chip label="Xuất phát" value={startInfo} />
-            <Chip label="Điểm đón Hà Nội" value={pickupInfo} />
+            <Chip label={t("Xuất phát")} value={startInfo} />
+            <Chip label={t("Điểm đón Hà Nội")} value={pickupInfo} />
           </div>
         </div>
 
@@ -93,35 +95,35 @@ export function HomeCabin({
         <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           <div className="rounded-[22px] p-6 text-ink sm:p-8" style={{ background: "oklch(0.975 0.012 95)" }}>
             <div className="flex flex-wrap items-baseline justify-between gap-3">
-              <div className="text-2xl font-extrabold tracking-tight">Bảng giá vé theo nơi đón</div>
-              <div className="text-[13px] font-semibold text-gray-500">Giá khứ hồi / khách</div>
+              <div className="text-2xl font-extrabold tracking-tight">{t("Bảng giá vé theo nơi đón")}</div>
+              <div className="text-[13px] font-semibold text-gray-500">{t("Giá khứ hồi / khách")}</div>
             </div>
             <div className="mt-4 grid gap-x-8 sm:grid-cols-2">
               {fares.map((f, i) => (
                 <div key={i} className="flex items-baseline gap-2.5 border-b border-gray-200 py-3">
-                  <span className="text-base font-medium">{f.pickupPoint}</span>
+                  <span className="text-base font-medium">{t(f.pickupPoint)}</span>
                   <span className="flex-1" />
-                  <span className="text-xl font-extrabold tracking-tight" style={{ color: i === 0 ? "oklch(0.6 0.18 45)" : "oklch(0.22 0.03 160)" }}>{vnd(f.price)}</span>
+                  <span className="text-xl font-extrabold tracking-tight" style={{ color: i === 0 ? "oklch(0.6 0.18 45)" : "oklch(0.22 0.03 160)" }}>{t(vnd(f.price))}</span>
                 </div>
               ))}
             </div>
-            <div className="mt-4 text-[13px] text-gray-500">{footnote}</div>
+            <div className="mt-4 text-[13px] text-gray-500">{t(footnote)}</div>
           </div>
 
           <div className="flex flex-col gap-3">
             {combo && (
               <div className="flex flex-1 flex-col gap-2 rounded-[22px] p-6" style={{ background: "oklch(0.68 0.18 45)" }}>
-                <span className="self-start rounded-full bg-white/20 px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider">{combo.sub}</span>
-                <div className="mt-1.5 text-xl font-extrabold leading-snug">{combo.title}</div>
+                <span className="self-start rounded-full bg-white/20 px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider">{t(combo.sub)}</span>
+                <div className="mt-1.5 text-xl font-extrabold leading-snug">{t(combo.title)}</div>
                 <div className="flex-1" />
-                <div className="text-6xl font-extrabold leading-none tracking-tight sm:text-7xl">{vnd(combo.price)}</div>
-                <div className="text-sm">Giá từ Hà Nội, gồm vé xe và phòng</div>
-                <Link href="/combo" className="mt-2 self-start rounded-full bg-white px-4 py-2.5 text-[15px] font-bold" style={{ color: "oklch(0.45 0.15 45)" }}>Đặt combo</Link>
+                <div className="text-6xl font-extrabold leading-none tracking-tight sm:text-7xl">{t(vnd(combo.price))}</div>
+                <div className="text-sm">{t("Giá từ Hà Nội, gồm vé xe và phòng")}</div>
+                <Link href="/combo" className="mt-2 self-start rounded-full bg-white px-4 py-2.5 text-[15px] font-bold" style={{ color: "oklch(0.45 0.15 45)" }}>{t("Đặt combo")}</Link>
               </div>
             )}
             <div className="grid grid-cols-2 gap-3">
-              <MiniCard label="Home lẻ view kính" value={vnd(homeFrom)} unit="/đêm" prefix="từ " href="/homestay" />
-              <MiniCard label="Thuê xe máy" value={vnd(bikeFrom)} unit="/ngày" href="/thue-xe-may" />
+              <MiniCard label={t("Home lẻ view kính")} value={vnd(homeFrom)} unit={t("/đêm")} prefix={t("từ ")} href="/homestay" />
+              <MiniCard label={t("Thuê xe máy")} value={vnd(bikeFrom)} unit={t("/ngày")} href="/thue-xe-may" />
             </div>
           </div>
         </div>
@@ -131,12 +133,12 @@ export function HomeCabin({
           <div className="flex flex-col gap-7 overflow-hidden rounded-[22px] p-6 sm:p-8" style={{ background: GREEN_DEEP, border: "1px solid oklch(1 0 0 / .1)" }}>
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
-                <div className="text-2xl font-extrabold tracking-tight">{dir === "ve" ? "Ăn trưa trên núi, tối đã về phố." : "Ngủ một giấc, mở mắt là tới mây."}</div>
-                <div className="mt-1 text-[15px]" style={{ color: "oklch(0.82 0.03 160)" }}>{dir === "ve" ? "Chiều về · Tà Xùa → Hà Nội · khoảng 7 tiếng" : "Chiều đi · Hà Nội → Tà Xùa · khoảng 8 tiếng"}</div>
+                <div className="text-2xl font-extrabold tracking-tight">{dir === "ve" ? t("Ăn trưa trên núi, tối đã về phố.") : t("Ngủ một giấc, mở mắt là tới mây.")}</div>
+                <div className="mt-1 text-[15px]" style={{ color: "oklch(0.82 0.03 160)" }}>{dir === "ve" ? t("Chiều về · Tà Xùa → Hà Nội · khoảng 7 tiếng") : t("Chiều đi · Hà Nội → Tà Xùa · khoảng 8 tiếng")}</div>
               </div>
               <div className="inline-flex gap-1 rounded-full p-1" style={{ background: "oklch(1 0 0 / .08)" }}>
-                <button type="button" onClick={() => setDir("di")} className="rounded-full px-4 py-2 text-sm font-bold transition" style={dir === "di" ? tabOn : tabOff}>Chiều đi</button>
-                <button type="button" onClick={() => setDir("ve")} className="rounded-full px-4 py-2 text-sm font-bold transition" style={dir === "ve" ? tabOn : tabOff}>Chiều về</button>
+                <button type="button" onClick={() => setDir("di")} className="rounded-full px-4 py-2 text-sm font-bold transition" style={dir === "di" ? tabOn : tabOff}>{t("Chiều đi")}</button>
+                <button type="button" onClick={() => setDir("ve")} className="rounded-full px-4 py-2 text-sm font-bold transition" style={dir === "ve" ? tabOn : tabOff}>{t("Chiều về")}</button>
               </div>
             </div>
 
@@ -146,15 +148,15 @@ export function HomeCabin({
                 const last = i === stops.length - 1;
                 return (
                   <div key={i} className="grid" style={{ gridTemplateColumns: "62px 22px minmax(0,1fr)", columnGap: 14 }}>
-                    <div className="text-[21px] font-extrabold leading-[22px] tracking-tight" style={{ color: last ? "oklch(0.85 0.13 65)" : "white" }}>{s.time}</div>
+                    <div className="text-[21px] font-extrabold leading-[22px] tracking-tight" style={{ color: last ? "oklch(0.85 0.13 65)" : "white" }}>{t(s.time)}</div>
                     <div className="flex flex-col items-center">
                       <span className="mt-0.5 h-[18px] w-[18px] flex-none rounded-full" style={{ background: last ? "oklch(0.72 0.17 50)" : "oklch(0.97 0.01 160)", boxShadow: `0 0 0 5px ${last ? "oklch(0.72 0.17 50 / .3)" : "oklch(1 0 0 / .12)"}` }} />
                       {!last && <span className="my-2 min-h-[24px] w-0.5 flex-1" style={{ background: "oklch(1 0 0 / .4)" }} />}
                     </div>
                     <div className="pb-5">
-                      <div className="text-[16px] font-bold leading-[22px]">{s.place}</div>
-                      {s.note && <div className="mt-0.5 text-[13px] leading-normal" style={{ color: "oklch(0.85 0.02 160)" }}>{s.note}</div>}
-                      {!last && s.gap && <div className="mt-1 text-xs font-semibold" style={{ color: "oklch(0.78 0.03 160)" }}>⏱ {s.gap}</div>}
+                      <div className="text-[16px] font-bold leading-[22px]">{t(s.place)}</div>
+                      {s.note && <div className="mt-0.5 text-[13px] leading-normal" style={{ color: "oklch(0.85 0.02 160)" }}>{t(s.note)}</div>}
+                      {!last && s.gap && <div className="mt-1 text-xs font-semibold" style={{ color: "oklch(0.78 0.03 160)" }}>⏱ {t(s.gap)}</div>}
                     </div>
                   </div>
                 );
@@ -170,11 +172,11 @@ export function HomeCabin({
                     <div className="flex items-center gap-2.5">
                       <span className="h-3.5 w-3.5 flex-none rounded-full" style={{ background: last ? "oklch(0.72 0.17 50)" : "oklch(0.97 0.01 160)", boxShadow: `0 0 0 5px ${last ? "oklch(0.72 0.17 50 / .3)" : "oklch(1 0 0 / .12)"}` }} />
                       {!last && <span className="h-0.5 flex-1" style={{ background: "oklch(1 0 0 / .22)" }} />}
-                      {!last && s.gap && <span className="whitespace-nowrap text-xs font-semibold" style={{ color: "oklch(0.8 0.03 160)" }}>{s.gap}</span>}
+                      {!last && s.gap && <span className="whitespace-nowrap text-xs font-semibold" style={{ color: "oklch(0.8 0.03 160)" }}>{t(s.gap)}</span>}
                     </div>
-                    <div className="mt-1.5 text-4xl font-extrabold leading-none tracking-tight" style={{ color: last ? "oklch(0.85 0.13 65)" : "white" }}>{s.time}</div>
-                    <div className="text-[17px] font-bold">{s.place}</div>
-                    {s.note && <div className="text-sm leading-normal" style={{ color: "oklch(0.82 0.02 160)" }}>{s.note}</div>}
+                    <div className="mt-1.5 text-4xl font-extrabold leading-none tracking-tight" style={{ color: last ? "oklch(0.85 0.13 65)" : "white" }}>{t(s.time)}</div>
+                    <div className="text-[17px] font-bold">{t(s.place)}</div>
+                    {s.note && <div className="text-sm leading-normal" style={{ color: "oklch(0.82 0.02 160)" }}>{t(s.note)}</div>}
                   </div>
                 );
               })}
@@ -198,10 +200,10 @@ export function HomeCabin({
 
         {/* Footer row */}
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="text-[13px] font-bold uppercase tracking-[0.14em]" style={{ color: "oklch(0.82 0.13 60)" }}>An toàn · Tiện lợi · Đúng giờ</div>
+          <div className="text-[13px] font-bold uppercase tracking-[0.14em]" style={{ color: "oklch(0.82 0.13 60)" }}>{t("An toàn · Tiện lợi · Đúng giờ")}</div>
           <div className="flex flex-wrap gap-2.5">
-            <a href={`tel:${phone.replace(/\s/g, "")}`} className="rounded-full bg-white px-5 py-3 text-[15px] font-bold" style={{ color: GREEN }}>Gọi {phone}</a>
-            {zalo && <a href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="rounded-full px-5 py-3 text-[15px] font-bold text-white" style={{ background: "oklch(0.68 0.18 45)" }}>Đặt vé qua Zalo</a>}
+            <a href={`tel:${phone.replace(/\s/g, "")}`} className="rounded-full bg-white px-5 py-3 text-[15px] font-bold" style={{ color: GREEN }}>{t("Gọi {0}", [t(phone)])}</a>
+            {zalo && <a href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="rounded-full px-5 py-3 text-[15px] font-bold text-white" style={{ background: "oklch(0.68 0.18 45)" }}>{t("Đặt vé qua Zalo")}</a>}
           </div>
         </div>
       </div>
@@ -210,19 +212,21 @@ export function HomeCabin({
 }
 
 function Chip({ label, value }: { label: string; value: string }) {
+  const t = useT();
   return (
     <div className="rounded-2xl px-4 py-3" style={{ background: "oklch(1 0 0 / .08)", border: "1px solid oklch(1 0 0 / .12)" }}>
-      <div className="text-xs opacity-70">{label}</div>
-      <div className="mt-0.5 text-xl font-extrabold">{value}</div>
+      <div className="text-xs opacity-70">{t(label)}</div>
+      <div className="mt-0.5 text-xl font-extrabold">{t(value)}</div>
     </div>
   );
 }
 
 function MiniCard({ label, value, unit, prefix, href }: { label: string; value: string; unit: string; prefix?: string; href: string }) {
+  const t = useT();
   return (
     <Link href={href} className="rounded-[18px] p-4" style={{ background: "oklch(1 0 0 / .08)", border: "1px solid oklch(1 0 0 / .12)" }}>
-      <div className="text-[13px] opacity-75">{label}</div>
-      <div className="mt-1 text-sm">{prefix}<span className="text-2xl font-extrabold" style={{ color: "oklch(0.85 0.13 65)" }}>{value}</span>{unit}</div>
+      <div className="text-[13px] opacity-75">{t(label)}</div>
+      <div className="mt-1 text-sm">{t(prefix)}<span className="text-2xl font-extrabold" style={{ color: "oklch(0.85 0.13 65)" }}>{t(value)}</span>{t(unit)}</div>
     </Link>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import Link from "next/link";
+import Link from "@/components/Link";
 import type { FeedbackStatus, FeedbackType } from "@prisma/client";
 import {
   agoText,
@@ -10,6 +10,7 @@ import {
   FEEDBACK_TYPES,
 } from "@/lib/feedback";
 import { addComment, toggleVote } from "@/app/(site)/gop-y/actions";
+import { useT } from "@/components/i18n/I18nProvider";
 
 export interface WallComment {
   id: string;
@@ -56,6 +57,7 @@ export function FeedbackWall({
   items: WallItem[];
   loggedIn: boolean;
 }) {
+  const tr = useT();
   const [items, setItems] = useState<WallItem[]>(initial);
   const [sort, setSort] = useState<"hot" | "new">("hot");
   const [type, setType] = useState<"all" | FeedbackType>("all");
@@ -98,7 +100,7 @@ export function FeedbackWall({
         setItems((prev) =>
           prev.map((x) => (x.id === f.id ? { ...x, voted: f.voted, votes: f.votes } : x)),
         );
-        flash(r.error);
+        flash(tr(r.error));
       }
     });
   }
@@ -106,7 +108,7 @@ export function FeedbackWall({
   function onComment(f: WallItem) {
     const text = (drafts[f.id] ?? "").trim();
     if (!loggedIn || !text) return;
-    const optimistic: WallComment = { id: "tmp-" + Date.now(), authorName: "Bạn", content: text, isAdmin: false, mins: 0 };
+    const optimistic: WallComment = { id: "tmp-" + Date.now(), authorName: tr("Bạn"), content: text, isAdmin: false, mins: 0 };
     setItems((prev) => prev.map((x) => (x.id === f.id ? { ...x, comments: [...x.comments, optimistic] } : x)));
     setDrafts((d) => ({ ...d, [f.id]: "" }));
     startTransition(async () => {
@@ -115,13 +117,13 @@ export function FeedbackWall({
         setItems((prev) =>
           prev.map((x) => (x.id === f.id ? { ...x, comments: x.comments.filter((c) => c.id !== optimistic.id) } : x)),
         );
-        flash(r.error);
+        flash(tr(r.error));
       }
     });
   }
 
   const tabs: { key: "all" | FeedbackType; name: string }[] = [
-    { key: "all", name: "Tất cả" },
+    { key: "all", name: tr("Tất cả") },
     ...FEEDBACK_TYPES.map((t) => ({ key: t.key, name: t.short })),
   ];
 
@@ -129,13 +131,13 @@ export function FeedbackWall({
     <section className="mt-4 flex flex-col gap-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-xl font-extrabold tracking-tight text-ink sm:text-2xl">Bảng góp ý công khai</h2>
+          <h2 className="text-xl font-extrabold tracking-tight text-ink sm:text-2xl">{tr("Bảng góp ý công khai")}</h2>
           <p className="mt-1 text-sm text-gray-500">
-            {items.length} góp ý · {doneCount} đã làm · ai cũng xem được, đăng nhập để gửi và bình chọn
+            {tr("{0} góp ý · {1} đã làm · ai cũng xem được, đăng nhập để gửi và bình chọn", [items.length, doneCount])}
           </p>
         </div>
         <div className="inline-flex gap-1 rounded-xl bg-gray-100 p-1">
-          {([["hot", "Nhiều bình chọn"], ["new", "Mới nhất"]] as const).map(([k, name]) => (
+          {([["hot", tr("Nhiều bình chọn")], ["new", tr("Mới nhất")]] as const).map(([k, name]) => (
             <button
               key={k}
               type="button"
@@ -144,7 +146,7 @@ export function FeedbackWall({
                 sort === k ? "bg-white text-forest-700 shadow-sm" : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              {name}
+              {tr(name)}
             </button>
           ))}
         </div>
@@ -162,7 +164,7 @@ export function FeedbackWall({
                 on ? "border-forest-600 bg-forest-600 text-white" : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
               }`}
             >
-              {t.name} <span className="opacity-70">{counts[t.key] ?? 0}</span>
+              {tr(t.name)} <span className="opacity-70">{counts[t.key] ?? 0}</span>
             </button>
           );
         })}
@@ -170,7 +172,7 @@ export function FeedbackWall({
 
       {shown.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-12 text-center text-sm text-gray-500">
-          Chưa có góp ý nào ở mục này. Hãy là người đầu tiên!
+          {tr("Chưa có góp ý nào ở mục này. Hãy là người đầu tiên!")}
         </div>
       ) : (
         <div className="flex flex-col gap-2.5">
@@ -188,7 +190,7 @@ export function FeedbackWall({
                   <button
                     type="button"
                     onClick={() => onVote(f)}
-                    title="Bình chọn"
+                    title={tr("Bình chọn")}
                     className="flex h-[58px] flex-col items-center justify-center gap-0.5 rounded-xl border transition"
                     style={{
                       borderColor: f.voted ? "#f59e0b" : "#e5e7eb",
@@ -202,7 +204,7 @@ export function FeedbackWall({
                 ) : (
                   <Link
                     href={LOGIN_HREF}
-                    title="Đăng nhập để bình chọn"
+                    title={tr("Đăng nhập để bình chọn")}
                     className="flex h-[58px] flex-col items-center justify-center gap-0.5 rounded-xl border border-gray-200 bg-white text-gray-400 transition hover:border-sunset-300 hover:text-sunset-500"
                   >
                     <span className="text-xs leading-none">▲</span>
@@ -212,35 +214,35 @@ export function FeedbackWall({
 
                 <div className="flex min-w-0 flex-col gap-2">
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <Badge bg={ty.bg} fg={ty.fg}>{ty.short}</Badge>
-                    <Badge bg={st.bg} fg={st.fg}>{st.name}</Badge>
+                    <Badge bg={ty.bg} fg={ty.fg}>{tr(ty.short)}</Badge>
+                    <Badge bg={st.bg} fg={st.fg}>{tr(st.name)}</Badge>
                     {f.areas.map((a) => (
                       <span key={a} className="whitespace-nowrap rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">
-                        {a}
+                        {tr(a)}
                       </span>
                     ))}
                   </div>
 
-                  <p className="text-[15px] leading-relaxed text-gray-800">{f.message}</p>
+                  <p className="text-[15px] leading-relaxed text-gray-800">{tr(f.message)}</p>
 
                   <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-xs text-gray-500">
                     <span>
-                      <b className="text-gray-700">{f.authorName}</b>
-                      {f.mine && <span className="text-gray-400"> (bạn)</span>} · {agoText(f.mins)}
+                      <b className="text-gray-700">{tr(f.authorName)}</b>
+                      {f.mine && <span className="text-gray-400">{" "}{tr("(bạn)")}</span>} · {agoText(f.mins, tr)}
                     </span>
-                    {f.mood ? <span>Chấm web {f.mood}/5</span> : null}
+                    {f.mood ? <span>{tr("Chấm web {0}/5", [f.mood])}</span> : null}
                     <button
                       type="button"
                       onClick={() => setOpenId(open ? null : f.id)}
                       className="font-bold text-forest-700 hover:underline"
                     >
-                      {open ? "Ẩn bình luận" : f.comments.length ? `${f.comments.length} bình luận` : "Bình luận"}
+                      {open ? tr("Ẩn bình luận") : f.comments.length ? tr("{0} bình luận", [f.comments.length]) : tr("Bình luận")}
                     </button>
                   </div>
 
                   {f.reply && (
                     <div className="rounded-xl bg-forest-50 px-3 py-2.5 text-[13px] leading-relaxed text-forest-800">
-                      <b>Tà Xùa Booking:</b> {f.reply}
+                      <b>{tr("Tà Xùa Booking:")}</b> {tr(f.reply)}
                     </div>
                   )}
 
@@ -249,10 +251,10 @@ export function FeedbackWall({
                       {f.comments.map((c) => (
                         <div key={c.id} className="text-[13px] leading-snug">
                           <b className={c.isAdmin ? "text-forest-700" : "text-gray-700"}>
-                            {c.isAdmin ? "Tà Xùa Booking" : c.authorName}
+                            {c.isAdmin ? tr("Tà Xùa Booking") : tr(c.authorName)}
                           </b>
-                          <span className="text-gray-400"> · {agoText(c.mins)}</span>
-                          <div className="text-gray-600">{c.content}</div>
+                          <span className="text-gray-400"> · {agoText(c.mins, tr)}</span>
+                          <div className="text-gray-600">{tr(c.content)}</div>
                         </div>
                       ))}
                       {loggedIn ? (
@@ -263,7 +265,7 @@ export function FeedbackWall({
                             onKeyDown={(e) => {
                               if (e.key === "Enter") onComment(f);
                             }}
-                            placeholder="Viết bình luận…"
+                            placeholder={tr("Viết bình luận…")}
                             maxLength={500}
                             className="min-w-0 flex-1 rounded-full border border-gray-200 px-3.5 py-2 text-[13px] focus:border-forest-400 focus:outline-none"
                           />
@@ -272,12 +274,12 @@ export function FeedbackWall({
                             onClick={() => onComment(f)}
                             className="whitespace-nowrap rounded-full bg-forest-700 px-4 py-2 text-[13px] font-bold text-white hover:bg-forest-800"
                           >
-                            Gửi
+                            {tr("Gửi")}
                           </button>
                         </div>
                       ) : (
                         <Link href={LOGIN_HREF} className="text-[13px] font-semibold text-forest-700 hover:underline">
-                          Đăng nhập để bình luận →
+                          {tr("Đăng nhập để bình luận →")}
                         </Link>
                       )}
                     </div>
@@ -291,7 +293,7 @@ export function FeedbackWall({
 
       {toast && (
         <div className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 whitespace-nowrap rounded-full bg-forest-900 px-4 py-2.5 text-sm font-semibold text-white shadow-lg">
-          {toast}
+          {tr(toast)}
         </div>
       )}
     </section>

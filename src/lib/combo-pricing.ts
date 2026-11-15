@@ -1,4 +1,5 @@
 import { isRentalTime, rentalChargeDaysBySpan } from "./rental-days";
+import { identityT, type TFunc } from "./i18n/config";
 /**
  * Tính tiền xe cabin trong COMBO — thuần tuý (không import server) để dùng chung ở
  * server (combo.ts: tìm + đặt) lẫn client (ComboResults: giá thẻ + mặc định chỗ nằm),
@@ -139,10 +140,10 @@ export function bookingCabinBerths(b: {
 }
 
 /** Nhãn ngắn: "1 cabin đôi (nằm ghép) + 1 cabin đơn (nằm riêng)". */
-export function cabinBerthsLabel(c: CabinBerths): string {
+export function cabinBerthsLabel(c: CabinBerths, t: TFunc = identityT): string {
   return [
-    c.shared ? `${c.shared} khách cabin đôi (nằm ghép)` : null,
-    c.solo ? `${c.solo} khách cabin đơn (nằm riêng)` : null,
+    c.shared ? t("{0} khách cabin đôi (nằm ghép)", [c.shared]) : null,
+    c.solo ? t("{0} khách cabin đơn (nằm riêng)", [c.solo]) : null,
   ]
     .filter(Boolean)
     .join(" + ");

@@ -1,25 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import Link from "@/components/Link";
 import { CATEGORY_LIST } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { useT } from "@/components/i18n/I18nProvider";
+import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 
 /** `showCommitment` = công tắc "Hiện menu & link cam kết" ở /admin/popup (tách riêng với công tắc popup). */
 export function Header({ customerName = null, showCommitment = true }: { customerName?: string | null; showCommitment?: boolean }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [dd, setDd] = useState(false); // dropdown "Cẩm nang" (desktop)
   const firstName = customerName ? customerName.trim().split(/\s+/).slice(-1)[0] : "";
 
   const GUIDE_LINKS = [
-    { href: "/lich-trinh", label: "Lịch trình Tà Xùa" },
-    { href: "/ban-do", label: "Bản đồ check-in" },
-    { href: "/kinh-nghiem", label: "Kinh nghiệm Tà Xùa" },
-    { href: "/nha-hang", label: "Nhà hàng Tà Xùa" },
-    { href: "/cafe", label: "Cafe Tà Xùa" },
-    { href: "/huong-dan", label: "Hướng dẫn đặt dịch vụ" },
-    { href: "/tra-cuu", label: "Tra cứu đơn hàng" },
-    { href: "/gop-y", label: "Góp ý" },
+    { href: "/lich-trinh", label: t("Lịch trình Tà Xùa") },
+    { href: "/ban-do", label: t("Bản đồ check-in") },
+    { href: "/kinh-nghiem", label: t("Kinh nghiệm Tà Xùa") },
+    { href: "/nha-hang", label: t("Nhà hàng Tà Xùa") },
+    { href: "/cafe", label: t("Cafe Tà Xùa") },
+    { href: "/huong-dan", label: t("Hướng dẫn đặt dịch vụ") },
+    { href: "/tra-cuu", label: t("Tra cứu đơn hàng") },
+    { href: "/gop-y", label: t("Góp ý") },
   ];
 
   return (
@@ -29,7 +32,7 @@ export function Header({ customerName = null, showCommitment = true }: { custome
         <Link href="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-forest-600 text-[10px] font-bold text-white sm:h-9 sm:w-9 sm:text-base">TX</span>
           <span className="whitespace-nowrap text-[15px] font-extrabold tracking-tight text-forest-800 sm:text-lg">
-            Tà Xùa <span className="text-sunset-500">Booking</span>
+            {t("Tà Xùa")}{" "}<span className="text-sunset-500">Booking</span>
           </span>
         </Link>
 
@@ -40,7 +43,7 @@ export function Header({ customerName = null, showCommitment = true }: { custome
               href={`/${c.slug}`}
               className="whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700"
             >
-              {c.shortLabel}
+              {t(c.shortLabel)}
             </Link>
           ))}
           {showCommitment && (
@@ -48,7 +51,7 @@ export function Header({ customerName = null, showCommitment = true }: { custome
               href="/cam-ket"
               className="whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-semibold text-forest-700 transition hover:bg-forest-50 hover:text-forest-800"
             >
-              Cam kết
+              {t("Cam kết")}
             </Link>
           )}
           {/* Menu cấp 2: hover hoặc click mới xổ ra */}
@@ -58,7 +61,7 @@ export function Header({ customerName = null, showCommitment = true }: { custome
               onClick={() => setDd((o) => !o)}
               className="flex items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700"
             >
-              Cẩm nang
+              {t("Cẩm nang")}
               <span className="text-[10px] transition group-hover:rotate-180">▼</span>
             </button>
             {/* pt-1 làm cầu nối hover giữa nút và panel (không bị tắt khi rê chuột qua khe) */}
@@ -71,7 +74,7 @@ export function Header({ customerName = null, showCommitment = true }: { custome
                     onClick={() => setDd(false)}
                     className="block rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700"
                   >
-                    {l.label}
+                    {t(l.label)}
                   </Link>
                 ))}
               </div>
@@ -80,15 +83,16 @@ export function Header({ customerName = null, showCommitment = true }: { custome
         </nav>
 
         <div className="flex flex-none items-center gap-1.5">
+          <LanguageSwitcher />
           <Link
             href="/tai-khoan"
             className="hidden whitespace-nowrap rounded-xl px-2.5 py-2 text-sm font-semibold text-forest-700 transition hover:bg-forest-50 lg:inline-flex"
           >
-            {customerName ? firstName : "Đăng nhập"}
+            {customerName ? t(firstName) : t("Đăng nhập")}
           </Link>
           <button
             type="button"
-            aria-label="Mở menu"
+            aria-label={t("Mở menu")}
             className="rounded-lg p-1 text-forest-700 hover:bg-forest-50 sm:p-2 lg:hidden"
             onClick={() => setOpen((o) => !o)}
           >
@@ -116,11 +120,11 @@ export function Header({ customerName = null, showCommitment = true }: { custome
         >
           <div className="flex items-center justify-between border-b border-black/5 px-4 py-3">
             <span className="text-[15px] font-extrabold tracking-tight text-forest-800">
-              Tà Xùa <span className="text-sunset-500">Booking</span>
+              {t("Tà Xùa")}{" "}<span className="text-sunset-500">Booking</span>
             </span>
             <button
               type="button"
-              aria-label="Đóng menu"
+              aria-label={t("Đóng menu")}
               onClick={() => setOpen(false)}
               className="flex h-8 w-8 items-center justify-center rounded-full text-xl text-gray-400 hover:bg-gray-100"
             >
@@ -135,7 +139,7 @@ export function Header({ customerName = null, showCommitment = true }: { custome
                 onClick={() => setOpen(false)}
                 className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700"
               >
-                {c.shortLabel}
+                {t(c.shortLabel)}
               </Link>
             ))}
             {showCommitment && (
@@ -144,14 +148,15 @@ export function Header({ customerName = null, showCommitment = true }: { custome
                 onClick={() => setOpen(false)}
                 className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-forest-700 hover:bg-forest-50 hover:text-forest-800"
               >
-                Cam kết uy tín
+                {t("Cam kết uy tín")}
               </Link>
             )}
+            <LanguageSwitcher variant="menu" />
             <div className="my-1 border-t border-black/5" />
             {GUIDE_LINKS.map((l) => (
-              <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700">{l.label}</Link>
+              <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700">{t(l.label)}</Link>
             ))}
-            <Link href="/tai-khoan" onClick={() => setOpen(false)} className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700">{customerName ? customerName : "Đăng nhập / Đăng ký"}</Link>
+            <Link href="/tai-khoan" onClick={() => setOpen(false)} className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700">{customerName ? t(customerName) : t("Đăng nhập / Đăng ký")}</Link>
           </nav>
         </div>
       </div>

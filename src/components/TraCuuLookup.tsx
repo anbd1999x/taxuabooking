@@ -2,8 +2,9 @@
 
 import { VoiceText } from "@/components/SiteContact";
 import { useEffect, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { useLocaleRouter } from "@/components/i18n/I18nProvider";
+import Link from "@/components/Link";
+import { useT } from "@/components/i18n/I18nProvider";
 
 /**
  * Trang tra cứu đơn đặt — giao diện theo thiết kế "Tra cuu don.dc.html"
@@ -90,7 +91,8 @@ export function TraCuuLookup({
   /** Số giờ tự huỷ đơn chưa thanh toán (admin thiết lập); 0 = tắt ⇒ không hiện câu nhắc. */
   autoCancelHours?: number;
 }) {
-  const router = useRouter();
+  const tr = useT();
+  const router = useLocaleRouter();
   const [q, setQ] = useState(initialQ);
   const [tab, setTab] = useState<"all" | "active" | "past">("all");
   const [open, setOpen] = useState<Record<string, boolean>>({});
@@ -124,7 +126,7 @@ export function TraCuuLookup({
   }
 
   const qn = q.replace(/[\s.\-]/g, "").toUpperCase();
-  const qKind = !q ? "SĐT / Mã" : /[A-Z]/.test(qn) ? "Mã đơn" : "Số điện thoại";
+  const qKind = !q ? tr("SĐT / Mã") : /[A-Z]/.test(qn) ? tr("Mã đơn") : tr("Số điện thoại");
 
   const searched = initialQ.trim();
   const showResults = Boolean(searched) && orders.length > 0;
@@ -134,22 +136,22 @@ export function TraCuuLookup({
   const isActive = (o: LookupOrder) => ["new", "contact", "confirmed"].includes(o.st);
   const list = orders.filter((o) => (tab === "all" ? true : tab === "active" ? isActive(o) : !isActive(o)));
   const tabs: { key: typeof tab; name: string }[] = [
-    { key: "all", name: `Tất cả (${orders.length})` },
-    { key: "active", name: `Sắp đi (${orders.filter(isActive).length})` },
-    { key: "past", name: `Đã xong (${orders.filter((o) => !isActive(o)).length})` },
+    { key: "all", name: tr("Tất cả ({0})", [orders.length]) },
+    { key: "active", name: tr("Sắp đi ({0})", [orders.filter(isActive).length]) },
+    { key: "past", name: tr("Đã xong ({0})", [orders.filter((o) => !isActive(o)).length]) },
   ];
 
   const HOWTO = [
-    { k: "BƯỚC 1", t: "Nhập số điện thoại", d: "Đúng số bạn đã điền lúc gửi yêu cầu. Mã đơn TX-… cũng dùng được." },
-    { k: "BƯỚC 2", t: "Xem trạng thái", d: "Mỗi đơn có thanh tiến trình: Đã gửi → Đang xác nhận → Đã giữ chỗ → Hoàn thành." },
-    { k: "BƯỚC 3", t: "Giữ liên lạc", d: "Tụi mình sẽ gọi/Zalo để chốt chỗ. Lịch trình chi tiết gửi trước ngày đi 1 ngày." },
+    { k: tr("BƯỚC 1"), t: tr("Nhập số điện thoại"), d: tr("Đúng số bạn đã điền lúc gửi yêu cầu. Mã đơn TX-… cũng dùng được.") },
+    { k: tr("BƯỚC 2"), t: tr("Xem trạng thái"), d: tr("Mỗi đơn có thanh tiến trình: Đã gửi → Đang xác nhận → Đã giữ chỗ → Hoàn thành.") },
+    { k: tr("BƯỚC 3"), t: tr("Giữ liên lạc"), d: tr("Tụi mình sẽ gọi/Zalo để chốt chỗ. Lịch trình chi tiết gửi trước ngày đi 1 ngày.") },
   ];
   const LEGEND: { k: string; c: string; d: string }[] = [
-    { k: ST.new.label, c: ST.new.bar, d: "đã nhận, chưa ai kiểm tra chỗ" },
-    { k: ST.contact.label, c: ST.contact.bar, d: "tụi mình đang gọi bạn" },
-    { k: ST.confirmed.label, c: ST.confirmed.bar, d: "chỗ đã giữ chắc chắn" },
-    { k: ST.done.label, c: ST.done.bar, d: "đã dùng dịch vụ xong" },
-    { k: ST.cancel.label, c: ST.cancel.bar, d: "đơn không còn hiệu lực" },
+    { k: ST.new.label, c: ST.new.bar, d: tr("đã nhận, chưa ai kiểm tra chỗ") },
+    { k: ST.contact.label, c: ST.contact.bar, d: tr("tụi mình đang gọi bạn") },
+    { k: ST.confirmed.label, c: ST.confirmed.bar, d: tr("chỗ đã giữ chắc chắn") },
+    { k: ST.done.label, c: ST.done.bar, d: tr("đã dùng dịch vụ xong") },
+    { k: ST.cancel.label, c: ST.cancel.bar, d: tr("đơn không còn hiệu lực") },
   ];
 
   const pill = "whitespace-nowrap rounded-full px-3.5 py-2 text-[13px] font-bold";
@@ -162,27 +164,27 @@ export function TraCuuLookup({
       <section style={{ background: `linear-gradient(180deg, ${G}, oklch(0.36 0.07 165) 70%, oklch(0.975 0.01 150) 70%)` }}>
         <div className="mx-auto flex max-w-[840px] flex-col gap-[18px] px-4 pt-9 sm:px-6">
           <div className="flex flex-col gap-2 text-center text-white">
-            <h1 className="m-0 text-[clamp(26px,4vw,38px)] font-extrabold leading-[1.1] tracking-[-0.03em]">Tra cứu đơn đặt</h1>
+            <h1 className="m-0 text-[clamp(26px,4vw,38px)] font-extrabold leading-[1.1] tracking-[-0.03em]">{tr("Tra cứu đơn đặt")}</h1>
             <p className="m-0 text-[15px]" style={{ color: "oklch(0.9 0.03 160)", textWrap: "balance" }}>
-              Nhập số điện thoại đã dùng khi đặt, hoặc mã đơn dạng TX-XXXXXX.
+              {tr("Nhập số điện thoại đã dùng khi đặt, hoặc mã đơn dạng TX-XXXXXX.")}
             </p>
           </div>
           <div className="flex flex-wrap gap-1.5 rounded-[20px] bg-white p-2" style={{ boxShadow: "0 24px 60px -24px oklch(0.25 0.06 220 / .45)" }}>
             <div className="flex min-w-[220px] flex-1 items-center gap-2.5 py-1.5 pl-4 pr-2.5">
-              <span className="whitespace-nowrap rounded-full px-2 py-1 text-xs font-bold" style={{ background: "oklch(0.95 0.025 155)", color: "oklch(0.36 0.08 155)" }}>{qKind}</span>
+              <span className="whitespace-nowrap rounded-full px-2 py-1 text-xs font-bold" style={{ background: "oklch(0.95 0.025 155)", color: "oklch(0.36 0.08 155)" }}>{tr(qKind)}</span>
               <input
                 ref={inputRef}
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") doSearch(); }}
-                placeholder="0357452952 hoặc TX-BCLL5B"
+                placeholder={tr("0357452952 hoặc TX-BCLL5B")}
                 inputMode="search"
                 className="min-w-0 flex-1 border-0 bg-transparent py-2 text-[17px] font-bold tracking-[0.01em] text-ink outline-none sm:text-lg"
               />
               {q && (
                 <button
                   type="button"
-                  aria-label="Xoá"
+                  aria-label={tr("Xoá")}
                   onClick={() => { setQ(""); inputRef.current?.focus(); }}
                   className="flex h-7 w-7 items-center justify-center rounded-full text-sm"
                   style={{ background: "oklch(0.95 0.005 160)", color: "oklch(0.45 0.02 160)" }}
@@ -197,15 +199,15 @@ export function TraCuuLookup({
               className="flex flex-[1_1_100%] items-center justify-center whitespace-nowrap rounded-[14px] px-6 py-3.5 text-base font-extrabold text-white transition hover:brightness-105 active:brightness-95 sm:flex-none"
               style={{ background: "oklch(0.68 0.18 45)" }}
             >
-              {pending ? "Đang tìm…" : "Tra cứu"}
+              {pending ? tr("Đang tìm…") : tr("Tra cứu")}
             </button>
           </div>
           {recent.length > 0 && (
             <div className="flex flex-wrap items-center justify-center gap-1.5 text-[13px]" style={{ color: "oklch(0.45 0.02 160)" }}>
-              <span>Tra gần đây:</span>
+              <span>{tr("Tra gần đây:")}</span>
               {recent.map((r) => (
                 <button key={r} type="button" onClick={() => doSearch(r)} className="rounded-full border bg-white px-2.5 py-1 font-bold" style={{ borderColor: "oklch(0.9 0.01 160)", color: "oklch(0.3 0.04 160)" }}>
-                  {r}
+                  {tr(r)}
                 </button>
               ))}
             </div>
@@ -218,7 +220,7 @@ export function TraCuuLookup({
           <>
             <div className="flex flex-wrap items-center justify-between gap-2.5" style={{ animation: "tx-in .4s ease both" }}>
               <div className="text-[15px]" style={{ color: "oklch(0.45 0.02 160)" }}>
-                Tìm thấy <b className="text-ink">{orders.length}</b> đơn cho <b className="text-ink">{searched}</b>
+                {tr("Tìm thấy")}{" "}<b className="text-ink">{orders.length}</b>{" "}{tr("đơn cho")}{" "}<b className="text-ink">{tr(searched)}</b>
               </div>
               <div className="inline-flex gap-1 rounded-xl p-1" style={{ background: "oklch(0.93 0.01 160)" }}>
                 {tabs.map((t) => (
@@ -233,7 +235,7 @@ export function TraCuuLookup({
                       boxShadow: tab === t.key ? "0 1px 3px oklch(0.2 0.03 160 / .15)" : "none",
                     }}
                   >
-                    {t.name}
+                    {tr(t.name)}
                   </button>
                 ))}
               </div>
@@ -251,24 +253,24 @@ export function TraCuuLookup({
                   {/* đầu thẻ */}
                   <div onClick={toggle} className="flex cursor-pointer flex-wrap items-start justify-between gap-3 px-5 py-4">
                     <div className="flex min-w-0 flex-1 items-start gap-3">
-                      <div className="flex h-[46px] w-[46px] flex-none items-center justify-center rounded-[14px] text-xs font-extrabold" style={{ background: icBg, color: icFg }}>{o.ic}</div>
+                      <div className="flex h-[46px] w-[46px] flex-none items-center justify-center rounded-[14px] text-xs font-extrabold" style={{ background: icBg, color: icFg }}>{tr(o.ic)}</div>
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-mono text-[17px] font-extrabold tracking-[-0.01em]">{o.code}</span>
-                          <span className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: st.bg, color: st.fg }}>{st.label}</span>
+                          <span className="font-mono text-[17px] font-extrabold tracking-[-0.01em]">{tr(o.code)}</span>
+                          <span className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: st.bg, color: st.fg }}>{tr(st.label)}</span>
                           {o.soldOut && (
                             <span className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: "oklch(0.96 0.03 15)", color: "oklch(0.5 0.19 15)" }}>
-                              <span aria-hidden>🛏️</span>Hết phòng
+                              <span aria-hidden>🛏️</span>{tr("Hết phòng")}
                             </span>
                           )}
                         </div>
-                        <div className="mt-1 text-[15px] font-bold leading-[1.35]">{o.title}</div>
-                        <div className="mt-[3px] text-[13px]" style={{ color: "oklch(0.5 0.02 160)" }}>{o.when} · {o.pax} · đặt lúc {o.created}</div>
+                        <div className="mt-1 text-[15px] font-bold leading-[1.35]">{tr(o.title)}</div>
+                        <div className="mt-[3px] text-[13px]" style={{ color: "oklch(0.5 0.02 160)" }}>{tr("{0} · {1} · đặt lúc {2}", [tr(o.when), tr(o.pax), tr(o.created)])}</div>
                       </div>
                     </div>
                     <div className="flex flex-none flex-col items-end gap-1">
-                      <div className="text-lg font-extrabold tracking-[-0.02em]" style={{ color: "oklch(0.6 0.18 45)" }}>{o.total != null ? vnd(o.total) : "Liên hệ"}</div>
-                      <span className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: pbg, color: pfg }}>{o.payLabel}</span>
+                      <div className="text-lg font-extrabold tracking-[-0.02em]" style={{ color: "oklch(0.6 0.18 45)" }}>{o.total != null ? tr(vnd(o.total)) : tr("Liên hệ")}</div>
+                      <span className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: pbg, color: pfg }}>{tr(o.payLabel)}</span>
                     </div>
                   </div>
                   {/* tiến trình */}
@@ -276,11 +278,11 @@ export function TraCuuLookup({
                     {STEPS.map((nm, k) => (
                       <div key={nm} className="flex flex-col gap-[5px]">
                         <div className="h-[5px] rounded-full" style={{ background: o.st === "cancel" ? "oklch(0.93 0.01 160)" : k <= i ? st.bar : "oklch(0.93 0.01 160)" }} />
-                        <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-bold" style={{ color: k <= i && o.st !== "cancel" ? "oklch(0.25 0.03 160)" : "oklch(0.62 0.02 160)" }}>{nm}</div>
+                        <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px] font-bold" style={{ color: k <= i && o.st !== "cancel" ? "oklch(0.25 0.03 160)" : "oklch(0.62 0.02 160)" }}>{tr(nm)}</div>
                       </div>
                     ))}
                   </div>
-                  <div className="mx-5 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold leading-[1.5]" style={{ background: st.msgBg, color: st.msgFg }}><VoiceText text={(o.soldOut ? `Rất tiếc, đơn đã tự huỷ vì HẾT PHÒNG: phòng bạn chọn đã có khách khác đặt trước khi đơn kịp xác nhận.${o.cancelReason ? ` (${o.cancelReason})` : ""} Bạn chưa thanh toán nên không mất phí — bấm "Đặt lại" để chọn phòng hoặc ngày khác.` : o.st === "cancel" && o.cancelReason ? `${st.msg} Lý do: ${o.cancelReason}.` : st.msg) + (autoCancelHours > 0 && (o.st === "new" || o.st === "contact") ? ` Đơn tự huỷ nếu sau ${String(autoCancelHours).replace(".", ",")} giờ kể từ lúc đặt chưa xác nhận thanh toán.` : "")} /></div>
+                  <div className="mx-5 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold leading-[1.5]" style={{ background: st.msgBg, color: st.msgFg }}><VoiceText text={(o.soldOut ? tr("Rất tiếc, đơn đã tự huỷ vì HẾT PHÒNG: phòng bạn chọn đã có khách khác đặt trước khi đơn kịp xác nhận.{0} Bạn chưa thanh toán nên không mất phí — bấm \"Đặt lại\" để chọn phòng hoặc ngày khác.", [o.cancelReason ? ` (${o.cancelReason})` : ""]) : o.st === "cancel" && o.cancelReason ? tr("{0} Lý do: {1}.", [st.msg, o.cancelReason]) : st.msg) + (autoCancelHours > 0 && (o.st === "new" || o.st === "contact") ? tr(" Đơn tự huỷ nếu sau {0} giờ kể từ lúc đặt chưa xác nhận thanh toán.", [String(autoCancelHours).replace(".", ",")]) : "")} /></div>
                   {/* chi tiết */}
                   {isOpen && (
                     <div className="flex flex-col gap-2 px-5 pt-3.5">
@@ -289,44 +291,44 @@ export function TraCuuLookup({
                         return (
                           <div key={pi} className="grid items-start gap-2.5 rounded-[14px] px-3.5 py-3 sm:grid-cols-[minmax(0,1fr)_auto]" style={{ background: "oklch(0.975 0.008 150)" }}>
                             <div className="flex min-w-0 gap-2.5">
-                              <span className="self-start whitespace-nowrap rounded-[7px] px-[7px] py-1 text-[11px] font-extrabold" style={{ background: bg, color: fg }}>{p.k}</span>
+                              <span className="self-start whitespace-nowrap rounded-[7px] px-[7px] py-1 text-[11px] font-extrabold" style={{ background: bg, color: fg }}>{tr(p.k)}</span>
                               <div className="min-w-0">
-                                <div className="text-sm font-bold">{p.name}</div>
+                                <div className="text-sm font-bold">{tr(p.name)}</div>
                                 {p.d && <div className="mt-0.5 text-[13px] leading-[1.5]" style={{ color: "oklch(0.45 0.02 160)" }}><VoiceText text={p.d} /></div>}
                                 {p.lines && p.lines.length > 0 && (
                                   <div className="mt-1.5 flex flex-col gap-1">
                                     {p.lines.map((l) => (
                                       <div key={l} className="flex items-start gap-1.5 text-[13px] font-semibold leading-[1.45]" style={{ color: "oklch(0.32 0.06 230)" }}>
                                         <span className="flex-none">🎫</span>
-                                        <span>{l}</span>
+                                        <span>{tr(l)}</span>
                                       </div>
                                     ))}
                                   </div>
                                 )}
                               </div>
                             </div>
-                            <div className="whitespace-nowrap text-right text-sm font-extrabold">{p.price != null ? vnd(p.price) : ""}</div>
+                            <div className="whitespace-nowrap text-right text-sm font-extrabold">{p.price != null ? tr(vnd(p.price)) : ""}</div>
                           </div>
                         );
                       })}
                       <div className="grid gap-2.5 px-0.5 py-1" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,150px),1fr))" }}>
-                        <div><div className="text-xs" style={{ color: "oklch(0.5 0.02 160)" }}>Tên khách</div><div className="text-sm font-bold">{o.name}</div></div>
-                        <div><div className="text-xs" style={{ color: "oklch(0.5 0.02 160)" }}>Số điện thoại</div><div className="text-sm font-bold">{o.phone}</div></div>
-                        <div><div className="text-xs" style={{ color: "oklch(0.5 0.02 160)" }}>Số lượng</div><div className="text-sm font-bold">{o.pax}</div></div>
-                        <div><div className="text-xs" style={{ color: "oklch(0.5 0.02 160)" }}>Ghi chú</div><div className="text-sm font-semibold" style={{ color: "oklch(0.45 0.02 160)" }}>{o.note || "Không có"}</div></div>
+                        <div><div className="text-xs" style={{ color: "oklch(0.5 0.02 160)" }}>{tr("Tên khách")}</div><div className="text-sm font-bold">{tr(o.name)}</div></div>
+                        <div><div className="text-xs" style={{ color: "oklch(0.5 0.02 160)" }}>{tr("Số điện thoại")}</div><div className="text-sm font-bold">{tr(o.phone)}</div></div>
+                        <div><div className="text-xs" style={{ color: "oklch(0.5 0.02 160)" }}>{tr("Số lượng")}</div><div className="text-sm font-bold">{tr(o.pax)}</div></div>
+                        <div><div className="text-xs" style={{ color: "oklch(0.5 0.02 160)" }}>{tr("Ghi chú")}</div><div className="text-sm font-semibold" style={{ color: "oklch(0.45 0.02 160)" }}>{tr(o.note) || tr("Không có")}</div></div>
                       </div>
                     </div>
                   )}
                   {/* hành động */}
                   <div className="flex flex-wrap items-center justify-between gap-2 px-5 pb-4 pt-3.5">
                     <button type="button" onClick={toggle} className="text-[13px] font-bold" style={{ color: "oklch(0.4 0.08 160)" }}>
-                      {isOpen ? "Thu gọn chi tiết ↑" : "Xem chi tiết đơn ↓"}
+                      {isOpen ? tr("Thu gọn chi tiết ↑") : tr("Xem chi tiết đơn ↓")}
                     </button>
                     <div className="flex flex-wrap gap-1.5">
-                      <a href={zaloHref} target="_blank" rel="noreferrer" className={`${pill} border bg-white`} style={{ borderColor: "oklch(0.88 0.015 160)" }}>Nhắn Zalo</a>
-                      {isActive(o) && <a href={telHref} className={`${pill} border bg-white`} style={{ borderColor: "oklch(0.88 0.015 160)" }}>Đổi lịch / huỷ</a>}
-                      {o.st === "done" && o.reviewHref && <Link href={o.reviewHref} className={`${pill} text-white`} style={{ background: "oklch(0.68 0.18 45)" }}>Viết đánh giá</Link>}
-                      {(o.st === "done" || o.st === "cancel") && <Link href={o.rebookHref} className={`${pill} text-white`} style={{ background: G }}>Đặt lại</Link>}
+                      <a href={zaloHref} target="_blank" rel="noreferrer" className={`${pill} border bg-white`} style={{ borderColor: "oklch(0.88 0.015 160)" }}>{tr("Nhắn Zalo")}</a>
+                      {isActive(o) && <a href={telHref} className={`${pill} border bg-white`} style={{ borderColor: "oklch(0.88 0.015 160)" }}>{tr("Đổi lịch / huỷ")}</a>}
+                      {o.st === "done" && o.reviewHref && <Link href={o.reviewHref} className={`${pill} text-white`} style={{ background: "oklch(0.68 0.18 45)" }}>{tr("Viết đánh giá")}</Link>}
+                      {(o.st === "done" || o.st === "cancel") && <Link href={o.rebookHref} className={`${pill} text-white`} style={{ background: G }}>{tr("Đặt lại")}</Link>}
                     </div>
                   </div>
                 </article>
@@ -335,7 +337,7 @@ export function TraCuuLookup({
 
             {list.length === 0 && (
               <div className="rounded-[20px] border-[1.5px] border-dashed bg-white px-5 py-9 text-center text-sm" style={{ borderColor: "oklch(0.85 0.02 200)", color: "oklch(0.45 0.02 160)" }}>
-                Không có đơn nào ở mục này.
+                {tr("Không có đơn nào ở mục này.")}
               </div>
             )}
           </>
@@ -343,13 +345,13 @@ export function TraCuuLookup({
 
         {notFound && (
           <div className="flex flex-col items-center gap-2.5 rounded-[20px] border-[1.5px] border-dashed bg-white px-6 py-9 text-center" style={{ borderColor: "oklch(0.85 0.02 200)", animation: "tx-in .4s ease both" }}>
-            <div className="text-[17px] font-extrabold">Không tìm thấy đơn cho {searched}</div>
+            <div className="text-[17px] font-extrabold">{tr("Không tìm thấy đơn cho {0}", [tr(searched)])}</div>
             <div className="max-w-[440px] text-sm leading-[1.55]" style={{ color: "oklch(0.45 0.02 160)", textWrap: "pretty" }}>
-              Kiểm tra lại số điện thoại đúng số đã nhập lúc đặt (không có khoảng trắng), hoặc nhập mã đơn trong tin nhắn xác nhận. Đơn vừa gửi có thể mất 1–2 phút để hiện.
+              {tr("Kiểm tra lại số điện thoại đúng số đã nhập lúc đặt (không có khoảng trắng), hoặc nhập mã đơn trong tin nhắn xác nhận. Đơn vừa gửi có thể mất 1–2 phút để hiện.")}
             </div>
             <div className="flex flex-wrap justify-center gap-2">
-              <a href={telHref} className="rounded-full px-4 py-2.5 text-sm font-bold text-white" style={{ background: G }}>Gọi {phone}</a>
-              <a href={zaloHref} target="_blank" rel="noreferrer" className="rounded-full border-[1.5px] bg-white px-4 py-2.5 text-sm font-bold" style={{ borderColor: "oklch(0.88 0.015 160)" }}>Nhắn Zalo</a>
+              <a href={telHref} className="rounded-full px-4 py-2.5 text-sm font-bold text-white" style={{ background: G }}>{tr("Gọi {0}", [tr(phone)])}</a>
+              <a href={zaloHref} target="_blank" rel="noreferrer" className="rounded-full border-[1.5px] bg-white px-4 py-2.5 text-sm font-bold" style={{ borderColor: "oklch(0.88 0.015 160)" }}>{tr("Nhắn Zalo")}</a>
             </div>
           </div>
         )}
@@ -358,8 +360,8 @@ export function TraCuuLookup({
           <div className="grid gap-2.5" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,220px),1fr))", animation: "tx-in .4s ease both" }}>
             {HOWTO.map((h) => (
               <div key={h.k} className="rounded-2xl border bg-white p-4" style={{ borderColor: "oklch(0.92 0.01 160)" }}>
-                <div className="text-xs font-extrabold" style={{ color: "oklch(0.68 0.18 45)" }}>{h.k}</div>
-                <div className="mt-1 text-[15px] font-bold">{h.t}</div>
+                <div className="text-xs font-extrabold" style={{ color: "oklch(0.68 0.18 45)" }}>{tr(h.k)}</div>
+                <div className="mt-1 text-[15px] font-bold">{tr(h.t)}</div>
                 <div className="mt-1 text-[13px] leading-[1.5]" style={{ color: "oklch(0.45 0.02 160)" }}><VoiceText text={h.d} /></div>
               </div>
             ))}
@@ -367,18 +369,18 @@ export function TraCuuLookup({
         )}
 
         <div className="mt-2.5 flex flex-col gap-2 rounded-2xl border bg-white px-[18px] py-4" style={{ borderColor: "oklch(0.92 0.01 160)" }}>
-          <div className="text-sm font-extrabold">Ý nghĩa trạng thái</div>
+          <div className="text-sm font-extrabold">{tr("Ý nghĩa trạng thái")}</div>
           <div className="grid gap-x-4 gap-y-2 text-[13px] leading-[1.5]" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,180px),1fr))", color: "oklch(0.4 0.02 160)" }}>
             {LEGEND.map((l) => (
               <div key={l.k} className="flex items-start gap-2">
                 <span className="mt-[5px] h-[9px] w-[9px] flex-none rounded-full" style={{ background: l.c }} />
-                <span><b className="text-ink">{l.k}</b> — <VoiceText text={l.d} /></span>
+                <span><b className="text-ink">{tr(l.k)}</b> — <VoiceText text={l.d} /></span>
               </div>
             ))}
           </div>
         </div>
         <div className="text-center text-sm" style={{ color: "oklch(0.45 0.02 160)" }}>
-          Cần hỗ trợ? Gọi <a href={telHref} className="font-bold text-forest-700">{phone}</a> · <Link href="/huong-dan" className="font-bold text-forest-700">Xem hướng dẫn đặt dịch vụ</Link>
+          {tr("Cần hỗ trợ? Gọi")}{" "}<a href={telHref} className="font-bold text-forest-700">{tr(phone)}</a> · <Link href="/huong-dan" className="font-bold text-forest-700">{tr("Xem hướng dẫn đặt dịch vụ")}</Link>
         </div>
       </main>
     </div>

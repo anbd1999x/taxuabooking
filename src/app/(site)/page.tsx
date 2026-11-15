@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ogBlock } from "@/lib/og";
 import { SITE } from "@/lib/site";
-import Link from "next/link";
+import Link from "@/components/Link";
 import Image from "next/image";
 import { HeroSearch } from "@/components/home/HeroSearch";
 import { HeroPhoto } from "@/components/home/HeroPhoto";
@@ -15,22 +15,32 @@ import {
   getHomeCabinRoute,
 } from "@/lib/queries";
 import { getComboOrigins } from "@/lib/combo";
+import { getT } from "@/lib/i18n/server";
+import { i18nAlternates, i18nOg } from "@/lib/i18n/meta";
 
 export const dynamic = "force-dynamic";
 
 // Đường dẫn chính thức của trang chủ (tránh trùng nội dung khi có tham số trên URL).
 // Thẻ chia sẻ mạng xã hội của trang chủ (dán taxuabooking.com): dòng giới thiệu chung + ảnh biển mây.
-export const metadata: Metadata = {
-  alternates: { canonical: "/" },
-  openGraph: ogBlock({
-    title: `${SITE.name} - Đặt xe - Đặt phòng Tà Xùa chỉ với một chạm`,
-    description: SITE.description,
-    path: "/",
-    alt: "Biển mây Tà Xùa",
-  }),
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  const title = `${SITE.name} — ${t("Đặt xe cabin, homestay, tour Tà Xùa")}`;
+  const description = t(SITE.description);
+  return {
+    title: { absolute: title },
+    description,
+    alternates: await i18nAlternates("/"),
+    openGraph: await i18nOg({
+      title: `${SITE.name} - ${t("Đặt xe - Đặt phòng Tà Xùa chỉ với một chạm")}`,
+      description,
+      path: "/",
+      alt: t("Biển mây Tà Xùa"),
+    }),
+  };
+}
 
 export default async function HomePage() {
+  const t = await getT();
   const [services, articles, settings, cabinPrices, route, comboOrigins] = await Promise.all([
     getHomeServices(8),
     getArticles(3),
@@ -40,17 +50,17 @@ export default async function HomePage() {
     getComboOrigins(),
   ]);
 
-  const heroTitle = settings.heroTitle || "Lên Tà Xùa săn mây, mọi thứ có ở đây.";
+  const heroTitle = t(settings.heroTitle || "Lên Tà Xùa săn mây, mọi thứ có ở đây.");
   // Tách tiêu đề ở dấu phẩy đầu tiên: vế sau tô màu nắng bình minh.
-  const cut = heroTitle.indexOf(",");
+  const cut = heroTitle.search(/[,，、]/);
   const heroLead = cut > 0 ? heroTitle.slice(0, cut + 1) : heroTitle;
   const heroRest = cut > 0 ? heroTitle.slice(cut + 1).trim() : "";
   const phone = settings.contactPhone || "0357452952";
   const zalo = settings.contactZalo || "0357452952";
 
   const combo = {
-    title: settings.cabinComboTitle || "Xe cabin + home view kính trung tâm",
-    sub: settings.cabinComboSub || "Combo 2 ngày 1 đêm",
+    title: t(settings.cabinComboTitle || "Xe cabin + home view kính trung tâm"),
+    sub: t(settings.cabinComboSub || "Combo 2 ngày 1 đêm"),
     price: Number(settings.cabinComboPrice || "700000"),
   };
 
@@ -62,29 +72,29 @@ export default async function HomePage() {
         <div className="container-page flex flex-col gap-3 pb-28 pt-10 text-white sm:gap-5 sm:pb-36 sm:pt-12">
           {/* dòng định vị: địa danh + toạ độ */}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] font-bold uppercase tracking-[.22em] sm:text-xs" style={{ textShadow: "0 1px 10px oklch(0.15 0.05 270 / .6)" }}>
-            <h1 className="m-0 text-[length:inherit] font-[inherit] tracking-[inherit]">Đặt xe cabin, homestay Tà Xùa · Sơn La</h1>
+            <h1 className="m-0 text-[length:inherit] font-[inherit] tracking-[inherit]">{t("Đặt xe cabin, homestay Tà Xùa · Sơn La")}</h1>
             <span aria-hidden className="hidden h-px w-10 bg-white/50 sm:block" />
-            <span className="font-mono text-[11px] font-semibold tracking-[.1em] text-white/80">21°16′B · 104°26′Đ · 2.865 m</span>
+            <span className="font-mono text-[11px] font-semibold tracking-[.1em] text-white/80">{t("21°16′B · 104°26′Đ · 2.865 m")}</span>
           </div>
           <p className="max-w-[980px] text-balance text-[clamp(40px,7.4vw,96px)] font-extrabold leading-[.98] tracking-[-.04em]" style={{ textShadow: "0 2px 30px oklch(0.15 0.06 270 / .45)" }}>
-            {heroLead}
+            {t(heroLead)}
             {heroRest && (
               <>
                 {" "}
-                <span className="bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(100deg, oklch(0.93 0.1 88) 0%, oklch(0.86 0.15 72) 45%, oklch(0.8 0.16 48) 100%)", textShadow: "none" }}>{heroRest}</span>
+                <span className="bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(100deg, oklch(0.93 0.1 88) 0%, oklch(0.86 0.15 72) 45%, oklch(0.8 0.16 48) 100%)", textShadow: "none" }}>{t(heroRest)}</span>
               </>
             )}
           </p>
           <p className="hidden max-w-[580px] text-pretty text-base leading-relaxed text-white/90 sm:block sm:text-[19px]" style={{ textShadow: "0 1px 14px oklch(0.15 0.05 270 / .6)" }}>
-            Xe cabin, homestay, xe máy, xe ôm, taxi. Chọn ngày là thấy giá và chỗ trống, gửi yêu cầu là có người gọi lại xác nhận.
+            {t("Xe cabin, homestay, xe máy, xe ôm, taxi. Chọn ngày là thấy giá và chỗ trống, gửi yêu cầu là có người gọi lại xác nhận.")}
           </p>
           <div className="hidden flex-wrap items-center gap-x-4 gap-y-2 text-[13px] font-semibold text-white/85 sm:flex">
-            <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[.08em] text-white backdrop-blur">Mùa mây T10 – T4</span>
-            <span>Xe cabin đêm từ Hà Nội</span>
+            <span className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[.08em] text-white backdrop-blur">{t("Mùa mây T10 – T4")}</span>
+            <span>{t("Xe cabin đêm từ Hà Nội")}</span>
             <span aria-hidden className="h-1 w-1 rounded-full bg-white/60" />
-            <span>Homestay view biển mây</span>
+            <span>{t("Homestay view biển mây")}</span>
             <span aria-hidden className="hidden h-1 w-1 rounded-full bg-white/60 sm:block" />
-            <span className="hidden sm:inline">Combo trọn gói</span>
+            <span className="hidden sm:inline">{t("Combo trọn gói")}</span>
           </div>
         </div>
       </header>
@@ -100,7 +110,7 @@ export default async function HomePage() {
         combo={combo}
         homeFrom={Number(settings.cabinHomeFrom || "500000")}
         bikeFrom={Number(settings.cabinBikeFrom || "150000")}
-        footnote={settings.cabinFareFootnote || "Giá có thể thay đổi theo thời điểm. Vui lòng liên hệ trước để giữ chỗ."}
+        footnote={t(settings.cabinFareFootnote || "Giá có thể thay đổi theo thời điểm. Vui lòng liên hệ trước để giữ chỗ.")}
         routes={{ di: route.di, ve: route.ve }}
         phone={phone}
         zalo={zalo}
@@ -116,21 +126,21 @@ export default async function HomePage() {
         <section className="container-page mb-20 mt-16 flex flex-col gap-6">
           <div className="flex flex-wrap items-end justify-between gap-5">
             <div>
-              <h2 className="text-3xl font-extrabold leading-tight tracking-tight text-ink sm:text-4xl">Kinh nghiệm du lịch Tà Xùa</h2>
-              <p className="mt-2 text-sm text-gray-500">Mẹo và lịch trình cho chuyến săn mây trọn vẹn.</p>
+              <h2 className="text-3xl font-extrabold leading-tight tracking-tight text-ink sm:text-4xl">{t("Kinh nghiệm du lịch Tà Xùa")}</h2>
+              <p className="mt-2 text-sm text-gray-500">{t("Mẹo và lịch trình cho chuyến săn mây trọn vẹn.")}</p>
             </div>
-            <Link href="/kinh-nghiem" className="text-[15px] font-bold text-forest-700 hover:underline">Tất cả bài viết →</Link>
+            <Link href="/kinh-nghiem" className="text-[15px] font-bold text-forest-700 hover:underline">{t("Tất cả bài viết →")}</Link>
           </div>
           <div className="grid gap-6 sm:grid-cols-[repeat(auto-fit,minmax(300px,1fr))]">
             {articles.map((a) => (
               <Link key={a.id} href={`/kinh-nghiem/${a.slug}`} className="group flex flex-col gap-3.5">
                 {a.coverImage && (
                   <div className="relative aspect-[16/10] overflow-hidden rounded-[18px]">
-                    <Image src={a.coverImage} alt={a.title} fill sizes="(max-width:640px) 100vw, 380px" className="object-cover transition duration-500 group-hover:scale-105" />
+                    <Image src={a.coverImage} alt={t(a.title)} fill sizes="(max-width:640px) 100vw, 380px" className="object-cover transition duration-500 group-hover:scale-105" />
                   </div>
                 )}
-                <div className="text-xl font-bold leading-snug tracking-tight text-ink group-hover:text-forest-700">{a.title}</div>
-                {a.excerpt && <p className="text-[15px] leading-relaxed text-gray-600">{a.excerpt}</p>}
+                <div className="text-xl font-bold leading-snug tracking-tight text-ink group-hover:text-forest-700">{t(a.title)}</div>
+                {a.excerpt && <p className="text-[15px] leading-relaxed text-gray-600">{t(a.excerpt)}</p>}
               </Link>
             ))}
           </div>
@@ -139,7 +149,7 @@ export default async function HomePage() {
 
       {/* Thanh liên hệ cố định (mobile) */}
       <div className="fixed inset-x-3 bottom-3 z-20 grid grid-cols-2 gap-2 rounded-[20px] bg-white p-2 shadow-[0_10px_30px_-8px_rgba(30,60,45,0.35)] sm:hidden">
-        <a href={`tel:${phone.replace(/\s/g, "")}`} className="rounded-2xl bg-forest-700 py-3.5 text-center text-sm font-bold text-white">Gọi ngay</a>
+        <a href={`tel:${phone.replace(/\s/g, "")}`} className="rounded-2xl bg-forest-700 py-3.5 text-center text-sm font-bold text-white">{t("Gọi ngay")}</a>
         <a href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="rounded-2xl py-3.5 text-center text-sm font-bold text-white" style={{ background: "oklch(0.68 0.18 45)" }}>Chat Zalo</a>
       </div>
     </>

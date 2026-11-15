@@ -1,4 +1,5 @@
 import { bookingRentalDays, rentalDaysLabel } from "./rental-days";
+import { identityT, type TFunc } from "./i18n/config";
 /**
  * Người lớn / trẻ em theo tuổi (homestay + combo).
  * Quy tắc: trẻ DƯỚI `freeUnderAge` = miễn phí, KHÔNG tính vào số người; trẻ từ
@@ -94,19 +95,19 @@ export function isRentalCategory(category: string): boolean {
 }
 
 /** "2 đêm" (lưu trú) hoặc "2 ngày thuê" (xe máy); null khi đơn không có thời lượng. */
-export function durationLabel(b: { category: string; nights: number | null; rentalDays?: unknown }): string | null {
+export function durationLabel(b: { category: string; nights: number | null; rentalDays?: unknown }, t: TFunc = identityT): string | null {
   if (!b.nights) return null;
-  return isRentalCategory(b.category) ? `${rentalDaysLabel(bookingRentalDays(b))} thuê` : `${b.nights} đêm`;
+  return isRentalCategory(b.category) ? t("{0} thuê", [rentalDaysLabel(bookingRentalDays(b), t)]) : t("{0} đêm", [b.nights]);
 }
 
 /** "3 xe" (thuê xe máy) hoặc "4 người". */
-export function bookingCountLabel(b: Parameters<typeof bookingPax>[0]): string {
-  return isRentalCategory(b.category) ? `${b.quantity} xe` : `${bookingPax(b)} người`;
+export function bookingCountLabel(b: Parameters<typeof bookingPax>[0], t: TFunc = identityT): string {
+  return isRentalCategory(b.category) ? t("{0} xe", [b.quantity]) : t("{0} người", [bookingPax(b)]);
 }
 
 /** Nhãn hiển thị: "2 người lớn · 1 trẻ em (5, 8 tuổi)". */
-export function partyLabel(adults: number, childrenAges: number[]): string {
-  const parts = [`${Math.max(0, adults)} người lớn`];
-  if (childrenAges.length) parts.push(`${childrenAges.length} trẻ em (${childrenAges.join(", ")} tuổi)`);
+export function partyLabel(adults: number, childrenAges: number[], t: TFunc = identityT): string {
+  const parts = [t("{0} người lớn", [Math.max(0, adults)])];
+  if (childrenAges.length) parts.push(t("{0} trẻ em ({1} tuổi)", [childrenAges.length, childrenAges.join(", ")]));
   return parts.join(" · ");
 }

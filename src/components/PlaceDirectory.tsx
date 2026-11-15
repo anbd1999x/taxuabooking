@@ -1,5 +1,6 @@
-import Link from "next/link";
+import Link from "@/components/Link";
 import { prisma } from "@/lib/prisma";
+import { getT } from "@/lib/i18n/server";
 
 /** Lưới thẻ quán (nhà hàng/cafe) đọc từ DB + chip lọc khu vực (server component). */
 export async function PlaceDirectory({
@@ -11,6 +12,7 @@ export async function PlaceDirectory({
   basePath: string; // "/nha-hang" | "/cafe"
   selectedArea?: string;
 }) {
+  const tr = await getT();
   const places = await prisma.place.findMany({
     where: { kind, published: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -32,7 +34,7 @@ export async function PlaceDirectory({
             !area ? "bg-forest-700 text-white" : "bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-forest-50"
           }`}
         >
-          Tất cả ({places.length})
+          {tr("Tất cả ({0})", [places.length])}
         </Link>
         {areas.map((a) => (
           <Link
@@ -42,14 +44,14 @@ export async function PlaceDirectory({
               area === a ? "bg-forest-700 text-white" : "bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-forest-50"
             }`}
           >
-            {a} ({counts.get(a)})
+            {tr(a)} ({counts.get(a)})
           </Link>
         ))}
       </div>
 
       {list.length === 0 ? (
         <p className="mt-8 rounded-2xl border border-dashed border-gray-300 bg-white py-14 text-center text-gray-500">
-          Chưa có địa điểm nào.
+          {tr("Chưa có địa điểm nào.")}
         </p>
       ) : (
         <div className="mt-5 grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
@@ -62,19 +64,19 @@ export async function PlaceDirectory({
                 className="group flex flex-col gap-2.5 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5 transition hover:shadow-md"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <h2 className="text-[16px] font-extrabold leading-snug text-ink group-hover:text-forest-700">{p.name}</h2>
-                  {p.price && <span className="flex-none whitespace-nowrap rounded-full bg-sunset-50 px-2.5 py-1 text-xs font-bold text-sunset-600">{p.price}</span>}
+                  <h2 className="text-[16px] font-extrabold leading-snug text-ink group-hover:text-forest-700">{tr(p.name)}</h2>
+                  {p.price && <span className="flex-none whitespace-nowrap rounded-full bg-sunset-50 px-2.5 py-1 text-xs font-bold text-sunset-600">{tr(p.price)}</span>}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-gray-500">
-                  <span>📍 {p.address || `${p.area}, Tà Xùa`}</span>
-                  {p.hours && <span>🕐 {p.hours}</span>}
+                  <span>📍 {tr(p.address) || tr("{0}, Tà Xùa", [tr(p.area)])}</span>
+                  {p.hours && <span>🕐 {tr(p.hours)}</span>}
                 </div>
-                {p.desc && <p className="text-[13.5px] leading-relaxed text-gray-600">{p.desc}</p>}
+                {p.desc && <p className="text-[13.5px] leading-relaxed text-gray-600">{tr(p.desc)}</p>}
                 <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1">
                   {tags.map((t) => (
-                    <span key={t} className="rounded-full bg-forest-50 px-2.5 py-1 text-[11px] font-semibold text-forest-700">{t}</span>
+                    <span key={t} className="rounded-full bg-forest-50 px-2.5 py-1 text-[11px] font-semibold text-forest-700">{tr(t)}</span>
                   ))}
-                  <span className="ml-auto text-[12px] font-bold text-forest-700 opacity-0 transition group-hover:opacity-100">Xem chi tiết →</span>
+                  <span className="ml-auto text-[12px] font-bold text-forest-700 opacity-0 transition group-hover:opacity-100">{tr("Xem chi tiết →")}</span>
                 </div>
               </Link>
             );

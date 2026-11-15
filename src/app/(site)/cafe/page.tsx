@@ -3,6 +3,8 @@ import { pageMeta } from "@/lib/og";
 import { placeShareImage } from "@/lib/og-source";
 import { prisma } from "@/lib/prisma";
 import { CafeList, type CafeCard } from "@/components/cafe/CafeList";
+import { getT } from "@/lib/i18n/server";
+import { i18nMeta } from "@/lib/i18n/meta";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +17,7 @@ const META = {
 
 /** Ảnh chia sẻ link lấy từ địa điểm thật trong DB (thiếu thì ảnh biển mây). */
 export async function generateMetadata(): Promise<Metadata> {
-  return pageMeta({ ...META, image: await placeShareImage("CAFE") });
+  return i18nMeta({ ...META, image: await placeShareImage("CAFE") });
 }
 
 const MAP = "https://maps.google.com/?q=";
@@ -54,6 +56,7 @@ function deriveSlots(open: number, close: number, late: boolean): string[] {
 }
 
 export default async function CafePage() {
+  const tr = await getT();
   const places = await prisma.place.findMany({
     where: { kind: "CAFE", published: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],

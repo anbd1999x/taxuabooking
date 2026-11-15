@@ -9,6 +9,7 @@ import { cabinSeatTotal } from "@/lib/combo-pricing";
 import { vnPhoneError } from "@/lib/phone";
 import { BookingEmailField, emailLooksValid } from "@/components/BookingEmailField";
 import { CommitmentLink } from "@/components/trust/parts";
+import { useT } from "@/components/i18n/I18nProvider";
 
 function vnd(n: number | null | undefined, fallback = "Liên hệ") {
   if (n == null) return fallback;
@@ -47,6 +48,7 @@ function defaultAlloc(people: number) {
 }
 
 export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProvince, hasFareTable, fares, initialPeople = 2 }: Props) {
+  const tr = useT();
   const roundTrip = Boolean(ret);
   const [dir, setDir] = useState<"di" | "ve">("di");
   const [outIdx, setOutIdx] = useState(outbound.pickIndex);
@@ -122,16 +124,16 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
   const pickOpts = outTrip
     ? [
         ...(province && province !== outTrip.pickupPoint
-          ? [{ name: `Đón tại ${province}`, sub: "Tỉnh bạn đã chọn khi tìm vé · nhà xe xác nhận điểm đón cụ thể" }]
+          ? [{ name: `Đón tại ${province}`, label: tr("Đón tại {0}", [tr(province)]), sub: tr("Tỉnh bạn đã chọn khi tìm vé · nhà xe xác nhận điểm đón cụ thể") }]
           : []),
-        { name: outTrip.pickupPoint, sub: "Điểm đón của nhà xe" },
-        { name: "Đón nội thành (liên hệ)", sub: "Báo địa chỉ, nhà xe xác nhận giờ & phụ phí" },
+        { name: outTrip.pickupPoint, sub: tr("Điểm đón của nhà xe") },
+        { name: "Đón nội thành (liên hệ)", sub: tr("Báo địa chỉ, nhà xe xác nhận giờ & phụ phí") },
       ]
     : [];
   const dropOpts = outTrip
     ? [
-        { name: outTrip.dropoffPoint, sub: "Điểm trả của nhà xe" },
-        { name: "Trả tại homestay", sub: "Ghi tên homestay ở ghi chú" },
+        { name: outTrip.dropoffPoint, sub: tr("Điểm trả của nhà xe") },
+        { name: "Trả tại homestay", sub: tr("Ghi tên homestay ở ghi chú") },
       ]
     : [];
 
@@ -143,10 +145,10 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
     if (!bookable) {
       setErr(
         !outTrip || (roundTrip && !retTrip)
-          ? "Ngày này chưa có chuyến. Hãy chọn ngày khác."
+          ? tr("Ngày này chưa có chuyến. Hãy chọn ngày khác.")
           : soldOut
-            ? "Nhà xe đã hết vé ngày này. Hãy chọn ngày khác."
-            : "Vui lòng chọn số khách.",
+            ? tr("Nhà xe đã hết vé ngày này. Hãy chọn ngày khác.")
+            : tr("Vui lòng chọn số khách."),
       );
       return;
     }
@@ -159,11 +161,11 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
   async function submit() {
     setTried(true);
     if (!name.trim() || !phoneOk) {
-      setErr(!name.trim() ? "Vui lòng nhập họ tên." : phoneErr);
+      setErr(!name.trim() ? tr("Vui lòng nhập họ tên.") : phoneErr);
       return;
     }
     if (!emailLooksValid(email)) {
-      setErr("Email không hợp lệ (có thể để trống).");
+      setErr(tr("Email không hợp lệ (có thể để trống)."));
       return;
     }
     setErr(null);
@@ -190,7 +192,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
       });
       const data = await res.json();
       if (!res.ok) {
-        setErr(data.error ?? "Gửi yêu cầu thất bại.");
+        setErr(tr(data.error) ?? tr("Gửi yêu cầu thất bại."));
       } else {
         trackLeadConversion();
         setCode(data.code);
@@ -198,7 +200,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
         setStep(4);
       }
     } catch {
-      setErr("Lỗi kết nối, vui lòng thử lại.");
+      setErr(tr("Lỗi kết nối, vui lòng thử lại."));
     } finally {
       setSubmitting(false);
     }
@@ -215,7 +217,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
     setCode(null);
   }
 
-  const steps = ["Chọn vé", "Điểm đón trả", "Liên hệ"];
+  const steps = [tr("Chọn vé"), tr("Điểm đón trả"), tr("Liên hệ")];
 
   return (
     <aside className="lg:sticky lg:top-20">
@@ -223,14 +225,14 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
         {/* Header */}
         <div className="flex flex-col gap-3.5 px-[18px] pt-[18px]">
           <div className="flex items-baseline justify-between gap-2">
-            <div className="text-[19px] font-extrabold tracking-tight text-ink">Đặt vé</div>
-            <div className="text-xs text-gray-500">Không cần tài khoản</div>
+            <div className="text-[19px] font-extrabold tracking-tight text-ink">{tr("Đặt vé")}</div>
+            <div className="text-xs text-gray-500">{tr("Không cần tài khoản")}</div>
           </div>
 
           {/* Toggle chiều */}
           {roundTrip && step < 4 && (
             <div className="grid grid-cols-2 gap-1 rounded-xl bg-[oklch(0.95_0.008_150)] p-1">
-              {([["di", "Chiều đi"], ["ve", "Chiều về"]] as const).map(([k, lbl]) => (
+              {([["di", tr("Chiều đi")], ["ve", tr("Chiều về")]] as const).map(([k, lbl]) => (
                 <button
                   key={k}
                   type="button"
@@ -239,7 +241,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
                     dir === k ? "bg-white text-forest-700 shadow-sm" : "text-gray-500"
                   }`}
                 >
-                  {lbl}
+                  {tr(lbl)}
                 </button>
               ))}
             </div>
@@ -260,10 +262,10 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
                       a ? "bg-forest-700 text-white" : d.state === "unk" ? "border border-dashed border-gray-300 bg-white" : "border border-gray-200 bg-white"
                     }`}
                   >
-                    <div className={`text-[11px] ${a ? "text-white/80" : "text-gray-500"}`}>{d.wd}</div>
+                    <div className={`text-[11px] ${a ? "text-white/80" : "text-gray-500"}`}>{tr(d.wd)}</div>
                     <div className={`text-base font-extrabold ${a ? "text-white" : "text-ink"}`}>{d.dd.slice(0, 2)}</div>
                     <div className={`flex min-h-[25px] items-center justify-center text-[10px] font-bold leading-tight ${a ? "text-white" : sm.cls}`}>
-                      {sm.text}
+                      {tr(sm.text)}
                     </div>
                   </button>
                 );
@@ -276,10 +278,10 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
             <div className="flex items-center justify-between gap-2.5 rounded-2xl bg-[oklch(0.97_0.006_150)] px-3.5 py-3">
               <div className="min-w-0">
                 <div className="text-[15px] font-extrabold text-ink">
-                  {activeTrip ? `${activeTrip.departureTime} · ${dir === "di" ? "Đi" : "Về"}` : dir === "di" ? "Chiều đi" : "Chiều về"}
+                  {activeTrip ? `${tr(activeTrip.departureTime)} · ${dir === "di" ? tr("Đi") : tr("Về")}` : dir === "di" ? tr("Chiều đi") : tr("Chiều về")}
                 </div>
                 <div className="truncate text-xs text-gray-500">
-                  {activeTrip ? activeTrip.pickupPoint : "Chưa có chuyến ngày này"}
+                  {activeTrip ? tr(activeTrip.pickupPoint) : tr("Chưa có chuyến ngày này")}
                 </div>
               </div>
               <span className={`flex-none rounded-full px-2.5 py-1 text-xs font-bold ${
@@ -287,7 +289,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
                   ? "bg-forest-50 text-forest-700"
                   : "bg-gray-100 text-gray-500"
               }`}>
-                {activeTrip ? STATE_META[activeDays[activeIdx].state].text : "Chưa cập nhật"}
+                {activeTrip ? tr(STATE_META[activeDays[activeIdx].state].text) : tr("Chưa cập nhật")}
               </span>
             </div>
           )}
@@ -310,7 +312,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
                     >
                       {done ? "✓" : n}
                     </button>
-                    {cur && <span className="whitespace-nowrap text-[13px] font-bold text-ink">{name}</span>}
+                    {cur && <span className="whitespace-nowrap text-[13px] font-bold text-ink">{tr(name)}</span>}
                     {i < 2 && <span className={`h-0.5 flex-1 ${done ? "bg-forest-700" : "bg-gray-200"}`} />}
                   </div>
                 );
@@ -325,19 +327,19 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
           {step === 1 && (
             oneWayZalo ? (
               <div className="flex flex-col gap-2.5 rounded-2xl bg-sunset-50 p-4">
-                <div className="text-[15px] font-extrabold text-ink">Vé 1 chiều: nhắn Zalo để được báo giá</div>
+                <div className="text-[15px] font-extrabold text-ink">{tr("Vé 1 chiều: nhắn Zalo để được báo giá")}</div>
                 <div className="text-[13px] leading-relaxed text-gray-600">
-                  Nhà xe chỉ bán vé khứ hồi trên web. Đi 1 chiều, bạn nhắn Zalo để nhà xe báo giá và giữ chỗ. Muốn đặt khứ hồi, hãy tìm lại với cả ngày đi và ngày về.
+                  {tr("Nhà xe chỉ bán vé khứ hồi trên web. Đi 1 chiều, bạn nhắn Zalo để nhà xe báo giá và giữ chỗ. Muốn đặt khứ hồi, hãy tìm lại với cả ngày đi và ngày về.")}
                 </div>
                 <a href={zaloHref} target="_blank" rel="noopener noreferrer" className="rounded-xl bg-sunset-500 py-3 text-center text-[15px] font-bold text-white hover:bg-sunset-600">
-                  💬 Nhắn Zalo
+                  {tr("💬 Nhắn Zalo")}
                 </a>
               </div>
             ) : activeTrip ? (
               <div className="flex flex-col gap-3">
                 {hasFareTable && fares.length > 0 && (
                   <label className="flex flex-col gap-1.5 text-[13px] font-bold text-ink">
-                    Điểm xuất phát
+                    {tr("Điểm xuất phát")}
                     <select
                       value={origin}
                       onChange={(e) => setOrigin(e.target.value)}
@@ -345,7 +347,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
                     >
                       {fares.map((f) => (
                         <option key={f.origin} value={f.origin}>
-                          {f.origin} · {vnd(f.fare)}/khách {roundTrip ? "khứ hồi" : "1 chiều"}
+                          {tr(f.origin)} · {tr(vnd(f.fare))}{tr("/khách")}{" "}{roundTrip ? tr("khứ hồi") : tr("1 chiều")}
                         </option>
                       ))}
                     </select>
@@ -354,11 +356,11 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
                 {/* Số khách */}
                 <div className="flex items-center justify-between gap-3 rounded-2xl border border-gray-200 p-3">
                   <div className="min-w-0">
-                    <div className="text-sm font-bold text-ink">Số khách</div>
+                    <div className="text-sm font-bold text-ink">{tr("Số khách")}</div>
                     <div className="mt-0.5 text-xs text-gray-500">
                       {fare == null
-                        ? "Nhà xe báo giá khi gọi xác nhận"
-                        : `Vé ${roundTrip ? "khứ hồi" : "1 chiều"}: ${vnd(fare)}/khách (nằm ghép)`}
+                        ? tr("Nhà xe báo giá khi gọi xác nhận")
+                        : tr("Vé {0}: {1}/khách (nằm ghép)", [roundTrip ? tr("khứ hồi") : tr("1 chiều"), tr(vnd(fare))])}
                     </div>
                   </div>
                   <div className="flex flex-none items-center gap-2.5">
@@ -368,25 +370,25 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
                   </div>
                 </div>
                 {people > maxPeople && maxPeople > 0 && (
-                  <p className="text-xs font-semibold text-sunset-600">Chuyến chỉ còn {maxPeople} chỗ — nhà xe sẽ gọi xác nhận.</p>
+                  <p className="text-xs font-semibold text-sunset-600">{tr("Chuyến chỉ còn {0} chỗ — nhà xe sẽ gọi xác nhận.", [maxPeople])}</p>
                 )}
 
                 {/* Chỗ nằm trên xe cabin: cabin đôi nằm ghép / cabin đơn nằm riêng (giống combo) */}
                 <div className="flex flex-col gap-2.5 rounded-2xl border border-gray-200 p-3">
                   <div className="flex items-center justify-between gap-2">
-                    <div className="text-[13px] font-bold text-ink">Chỗ nằm trên xe cabin</div>
-                    <div className="text-xs font-bold text-forest-700">{people} khách</div>
+                    <div className="text-[13px] font-bold text-ink">{tr("Chỗ nằm trên xe cabin")}</div>
+                    <div className="text-xs font-bold text-forest-700">{tr("{0} khách", [people])}</div>
                   </div>
                   {([
-                    { label: "Cabin đôi · nằm ghép", sub: "2 người 1 buồng", value: shared, per: fare, inc: toShared, dec: toSolo },
-                    { label: "Cabin đơn · nằm riêng", sub: "1 người 1 buồng · ×2 giá vé", value: solo, per: fare == null ? null : 2 * fare, inc: toSolo, dec: toShared },
+                    { label: tr("Cabin đôi · nằm ghép"), sub: tr("2 người 1 buồng"), value: shared, per: fare, inc: toShared, dec: toSolo },
+                    { label: tr("Cabin đơn · nằm riêng"), sub: tr("1 người 1 buồng · ×2 giá vé"), value: solo, per: fare == null ? null : 2 * fare, inc: toSolo, dec: toShared },
                   ] as const).map((r) => (
                     <div key={r.label} className="flex items-center justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="text-sm font-bold text-ink">{r.label}</div>
+                        <div className="text-sm font-bold text-ink">{tr(r.label)}</div>
                         <div className="text-xs text-gray-500">
-                          {r.sub}
-                          {r.per != null && <> · <b className="text-forest-700">{vnd(r.per)}/người</b></>}
+                          {tr(r.sub)}
+                          {r.per != null && <> · <b className="text-forest-700">{tr("{0}/người", [tr(vnd(r.per))])}</b></>}
                         </div>
                       </div>
                       <div className="flex flex-none items-center gap-2.5">
@@ -397,7 +399,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
                     </div>
                   ))}
                   <p className="text-[11px] leading-relaxed text-gray-500">
-                    <b>Cabin đôi</b>: 2 người 1 buồng. <b>Cabin đơn</b>: 1 người 1 buồng (×2 giá vé).
+                    <b>{tr("Cabin đôi")}</b>{tr(": 2 người 1 buồng.")}{" "}<b>{tr("Cabin đơn")}</b>{tr(": 1 người 1 buồng (×2 giá vé).")}
                   </p>
                 </div>
 
@@ -406,31 +408,31 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
                   <div className="flex flex-col gap-1 rounded-xl bg-[oklch(0.97_0.006_150)] p-3 text-[13px]">
                     {shared > 0 && (
                       <div className="flex justify-between gap-2">
-                        <span className="text-gray-600">Nằm ghép: {shared} người × {vnd(fare)}</span>
-                        <span className="font-bold text-ink">{vnd(cabinSeatTotal(fare, shared, 0))}</span>
+                        <span className="text-gray-600">{tr("Nằm ghép: {0} người × {1}", [shared, tr(vnd(fare))])}</span>
+                        <span className="font-bold text-ink">{tr(vnd(cabinSeatTotal(fare, shared, 0)))}</span>
                       </div>
                     )}
                     {solo > 0 && (
                       <div className="flex justify-between gap-2">
-                        <span className="text-gray-600">Nằm riêng: {solo} người × 2 × {vnd(fare)}</span>
-                        <span className="font-bold text-ink">{vnd(cabinSeatTotal(fare, 0, solo))}</span>
+                        <span className="text-gray-600">{tr("Nằm riêng: {0} người × 2 × {1}", [solo, tr(vnd(fare))])}</span>
+                        <span className="font-bold text-ink">{tr(vnd(cabinSeatTotal(fare, 0, solo)))}</span>
                       </div>
                     )}
                     <div className="mt-1 flex justify-between gap-2 border-t border-gray-200 pt-1.5">
-                      <span className="text-gray-500">Tổng {people} khách</span>
-                      <span className="font-extrabold text-sunset-600">{vnd(total)}</span>
+                      <span className="text-gray-500">{tr("Tổng {0} khách", [people])}</span>
+                      <span className="font-extrabold text-sunset-600">{tr(vnd(total))}</span>
                     </div>
                   </div>
                 )}
                 <p className="text-center text-xs leading-relaxed text-gray-500">
-                  Chỗ được giữ sau khi nhà xe gọi xác nhận. Chưa cần thanh toán.
+                  {tr("Chỗ được giữ sau khi nhà xe gọi xác nhận. Chưa cần thanh toán.")}
                 </p>
               </div>
             ) : (
               <div className="flex flex-col gap-1.5 rounded-2xl bg-sky-50 p-4">
-                <div className="text-[15px] font-extrabold text-ink">Chưa có chuyến cho ngày này</div>
+                <div className="text-[15px] font-extrabold text-ink">{tr("Chưa có chuyến cho ngày này")}</div>
                 <div className="text-[13px] leading-relaxed text-gray-600">
-                  Hãy chọn ngày khác ở dải ngày phía trên, hoặc gọi {phone} để được hỗ trợ.
+                  {tr("Hãy chọn ngày khác ở dải ngày phía trên, hoặc gọi {0} để được hỗ trợ.", [tr(phone)])}
                 </div>
               </div>
             )
@@ -439,23 +441,23 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
           {/* STEP 2 — điểm đón trả */}
           {step === 2 && (
             <div className="flex flex-col gap-4">
-              <PointGroup title="Điểm đón" opts={pickOpts} value={pickup} onPick={setPickup} />
-              <PointGroup title="Điểm trả" opts={dropOpts} value={drop} onPick={setDrop} />
+              <PointGroup title={tr("Điểm đón")} opts={pickOpts} value={pickup} onPick={setPickup} />
+              <PointGroup title={tr("Điểm trả")} opts={dropOpts} value={drop} onPick={setDrop} />
             </div>
           )}
 
           {/* STEP 3 — liên hệ */}
           {step === 3 && (
             <div className="flex flex-col gap-3">
-              <Field label="Họ và tên *">
+              <Field label={tr("Họ và tên *")}>
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Nguyễn Văn A"
+                  placeholder={tr("Nguyễn Văn A")}
                   className={`rounded-xl border-[1.5px] px-3 py-2.5 text-base outline-none ${tried && !name.trim() ? "border-red-400" : "border-gray-200"}`}
                 />
               </Field>
-              <Field label="Số điện thoại *">
+              <Field label={tr("Số điện thoại *")}>
                 <input
                   value={custPhone}
                   onChange={(e) => setCustPhone(e.target.value)}
@@ -465,31 +467,31 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
                 />
               </Field>
               <BookingEmailField value={email} onChange={setEmail} inputClassName="rounded-xl border-[1.5px] border-gray-200 px-3 py-2.5 text-base outline-none" />
-              <Field label="Ghi chú">
+              <Field label={tr("Ghi chú")}>
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   rows={2}
-                  placeholder="Đi cùng trẻ nhỏ, cần đón tận nhà…"
+                  placeholder={tr("Đi cùng trẻ nhỏ, cần đón tận nhà…")}
                   className="resize-y rounded-xl border-[1.5px] border-gray-200 px-3 py-2.5 text-[15px] outline-none"
                 />
               </Field>
               <div className="flex flex-col gap-1.5 rounded-xl bg-[oklch(0.97_0.006_150)] p-3">
                 {[
-                  { k: "Chuyến đi", v: outTrip ? `${outbound.days[outIdx].dd} · ${outTrip.departureTime}` : "—" },
-                  ...(roundTrip ? [{ k: "Chuyến về", v: retTrip ? `${ret!.days[retIdx].dd} · ${retTrip.departureTime}` : "—" }] : []),
-                  ...(hasFareTable ? [{ k: "Xuất phát", v: origin }] : []),
+                  { k: tr("Chuyến đi"), v: outTrip ? `${outbound.days[outIdx].dd} · ${outTrip.departureTime}` : "—" },
+                  ...(roundTrip ? [{ k: tr("Chuyến về"), v: retTrip ? `${ret!.days[retIdx].dd} · ${retTrip.departureTime}` : "—" }] : []),
+                  ...(hasFareTable ? [{ k: tr("Xuất phát"), v: origin }] : []),
                   {
                     k: "Cabin",
-                    v: [shared ? `${shared} khách nằm ghép` : null, solo ? `${solo} khách nằm riêng` : null].filter(Boolean).join(" + ") || "—",
+                    v: [shared ? tr("{0} khách nằm ghép", [shared]) : null, solo ? tr("{0} khách nằm riêng", [solo]) : null].filter(Boolean).join(" + ") || "—",
                   },
-                  { k: "Số khách", v: String(people) },
-                  { k: "Đón", v: pickup ?? "—" },
-                  { k: "Trả", v: drop ?? "—" },
+                  { k: tr("Số khách"), v: String(people) },
+                  { k: tr("Đón"), v: pickup ?? "—" },
+                  { k: tr("Trả"), v: drop ?? "—" },
                 ].map((r) => (
                   <div key={r.k} className="flex justify-between gap-2.5 text-[13px]">
-                    <span className="text-gray-500">{r.k}</span>
-                    <span className="text-right font-bold text-ink">{r.v}</span>
+                    <span className="text-gray-500">{tr(r.k)}</span>
+                    <span className="text-right font-bold text-ink">{tr(r.v)}</span>
                   </div>
                 ))}
               </div>
@@ -499,22 +501,22 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
           {/* DONE */}
           {step === 4 && (
             <div className="mb-[18px] flex flex-col gap-2 rounded-2xl bg-forest-50 p-[18px]">
-              <div className="text-xs font-bold uppercase tracking-wider text-forest-700">Đã gửi yêu cầu</div>
-              <div className="text-2xl font-extrabold tracking-tight text-ink">Mã: {code}</div>
+              <div className="text-xs font-bold uppercase tracking-wider text-forest-700">{tr("Đã gửi yêu cầu")}</div>
+              <div className="text-2xl font-extrabold tracking-tight text-ink">{tr("Mã:")}{" "}{tr(code)}</div>
               <div className="text-[13px] leading-relaxed text-gray-700">
                 <VoiceText text={needsConfirm
-                  ? `Tụi mình sẽ gọi ${custPhone} để xác nhận chỗ. Yêu cầu được xác nhận sau khi nhà xe kiểm tra, chưa cần thanh toán.`
-                  : `Tụi mình sẽ gọi ${custPhone} để xác nhận chi tiết. Chưa cần thanh toán.`} />
+                  ? tr("Tụi mình sẽ gọi {0} để xác nhận chỗ. Yêu cầu được xác nhận sau khi nhà xe kiểm tra, chưa cần thanh toán.", [custPhone])
+                  : tr("Tụi mình sẽ gọi {0} để xác nhận chi tiết. Chưa cần thanh toán.", [custPhone])} />
               </div>
               <SupportHoursNote />
               <div className="mt-1 grid grid-cols-2 gap-2">
                 {zalo && (
                   <a href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="rounded-xl bg-sunset-500 py-2.5 text-center text-sm font-bold text-white">
-                    Nhắn Zalo
+                    {tr("Nhắn Zalo")}
                   </a>
                 )}
                 <button type="button" onClick={reset} className="rounded-xl bg-white py-2.5 text-center text-sm font-bold text-ink ring-1 ring-black/10">
-                  Đặt thêm
+                  {tr("Đặt thêm")}
                 </button>
               </div>
             </div>
@@ -526,16 +528,16 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
           <div className="mt-4 flex flex-col gap-2.5 border-t border-gray-100 px-[18px] pb-[18px] pt-3.5">
             <div className="flex items-baseline justify-between gap-2.5">
               <div className="min-w-0 truncate text-xs text-gray-500">
-                {`${people} khách · ${roundTrip ? "khứ hồi" : "1 chiều"}`}
+                {tr("{0} khách · {1}", [people, roundTrip ? tr("khứ hồi") : tr("1 chiều")])}
               </div>
               <div className="whitespace-nowrap text-[22px] font-extrabold tracking-tight text-sunset-600">
-                {oneWayZalo ? "Nhắn Zalo" : !bookable ? "—" : total == null ? "Chờ báo giá" : vnd(total)}
+                {oneWayZalo ? tr("Nhắn Zalo") : !bookable ? "—" : total == null ? tr("Chờ báo giá") : tr(vnd(total))}
               </div>
             </div>
-            {err && <p className="text-[13px] font-semibold text-red-600">{err}</p>}
+            {err && <p className="text-[13px] font-semibold text-red-600">{tr(err)}</p>}
             {oneWayZalo ? (
               <a href={zaloHref} target="_blank" rel="noopener noreferrer" className="rounded-xl bg-sunset-500 py-3 text-center text-[15px] font-bold text-white hover:bg-sunset-600">
-                💬 Nhắn Zalo
+                {tr("💬 Nhắn Zalo")}
               </a>
             ) : (
             <div className="flex gap-2">
@@ -556,14 +558,14 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
                   (step === 1 && !bookable) || submitting ? "bg-gray-300" : "bg-sunset-500 hover:bg-sunset-600"
                 }`}
               >
-                {submitting ? "Đang gửi..." : step === 3 ? "Gửi yêu cầu đặt" : "Tiếp tục"}
+                {submitting ? tr("Đang gửi...") : step === 3 ? tr("Gửi yêu cầu đặt") : tr("Tiếp tục")}
               </button>
             </div>
             )}
             {step === 3 && <CommitmentLink />}
             <div className="grid grid-cols-2 gap-2">
               <a href={`tel:${phone.replace(/\s/g, "")}`} className="rounded-[10px] border border-gray-200 py-2.5 text-center text-[13px] font-bold text-forest-700">
-                Gọi {phone}
+                {tr("Gọi {0}", [tr(phone)])}
               </a>
               <a href={zalo ? `https://zalo.me/${zalo}` : `tel:${phone.replace(/\s/g, "")}`} target="_blank" rel="noopener noreferrer" className="rounded-[10px] border border-gray-200 py-2.5 text-center text-[13px] font-bold text-sunset-600">
                 Chat Zalo
@@ -580,13 +582,15 @@ function PointGroup({
   title, opts, value, onPick,
 }: {
   title: string;
-  opts: { name: string; sub: string }[];
+  /** `name` = giá trị gửi server (tiếng Việt); `label` = chữ hiển thị nếu khác. */
+  opts: { name: string; sub: string; label?: string }[];
   value: string | null;
   onPick: (v: string) => void;
 }) {
+  const tr = useT();
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="text-[13px] font-bold text-ink">{title}</div>
+      <div className="text-[13px] font-bold text-ink">{tr(title)}</div>
       {opts.map((o) => {
         const a = value === o.name;
         return (
@@ -602,8 +606,8 @@ function PointGroup({
               <span className={`h-2 w-2 rounded-full ${a ? "bg-forest-600" : "bg-transparent"}`} />
             </span>
             <span className="min-w-0">
-              <span className="block text-sm font-bold text-ink">{o.name}</span>
-              <span className="mt-0.5 block text-xs text-gray-500">{o.sub}</span>
+              <span className="block text-sm font-bold text-ink">{tr(o.label) ?? tr(o.name)}</span>
+              <span className="mt-0.5 block text-xs text-gray-500">{tr(o.sub)}</span>
             </span>
           </button>
         );
@@ -613,9 +617,10 @@ function PointGroup({
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  const tr = useT();
   return (
     <label className="flex flex-col gap-1.5 text-[13px] font-semibold text-ink">
-      {label}
+      {tr(label)}
       {children}
     </label>
   );

@@ -1,4 +1,7 @@
-import Link from "next/link";
+"use client";
+
+import Link from "@/components/Link";
+import { useT } from "@/components/i18n/I18nProvider";
 
 /**
  * Link sang trang Lịch trình Tà Xùa đúng theo số đêm khách đang chọn (1 đêm → lịch trình 2 ngày 1 đêm…).
@@ -6,6 +9,7 @@ import Link from "next/link";
  * khách không mất lựa chọn đang đặt dở.
  */
 export function ItineraryLink({ nights, className }: { nights: number; className?: string }) {
+  const t = useT();
   if (!Number.isFinite(nights) || nights < 1) return null;
   const days = nights + 1;
   return (
@@ -21,7 +25,7 @@ export function ItineraryLink({ nights, className }: { nights: number; className
         <path d="M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3-6-3z" />
         <path d="M9 3v15M15 6v15" />
       </svg>
-      Xem lịch trình gợi ý {days} ngày {nights} đêm →
+      {t("Xem lịch trình gợi ý")}{" "}{days}{" "}{t("ngày")}{" "}{nights}{" "}{t("đêm →")}
     </Link>
   );
 }

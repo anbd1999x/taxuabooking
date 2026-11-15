@@ -1,6 +1,8 @@
+import { getT } from "@/lib/i18n/server";
 /* Banner trang chủ dạng ẢNH THẬT (đồi hoa cánh bướm nhìn xuống ruộng bậc thang Tà Xùa).
    Ảnh zoom rất chậm cho có "hơi thở"; lớp phủ tối dần về phía chữ để chữ luôn đọc được. */
-export function HeroPhoto() {
+export async function HeroPhoto() {
+  const t = await getT();
   return (
     <div className="absolute inset-0 -z-10 overflow-hidden bg-[oklch(0.3_0.05_160)]">
       <style>{`@keyframes heroPhotoZoom{from{transform:scale(1)}to{transform:scale(1.07)}}
@@ -9,7 +11,7 @@ export function HeroPhoto() {
         <source media="(max-width: 759px)" srcSet="/hero-taxua-m.jpg?v=5" />
         <img
           src="/hero-taxua.jpg?v=5"
-          alt="Biển mây và ruộng bậc thang nhìn từ núi Tà Xùa"
+          alt={t("Biển mây và ruộng bậc thang nhìn từ núi Tà Xùa")}
           fetchPriority="high"
           decoding="async"
           className="hero-photo-img absolute inset-x-0 bottom-0 h-[122%] w-full object-cover object-[58%_100%] min-[760px]:static min-[760px]:h-full min-[760px]:object-[50%_72%]"

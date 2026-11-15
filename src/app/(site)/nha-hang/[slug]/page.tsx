@@ -3,6 +3,8 @@ import { ogBlock } from "@/lib/og";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PlaceDetail } from "@/components/PlaceDetail";
+import { getT, lp } from "@/lib/i18n/server";
+import { i18nAlternates, i18nOg } from "@/lib/i18n/meta";
 
 export const dynamic = "force-dynamic";
 
@@ -14,17 +16,18 @@ async function getPlace(slug: string) {
 }
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const t = await getT();
   const { slug } = await params;
   const p = await getPlace(slug);
   if (!p) return {};
-  const title = `${p.name} — ${p.area}, Tà Xùa`;
-  const description = p.desc ?? `${p.name} tại ${p.area}, Tà Xùa: thông tin giờ mở cửa, giá, vị trí và đánh giá thực tế.`;
+  const title = t("{0} — {1}, Tà Xùa", [t(p.name), t(p.area)]);
+  const description = t(p.desc) ?? t("{0} tại {1}, Tà Xùa: thông tin giờ mở cửa, giá, vị trí và đánh giá thực tế.", [t(p.name), t(p.area)]);
   const path = `/nha-hang/${p.slug}`;
   return {
     title,
     description,
-    alternates: { canonical: path },
-    openGraph: ogBlock({ title, description, path, image: p.coverImage, alt: p.name }),
+    alternates: await i18nAlternates(path),
+    openGraph: await i18nOg({ title, description, path, image: p.coverImage, alt: t(p.name) }),
   };
 }
 
@@ -32,7 +35,7 @@ export default async function NhaHangDetailPage({ params }: { params: Promise<{ 
   const { slug } = await params;
   const place = await getPlace(slug);
   if (!place) notFound();
-  if (place.kind === "CHECKIN") redirect("/lich-trinh");
-  if (place.kind !== "RESTAURANT") redirect(`/cafe/${place.slug}`);
+  if (place.kind === "CHECKIN") redirect(await lp("/lich-trinh"));
+  if (place.kind !== "RESTAURANT") redirect(await lp(`/cafe/${place.slug}`));
   return <PlaceDetail place={place} basePath="/nha-hang" />;
 }

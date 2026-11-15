@@ -2,6 +2,7 @@
 
 import { We } from "@/components/SiteContact";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useT } from "@/components/i18n/I18nProvider";
 
 const TH = {
   sky: "linear-gradient(180deg, oklch(0.34 0.045 240) 0%, oklch(0.55 0.04 220) 36%, oklch(0.8 0.05 120) 66%, oklch(0.9 0.06 95) 86%, oklch(0.95 0.03 95) 100%)",
@@ -19,6 +20,7 @@ function rnd(i: number, k: number) {
 
 /** Hero "biển mây" + hoạt ảnh combo: xe cabin phanh đón khách → khách vào homestay, chủ nhà ra đón. */
 export function ComboHero() {
+  const tr = useT();
   const [w, setW] = useState(1280);
   const sunRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
@@ -253,10 +255,10 @@ export function ComboHero() {
       <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-[90px]" style={{ background: `linear-gradient(180deg, transparent, ${TH.page})` }} />
 
       <div ref={heroTextRef} className="container-page relative z-[3] text-white will-change-transform" style={{ paddingTop: w < 640 ? 48 : 72 }}>
-        <div data-in-combo="0" className="flex gap-2 text-sm opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease, transform .9s cubic-bezier(.2,.7,.2,1)", color: "oklch(0.9 0.02 220)" }}><span>Trang chủ</span><span>/</span><span className="font-bold text-white">Combo</span></div>
-        <h1 data-in-combo="1" className="mt-4 text-[13px] font-bold uppercase tracking-[0.14em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .1s, transform .9s cubic-bezier(.2,.7,.2,1) .1s", color: "oklch(0.88 0.12 80)" }}>Combo Tà Xùa · xe cabin + homestay trọn gói</h1>
-        <p data-in-combo="2" className="mt-3.5 max-w-[760px] text-[clamp(32px,6vw,60px)] font-extrabold leading-[1.02] tracking-[-0.035em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .2s, transform .9s cubic-bezier(.2,.7,.2,1) .2s", textShadow: "0 2px 24px oklch(0.2 0.05 260 / .4)" }}>Xe đón tận nơi, homestay đợi sẵn trên mây</p>
-        <p data-in-combo="3" className="mt-3.5 max-w-[520px] text-[clamp(15px,1.7vw,18px)] leading-[1.5] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .3s, transform .9s cubic-bezier(.2,.7,.2,1) .3s", color: "oklch(0.97 0.02 80)" }}>Combo xe cabin khứ hồi + phòng homestay. Chọn ngày, số người và giá mong muốn — <We /> ghép xe & phòng khớp nhất.</p>
+        <div data-in-combo="0" className="flex gap-2 text-sm opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease, transform .9s cubic-bezier(.2,.7,.2,1)", color: "oklch(0.9 0.02 220)" }}><span>{tr("Trang chủ")}</span><span>/</span><span className="font-bold text-white">Combo</span></div>
+        <h1 data-in-combo="1" className="mt-4 text-[13px] font-bold uppercase tracking-[0.14em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .1s, transform .9s cubic-bezier(.2,.7,.2,1) .1s", color: "oklch(0.88 0.12 80)" }}>{tr("Combo Tà Xùa · xe cabin + homestay trọn gói")}</h1>
+        <p data-in-combo="2" className="mt-3.5 max-w-[760px] text-[clamp(32px,6vw,60px)] font-extrabold leading-[1.02] tracking-[-0.035em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .2s, transform .9s cubic-bezier(.2,.7,.2,1) .2s", textShadow: "0 2px 24px oklch(0.2 0.05 260 / .4)" }}>{tr("Xe đón tận nơi, homestay đợi sẵn trên mây")}</p>
+        <p data-in-combo="3" className="mt-3.5 max-w-[520px] text-[clamp(15px,1.7vw,18px)] leading-[1.5] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .3s, transform .9s cubic-bezier(.2,.7,.2,1) .3s", color: "oklch(0.97 0.02 80)" }}>{tr("Combo xe cabin khứ hồi + phòng homestay. Chọn ngày, số người và giá mong muốn —")}{" "}<We />{" "}{tr("ghép xe & phòng khớp nhất.")}</p>
       </div>
     </section>
   );

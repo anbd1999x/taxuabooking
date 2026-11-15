@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/queries";
 import { SITE } from "@/lib/site";
 import { RestaurantList, type RestaurantCard } from "@/components/RestaurantList";
+import { i18nMeta } from "@/lib/i18n/meta";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ const META = {
 
 /** Ảnh chia sẻ link lấy từ địa điểm thật trong DB (thiếu thì ảnh biển mây). */
 export async function generateMetadata(): Promise<Metadata> {
-  return pageMeta({ ...META, image: await placeShareImage("RESTAURANT") });
+  return i18nMeta({ ...META, image: await placeShareImage("RESTAURANT") });
 }
 
 /** Loại quán hiển thị trên badge thẻ, suy từ tên + tags (chỉ phục vụ trình bày). */

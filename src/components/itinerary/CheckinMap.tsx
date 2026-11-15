@@ -1,10 +1,12 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/Link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SatelliteMap } from "./SatelliteMap";
 import { cn } from "@/lib/utils";
+import { useT } from "@/components/i18n/I18nProvider";
+import type { TFunc } from "@/lib/i18n/config";
 
 export interface MapSpot {
   id: string; // id Place, hoặc "tt"/"by" cho 2 mốc cố định
@@ -33,7 +35,7 @@ const DAYC = ["oklch(0.66 0.17 45)", "oklch(0.56 0.14 155)", "oklch(0.56 0.14 25
 const YS = 0.8; // mặt phẳng có tỉ lệ 1.25 ⇒ trục y của SVG (viewBox 100×80) = y% × 0.8
 const poly = (pts: [number, number][]) => pts.map((p) => `${p[0]},${p[1] * YS}`).join(" ");
 const fmtKm = (k: number | null) => (k == null || k === 0 ? "" : `${String(k).replace(".", ",")} km`);
-const minsOf = (k: number) => `~${Math.max(5, Math.round(k * 3.2))} phút xe máy`;
+const minsOf = (k: number, t: TFunc) => t("~{0} phút xe máy", [Math.max(5, Math.round(k * 3.2))]);
 
 // ── Địa hình trang trí (cố định, sinh 1 lần) ────────────────────────────────
 const T = (a: string, b: string) => `repeating-radial-gradient(ellipse at 50% 60%, ${a} 0 7px, ${b} 7px 11px)`;
@@ -65,6 +67,7 @@ const CLOUDS: [number, number, number][] = [[20, 40, 20], [60, 22, 24], [75, 70,
 const CTRL = "flex h-[38px] w-[38px] cursor-pointer items-center justify-center rounded-xl bg-white font-extrabold shadow-[0_4px_12px_-4px_oklch(0.2_0.04_150/.3)]";
 
 export function CheckinMap({ spots, plans, initialPlan, initialView }: { spots: MapSpot[]; plans: MapPlan[]; initialPlan?: string; initialView?: "3d" | "sat" }) {
+  const tr = useT();
   const [view, setView] = useState<"3d" | "sat">(initialView ?? "3d");
   const [planId, setPlanId] = useState(initialPlan && plans.some((p) => p.id === initialPlan) ? initialPlan : "all");
   const [day, setDay] = useState(0); // 0 = cả lịch trình
@@ -199,13 +202,13 @@ export function CheckinMap({ spots, plans, initialPlan, initialView }: { spots: 
   });
 
   const sp = sel ? byId.get(sel) : undefined;
-  const spFacts = sp ? (sp.id === "tt" ? ["Mốc 0 km", sp.sub] : [sp.km ? `${fmtKm(sp.km)} từ trung tâm` : "", sp.km ? minsOf(sp.km) : "", sp.best ? `Đẹp nhất ${sp.best}` : ""].filter(Boolean)) : [];
+  const spFacts = sp ? (sp.id === "tt" ? [tr("Mốc 0 km"), sp.sub] : [sp.km ? tr("{0} từ trung tâm", [fmtKm(sp.km)]) : "", sp.km ? minsOf(sp.km, tr) : "", sp.best ? tr("Đẹp nhất {0}", [sp.best]) : ""].filter(Boolean)) : [];
   const listed = spots.filter((s) => s.id !== "tt" && s.id !== "by").sort((a, b) => (a.km ?? 99) - (b.km ?? 99));
   const kms = listed.map((s) => s.km).filter((k): k is number => k != null && k > 0);
   const nSpots = P ? [...inPlan.keys()].filter((id) => id !== "tt" && id !== "by").length : listed.length;
   const stats = P
-    ? [{ v: P.name, k: "Thời gian" }, { v: String(nSpots), k: "Điểm check-in" }, { v: `~${Math.round(totalKm)} km`, k: "Di chuyển tại chỗ" }]
-    : [{ v: String(nSpots), k: "Điểm check-in" }, { v: kms.length ? `${String(Math.min(...kms)).replace(".", ",")}–${String(Math.max(...kms)).replace(".", ",")}` : "—", k: "km từ trung tâm" }, { v: "2.865m", k: "Đỉnh cao nhất" }];
+    ? [{ v: P.name, k: tr("Thời gian") }, { v: String(nSpots), k: tr("Điểm check-in") }, { v: `~${Math.round(totalKm)} km`, k: tr("Di chuyển tại chỗ") }]
+    : [{ v: String(nSpots), k: tr("Điểm check-in") }, { v: kms.length ? `${String(Math.min(...kms)).replace(".", ",")}–${String(Math.max(...kms)).replace(".", ",")}` : "—", k: tr("km từ trung tâm") }, { v: "2.865m", k: tr("Đỉnh cao nhất") }];
   // Tia nối trung tâm → từng điểm (gợi hướng đi; không phải đường thật).
   const center = byId.get("tt")?.pos ?? null;
   const spokes = center ? spots.filter((s) => s.pos && s.id !== "tt").map((s) => poly([center, s.pos!])) : [];
@@ -218,12 +221,12 @@ export function CheckinMap({ spots, plans, initialPlan, initialView }: { spots: 
       <div className="mx-auto flex w-full max-w-[1320px] flex-col gap-4 px-[clamp(16px,3vw,32px)] pb-14 pt-[22px]">
         <div className="cm-rise flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className="text-xs font-extrabold uppercase tracking-[.12em] text-[oklch(0.55_0.1_160)]">Cẩm nang · Bản đồ check-in</div>
-            <h1 className="mt-1 text-balance text-[clamp(26px,3.6vw,40px)] font-extrabold leading-[1.08] tracking-[-.03em] text-ink">Các điểm check-in quanh Tà Xùa</h1>
-            <p className="mt-1.5 max-w-[640px] text-pretty text-[15px] text-[oklch(0.45_0.02_160)]">Lấy mốc từ chợ trung tâm Tà Xùa. Chọn một lịch trình để xem cung đường đi từng ngày.</p>
+            <div className="text-xs font-extrabold uppercase tracking-[.12em] text-[oklch(0.55_0.1_160)]">{tr("Cẩm nang · Bản đồ check-in")}</div>
+            <h1 className="mt-1 text-balance text-[clamp(26px,3.6vw,40px)] font-extrabold leading-[1.08] tracking-[-.03em] text-ink">{tr("Các điểm check-in quanh Tà Xùa")}</h1>
+            <p className="mt-1.5 max-w-[640px] text-pretty text-[15px] text-[oklch(0.45_0.02_160)]">{tr("Lấy mốc từ chợ trung tâm Tà Xùa. Chọn một lịch trình để xem cung đường đi từng ngày.")}</p>
           </div>
           <div className="inline-flex gap-1 rounded-[14px] bg-[oklch(0.93_0.01_160)] p-1">
-            {[{ id: "all", name: "Tất cả điểm" }, ...plans].map((t) => {
+            {[{ id: "all", name: tr("Tất cả điểm") }, ...plans].map((t) => {
               const on = planId === t.id;
               return (
                 <button
@@ -233,7 +236,7 @@ export function CheckinMap({ spots, plans, initialPlan, initialView }: { spots: 
                   className="whitespace-nowrap rounded-[11px] px-4 py-[9px] text-sm font-extrabold transition-all"
                   style={{ background: on ? (t.id === "all" ? "white" : G) : "transparent", color: on ? (t.id === "all" ? G : "white") : "oklch(0.4 0.02 160)", boxShadow: on ? "0 2px 6px oklch(0.2 0.03 160 / .15)" : "none" }}
                 >
-                  {t.name}
+                  {tr(t.name)}
                 </button>
               );
             })}
@@ -285,7 +288,7 @@ export function CheckinMap({ spots, plans, initialPlan, initialView }: { spots: 
                   <div key={i} className="absolute" style={{ left: `${x}%`, top: `${y}%`, transformStyle: "preserve-3d" }}>
                     <div style={stand}>
                       <div className="absolute" style={{ left: -Math.round(w / 2), bottom: -4, width: w, height: h, background: `linear-gradient(180deg, ${i === 0 ? "oklch(0.62 0.06 200)" : "oklch(0.6 0.08 170)"}, oklch(0.4 0.07 160))`, clipPath: clip }} />
-                      {label && <div className="absolute left-0 -translate-x-1/2 whitespace-nowrap rounded-full bg-white/85 px-2 py-[3px] text-[11px] font-extrabold text-ink" style={{ bottom: h }}>{label}</div>}
+                      {label && <div className="absolute left-0 -translate-x-1/2 whitespace-nowrap rounded-full bg-white/85 px-2 py-[3px] text-[11px] font-extrabold text-ink" style={{ bottom: h }}>{tr(label)}</div>}
                     </div>
                   </div>
                 ))}
@@ -335,7 +338,7 @@ export function CheckinMap({ spots, plans, initialPlan, initialView }: { spots: 
                           }}
                         >
                           {p.num && <span className="flex h-5 w-5 flex-none items-center justify-center rounded-full text-[11px] text-white" style={{ background: p.on ? "oklch(0.2 0.03 160 / .35)" : p.c }}>{p.num}</span>}
-                          <span>{p.s.name}</span>
+                          <span>{tr(p.s.name)}</span>
                           {!P && fmtKm(p.s.km) && <span className="text-[11px] font-semibold opacity-65">{fmtKm(p.s.km)}</span>}
                         </button>
                         <div data-stem={p.stem} className="w-[3px]" style={{ height: p.stem, background: `linear-gradient(180deg, ${p.c}, oklch(0.3 0.04 150))` }} />
@@ -348,23 +351,23 @@ export function CheckinMap({ spots, plans, initialPlan, initialView }: { spots: 
             </div>
 
             <div className="pointer-events-none absolute left-3.5 top-14 flex flex-wrap gap-1.5 sm:top-3.5">
-              {(P ? P.days.map((_, i) => ({ name: `Ngày ${i + 1}`, c: DAYC[i % DAYC.length] })) : [{ name: "Hướng từ trung tâm", c: "oklch(0.88 0.04 85)" }]).map((l) => (
+              {(P ? P.days.map((_, i) => ({ name: tr("Ngày {0}", [i + 1]), c: DAYC[i % DAYC.length] })) : [{ name: tr("Hướng từ trung tâm"), c: "oklch(0.88 0.04 85)" }]).map((l) => (
                 <span key={l.name} className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-white/90 px-2.5 py-1.5 text-xs font-bold text-ink">
                   <span className="h-1 w-3.5 rounded-sm" style={{ background: l.c }} />
-                  {l.name}
+                  {tr(l.name)}
                 </span>
               ))}
             </div>
             {view === "3d" && (
               <div className="absolute right-3.5 top-14 flex flex-col gap-1.5 sm:top-3.5" onPointerDown={stop}>
-                <button type="button" title="Xoay trái" aria-label="Xoay trái" onClick={() => setRot((r) => r - 20)} className={CTRL}>↺</button>
-                <button type="button" title="Xoay phải" aria-label="Xoay phải" onClick={() => setRot((r) => r + 20)} className={CTRL}>↻</button>
-                <button type="button" title="Đổi góc nhìn" aria-label="Đổi góc nhìn" onClick={() => setTilt((t) => (t > 45 ? 30 : 54))} className={cn(CTRL, "text-xs")}>{tilt > 45 ? "3D" : "2D"}</button>
+                <button type="button" title={tr("Xoay trái")} aria-label={tr("Xoay trái")} onClick={() => setRot((r) => r - 20)} className={CTRL}>↺</button>
+                <button type="button" title={tr("Xoay phải")} aria-label={tr("Xoay phải")} onClick={() => setRot((r) => r + 20)} className={CTRL}>↻</button>
+                <button type="button" title={tr("Đổi góc nhìn")} aria-label={tr("Đổi góc nhìn")} onClick={() => setTilt((t) => (t > 45 ? 30 : 54))} className={cn(CTRL, "text-xs")}>{tilt > 45 ? "3D" : "2D"}</button>
               </div>
             )}
             {view === "3d" && !sp && (
               <div className="pointer-events-none absolute bottom-3.5 right-3.5 rounded-full bg-white/85 px-2.5 py-[5px] text-[11px] font-semibold text-[oklch(0.4_0.02_160)]">
-                Kéo để xoay · đúng hướng, khoảng cách đã thu gọn · xem chính xác ở tab Vệ tinh
+                {tr("Kéo để xoay · đúng hướng, khoảng cách đã thu gọn · xem chính xác ở tab Vệ tinh")}
               </div>
             )}
 
@@ -382,16 +385,16 @@ export function CheckinMap({ spots, plans, initialPlan, initialView }: { spots: 
                       className="flex-none whitespace-nowrap rounded-full px-3 py-2 text-xs font-extrabold shadow-[0_4px_12px_-4px_oklch(0.2_0.04_150/.4)]"
                       style={{ background: sel === s.id ? G : "white", color: sel === s.id ? "white" : "oklch(0.25 0.03 160)" }}
                     >
-                      {s.name}
+                      {tr(s.name)}
                     </button>
                   ))}
                 </div>
               </>
             )}
             <div className="absolute left-1/2 top-3.5 z-[7] inline-flex -translate-x-1/2 gap-[3px] rounded-full bg-white p-[3px] shadow-[0_6px_16px_-6px_oklch(0.2_0.04_150/.4)]" onPointerDown={stop}>
-              {([["3d", "Hoạt hình 3D"], ["sat", "Ảnh vệ tinh"]] as const).map(([k, name]) => (
+              {([["3d", tr("Hoạt hình 3D")], ["sat", tr("Ảnh vệ tinh")]] as const).map(([k, name]) => (
                 <button key={k} type="button" onClick={() => setView(k)} className="whitespace-nowrap rounded-full px-3.5 py-[7px] text-xs font-extrabold" style={{ background: view === k ? G : "transparent", color: view === k ? "white" : "oklch(0.35 0.02 160)" }}>
-                  {name}
+                  {tr(name)}
                 </button>
               ))}
             </div>
@@ -400,24 +403,24 @@ export function CheckinMap({ spots, plans, initialPlan, initialView }: { spots: 
               <div className="absolute bottom-3.5 left-3.5 w-[min(320px,calc(100%-28px))] overflow-hidden rounded-[18px] bg-white shadow-[0_20px_40px_-16px_oklch(0.2_0.04_150/.45)]" style={{ animation: "cm-rise .3s ease both" }} onPointerDown={stop}>
                 <div className="relative aspect-[16/8]">
                   {sp.image ? (
-                    <Image src={sp.image} alt={sp.name} fill sizes="320px" className="object-cover" />
+                    <Image src={sp.image} alt={tr(sp.name)} fill sizes="320px" className="object-cover" />
                   ) : (
                     <div className="h-full w-full" style={{ background: "linear-gradient(160deg, oklch(0.5 0.07 200), oklch(0.34 0.06 165) 60%, oklch(0.27 0.05 160))" }} />
                   )}
-                  <button type="button" aria-label="Đóng" onClick={() => setSel(null)} className="absolute right-2 top-2 flex h-[30px] w-[30px] items-center justify-center rounded-full bg-white font-extrabold">×</button>
+                  <button type="button" aria-label={tr("Đóng")} onClick={() => setSel(null)} className="absolute right-2 top-2 flex h-[30px] w-[30px] items-center justify-center rounded-full bg-white font-extrabold">×</button>
                 </div>
                 <div className="flex flex-col gap-1.5 px-3.5 pb-3.5 pt-3">
-                  <div className="text-base font-extrabold text-ink">{sp.name}</div>
+                  <div className="text-base font-extrabold text-ink">{tr(sp.name)}</div>
                   {spFacts.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                       {spFacts.map((f) => (
-                        <span key={f} className="whitespace-nowrap rounded-full bg-[oklch(0.95_0.025_155)] px-2 py-[3px] text-[11px] font-bold text-[oklch(0.36_0.08_155)]">{f}</span>
+                        <span key={f} className="whitespace-nowrap rounded-full bg-[oklch(0.95_0.025_155)] px-2 py-[3px] text-[11px] font-bold text-[oklch(0.36_0.08_155)]">{tr(f)}</span>
                       ))}
                     </div>
                   )}
-                  {sp.desc && <div className="text-[13px] leading-normal text-[oklch(0.38_0.02_160)]">{sp.desc}</div>}
-                  {sp.tip && <div className="text-xs leading-normal text-[oklch(0.48_0.15_50)]"><b>Mẹo:</b> {sp.tip}</div>}
-                  <a href={sp.mapUrl} target="_blank" rel="noopener noreferrer" className="text-[13px] font-bold text-[oklch(0.4_0.08_160)] hover:text-sunset-500">Chỉ đường Google Maps ↗</a>
+                  {sp.desc && <div className="text-[13px] leading-normal text-[oklch(0.38_0.02_160)]">{tr(sp.desc)}</div>}
+                  {sp.tip && <div className="text-xs leading-normal text-[oklch(0.48_0.15_50)]"><b>{tr("Mẹo:")}</b> {tr(sp.tip)}</div>}
+                  <a href={sp.mapUrl} target="_blank" rel="noopener noreferrer" className="text-[13px] font-bold text-[oklch(0.4_0.08_160)] hover:text-sunset-500">{tr("Chỉ đường Google Maps ↗")}</a>
                 </div>
               </div>
             )}
@@ -426,15 +429,15 @@ export function CheckinMap({ spots, plans, initialPlan, initialView }: { spots: 
           {/* BẢNG BÊN */}
           <aside className="cm-rise flex flex-col gap-3" style={{ animationDelay: ".1s" }}>
             <div className="flex flex-col gap-2.5 rounded-[20px] border border-[oklch(0.92_0.01_160)] bg-white px-[18px] py-4">
-              <div className="text-lg font-extrabold tracking-[-.01em] text-ink">{P ? `Tà Xùa ${P.name}` : "Điểm check-in nổi tiếng"}</div>
+              <div className="text-lg font-extrabold tracking-[-.01em] text-ink">{P ? tr("Tà Xùa {0}", [tr(P.name)]) : tr("Điểm check-in nổi tiếng")}</div>
               <div className="text-[13px] leading-normal text-[oklch(0.45_0.02_160)]">
-                {P ? P.sub : "Khoảng cách theo đường xe máy từ trung tâm xã Tà Xùa. Bấm một điểm trên bản đồ hoặc trong danh sách để xem chi tiết."}
+                {P ? tr(P.sub) : tr("Khoảng cách theo đường xe máy từ trung tâm xã Tà Xùa. Bấm một điểm trên bản đồ hoặc trong danh sách để xem chi tiết.")}
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {stats.map((s) => (
                   <div key={s.k} className="rounded-xl bg-[oklch(0.97_0.008_160)] p-2.5">
-                    <div className="text-lg font-extrabold text-ink">{s.v}</div>
-                    <div className="text-[11px] font-semibold text-[oklch(0.5_0.02_160)]">{s.k}</div>
+                    <div className="text-lg font-extrabold text-ink">{tr(s.v)}</div>
+                    <div className="text-[11px] font-semibold text-[oklch(0.5_0.02_160)]">{tr(s.k)}</div>
                   </div>
                 ))}
               </div>
@@ -443,7 +446,7 @@ export function CheckinMap({ spots, plans, initialPlan, initialView }: { spots: 
             {P ? (
               <>
                 <div className="flex flex-wrap gap-1.5">
-                  {[{ name: "Cả lịch trình", c: G, k: 0 }, ...P.days.map((_, i) => ({ name: `Ngày ${i + 1}`, c: DAYC[i % DAYC.length], k: i + 1 }))].map((d) => (
+                  {[{ name: tr("Cả lịch trình"), c: G, k: 0 }, ...P.days.map((_, i) => ({ name: tr("Ngày {0}", [i + 1]), c: DAYC[i % DAYC.length], k: i + 1 }))].map((d) => (
                     <button
                       key={d.k}
                       type="button"
@@ -452,7 +455,7 @@ export function CheckinMap({ spots, plans, initialPlan, initialView }: { spots: 
                       style={{ background: day === d.k ? "oklch(0.96 0.02 155)" : "white", borderColor: day === d.k ? d.c : "oklch(0.9 0.01 160)" }}
                     >
                       <span className="h-2 w-2 rounded-full" style={{ background: d.c }} />
-                      {d.name}
+                      {tr(d.name)}
                     </button>
                   ))}
                 </div>
@@ -463,8 +466,8 @@ export function CheckinMap({ spots, plans, initialPlan, initialView }: { spots: 
                       <div key={di} className="flex flex-col gap-2.5 rounded-[18px] border border-[oklch(0.92_0.01_160)] bg-white px-4 py-3.5 transition-opacity" style={{ opacity: day === 0 || day === di + 1 ? 1 : 0.45 }}>
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex min-w-0 items-center gap-2">
-                            <span className="flex-none rounded-full px-[9px] py-[3px] text-[11px] font-extrabold text-white" style={{ background: c }}>Ngày {di + 1}</span>
-                            <span className="truncate text-sm font-extrabold text-ink">{d.title}</span>
+                            <span className="flex-none rounded-full px-[9px] py-[3px] text-[11px] font-extrabold text-white" style={{ background: c }}>{tr("Ngày {0}", [di + 1])}</span>
+                            <span className="truncate text-sm font-extrabold text-ink">{tr(d.title)}</span>
                           </div>
                           {dayKm[di] > 0 && <span className="whitespace-nowrap text-xs font-semibold text-[oklch(0.5_0.02_160)]">~{Math.round(dayKm[di])} km</span>}
                         </div>
@@ -477,14 +480,14 @@ export function CheckinMap({ spots, plans, initialPlan, initialView }: { spots: 
                               className="grid grid-cols-[48px_18px_minmax(0,1fr)] items-start gap-2 rounded-[10px] p-1.5 text-left hover:bg-[oklch(0.97_0.01_155)]"
                               style={{ background: sel === s.spotId ? "oklch(0.96 0.025 155)" : undefined }}
                             >
-                              <span className="pt-px text-xs font-extrabold text-[oklch(0.45_0.02_160)]">{s.time}</span>
+                              <span className="pt-px text-xs font-extrabold text-[oklch(0.45_0.02_160)]">{tr(s.time)}</span>
                               <span className="flex h-full flex-col items-center">
                                 <span className="mt-0.5 h-3 w-3 flex-none rounded-full border-[3px] bg-white" style={{ borderColor: c }} />
                                 <span className="mt-0.5 w-0.5 flex-1" style={{ background: si === d.stops.length - 1 ? "transparent" : "oklch(0.9 0.01 160)" }} />
                               </span>
                               <span className="min-w-0 pb-1">
-                                <span className="block text-sm font-bold leading-[1.35] text-ink">{s.name}</span>
-                                {s.note && <span className="block text-xs leading-[1.45] text-[oklch(0.5_0.02_160)]">{s.note}</span>}
+                                <span className="block text-sm font-bold leading-[1.35] text-ink">{tr(s.name)}</span>
+                                {s.note && <span className="block text-xs leading-[1.45] text-[oklch(0.5_0.02_160)]">{tr(s.note)}</span>}
                               </span>
                             </button>
                           ))}
@@ -494,10 +497,10 @@ export function CheckinMap({ spots, plans, initialPlan, initialView }: { spots: 
                   })}
                 </div>
                 <Link href="/combo" className="rounded-full bg-[oklch(0.68_0.18_45)] p-[13px] text-center text-[15px] font-extrabold text-white transition hover:brightness-105">
-                  Đặt combo {P.name} theo lịch trình này →
+                  {tr("Đặt combo {0} theo lịch trình này →", [tr(P.name)])}
                 </Link>
                 <Link href="/lich-trinh" className="rounded-full border-[1.5px] border-[oklch(0.88_0.015_160)] bg-white p-[11px] text-center text-sm font-bold text-[oklch(0.4_0.08_160)] transition hover:text-sunset-500">
-                  Xem lịch trình chi tiết theo giờ
+                  {tr("Xem lịch trình chi tiết theo giờ")}
                 </Link>
               </>
             ) : (
@@ -514,13 +517,13 @@ export function CheckinMap({ spots, plans, initialPlan, initialView }: { spots: 
                       {s.image && <Image src={s.image} alt="" fill sizes="56px" className="object-cover" />}
                     </div>
                     <div className="min-w-0">
-                      <div className="truncate text-sm font-extrabold text-ink">{s.name}</div>
-                      <div className="truncate text-xs text-[oklch(0.5_0.02_160)]">{s.sub}</div>
+                      <div className="truncate text-sm font-extrabold text-ink">{tr(s.name)}</div>
+                      <div className="truncate text-xs text-[oklch(0.5_0.02_160)]">{tr(s.sub)}</div>
                     </div>
                     {s.km != null && s.km > 0 && (
                       <div className="text-right">
                         <div className="text-sm font-extrabold text-ink">{fmtKm(s.km)}</div>
-                        <div className="whitespace-nowrap text-[11px] text-[oklch(0.5_0.02_160)]">{minsOf(s.km)}</div>
+                        <div className="whitespace-nowrap text-[11px] text-[oklch(0.5_0.02_160)]">{tr(minsOf(s.km, tr))}</div>
                       </div>
                     )}
                   </button>

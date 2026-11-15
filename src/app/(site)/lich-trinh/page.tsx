@@ -6,6 +6,8 @@ import { loadItinerary } from "@/lib/itinerary-store";
 import { PLACE_KIND_TO_STOP, type FeaturedKey, type StopKind } from "@/lib/itinerary";
 import { isVideoUrl } from "@/lib/utils";
 import { ItineraryView, type ItineraryPlace, type ViewPlan } from "@/components/itinerary/ItineraryView";
+import { getT } from "@/lib/i18n/server";
+import { i18nMeta } from "@/lib/i18n/meta";
 
 export const dynamic = "force-dynamic";
 
@@ -18,10 +20,11 @@ const META = {
 
 /** Ảnh chia sẻ link lấy từ địa điểm thật trong DB (thiếu thì ảnh biển mây). */
 export async function generateMetadata(): Promise<Metadata> {
-  return pageMeta({ ...META, image: await placeShareImage("CHECKIN") });
+  return i18nMeta({ ...META, image: await placeShareImage("CHECKIN") });
 }
 
 export default async function ItineraryPage({ searchParams }: { searchParams: Promise<{ ngay?: string }> }) {
+  const tr = await getT();
   const wantDays = Number((await searchParams).ngay);
   const rows = await prisma.place.findMany({
     where: { published: true },
@@ -33,8 +36,8 @@ export default async function ItineraryPage({ searchParams }: { searchParams: Pr
   const all: ItineraryPlace[] = rows.flatMap((p) => {
     const kind = PLACE_KIND_TO_STOP[p.kind];
     if (!kind) return [];
-    const price = p.price ? (/^\d+$/.test(p.price) ? `Từ ${Number(p.price).toLocaleString("vi-VN")}đ` : p.price) : null;
-    const hours = p.hours ? `${kind === "checkin" ? "Đẹp nhất" : "Mở"} ${p.hours}` : null;
+    const price = p.price ? (/^\d+$/.test(p.price) ? tr("Từ {0}đ", [Number(p.price).toLocaleString("vi-VN")]) : p.price) : null;
+    const hours = p.hours ? `${kind === "checkin" ? tr("Đẹp nhất") : tr("Mở")} ${p.hours}` : null;
     return [{
       id: p.id,
       kind,
@@ -66,7 +69,7 @@ export default async function ItineraryPage({ searchParams }: { searchParams: Pr
     .filter((p) => p.published && p.days.some((d) => d.stops.length))
     .map((p) => ({
       id: p.id,
-      name: p.name || "Lịch trình",
+      name: p.name || tr("Lịch trình"),
       sub: p.sub,
       days: p.days
         .map((d) => ({

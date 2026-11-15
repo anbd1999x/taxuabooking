@@ -50,6 +50,8 @@ import {
   upsertTrip,
   deleteTrip,
   upsertTransport,
+  upsertTransportRoute,
+  deleteTransportRoute,
 } from "../actions";
 import {
   enableRoomIcal,
@@ -96,11 +98,14 @@ export default async function EditServicePage({
       rentalVehicles: { orderBy: { sortOrder: "asc" } },
       cabinTrips: { where: { departureDate: { gte: today() } }, orderBy: { departureDate: "asc" }, take: 30 },
       transport: true,
+      transportRoutes: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
       cabinPriceRows: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
       cabinRoutes: { include: { stops: { orderBy: { sortOrder: "asc" } } } },
     },
   });
   if (!service) notFound();
+  // Điểm cố định cho bảng giá chặng taxi / xe ôm.
+  const transportPoints = await prisma.transportPoint.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true, active: true } });
 
   const providers = await prisma.adminUser.findMany({
     where: { role: "PROVIDER" },
@@ -1185,33 +1190,115 @@ export default async function EditServicePage({
         </section>
       )}
 
-      {/* TRANSPORT: xe ôm / taxi */}
-      {kind === "transport" && (
-        <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
-          <h2 className="mb-1 text-lg font-semibold text-ink">Thông tin tuyến</h2>
-          <p className="mb-4 text-sm text-gray-500">Để trống “Giá cố định” nếu muốn hiển thị “Liên hệ xác nhận giá”.</p>
-          <ActionForm action={upsertTransport} className="grid gap-3 sm:grid-cols-2">
-            <input type="hidden" name="serviceId" value={service.id} />
-            <L label="Điểm đón"><input name="fromPoint" defaultValue={service.transport?.fromPoint ?? ""} className={inp} /></L>
-            <L label="Điểm đến / khu vực"><input name="toArea" defaultValue={service.transport?.toArea ?? ""} className={inp} /></L>
-            <L label="Loại xe"><input name="vehicleType" defaultValue={service.transport?.vehicleType ?? ""} className={inp} /></L>
-            <L label="Giá cố định (đ)"><MoneyInput name="fixedPrice" defaultValue={toNumber(service.transport?.fixedPrice) ?? ""} placeholder="Để trống = Liên hệ" className={inp} /></L>
-            <L label="Ghi chú giá" cls="sm:col-span-2"><input name="priceNote" defaultValue={service.transport?.priceNote ?? ""} className={inp} /></L>
+      {/* TRANSPORT: xe ôm / taxi — chỉ những gì cần: bác tài, loại xe, sức chở, giá nguyên ngày, giá 1 chiều theo chặng */}
+      {kind === "transport" && (() => {
+        const bike = service.category === "XEOM";
+        const t = service.transport;
+        return (
+          <>
+            <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
+              <h2 className="mb-1 text-lg font-semibold text-ink">{bike ? "Bác tài xe ôm & giá nguyên ngày" : "Bác tài taxi & giá nguyên ngày"}</h2>
+              <p className="mb-4 text-sm text-gray-500">Ảnh đại diện bác tài lấy từ ảnh đầu tiên ở mục “Hình ảnh”. Để trống giá = khách nhắn tin hỏi giá.</p>
+              <ActionForm action={upsertTransport} className="grid gap-3 sm:grid-cols-3">
+                <input type="hidden" name="serviceId" value={service.id} />
+                {/* giữ nguyên các trường cũ không còn hiện (điểm đón / khu vực / ghi chú giá) */}
+                <input type="hidden" name="fromPoint" value={t?.fromPoint ?? ""} />
+                <input type="hidden" name="toArea" value={t?.toArea ?? ""} />
+                <input type="hidden" name="priceNote" value={t?.priceNote ?? ""} />
+                <L label="Tên bác tài"><input name="driverName" defaultValue={t?.driverName ?? ""} className={inp} placeholder="VD: Anh Hùng" /></L>
+                <L label="Năm sinh"><input name="driverBirthYear" type="number" inputMode="numeric" defaultValue={t?.driverBirthYear ?? ""} className={inp} placeholder="VD: 1990" /></L>
+                <L label="SĐT bác tài (chỉ admin thấy — để nhắn Zalo)">
+                  <div className="flex gap-1.5">
+                    <input name="driverPhone" defaultValue={t?.driverPhone ?? ""} className={inp} placeholder="VD: 0912345678" />
+                    {t?.driverPhone && (
+                      <a href={`https://zalo.me/${t.driverPhone.replace(/\D/g, "").replace(/^84/, "0")}`} target="_blank" rel="noopener noreferrer" className="flex shrink-0 items-center rounded-lg bg-sunset-500 px-3 text-sm font-bold text-white hover:bg-sunset-600">Zalo</a>
+                    )}
+                  </div>
+                </L>
+                <L label="Loại xe"><input name="vehicleType" defaultValue={t?.vehicleType ?? ""} className={inp} placeholder={bike ? "VD: Honda Wave" : "VD: Innova 7 chỗ"} /></L>
+                {bike ? (
+                  <L label="Xe chở tối đa">
+                    <select name="capacity" defaultValue={String(t?.capacity === 1 ? 1 : 2)} className={inp}>
+                      <option value="1">1 người / tài xế</option>
+                      <option value="2">2 người / tài xế</option>
+                    </select>
+                  </L>
+                ) : (
+                  <L label="Số khách tối đa / xe"><input name="capacity" type="number" min={1} max={45} defaultValue={t?.capacity ?? 4} className={inp} /></L>
+                )}
+                <div className="hidden sm:block" />
+                <L label={bike ? "Giá chạy nguyên ngày — chở 1 người (đ)" : "Giá chạy nguyên ngày — cả xe (đ)"}><MoneyInput name="fixedPrice" defaultValue={toNumber(t?.fixedPrice) ?? ""} placeholder="Để trống = liên hệ" className={inp} /></L>
+                {bike && <L label="Giá chạy nguyên ngày — chở 2 người (đ)"><MoneyInput name="dayPriceTwo" defaultValue={toNumber(t?.dayPriceTwo) ?? ""} placeholder="Để trống = liên hệ" className={inp} /></L>}
+                <div className="sm:col-span-3">
+                  <button className="rounded-xl bg-forest-600 px-5 py-2.5 text-sm font-semibold text-white">Lưu thông tin bác tài</button>
+                </div>
+              </ActionForm>
+            </section>
 
-            <div className="sm:col-span-2 mt-1 border-t border-gray-100 pt-3">
-              <h3 className="text-sm font-semibold text-ink">Bác tài</h3>
-              <p className="mt-0.5 text-xs text-gray-500">Ảnh đại diện bác tài lấy từ ảnh đầu tiên ở mục “Hình ảnh” phía trên.</p>
-            </div>
-            <L label="Tên bác tài"><input name="driverName" defaultValue={service.transport?.driverName ?? ""} className={inp} placeholder="VD: Anh Hùng" /></L>
-            <L label="SĐT bác tài"><input name="driverPhone" defaultValue={service.transport?.driverPhone ?? ""} className={inp} placeholder="VD: 0912345678" /></L>
-            <L label="Năm sinh"><input name="driverBirthYear" type="number" inputMode="numeric" defaultValue={service.transport?.driverBirthYear ?? ""} className={inp} placeholder="VD: 1990" /></L>
-
-            <div className="sm:col-span-2">
-              <button className="rounded-xl bg-forest-600 px-5 py-2.5 text-sm font-semibold text-white">Lưu thông tin tuyến</button>
-            </div>
-          </ActionForm>
-        </section>
-      )}
+            <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
+              <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="text-lg font-semibold text-ink">Giá 1 chiều theo chặng ({service.transportRoutes.length})</h2>
+                <Link href="/admin/transport-points" className="text-sm font-semibold text-forest-700 hover:underline">Quản lý danh sách điểm cố định →</Link>
+              </div>
+              <p className="mb-4 text-sm text-gray-500">
+                Giá đi 1 chiều giữa 2 điểm cố định (dùng cho cả hai hướng){bike ? ", giá khi tài xế chở 1 người và chở 2 người" : ", giá cả xe"}. Để trống = chưa báo giá
+                — khách chọn chặng đó sẽ được mời nhắn tin hỏi giá; điểm ngoài danh sách cũng vậy.
+              </p>
+              <div className="space-y-3">
+                {service.transportRoutes.map((r) => (
+                  <ActionForm key={r.id} action={upsertTransportRoute} className="grid grid-cols-2 gap-2 rounded-xl bg-gray-50 p-3 sm:grid-cols-12 sm:items-end">
+                    <input type="hidden" name="serviceId" value={service.id} />
+                    <input type="hidden" name="id" value={r.id} />
+                    <input type="hidden" name="sortOrder" value={r.sortOrder} />
+                    <L label="Điểm đón" cls="col-span-2 sm:col-span-3">
+                      <select name="fromPointId" defaultValue={r.fromPointId} className={inp}>
+                        {transportPoints.map((p) => <option key={p.id} value={p.id}>{p.name}{p.active ? "" : " (đang ẩn)"}</option>)}
+                      </select>
+                    </L>
+                    <L label="Điểm đến" cls="col-span-2 sm:col-span-3">
+                      <select name="toPointId" defaultValue={r.toPointId} className={inp}>
+                        {transportPoints.map((p) => <option key={p.id} value={p.id}>{p.name}{p.active ? "" : " (đang ẩn)"}</option>)}
+                      </select>
+                    </L>
+                    <L label={bike ? "Chở 1 người (đ)" : "Giá cả xe (đ)"} cls="sm:col-span-2"><MoneyInput name="priceOneWay" defaultValue={toNumber(r.priceOneWay) ?? ""} placeholder="Chưa báo" className={inp} /></L>
+                    {bike && <L label="Chở 2 người (đ)" cls="sm:col-span-2"><MoneyInput name="priceTwo" defaultValue={toNumber(r.priceTwo) ?? ""} placeholder="Chưa báo" className={inp} /></L>}
+                    <div className={`col-span-2 flex gap-1 ${bike ? "sm:col-span-2" : "sm:col-span-4"}`}>
+                      <button className="rounded-lg bg-forest-600 px-3 py-2 text-sm text-white">Lưu</button>
+                      <DeleteBtn action={deleteTransportRoute} />
+                    </div>
+                    <L label="Ghi chú (không bắt buộc)" cls="col-span-2 sm:col-span-12"><input name="note" defaultValue={r.note ?? ""} placeholder="VD: chờ 2 tiếng" className={inp} /></L>
+                  </ActionForm>
+                ))}
+                {transportPoints.length < 2 ? (
+                  <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">Cần ít nhất 2 điểm cố định — thêm ở <Link href="/admin/transport-points" className="font-semibold underline">danh sách điểm</Link>.</p>
+                ) : (
+                  <ActionForm action={upsertTransportRoute} className="grid grid-cols-2 gap-2 rounded-xl border border-dashed border-forest-200 p-3 sm:grid-cols-12 sm:items-end">
+                    <input type="hidden" name="serviceId" value={service.id} />
+                    <L label="Điểm đón" cls="col-span-2 sm:col-span-3">
+                      <select name="fromPointId" defaultValue="" className={inp}>
+                        <option value="" disabled>Chọn điểm…</option>
+                        {transportPoints.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                    </L>
+                    <L label="Điểm đến" cls="col-span-2 sm:col-span-3">
+                      <select name="toPointId" defaultValue="" className={inp}>
+                        <option value="" disabled>Chọn điểm…</option>
+                        {transportPoints.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                    </L>
+                    <L label={bike ? "Chở 1 người (đ)" : "Giá cả xe (đ)"} cls="sm:col-span-2"><MoneyInput name="priceOneWay" placeholder="Chưa báo" className={inp} /></L>
+                    {bike && <L label="Chở 2 người (đ)" cls="sm:col-span-2"><MoneyInput name="priceTwo" placeholder="Chưa báo" className={inp} /></L>}
+                    <div className={`col-span-2 ${bike ? "sm:col-span-2" : "sm:col-span-4"}`}>
+                      <button className="w-full rounded-lg bg-forest-100 px-3 py-2 text-sm font-medium text-forest-700">+ Thêm chặng</button>
+                    </div>
+                    <L label="Ghi chú (không bắt buộc)" cls="col-span-2 sm:col-span-12"><input name="note" placeholder="VD: chờ 2 tiếng" className={inp} /></L>
+                  </ActionForm>
+                )}
+              </div>
+            </section>
+          </>
+        );
+      })()}
 
       {cat.key === "COMBO" && (
         <p className="rounded-2xl bg-sky-50 px-4 py-3 text-sm text-sky-800 ring-1 ring-sky-100">

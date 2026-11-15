@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import type { FeedbackType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCustomer } from "@/lib/customer";
+import { getT } from "@/lib/i18n/server";
 
 export interface SubmitState {
   ok?: boolean;
@@ -17,15 +18,16 @@ const VALID_TYPES: FeedbackType[] = ["IDEA", "BUG", "SERVICE", "OTHER"];
 
 /** Gửi góp ý mới (cần đăng nhập). Trả về mã góp ý để hiện màn cảm ơn. */
 export async function submitFeedback(_prev: SubmitState, fd: FormData): Promise<SubmitState> {
+  const t = await getT();
   const customer = await getCustomer();
-  if (!customer) return { error: "Bạn cần đăng nhập để gửi góp ý." };
+  if (!customer) return { error: t("Bạn cần đăng nhập để gửi góp ý.") };
 
   const typeRaw = String(fd.get("type") ?? "IDEA") as FeedbackType;
   const type = VALID_TYPES.includes(typeRaw) ? typeRaw : "IDEA";
   const message = String(fd.get("message") ?? "").trim().slice(0, 1000);
   if (message.length < 15) {
     const trust = parseTrustPopup((await getSettings())[TRUST_POPUP_KEY]);
-    return { error: soloVoice("Viết thêm chút nữa nhé (ít nhất 15 ký tự) để tụi mình hiểu rõ.", visiblePeople(trust).length === 1) };
+    return { error: soloVoice(t("Viết thêm chút nữa nhé (ít nhất 15 ký tự) để tụi mình hiểu rõ."), visiblePeople(trust).length === 1) };
   }
   const moodRaw = Math.round(Number(fd.get("mood")));
   const mood = moodRaw >= 1 && moodRaw <= 5 ? moodRaw : null;
@@ -63,9 +65,10 @@ export async function submitFeedback(_prev: SubmitState, fd: FormData): Promise<
 
 /** Bật/tắt bình chọn cho một góp ý (cần đăng nhập). */
 export async function toggleVote(feedbackId: string): Promise<{ ok?: boolean; voted?: boolean; error?: string }> {
+  const t = await getT();
   const customer = await getCustomer();
-  if (!customer) return { error: "Bạn cần đăng nhập để bình chọn." };
-  if (!feedbackId) return { error: "Thiếu góp ý." };
+  if (!customer) return { error: t("Bạn cần đăng nhập để bình chọn.") };
+  if (!feedbackId) return { error: t("Thiếu góp ý.") };
 
   const existing = await prisma.feedbackVote.findUnique({
     where: { feedbackId_customerId: { feedbackId, customerId: customer.id } },
@@ -82,13 +85,14 @@ export async function toggleVote(feedbackId: string): Promise<{ ok?: boolean; vo
 
 /** Gửi một bình luận công khai dưới góp ý (cần đăng nhập). */
 export async function addComment(feedbackId: string, contentRaw: string): Promise<{ ok?: boolean; error?: string }> {
+  const t = await getT();
   const customer = await getCustomer();
-  if (!customer) return { error: "Bạn cần đăng nhập để bình luận." };
+  if (!customer) return { error: t("Bạn cần đăng nhập để bình luận.") };
   const content = (contentRaw ?? "").trim().slice(0, 500);
-  if (!feedbackId || !content) return { error: "Nội dung bình luận trống." };
+  if (!feedbackId || !content) return { error: t("Nội dung bình luận trống.") };
 
   const fb = await prisma.feedback.findUnique({ where: { id: feedbackId }, select: { id: true, hidden: true } });
-  if (!fb || fb.hidden) return { error: "Góp ý không tồn tại." };
+  if (!fb || fb.hidden) return { error: t("Góp ý không tồn tại.") };
 
   await prisma.feedbackComment.create({
     data: {

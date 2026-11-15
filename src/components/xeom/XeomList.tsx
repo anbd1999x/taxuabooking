@@ -1,10 +1,12 @@
 "use client";
 
 import { SitePhone, SiteZaloLink, We } from "@/components/SiteContact";
-import Link from "next/link";
+import Link from "@/components/Link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { DateField } from "@/components/DateField";
+import { useT } from "@/components/i18n/I18nProvider";
+import { TransportSearchPanel, useTransportSearch, withQuote } from "@/components/transport/TransportSearch";
+import type { TransportPointDTO, TransportPricing } from "@/lib/transport-legs";
 
 export interface XeomRouteCard {
   id: string;
@@ -21,8 +23,8 @@ export interface XeomRouteCard {
   image: string | null;
   featured: boolean;
   driverName: string | null;
-  driverPhone: string | null;
   driverBirthYear: number | null;
+  pricing?: TransportPricing | null;
 }
 
 // Theme "Rừng núi Tây Bắc"
@@ -50,14 +52,12 @@ function rnd(i: number, kk: number) {
   return x - Math.floor(x);
 }
 
-export function XeomList({ routes }: { routes: XeomRouteCard[] }) {
+export function XeomList({ routes, points = [] }: { routes: XeomRouteCard[]; points?: TransportPointDTO[] }) {
+  const tr = useT();
   const [w, setW] = useState(1280);
   const [type, setType] = useState<"all" | XeomRouteCard["kind"]>("all");
-  const [mode, setMode] = useState<"one" | "round">("one");
-  const [pick, setPick] = useState("");
-  const [day, setDay] = useState("");
-  const [time, setTime] = useState("04:30");
-  const [qty, setQty] = useState(1);
+  // Chặng / nguyên ngày + số người + số tài xế (xe máy chở tối đa 2 người / tài xế).
+  const ts = useTransportSearch(true);
   const [sort, setSort] = useState<"feat" | "price">("feat");
 
   const sunRef = useRef<HTMLDivElement>(null);
@@ -217,23 +217,22 @@ export function XeomList({ routes }: { routes: XeomRouteCard[] }) {
 
   const wide = w >= 980;
   const heroH = w < 640 ? 520 : 600;
-  const round = mode === "round";
-  const hm = time ? Number(time.slice(0, 2)) + Number(time.slice(3, 5)) / 60 : null;
-  const timeTip = hm != null && hm >= 6 && hm < 9 ? "Mây đẹp nhất thường từ 5:00 đến 7:00. Đón sau 6:00 có thể lỡ bình minh." : hm != null && hm < 4 ? "Giờ đón rất sớm, tài xế sẽ gọi xác nhận trước một ngày." : "";
 
   const goList = () => { const el = listRef.current; if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 12, behavior: "smooth" }); };
 
   const items = useMemo(() => {
-    let arr = routes.filter((r) => type === "all" || r.kind === type);
+    let arr = routes.filter((r) => type === "all" || r.kind === type).map((r) => withQuote(r, ts, tr));
     arr = [...arr].sort((a, b) =>
       sort === "price"
         ? (a.price ?? Infinity) - (b.price ?? Infinity)
         : (b.featured ? 1 : 0) - (a.featured ? 1 : 0) || (a.price ?? Infinity) - (b.price ?? Infinity),
     );
     return arr;
-  }, [routes, type, sort]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routes, type, sort, ts.key]);
 
-  const detailTail = (() => { const p = new URLSearchParams(); if (day) p.set("from", day); const s = p.toString(); return s ? `?${s}` : ""; })();
+  const detailTail = ts.detailTail;
+  const pickName = points.find((p) => p.id === ts.fromId)?.name ?? "";
 
   const cell = "flex min-w-0 flex-col gap-0.5 rounded-[14px] bg-[oklch(0.965_0.01_200)] px-3.5 py-2.5";
   const inp = "min-w-0 border-0 bg-transparent p-0 text-[15px] font-semibold text-ink outline-none";
@@ -286,53 +285,25 @@ export function XeomList({ routes }: { routes: XeomRouteCard[] }) {
 
         <div ref={heroTextRef} className="container-page relative z-[3] text-white will-change-transform" style={{ paddingTop: w < 640 ? 64 : 92 }}>
           <div data-in="0" className="flex gap-2 text-sm opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease, transform .9s cubic-bezier(.2,.7,.2,1)", color: "oklch(0.9 0.02 220)" }}>
-            <Link href="/" className="!text-[oklch(0.9_0.02_220)] hover:!text-white">Trang chủ</Link><span>/</span><span className="font-bold text-white">Xe ôm</span>
+            <Link href="/" className="!text-[oklch(0.9_0.02_220)] hover:!text-white">{tr("Trang chủ")}</Link><span>/</span><span className="font-bold text-white">{tr("Xe ôm")}</span>
           </div>
-          <h1 data-in="1" className="mt-4 text-[13px] font-bold uppercase tracking-[0.14em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .1s, transform .9s cubic-bezier(.2,.7,.2,1) .1s", color: "oklch(0.88 0.12 80)" }}>Xe ôm Tà Xùa · tài xế bản địa, giá theo tuyến</h1>
-          <p data-in="2" className="mt-3.5 max-w-[760px] text-[clamp(32px,6vw,60px)] font-extrabold leading-[1.02] tracking-[-0.035em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .2s, transform .9s cubic-bezier(.2,.7,.2,1) .2s", textShadow: "0 2px 24px oklch(0.2 0.05 260 / .4)" }}>Tài xế bản địa đưa bạn tới biển mây</p>
-          <p data-in="3" className="mt-3.5 max-w-[520px] text-[clamp(15px,1.7vw,18px)] leading-[1.5] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .3s, transform .9s cubic-bezier(.2,.7,.2,1) .3s", color: "oklch(0.97 0.02 80)" }}>Xe ôm Tà Xùa đón tận homestay, đưa tới sống lưng khủng long, mỏm cá heo, cây cô đơn. Chọn tuyến và giờ đón để gửi yêu cầu.</p>
+          <h1 data-in="1" className="mt-4 text-[13px] font-bold uppercase tracking-[0.14em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .1s, transform .9s cubic-bezier(.2,.7,.2,1) .1s", color: "oklch(0.88 0.12 80)" }}>{tr("Xe ôm Tà Xùa · tài xế bản địa, giá theo tuyến")}</h1>
+          <p data-in="2" className="mt-3.5 max-w-[760px] text-[clamp(32px,6vw,60px)] font-extrabold leading-[1.02] tracking-[-0.035em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .2s, transform .9s cubic-bezier(.2,.7,.2,1) .2s", textShadow: "0 2px 24px oklch(0.2 0.05 260 / .4)" }}>{tr("Tài xế bản địa đưa bạn tới biển mây")}</p>
+          <p data-in="3" className="mt-3.5 max-w-[520px] text-[clamp(15px,1.7vw,18px)] leading-[1.5] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .3s, transform .9s cubic-bezier(.2,.7,.2,1) .3s", color: "oklch(0.97 0.02 80)" }}>{tr("Xe ôm Tà Xùa đón tận homestay, đưa tới sống lưng khủng long, mỏm cá heo, cây cô đơn. Chọn tuyến và giờ đón để gửi yêu cầu.")}</p>
         </div>
       </section>
 
-      {/* SEARCH */}
+      {/* SEARCH — chặng 1 chiều / nguyên ngày · số người · số tài xế (TransportSearch) */}
       <div data-in="4" className="container-page relative z-[4] -mt-[70px] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .4s, transform .9s cubic-bezier(.2,.7,.2,1) .4s" }}>
         <div className="flex flex-col gap-2 rounded-[22px] border border-white/80 p-2.5 shadow-[0_24px_60px_-24px_oklch(0.25_0.06_220_/.45)]" style={{ background: "oklch(1 0 0 / .9)", backdropFilter: "blur(14px)" }}>
-          <div className="flex flex-wrap items-center justify-between gap-2 p-0.5">
-            <div className="flex flex-wrap gap-1">
-              {(["all", "Điểm săn mây", "Tour nửa ngày", "Đưa đón bến xe"] as const).map((kk) => (
-                <button key={kk} type="button" onClick={() => setType(kk)} className="rounded-full px-3.5 py-2 text-sm font-bold transition" style={{ background: type === kk ? TH.G : "oklch(0.95 0.01 200)", color: type === kk ? "white" : "oklch(0.35 0.02 160)" }}>{kk === "all" ? "Tất cả" : KIND_SHORT[kk]}</button>
-              ))}
-            </div>
-            <div className="inline-flex gap-[3px] rounded-full bg-[oklch(0.95_0.01_200)] p-[3px]">
-              {([["one", "Một chiều"], ["round", "Khứ hồi"]] as const).map(([kk, n]) => (
-                <button key={kk} type="button" onClick={() => setMode(kk)} className="rounded-full px-3 py-1.5 text-[13px] font-bold transition" style={{ background: mode === kk ? "white" : "transparent", color: mode === kk ? TH.G : "oklch(0.42 0.02 160)", boxShadow: mode === kk ? "0 1px 3px oklch(0.2 0.03 160 / .15)" : "none" }}>{n}</button>
-              ))}
-            </div>
+          <div className="flex flex-wrap gap-1 p-0.5">
+            {(["all", "Điểm săn mây", "Tour nửa ngày", "Đưa đón bến xe"] as const).map((kk) => (
+              <button key={kk} type="button" onClick={() => setType(kk)} className="rounded-full px-3.5 py-2 text-sm font-bold transition" style={{ background: type === kk ? TH.G : "oklch(0.95 0.01 200)", color: type === kk ? "white" : "oklch(0.35 0.02 160)" }}>
+                {kk === "all" ? tr("Tất cả") : tr(kk)}
+              </button>
+            ))}
           </div>
-          <div className="grid gap-1.5" style={{ gridTemplateColumns: wide ? "1.4fr 1fr 0.8fr 150px auto" : "repeat(auto-fit,minmax(min(100%,150px),1fr))" }}>
-            <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Đón tại</span>
-              <input value={pick} onChange={(e) => setPick(e.target.value)} placeholder="Tên homestay hoặc trung tâm xã" className={inp} />
-            </label>
-            <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Ngày</span>
-              <DateField value={day} onChange={setDay} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Ngày" />
-            </label>
-            <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Giờ đón</span>
-              <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={inp} />
-            </label>
-            <div className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Số người</span>
-              <div className="flex items-center gap-2.5 pt-0.5">
-                <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))} className="flex h-7 w-7 items-center justify-center rounded-lg bg-white font-bold">−</button>
-                <span className="min-w-[14px] text-center text-[15px] font-extrabold">{qty}</span>
-                <button type="button" onClick={() => setQty((q) => Math.min(10, q + 1))} className="flex h-7 w-7 items-center justify-center rounded-lg bg-white font-bold">+</button>
-              </div>
-            </div>
-            <button type="button" onClick={goList} className="flex items-center justify-center gap-2 whitespace-nowrap rounded-[14px] px-6 py-3.5 text-base font-extrabold text-white transition hover:bg-sunset-500" style={{ background: "oklch(0.68 0.18 45)" }}>Xem tuyến →</button>
-          </div>
-          {timeTip && <div className="px-1.5 pb-1 text-[13px] font-semibold" style={{ color: "oklch(0.45 0.1 155)" }}>{timeTip}</div>}
+          <TransportSearchPanel ts={ts} points={points} wide={wide} cell={cell} inp={inp} accent={TH.G} onSearch={goList} />
         </div>
       </div>
 
@@ -340,13 +311,13 @@ export function XeomList({ routes }: { routes: XeomRouteCard[] }) {
       <main ref={listRef} className="container-page flex flex-col gap-[18px] pb-14 pt-9">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <div className="text-[clamp(22px,2.6vw,28px)] font-extrabold tracking-[-0.02em] text-ink">Tuyến xe ôm Tà Xùa</div>
-            <div className="mt-1 text-sm text-gray-500">{items.length} tuyến · tài xế bản địa · giá mỗi người, xác nhận qua điện thoại</div>
+            <div className="text-[clamp(22px,2.6vw,28px)] font-extrabold tracking-[-0.02em] text-ink">{tr("Tuyến xe ôm Tà Xùa")}</div>
+            <div className="mt-1 text-sm text-gray-500">{tr("{0} tuyến · tài xế bản địa · giá mỗi người, xác nhận qua điện thoại", [items.length])}</div>
           </div>
           {items.length > 0 && (
             <div className="inline-flex gap-1 rounded-xl bg-[oklch(0.93_0.01_200)] p-1">
-              {([["feat", "Nổi bật"], ["price", "Giá thấp"]] as const).map(([kk, n]) => (
-                <button key={kk} type="button" onClick={() => setSort(kk)} className="rounded-[9px] px-3 py-1.5 text-[13px] font-bold transition" style={{ background: sort === kk ? "white" : "transparent", color: sort === kk ? TH.G : "oklch(0.42 0.02 160)", boxShadow: sort === kk ? "0 1px 3px oklch(0.2 0.03 160 / .15)" : "none" }}>{n}</button>
+              {([["feat", tr("Nổi bật")], ["price", tr("Giá thấp")]] as const).map(([kk, n]) => (
+                <button key={kk} type="button" onClick={() => setSort(kk)} className="rounded-[9px] px-3 py-1.5 text-[13px] font-bold transition" style={{ background: sort === kk ? "white" : "transparent", color: sort === kk ? TH.G : "oklch(0.42 0.02 160)", boxShadow: sort === kk ? "0 1px 3px oklch(0.2 0.03 160 / .15)" : "none" }}>{tr(n)}</button>
               ))}
             </div>
           )}
@@ -354,19 +325,15 @@ export function XeomList({ routes }: { routes: XeomRouteCard[] }) {
 
         {items.length === 0 ? (
           <div className="rounded-[22px] border border-dashed border-[oklch(0.85_0.02_200)] bg-white py-14 text-center text-[15px] text-gray-500">
-            Chưa có tuyến này. Gọi <SitePhone />, <We /> sắp xếp tài xế cho bạn.
+            {tr("Chưa có tuyến này. Gọi")}{" "}<SitePhone />, <We />{" "}{tr("sắp xếp tài xế cho bạn.")}
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] sm:gap-[22px]">
             {items.map((r, j) => {
               const noPrice = r.price == null;
-              const note = noPrice
-                ? r.priceNote || "Báo giá khi gọi lại"
-                : round
-                  ? "Khứ hồi: liên hệ xác nhận giá"
-                  : qty > 1
-                    ? `${qty} người · tạm tính ${vnd(r.price! * qty)}`
-                    : r.priceNote || "Giá tham khảo, xác nhận khi gọi";
+              // Đang xem theo ngày (mặc định, hoặc khách chọn "Thuê nguyên ngày") ⇒ giá /ngày; chọn chặng ⇒ giá 1 chiều.
+              const dayView = !(ts.active && ts.mode === "LEG") && (ts.active || (r.pricing?.dayPrice ?? 0) > 0);
+              const note = r.priceNote || (noPrice ? tr("Nhắn tin để được báo giá") : tr("Giá tham khảo, xác nhận khi gọi"));
               return (
                 <Link
                   key={r.id}
@@ -377,62 +344,61 @@ export function XeomList({ routes }: { routes: XeomRouteCard[] }) {
                 >
                   <div className="relative aspect-[16/10] overflow-hidden bg-gray-100">
                     {r.image ? (
-                      <Image src={r.image} alt={r.to} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" />
+                      <Image src={r.image} alt={tr(r.to)} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" />
                     ) : (
                       <div className="flex h-full items-center justify-center text-4xl">🏍️</div>
                     )}
                     <div className="pointer-events-none absolute left-2 right-2 top-2 flex flex-wrap items-start justify-between gap-1 sm:left-3 sm:right-3 sm:top-3 sm:gap-1.5">
-                      <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[oklch(0.3_0.04_160)]">{KIND_SHORT[r.kind]}</span>
-                      {r.featured && <span className="rounded-full bg-sunset-500 px-2.5 py-1 text-xs font-bold text-white">Nổi bật</span>}
+                      <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[oklch(0.3_0.04_160)]">{tr(KIND_SHORT[r.kind])}</span>
+                      {r.featured && <span className="rounded-full bg-sunset-500 px-2.5 py-1 text-xs font-bold text-white">{tr("Nổi bật")}</span>}
                     </div>
                   </div>
                   <div className="flex flex-1 flex-col gap-2 p-3 sm:gap-3 sm:p-5 sm:pt-[18px]">
                     <div className="grid items-center gap-x-2.5 gap-y-0.5" style={{ gridTemplateColumns: "14px minmax(0,1fr)" }}>
                       <span className="h-2.5 w-2.5 rounded-full border-2" style={{ borderColor: TH.G }} />
-                      <div className="truncate text-[13px] font-semibold text-gray-500">Đón: {pick || r.from}</div>
+                      <div className="truncate text-[13px] font-semibold text-gray-500">{tr("Đón: {0}", [pickName ? tr(pickName) : tr(r.from)])}</div>
                       <span className="mx-auto h-3 w-[2px]" style={{ background: "repeating-linear-gradient(180deg, oklch(0.75 0.02 200) 0 3px, transparent 3px 6px)" }} />
                       <span />
                       <span className="h-2.5 w-2.5 rounded-full bg-sunset-500" />
-                      <div className="line-clamp-1 text-[15px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink sm:text-[18px]">{r.to}</div>
+                      <div className="line-clamp-1 text-[15px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink sm:text-[18px]">{tr(r.to)}</div>
                     </div>
-                    <div className="line-clamp-2 text-[12px] leading-[1.5] text-gray-500 sm:text-sm">{r.desc}</div>
+                    <div className="line-clamp-2 text-[12px] leading-[1.5] text-gray-500 sm:text-sm">{tr(r.desc)}</div>
                     {r.driverName && (
                       <div className="flex items-center gap-2.5 rounded-[14px] bg-[oklch(0.965_0.01_200)] px-2.5 py-2">
                         <span className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-gray-200 sm:h-9 sm:w-9">
                           {r.image ? (
-                            <Image src={r.image} alt={r.driverName} fill sizes="36px" className="object-cover" />
+                            <Image src={r.image} alt={tr(r.driverName)} fill sizes="36px" className="object-cover" />
                           ) : (
                             <span className="flex h-full w-full items-center justify-center text-sm">🧑</span>
                           )}
                         </span>
                         <div className="min-w-0 flex-1">
                           <div className="truncate text-[13px] font-bold text-ink">
-                            Bác tài {r.driverName}
+                            {tr("Bác tài")}{" "}{tr(r.driverName)}
                             {r.driverBirthYear ? <span className="font-semibold text-gray-500"> · {r.driverBirthYear}</span> : null}
                           </div>
-                          {r.driverPhone && <div className="truncate text-[12px] font-semibold text-[oklch(0.42_0.1_250)]">{r.driverPhone}</div>}
                         </div>
                       </div>
                     )}
                     <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[14px] bg-[oklch(0.92_0.01_200)]">
                       <div className="min-w-0 bg-[oklch(0.975_0.006_200)] px-2 py-2 sm:px-3 sm:py-2.5">
-                        <div className="truncate text-[11px] font-semibold text-gray-500">Phương tiện</div>
-                        <div className="mt-0.5 truncate text-[13px] font-extrabold text-ink sm:text-[15px]">{r.vehicleType || "Xe máy"}</div>
+                        <div className="truncate text-[11px] font-semibold text-gray-500">{tr("Phương tiện")}</div>
+                        <div className="mt-0.5 truncate text-[13px] font-extrabold text-ink sm:text-[15px]">{tr(r.vehicleType) || tr("Xe máy")}</div>
                       </div>
                       <div className="min-w-0 bg-[oklch(0.975_0.006_200)] px-2 py-2 sm:px-3 sm:py-2.5">
-                        <div className="truncate text-[11px] font-semibold text-gray-500">Chiều</div>
-                        <div className="mt-0.5 whitespace-nowrap text-[13px] font-extrabold text-ink sm:text-[15px]">{round ? "Khứ hồi" : "Một chiều"}</div>
+                        <div className="truncate text-[11px] font-semibold text-gray-500">{tr("Chiều")}</div>
+                        <div className="mt-0.5 whitespace-nowrap text-[13px] font-extrabold text-ink sm:text-[15px]">{dayView ? tr("Nguyên ngày") : tr("Một chiều")}</div>
                       </div>
                     </div>
                     <div className="flex-1" />
                     <div className="flex flex-col gap-2 border-t border-[oklch(0.94_0.01_200)] pt-2.5 sm:flex-row sm:items-end sm:justify-between sm:gap-2.5 sm:pt-3">
                       <div className="min-w-0">
-                        <div className="text-xs text-gray-500">{noPrice ? "Giá" : "Một chiều / người"}</div>
-                        {!noPrice && r.originalPrice != null && <div className="text-[12px] font-semibold leading-none text-gray-400 line-through sm:text-[13px]">{vnd(r.originalPrice)}</div>}
-                        <div className={`font-extrabold tracking-[-0.02em] ${noPrice ? "text-[14px] leading-snug sm:text-[16px]" : "whitespace-nowrap text-[18px] sm:text-[22px]"}`} style={{ color: noPrice ? "oklch(0.42 0.1 250)" : "oklch(0.6 0.18 45)" }}>{noPrice ? "Liên hệ xác nhận giá" : vnd(r.price!)}</div>
-                        <div className="text-[11px] font-semibold leading-snug text-gray-500 sm:text-xs">{note}</div>
+                        <div className="text-xs text-gray-500">{noPrice ? tr("Giá") : ts.active ? tr("Tạm tính") : dayView ? tr("Giá thuê") : tr("Giá từ")}</div>
+                        {!noPrice && r.originalPrice != null && <div className="text-[12px] font-semibold leading-none text-gray-400 line-through sm:text-[13px]">{tr(vnd(r.originalPrice))}</div>}
+                        <div className={`font-extrabold tracking-[-0.02em] ${noPrice ? "text-[14px] leading-snug sm:text-[16px]" : "whitespace-nowrap text-[18px] sm:text-[22px]"}`} style={{ color: noPrice ? "oklch(0.42 0.1 250)" : "oklch(0.6 0.18 45)" }}>{noPrice ? tr("Liên hệ xác nhận giá") : <>{tr(vnd(r.price!))}{dayView && <span className="text-[11px] font-bold text-gray-500 sm:text-sm">{tr("/ngày")}</span>}</>}</div>
+                        <div className="text-[11px] font-semibold leading-snug text-gray-500 sm:text-xs">{tr(note)}</div>
                       </div>
-                      <span className="whitespace-nowrap rounded-full px-3 py-2 text-center text-xs font-bold text-white transition group-hover:bg-sunset-500 sm:px-4 sm:py-2.5 sm:text-sm" style={{ background: TH.G }}>Gửi yêu cầu →</span>
+                      <span className="whitespace-nowrap rounded-full px-3 py-2 text-center text-xs font-bold text-white transition group-hover:bg-sunset-500 sm:px-4 sm:py-2.5 sm:text-sm" style={{ background: TH.G }}>{tr("Gửi yêu cầu →")}</span>
                     </div>
                   </div>
                 </Link>
@@ -442,15 +408,15 @@ export function XeomList({ routes }: { routes: XeomRouteCard[] }) {
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-[oklch(0.92_0.01_200)] bg-white px-[18px] py-4">
-          <div className="max-w-[640px] text-sm leading-[1.5] text-gray-600">Xe ôm không đặt chỗ tự động. Sau khi bạn gửi yêu cầu, <We /> gọi lại xác nhận tài xế, giờ đón và giá chốt.</div>
-          <SiteZaloLink className="whitespace-nowrap rounded-full px-4 py-2.5 text-sm font-bold text-white" style={{ background: "oklch(0.68 0.18 45)" }}>Hỏi nhanh qua Zalo</SiteZaloLink>
+          <div className="max-w-[640px] text-sm leading-[1.5] text-gray-600">{tr("Xe ôm không đặt chỗ tự động. Sau khi bạn gửi yêu cầu,")}{" "}<We />{" "}{tr("gọi lại xác nhận tài xế, giờ đón và giá chốt.")}</div>
+          <SiteZaloLink className="whitespace-nowrap rounded-full px-4 py-2.5 text-sm font-bold text-white" style={{ background: "oklch(0.68 0.18 45)" }}>{tr("Hỏi nhanh qua Zalo")}</SiteZaloLink>
         </div>
 
         <div className="mt-6 flex flex-col gap-3 border-t border-[oklch(0.91_0.01_200)] pt-6">
-          <div className="text-[15px] font-bold text-gray-500">Dịch vụ khác tại Tà Xùa</div>
+          <div className="text-[15px] font-bold text-gray-500">{tr("Dịch vụ khác tại Tà Xùa")}</div>
           <div className="flex flex-wrap gap-2">
-            {[["/xe-cabin", "Xe cabin đi Tà Xùa"], ["/homestay", "Homestay & Bungalow"], ["/thue-xe-may", "Thuê xe máy"], ["/taxi", "Taxi"], ["/combo", "Combo du lịch"]].map(([href, label]) => (
-              <Link key={href} href={href} className="whitespace-nowrap rounded-full border border-[oklch(0.88_0.02_160)] bg-white px-4 py-2.5 text-[15px] font-semibold text-[oklch(0.3_0.05_160)]">{label}</Link>
+            {[["/xe-cabin", tr("Xe cabin đi Tà Xùa")], ["/homestay", "Homestay & Bungalow"], ["/thue-xe-may", tr("Thuê xe máy")], ["/taxi", "Taxi"], ["/combo", tr("Combo du lịch")]].map(([href, label]) => (
+              <Link key={href} href={href} className="whitespace-nowrap rounded-full border border-[oklch(0.88_0.02_160)] bg-white px-4 py-2.5 text-[15px] font-semibold text-[oklch(0.3_0.05_160)]">{tr(label)}</Link>
             ))}
           </div>
         </div>
@@ -461,10 +427,11 @@ export function XeomList({ routes }: { routes: XeomRouteCard[] }) {
 
 /** Hình xe ôm với 1 tài xế (hướng chạy sang phải). */
 function XeomBikeArt() {
+  const tr = useT();
   return (
     <div className="absolute left-0 top-0 h-[42px] w-[66px]" style={{ transform: "scale(1.65)", transformOrigin: "left top" }}>
       <div className="absolute left-[60px] top-[19px] h-3 w-[70px]" style={{ background: "linear-gradient(90deg, oklch(0.97 0.1 90 / .55), transparent)", clipPath: "polygon(0 35%,100% 0,100% 100%,0 65%)", filter: "blur(1.5px)" }} />
-      <div className="absolute left-[-7px] top-[13px] z-[3] h-[9px] w-5 rounded-[2px] text-center" style={{ background: "oklch(0.88 0.16 95)", border: "1px solid oklch(0.45 0.1 70)", fontSize: "5.4px", fontWeight: 900, lineHeight: "7px", color: "oklch(0.28 0.06 60)" }}>XE ÔM</div>
+      <div className="absolute left-[-7px] top-[13px] z-[3] h-[9px] w-5 rounded-[2px] text-center" style={{ background: "oklch(0.88 0.16 95)", border: "1px solid oklch(0.45 0.1 70)", fontSize: "5.4px", fontWeight: 900, lineHeight: "7px", color: "oklch(0.28 0.06 60)" }}>{tr("XE ÔM")}</div>
       {/* tài xế (1 người) */}
       <div className="absolute left-[24px] top-[3px] h-[14px] w-3" style={{ borderRadius: "5px 6px 2px 2px", background: "oklch(0.35 0.07 160)", transform: "rotate(-6deg)" }} />
       <div className="absolute left-[26px] top-[-6px] h-[10px] w-[11px]" style={{ borderRadius: "6px 6px 2px 2px", background: "oklch(0.78 0.14 120)" }} />

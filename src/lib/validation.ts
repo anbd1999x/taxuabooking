@@ -51,6 +51,14 @@ export const bookingInputSchema = z
     roomIds: z.array(z.string().min(1)).max(20).optional().nullable(),
     cabinTripId: z.string().optional().nullable(),
     rentalVehicleId: z.string().optional().nullable(),
+    // Taxi / xe ôm: điểm đón / điểm đến (id điểm cố định, hoặc "__other__" + chữ tự do) và kiểu chuyến.
+    fromPointId: z.string().max(40).optional().nullable(),
+    toPointId: z.string().max(40).optional().nullable(),
+    fromOther: z.string().trim().max(120).optional().nullable(),
+    toOther: z.string().trim().max(120).optional().nullable(),
+    // LEG = chặng 1 chiều (điểm đón → điểm đến) · DAY = thuê nguyên ngày; drivers = số tài xế (xe ôm) / số xe (taxi).
+    transportMode: z.enum(["LEG", "DAY"]).optional().nullable(),
+    drivers: z.coerce.number().int().min(1).max(20).optional().nullable(),
     // Thuê xe máy: giờ nhận / giờ trả ("HH:mm"). Có đủ cả hai ⇒ tính tiền theo số ngày quy đổi (rental-days.ts).
     pickupTime: z.string().regex(timeRegex, "Giờ nhận xe không hợp lệ.").optional().nullable(),
     returnTime: z.string().regex(timeRegex, "Giờ trả xe không hợp lệ.").optional().nullable(),

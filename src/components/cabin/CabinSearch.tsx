@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { DateField } from "@/components/DateField";
 import { useSearchNav } from "@/components/useSearchNav";
+import { useT } from "@/components/i18n/I18nProvider";
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -15,6 +16,7 @@ export function CabinSearch({
   initialFrom?: string;
   initialTo?: string;
 }) {
+  const t = useT();
   const { pending, go } = useSearchNav();
   const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState(initialTo);
@@ -34,25 +36,25 @@ export function CabinSearch({
     <div className="rounded-[22px] bg-white p-2.5 shadow-[0_20px_50px_-24px_rgba(30,70,45,0.4)] ring-1 ring-black/[0.05]">
       <div className="grid gap-1.5 sm:grid-cols-[1fr_1fr_auto]">
         <label className={cell}>
-          <span className="text-xs font-medium text-gray-500">Ngày đi</span>
+          <span className="text-xs font-medium text-gray-500">{t("Ngày đi")}</span>
           <DateField
             value={from}
             min={todayKey()}
             onChange={setFrom}
             className="bg-transparent text-[15px] font-bold text-ink outline-none"
             displayClassName="text-[15px] font-bold text-ink"
-            ariaLabel="Ngày đi"
+            ariaLabel={t("Ngày đi")}
           />
         </label>
         <label className={cell}>
-          <span className="text-xs font-medium text-gray-500">Ngày về (tuỳ chọn)</span>
+          <span className="text-xs font-medium text-gray-500">{t("Ngày về (tuỳ chọn)")}</span>
           <DateField
             value={to}
             min={from || todayKey()}
             onChange={setTo}
             className="bg-transparent text-[15px] font-bold text-ink outline-none"
             displayClassName="text-[15px] font-bold text-ink"
-            ariaLabel="Ngày về"
+            ariaLabel={t("Ngày về")}
           />
         </label>
         <button
@@ -61,7 +63,7 @@ export function CabinSearch({
           disabled={pending}
           className="flex items-center justify-center gap-2 rounded-2xl bg-sunset-500 px-6 py-4 text-base font-bold text-white transition hover:bg-sunset-600 active:scale-[0.98] disabled:cursor-wait disabled:opacity-80"
         >
-          Tìm vé <span>→</span>
+          {t("Tìm vé")}{" "}<span>→</span>
         </button>
       </div>
     </div>

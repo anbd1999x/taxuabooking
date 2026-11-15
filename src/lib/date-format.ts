@@ -26,11 +26,12 @@ export function wdShort(v: string | Date): string {
 }
 
 /** Kèm thứ: "T7, 05/12/2026". */
-export function wdDmy(v: string | Date | null | undefined): string {
+export function wdDmy(v: string | Date | null | undefined, t?: (key: string) => string): string {
   if (!v) return "";
   const k = keyOf(v);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(k)) return String(v);
-  return `${wdShort(k)}, ${dmy(k)}`;
+  // `t` (tuỳ chọn) = hàm dịch của trang khách: "T7" → "Sat" / "周六" / "토".
+  return `${t ? t(wdShort(k)) : wdShort(k)}, ${dmy(k)}`;
 }
 
 const VN_DT = new Intl.DateTimeFormat("en-GB", {

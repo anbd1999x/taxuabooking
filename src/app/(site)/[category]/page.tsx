@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { SitePhone } from "@/components/SiteContact";
 import { notFound } from "next/navigation";
 import { categoryBySlug, CATEGORY_LIST } from "@/lib/constants";
-import { listServicesByCategory, getHomestayRoomCards, getRentalBikes, getXeomRoutes, getTaxiRoutes, type ListFilters } from "@/lib/queries";
+import { listServicesByCategory, getHomestayRoomCards, getRentalBikes, getXeomRoutes, getTaxiRoutes, getTransportPoints, type ListFilters } from "@/lib/queries";
 import { getCabinOperators } from "@/lib/cabin";
 import { HomestayList } from "@/components/home/HomestayList";
 import { MotorbikeList } from "@/components/moto/MotorbikeList";
@@ -48,6 +48,9 @@ const SEO_META: Record<string, { title: string; description: string }> = {
   },
 };
 import { addDays, parseDateOnly, toDateKey, today, isValidDateKey } from "@/lib/dates";
+import { getT } from "@/lib/i18n/server";
+import { i18nAlternates, i18nOg } from "@/lib/i18n/meta";
+import Link from "@/components/Link";
 
 export const dynamic = "force-dynamic";
 
@@ -62,18 +65,19 @@ export async function generateMetadata({
 }: {
   params: Promise<{ category: string }>;
 }): Promise<Metadata> {
+  const t = await getT();
   const { category } = await params;
   const cat = categoryBySlug(category);
   if (!cat) return {};
   const custom = SEO_META[cat.key];
-  const title = custom?.title ?? `${cat.label}: giá & tình trạng còn chỗ`;
-  const description = custom?.description ?? `${cat.label}: ${cat.tagline}. Xem giá và tình trạng còn chỗ theo ngày, gửi yêu cầu đặt nhanh tại Tà Xùa Booking.`;
+  const title = custom ? t(custom.title) : t("{0}: giá & tình trạng còn chỗ", [t(cat.label)]);
+  const description = custom ? t(custom.description) : t("{0}: {1}. Xem giá và tình trạng còn chỗ theo ngày, gửi yêu cầu đặt nhanh tại Tà Xùa Booking.", [t(cat.label), t(cat.tagline)]);
   return {
     title,
     description,
-    alternates: { canonical: `/${cat.slug}` },
+    alternates: await i18nAlternates(`/${cat.slug}`),
     // Ảnh chia sẻ = ảnh bìa dịch vụ nổi bật của chính danh mục này (xe cabin ra ảnh xe, homestay ra ảnh phòng...).
-    openGraph: ogBlock({ title, description, path: `/${cat.slug}`, image: await categoryShareImage(cat.key), alt: cat.label }),
+    openGraph: await i18nOg({ title, description, path: `/${cat.slug}`, image: await categoryShareImage(cat.key), alt: t(cat.label) }),
   };
 }
 
@@ -84,6 +88,7 @@ export default async function CategoryPage({
   params: Promise<{ category: string }>;
   searchParams: SP;
 }) {
+  const t = await getT();
   const { category } = await params;
   const cat = categoryBySlug(category);
   if (!cat) notFound();
@@ -170,7 +175,7 @@ export default async function CategoryPage({
         <div className="mt-6">
           {!from || !to ? (
             <p className="rounded-2xl border border-dashed border-gray-300 bg-white py-14 text-center text-gray-500">
-              Chọn ngày đi và ngày về để tìm combo.
+              {t("Chọn ngày đi và ngày về để tìm combo.")}
             </p>
           ) : result == null ? (
             (() => {
@@ -193,16 +198,15 @@ export default async function CategoryPage({
               }
               return (
                 <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-6 py-14 text-center">
-                  <p className="text-lg font-medium text-gray-700">Khoảng ngày này chưa có đêm nghỉ nào ở homestay</p>
+                  <p className="text-lg font-medium text-gray-700">{t("Khoảng ngày này chưa có đêm nghỉ nào ở homestay")}</p>
                   <p className="mx-auto mt-2 max-w-xl text-sm leading-relaxed text-gray-500">
-                    <b>Ngày đi là đêm bạn lên xe</b> — xe chạy xuyên đêm, sáng hôm sau mới tới Tà Xùa nhận phòng.
+                    <b>{t("Ngày đi là đêm bạn lên xe")}</b>{" "}{t("— xe chạy xuyên đêm, sáng hôm sau mới tới Tà Xùa nhận phòng.")}
                     {valid ? (
                       <>
-                        {" "}Nếu bạn muốn <b>nhận phòng ngày {fmtD(from!)}</b> và <b>trả phòng ngày {fmtD(fixTo)}</b>,
-                        hãy tìm với <b>Ngày đi {fmtD(fixFrom)}</b> · <b>Ngày về {fmtD(fixTo)}</b>.
+                        {" "}{t("Nếu bạn muốn")}{" "}<b>{t("nhận phòng ngày {0}", [fmtD(from!)])}</b>{" "}{t("và")}{" "}<b>{t("trả phòng ngày {0}", [fmtD(fixTo)])}</b>{t(", hãy tìm với")}{" "}<b>{t("Ngày đi {0}", [fmtD(fixFrom)])}</b> · <b>{t("Ngày về {0}", [fmtD(fixTo)])}</b>.
                       </>
                     ) : (
-                      <> Ví dụ: muốn nhận phòng ngày 15 và trả ngày 16 → chọn Ngày đi 14, Ngày về 16.</>
+                      <>{" "}{t("Ví dụ: muốn nhận phòng ngày 15 và trả ngày 16 → chọn Ngày đi 14, Ngày về 16.")}</>
                     )}
                   </p>
                   {fixUrl && (
@@ -210,7 +214,7 @@ export default async function CategoryPage({
                       href={fixUrl}
                       className="mt-4 inline-flex items-center gap-2 rounded-xl bg-sunset-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-sunset-600"
                     >
-                      Tìm lại: đi {fmtD(fixFrom)} → về {fmtD(fixTo)} →
+                      {t("Tìm lại: đi {0} → về {1} →", [fmtD(fixFrom), fmtD(fixTo)])}
                     </a>
                   )}
                 </div>
@@ -218,16 +222,16 @@ export default async function CategoryPage({
             })()
           ) : result.planCount === 0 || result.busCount === 0 ? (
             <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-14 text-center">
-              <p className="text-lg font-medium text-gray-700">Chưa ghép được combo phù hợp</p>
+              <p className="text-lg font-medium text-gray-700">{t("Chưa ghép được combo phù hợp")}</p>
               <p className="mt-1 text-sm text-gray-500">
                 {result.busCount === 0
                   ? result.origin
-                    ? `Chưa có nhà xe nhận đón tại ${result.origin} (mở cả chuyến đi lẫn về) cho ngày này.`
-                    : "Chưa có nhà xe mở cả chuyến đi lẫn về cho ngày này."
+                    ? t("Chưa có nhà xe nhận đón tại {0} (mở cả chuyến đi lẫn về) cho ngày này.", [t(result.origin)])
+                    : t("Chưa có nhà xe mở cả chuyến đi lẫn về cho ngày này.")
                   : result.planCount === 0
-                    ? "Chưa ghép được đủ chỗ cho cả đoàn từ các phòng trống khớp tiêu chí — thử nới tiêu chí, giảm số người hoặc đổi ngày."
-                    : "Thử nới tiêu chí hoặc đổi ngày."}{" "}
-                Hoặc liên hệ <SitePhone />.
+                    ? t("Chưa ghép được đủ chỗ cho cả đoàn từ các phòng trống khớp tiêu chí — thử nới tiêu chí, giảm số người hoặc đổi ngày.")
+                    : t("Thử nới tiêu chí hoặc đổi ngày.")}{" "}
+                {t("Hoặc liên hệ")}{" "}<SitePhone />.
               </p>
             </div>
           ) : (
@@ -239,12 +243,12 @@ export default async function CategoryPage({
         <div className="-mx-4 mt-10 sm:mx-0"><SeoBlock kind="COMBO" /></div>
 
         <section className="mt-2 border-t border-gray-200 pt-6">
-          <h2 className="text-sm font-semibold text-gray-500">Dịch vụ khác tại Tà Xùa</h2>
+          <h2 className="text-sm font-semibold text-gray-500">{t("Dịch vụ khác tại Tà Xùa")}</h2>
           <div className="mt-3 flex flex-wrap gap-2">
             {CATEGORY_LIST.filter((c) => c.slug !== cat.slug).map((c) => (
-              <a key={c.slug} href={`/${c.slug}`} className="rounded-full bg-white px-4 py-2 text-sm text-forest-700 ring-1 ring-forest-200 hover:bg-forest-50">
-                {c.label}
-              </a>
+              <Link key={c.slug} href={`/${c.slug}`} className="rounded-full bg-white px-4 py-2 text-sm text-forest-700 ring-1 ring-forest-200 hover:bg-forest-50">
+                {t(c.label)}
+              </Link>
             ))}
           </div>
         </section>
@@ -280,14 +284,14 @@ export default async function CategoryPage({
 
   // ----- Xe ôm: hero động + tìm kiếm + danh sách tuyến (bám thiết kế) -----
   if (cat.key === "XEOM") {
-    const routes = await getXeomRoutes();
-    return <XeomList routes={routes} />;
+    const [routes, points] = await Promise.all([getXeomRoutes(), getTransportPoints()]);
+    return <XeomList routes={routes} points={points} />;
   }
 
   // ----- Taxi: hero động + tìm kiếm + danh sách tuyến (bám thiết kế) -----
   if (cat.key === "TAXI") {
-    const routes = await getTaxiRoutes();
-    return <TaxiList routes={routes} />;
+    const [routes, points] = await Promise.all([getTaxiRoutes(), getTransportPoints()]);
+    return <TaxiList routes={routes} points={points} />;
   }
 
   const filters: ListFilters = {
@@ -305,14 +309,14 @@ export default async function CategoryPage({
     <div className="container-page py-8">
       {/* breadcrumb */}
       <nav className="mb-3 text-sm text-gray-500">
-        <a href="/" className="hover:text-forest-700">Trang chủ</a>
+        <Link href="/" className="hover:text-forest-700">{t("Trang chủ")}</Link>
         <span className="mx-2">/</span>
-        <span className="text-gray-700">{cat.shortLabel}</span>
+        <span className="text-gray-700">{t(cat.shortLabel)}</span>
       </nav>
 
       <header className="mb-6">
-        <h1 className="text-2xl font-bold text-ink sm:text-3xl">{cat.label}</h1>
-        <p className="mt-1 text-gray-500">{cat.tagline}</p>
+        <h1 className="text-2xl font-bold text-ink sm:text-3xl">{t(cat.label)}</h1>
+        <p className="mt-1 text-gray-500">{t(cat.tagline)}</p>
       </header>
 
       <FilterBar
@@ -328,9 +332,7 @@ export default async function CategoryPage({
 
       {hasDateFilter && (
         <p className="mt-4 rounded-xl bg-sky-50 px-4 py-3 text-sm text-sky-800 ring-1 ring-sky-100">
-          Tình trạng hiển thị theo ngày bạn chọn. Nếu dịch vụ hiển thị
-          “Chưa cập nhật” hoặc “Chờ xác nhận”, vui lòng gửi yêu cầu để được
-          xác nhận lại.
+          {t("Tình trạng hiển thị theo ngày bạn chọn. Nếu dịch vụ hiển thị “Chưa cập nhật” hoặc “Chờ xác nhận”, vui lòng gửi yêu cầu để được xác nhận lại.")}
         </p>
       )}
 
@@ -343,10 +345,10 @@ export default async function CategoryPage({
         {services.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-16 text-center">
             <p className="text-lg font-medium text-gray-700">
-              Chưa tìm thấy dịch vụ phù hợp
+              {t("Chưa tìm thấy dịch vụ phù hợp")}
             </p>
             <p className="mt-1 text-sm text-gray-500">
-              Thử bỏ bớt bộ lọc hoặc chọn ngày khác.
+              {t("Thử bỏ bớt bộ lọc hoặc chọn ngày khác.")}
             </p>
           </div>
         ) : (
@@ -361,16 +363,16 @@ export default async function CategoryPage({
 
       {/* liên kết SEO sang các danh mục khác */}
       <section className="mt-12 border-t border-gray-200 pt-6">
-        <h2 className="text-sm font-semibold text-gray-500">Dịch vụ khác tại Tà Xùa</h2>
+        <h2 className="text-sm font-semibold text-gray-500">{t("Dịch vụ khác tại Tà Xùa")}</h2>
         <div className="mt-3 flex flex-wrap gap-2">
           {CATEGORY_LIST.filter((c) => c.slug !== cat.slug).map((c) => (
-            <a
+            <Link
               key={c.slug}
               href={`/${c.slug}`}
               className="rounded-full bg-white px-4 py-2 text-sm text-forest-700 ring-1 ring-forest-200 hover:bg-forest-50"
             >
-              {c.label}
-            </a>
+              {t(c.label)}
+            </Link>
           ))}
         </div>
       </section>

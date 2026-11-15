@@ -1,7 +1,8 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useLocaleRouter } from "@/components/i18n/I18nProvider";
 import { useEffect, useId, useSyncExternalStore, useTransition } from "react";
+import { useT } from "@/components/i18n/I18nProvider";
 
 /* ---- Store nhỏ theo dõi "đang tìm" toàn hệ thống (nhiều ô tìm dùng chung) ---- */
 const activeIds = new Set<string>();
@@ -37,7 +38,7 @@ export function showGlobalLoading(busy: boolean, label?: string) {
  * để <SearchLoadingOverlay> phủ nguyên màn hình (logo Tà Xùa xoay).
  */
 export function useSearchNav() {
-  const router = useRouter();
+  const router = useLocaleRouter(); // push/replace tự gắn tiền tố ngôn ngữ
   const [pending, startTransition] = useTransition();
   const id = useId();
 
@@ -60,6 +61,7 @@ export function useSearchNav() {
 
 /** Lớp phủ toàn màn hình + logo Tà Xùa Booking xoay — hiện khi bất kỳ ô tìm nào đang tải. */
 export function SearchLoadingOverlay() {
+  const t = useT();
   const busy = useSyncExternalStore(
     (cb) => {
       subs.add(cb);
@@ -98,9 +100,9 @@ export function SearchLoadingOverlay() {
       </div>
       <div className="flex flex-col items-center gap-1">
         <div className="text-[15px] font-extrabold tracking-tight text-[oklch(0.3_0.05_160)]">
-          Tà Xùa <span style={{ color: "oklch(0.68 0.18 45)" }}>Booking</span>
+          {t("Tà Xùa")}{" "}<span style={{ color: "oklch(0.68 0.18 45)" }}>Booking</span>
         </div>
-        <div className="text-[13px] font-semibold text-gray-500">{labelText || "Đang tìm chỗ phù hợp…"}</div>
+        <div className="text-[13px] font-semibold text-gray-500">{t(labelText) || t("Đang tìm chỗ phù hợp…")}</div>
       </div>
     </div>
   );

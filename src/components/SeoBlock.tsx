@@ -1,4 +1,5 @@
-import Link from "next/link";
+import Link from "@/components/Link";
+import { getT } from "@/lib/i18n/server";
 
 /**
  * Khối nội dung SEO ở cuối trang danh sách (xe cabin / homestay / combo): đoạn giới thiệu có từ khoá,
@@ -78,35 +79,38 @@ const BLOCKS: Record<Kind, Block> = {
   },
 };
 
-export function SeoBlock({ kind }: { kind: Kind }) {
+export async function SeoBlock({ kind }: { kind: Kind }) {
+  const t = await getT();
   const b = BLOCKS[kind];
+  // Câu trả lời có nối NOTE ở cuối ⇒ dịch 2 phần riêng (khoá từ điển là từng câu).
+  const tA = (a: string) => (a.endsWith(NOTE) ? `${t(a.slice(0, -NOTE.length).trim())} ${t(NOTE)}` : t(a));
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: b.faq.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })),
+    mainEntity: b.faq.map(([q, a]) => ({ "@type": "Question", name: t(q), acceptedAnswer: { "@type": "Answer", text: tA(a) } })),
   };
   return (
     <section className="container-page pb-14 pt-4">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <div className="rounded-[22px] border border-gray-200 bg-white p-5 sm:p-8">
-        <h2 className="text-xl font-extrabold tracking-[-0.02em] text-ink sm:text-2xl">{b.heading}</h2>
+        <h2 className="text-xl font-extrabold tracking-[-0.02em] text-ink sm:text-2xl">{t(b.heading)}</h2>
         <div className="mt-3 flex max-w-3xl flex-col gap-3 text-[15px] leading-relaxed text-gray-600">
-          {b.intro.map((p) => <p key={p}>{p}</p>)}
+          {b.intro.map((p) => <p key={p}>{t(p)}</p>)}
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           {b.links.map(([href, label]) => (
-            <Link key={href} href={href} className="rounded-full bg-forest-50 px-3.5 py-2 text-sm font-semibold text-forest-700 ring-1 ring-forest-200 hover:bg-forest-100">{label}</Link>
+            <Link key={href} href={href} className="rounded-full bg-forest-50 px-3.5 py-2 text-sm font-semibold text-forest-700 ring-1 ring-forest-200 hover:bg-forest-100">{t(label)}</Link>
           ))}
         </div>
-        <h2 className="mt-8 text-lg font-extrabold tracking-[-0.02em] text-ink sm:text-xl">Câu hỏi thường gặp</h2>
+        <h2 className="mt-8 text-lg font-extrabold tracking-[-0.02em] text-ink sm:text-xl">{t("Câu hỏi thường gặp")}</h2>
         <div className="mt-3 max-w-3xl divide-y divide-gray-200 border-y border-gray-200">
           {b.faq.map(([q, a]) => (
             <details key={q} className="group py-3">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[15px] font-bold text-ink [&::-webkit-details-marker]:hidden">
-                <h3 className="m-0 text-[15px] font-bold">{q}</h3>
+                <h3 className="m-0 text-[15px] font-bold">{t(q)}</h3>
                 <span aria-hidden className="text-gray-400 transition group-open:rotate-45">+</span>
               </summary>
-              <p className="mt-2 text-[15px] leading-relaxed text-gray-600">{a}</p>
+              <p className="mt-2 text-[15px] leading-relaxed text-gray-600">{tA(a)}</p>
             </details>
           ))}
         </div>

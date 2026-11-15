@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { CabinDirection } from "@prisma/client";
+import { useT } from "@/components/i18n/I18nProvider";
 
 export interface RouteStopView {
   time: string;
@@ -114,6 +115,7 @@ function dotProps(isLast: boolean) {
 }
 
 export function CabinRoutes({ routes, routeName }: { routes: RouteView[]; routeName?: string | null }) {
+  const tr = useT();
   const withStops = routes.filter((r) => r.stops.length > 0);
   const container = useRef<HTMLDivElement>(null);
 
@@ -226,8 +228,8 @@ export function CabinRoutes({ routes, routeName }: { routes: RouteView[]; routeN
 
   return (
     <section className="mt-8" ref={container}>
-      <h2 className="text-lg font-semibold text-ink">Lộ trình</h2>
-      {routeName && <p className="mt-1 text-sm text-gray-500">{routeName}</p>}
+      <h2 className="text-lg font-semibold text-ink">{tr("Lộ trình")}</h2>
+      {routeName && <p className="mt-1 text-sm text-gray-500">{tr(routeName)}</p>}
 
       <div className="mt-4 space-y-5">
         {withStops.map((r) => {
@@ -246,12 +248,12 @@ export function CabinRoutes({ routes, routeName }: { routes: RouteView[]; routeN
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2 text-[13px] font-semibold uppercase tracking-[0.08em]" style={{ color: "oklch(0.82 0.12 60)" }}>
                       <span className="h-2 w-2 rounded-full" style={{ background: "oklch(0.72 0.17 50)" }} />
-                      {c.label} · {r.fromPoint || ""} {r.toPoint ? `→ ${r.toPoint}` : ""}
+                      {tr(c.label)} · {tr(r.fromPoint) || ""} {r.toPoint ? `→ ${tr(r.toPoint)}` : ""}
                     </div>
-                    {r.title && <div className="mt-2 text-3xl font-extrabold leading-tight tracking-tight">{r.title}</div>}
+                    {r.title && <div className="mt-2 text-3xl font-extrabold leading-tight tracking-tight">{tr(r.title)}</div>}
                     <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-sm ring-1 ring-white/15">
-                      <span className="opacity-80">Vé 1 chiều</span>
-                      <span className="text-base font-extrabold" style={{ color: "oklch(0.82 0.13 60)" }}>{vnd(r.price)}</span>
+                      <span className="opacity-80">{tr("Vé 1 chiều")}</span>
+                      <span className="text-base font-extrabold" style={{ color: "oklch(0.82 0.13 60)" }}>{tr(vnd(r.price))}</span>
                     </div>
                   </div>
                   <Sky c={c} />
@@ -266,14 +268,14 @@ export function CabinRoutes({ routes, routeName }: { routes: RouteView[]; routeN
                           {!last && <div className="absolute" style={{ left: 22, right: -2, top: 10, height: 2, background: "oklch(1 0 0 / .4)" }} />}
                           <div className="relative h-[22px] w-[22px] rounded-full transition-all" {...dotProps(last)} />
                         </div>
-                        <div className="text-[38px] font-extrabold leading-none tracking-tight" style={{ color: last ? "oklch(0.82 0.13 60)" : "white" }}>{s.time}</div>
+                        <div className="text-[38px] font-extrabold leading-none tracking-tight" style={{ color: last ? "oklch(0.82 0.13 60)" : "white" }}>{tr(s.time)}</div>
                         <div>
-                          <div className="text-[18px] font-bold">{s.place}</div>
-                          {s.note && <div className="mt-1 text-[14px] leading-normal" style={{ color: "oklch(0.85 0.02 160)" }}>{s.note}</div>}
+                          <div className="text-[18px] font-bold">{tr(s.place)}</div>
+                          {s.note && <div className="mt-1 text-[14px] leading-normal" style={{ color: "oklch(0.85 0.02 160)" }}>{tr(s.note)}</div>}
                         </div>
                         {s.tag && (
                           <div className="self-start rounded-full px-2.5 py-[5px] text-xs font-semibold" style={last ? { background: "oklch(0.72 0.17 50)", color: "white" } : { background: "oklch(1 0 0 / .1)", color: "oklch(0.92 0.02 160)" }}>
-                            {s.tag}
+                            {tr(s.tag)}
                           </div>
                         )}
                       </div>
@@ -282,10 +284,10 @@ export function CabinRoutes({ routes, routeName }: { routes: RouteView[]; routeN
                 </div>
 
                 <div className="relative grid gap-px border-t text-[14px]" style={{ gridTemplateColumns: "repeat(4,minmax(0,1fr))", background: "oklch(1 0 0 / .12)", borderColor: "oklch(1 0 0 / .12)" }}>
-                  <Foot label="Điểm đón" value={r.fromPoint} />
-                  <Foot label="Điểm trả" value={r.toPoint} />
-                  <Foot label={r.startLabel || "Khởi hành"} value={r.startInfo} />
-                  <Foot label="Tổng thời gian" value={r.totalTime} />
+                  <Foot label={tr("Điểm đón")} value={r.fromPoint} />
+                  <Foot label={tr("Điểm trả")} value={r.toPoint} />
+                  <Foot label={r.startLabel || tr("Khởi hành")} value={r.startInfo} />
+                  <Foot label={tr("Tổng thời gian")} value={r.totalTime} />
                 </div>
                 <Car />
               </div>
@@ -300,12 +302,12 @@ export function CabinRoutes({ routes, routeName }: { routes: RouteView[]; routeN
                 <Sky c={c} mobile />
                 <div className="relative mt-4 flex items-center gap-2 text-[12px] font-semibold uppercase tracking-[0.08em]" style={{ color: "oklch(0.82 0.12 60)" }}>
                   <span className="h-[7px] w-[7px] rounded-full" style={{ background: "oklch(0.72 0.17 50)" }} />
-                  {c.label}{r.totalTime ? ` · ${r.totalTime}` : ""}
+                  {tr(c.label)}{r.totalTime ? ` · ${tr(r.totalTime)}` : ""}
                 </div>
-                {r.title && <div className="relative mt-1.5 text-[23px] font-extrabold leading-tight tracking-tight">{r.title}</div>}
+                {r.title && <div className="relative mt-1.5 text-[23px] font-extrabold leading-tight tracking-tight">{tr(r.title)}</div>}
                 <div className="relative mt-2 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-[13px] ring-1 ring-white/15">
-                  <span className="opacity-80">Vé 1 chiều</span>
-                  <span className="font-extrabold" style={{ color: "oklch(0.82 0.13 60)" }}>{vnd(r.price)}</span>
+                  <span className="opacity-80">{tr("Vé 1 chiều")}</span>
+                  <span className="font-extrabold" style={{ color: "oklch(0.82 0.13 60)" }}>{tr(vnd(r.price))}</span>
                 </div>
 
                 <div className="relative mt-5 flex flex-col">
@@ -313,17 +315,17 @@ export function CabinRoutes({ routes, routeName }: { routes: RouteView[]; routeN
                     const last = i === r.stops.length - 1;
                     return (
                       <div key={i} data-row="1" className="grid transition-opacity" style={{ gridTemplateColumns: "62px 22px minmax(0,1fr)", columnGap: 14 }}>
-                        <div className="text-[21px] font-extrabold leading-[22px] tracking-tight" style={{ color: last ? "oklch(0.82 0.13 60)" : "white" }}>{s.time}</div>
+                        <div className="text-[21px] font-extrabold leading-[22px] tracking-tight" style={{ color: last ? "oklch(0.82 0.13 60)" : "white" }}>{tr(s.time)}</div>
                         <div className="flex flex-col items-center">
                           <div className="mt-0.5 h-[18px] w-[18px] flex-none rounded-full transition-all" {...dotProps(last)} />
                           {!last && <div className="my-2 min-h-[24px] w-0.5 flex-1" style={{ background: "oklch(1 0 0 / .4)" }} />}
                         </div>
                         <div className="pb-5">
-                          <div className="text-[16px] font-bold leading-[22px]">{s.place}</div>
-                          {s.note && <div className="mt-0.5 text-[13px] leading-normal" style={{ color: "oklch(0.85 0.02 160)" }}>{s.note}</div>}
+                          <div className="text-[16px] font-bold leading-[22px]">{tr(s.place)}</div>
+                          {s.note && <div className="mt-0.5 text-[13px] leading-normal" style={{ color: "oklch(0.85 0.02 160)" }}>{tr(s.note)}</div>}
                           {s.tag && (
                             <div className="mt-2 inline-block rounded-full px-[9px] py-1 text-[11px] font-semibold" style={last ? { background: "oklch(0.72 0.17 50)", color: "white" } : { background: "oklch(1 0 0 / .1)", color: "oklch(0.92 0.02 160)" }}>
-                              {s.tag}
+                              {tr(s.tag)}
                             </div>
                           )}
                         </div>
@@ -332,7 +334,7 @@ export function CabinRoutes({ routes, routeName }: { routes: RouteView[]; routeN
                   })}
                 </div>
                 <div className="relative border-t pt-3 text-[13px]" style={{ borderColor: "oklch(1 0 0 / .14)", color: "oklch(0.85 0.02 160)" }}>
-                  Đón: {r.fromPoint || "—"} · Trả: {r.toPoint || "—"}
+                  {tr("Đón: {0} · Trả: {1}", [tr(r.fromPoint) || "—", tr(r.toPoint) || "—"])}
                 </div>
                 <RoadLane kind={c.kind} />
               </div>
@@ -363,10 +365,11 @@ function RoadLane({ kind }: { kind: string }) {
 }
 
 function Foot({ label, value }: { label: string; value: string | null }) {
+  const tr = useT();
   return (
     <div style={{ background: "oklch(0.27 0.05 160)" }} className="px-5 py-3.5">
-      <span style={{ opacity: 0.7 }}>{label}</span>
-      <div className="mt-0.5 font-semibold">{value || "—"}</div>
+      <span style={{ opacity: 0.7 }}>{tr(label)}</span>
+      <div className="mt-0.5 font-semibold">{tr(value) || "—"}</div>
     </div>
   );
 }

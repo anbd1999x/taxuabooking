@@ -2,6 +2,7 @@
 // (/admin/feedback). CHỈ dữ liệu thuần + hàm thuần — KHÔNG import server-only,
 // để client component dùng lại được nhãn/màu.
 import type { FeedbackStatus, FeedbackType } from "@prisma/client";
+import { identityT, type TFunc } from "./i18n/config";
 
 export interface FeedbackTypeMeta {
   key: FeedbackType;
@@ -111,11 +112,11 @@ export const FEEDBACK_FAQS: { q: string; a: string }[] = [
 ];
 
 /** "2 giờ trước", "3 ngày trước"… từ số phút. */
-export function agoText(mins: number): string {
-  if (mins < 1) return "Vừa xong";
-  if (mins < 60) return `${mins} phút trước`;
-  if (mins < 1440) return `${Math.round(mins / 60)} giờ trước`;
-  return `${Math.round(mins / 1440)} ngày trước`;
+export function agoText(mins: number, t: TFunc = identityT): string {
+  if (mins < 1) return t("Vừa xong");
+  if (mins < 60) return t("{0} phút trước", [mins]);
+  if (mins < 1440) return t("{0} giờ trước", [Math.round(mins / 60)]);
+  return t("{0} ngày trước", [Math.round(mins / 1440)]);
 }
 
 // ---- Khối "Góp ý qua Facebook" (admin cấu hình, lưu trong SiteSetting) ----

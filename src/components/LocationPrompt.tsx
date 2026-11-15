@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "@/components/i18n/I18nProvider";
 
 const KEY = "tx_loc"; // localStorage: { s: "sent" | "dismissed" | "denied", t: timestamp }
 const RESEND_MS = 24 * 3600_000; // đã cho phép → cập nhật lại vị trí tối đa 1 lần/ngày
@@ -40,6 +41,7 @@ function sendPosition(pos: GeolocationPosition) {
  * Đã cho phép từ trước → tự cập nhật vị trí im lặng (≤1 lần/ngày).
  */
 export function LocationPrompt() {
+  const t = useT();
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -97,21 +99,21 @@ export function LocationPrompt() {
   return (
     <div
       role="dialog"
-      aria-label="Chia sẻ vị trí"
+      aria-label={t("Chia sẻ vị trí")}
       className="fixed left-3 right-3 top-14 z-40 max-w-sm rounded-2xl bg-white p-4 shadow-[0_18px_50px_-12px_rgba(20,50,35,0.45)] ring-1 ring-black/10 sm:right-auto sm:left-6 sm:top-20 sm:w-full"
     >
       <div className="flex gap-3">
         <span className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-forest-50 text-xl">📍</span>
         <div className="min-w-0">
-          <div className="font-bold text-ink">Chia sẻ vị trí của bạn?</div>
+          <div className="font-bold text-ink">{t("Chia sẻ vị trí của bạn?")}</div>
           <p className="mt-0.5 text-sm leading-relaxed text-gray-600">
-            Giúp Tà Xùa Booking gợi ý điểm đón xe gần bạn và hỗ trợ đơn đặt nhanh hơn.
+            {t("Giúp Tà Xùa Booking gợi ý điểm đón xe gần bạn và hỗ trợ đơn đặt nhanh hơn.")}
           </p>
         </div>
       </div>
       <div className="mt-3 flex justify-end gap-2">
         <button type="button" onClick={later} className="rounded-xl px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100">
-          Để sau
+          {t("Để sau")}
         </button>
         <button
           type="button"
@@ -119,7 +121,7 @@ export function LocationPrompt() {
           disabled={busy}
           className="rounded-xl bg-forest-600 px-4 py-2 text-sm font-bold text-white hover:bg-forest-700 disabled:opacity-70"
         >
-          {busy ? "Đang lấy vị trí…" : "Cho phép"}
+          {busy ? t("Đang lấy vị trí…") : t("Cho phép")}
         </button>
       </div>
     </div>

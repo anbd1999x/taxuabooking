@@ -29,6 +29,7 @@ const ADMIN_NAV: NavGroup[] = [
       { href: "/admin/places", label: "Nhà hàng, Cafe & Check-in" },
       { href: "/admin/itinerary", label: "Lịch trình mẫu" },
       { href: "/admin/articles", label: "Bài viết (SEO)" },
+      { href: "/admin/translations", label: "Bản dịch (đa ngôn ngữ)" },
       { href: "/admin/ghep-anh", label: "Ghép ảnh review" },
       { href: "/admin/popup", label: "Popup uy tín" },
     ],

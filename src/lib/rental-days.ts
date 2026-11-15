@@ -1,3 +1,4 @@
+import { identityT, type TFunc } from "./i18n/config";
 /**
  * Số NGÀY TÍNH TIỀN khi thuê xe máy theo GIỜ NHẬN / GIỜ TRẢ (file thuần, dùng được ở client).
  *
@@ -59,8 +60,8 @@ export function rentalChargeDaysBySpan(dayGap: number, pickupTime: string, retur
 }
 
 /** "1 ngày", "1,5 ngày", "2 ngày". */
-export function rentalDaysLabel(days: number): string {
-  return `${Number.isInteger(days) ? days : String(days).replace(".", ",")} ngày`;
+export function rentalDaysLabel(days: number, t: TFunc = identityT): string {
+  return t("{0} ngày", [Number.isInteger(days) ? days : String(days).replace(".", ",")]);
 }
 
 /** Số ngày thuê của một đơn: ưu tiên `rentalDays` (đơn có giờ nhận/trả), không có thì `nights` (đơn cũ). */

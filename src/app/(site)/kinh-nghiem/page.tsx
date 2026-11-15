@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { pageMeta } from "@/lib/og";
 import { articleShareImage } from "@/lib/og-source";
-import Link from "next/link";
+import Link from "@/components/Link";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/format";
 import { ARTICLE_TOPICS, articleTopicLabel } from "@/lib/constants";
+import { getT } from "@/lib/i18n/server";
+import { i18nMeta } from "@/lib/i18n/meta";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +20,7 @@ const META = {
 
 // Ảnh chia sẻ = ảnh bìa bài viết mới nhất (thiếu thì ảnh biển mây mặc định).
 export async function generateMetadata(): Promise<Metadata> {
-  return pageMeta({ ...META, image: await articleShareImage() });
+  return i18nMeta({ ...META, image: await articleShareImage() });
 }
 
 export default async function ArticlesPage({
@@ -26,6 +28,7 @@ export default async function ArticlesPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const tr = await getT();
   const sp = await searchParams;
   const raw = typeof sp.topic === "string" ? sp.topic : "";
   const topic = ARTICLE_TOPICS.some((t) => t.key === raw) ? raw : "";
@@ -38,9 +41,9 @@ export default async function ArticlesPage({
   return (
     <div className="container-page py-8">
       <h1 className="text-2xl font-bold text-ink sm:text-3xl">
-        Kinh nghiệm du lịch Tà Xùa
+        {tr("Kinh nghiệm du lịch Tà Xùa")}
       </h1>
-      <p className="mt-1 text-gray-500">Mẹo và lịch trình cho chuyến săn mây trọn vẹn.</p>
+      <p className="mt-1 text-gray-500">{tr("Mẹo và lịch trình cho chuyến săn mây trọn vẹn.")}</p>
 
       {/* Bộ lọc chủ đề */}
       <div className="mt-5 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -50,7 +53,7 @@ export default async function ArticlesPage({
             !topic ? "bg-forest-700 text-white" : "bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-forest-50"
           }`}
         >
-          Tất cả
+          {tr("Tất cả")}
         </Link>
         {ARTICLE_TOPICS.map((t) => (
           <Link
@@ -60,14 +63,14 @@ export default async function ArticlesPage({
               topic === t.key ? "bg-forest-700 text-white" : "bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-forest-50"
             }`}
           >
-            {t.label}
+            {tr(t.label)}
           </Link>
         ))}
       </div>
 
       {articles.length === 0 ? (
         <p className="mt-8 rounded-2xl border border-dashed border-gray-300 bg-white py-16 text-center text-gray-500">
-          Chưa có bài viết nào trong chủ đề này.
+          {tr("Chưa có bài viết nào trong chủ đề này.")}
         </p>
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -79,18 +82,18 @@ export default async function ArticlesPage({
             >
               {a.coverImage && (
                 <div className="relative aspect-[16/9]">
-                  <Image src={a.coverImage} alt={a.title} fill sizes="(max-width:640px) 100vw, 360px" className="object-cover transition duration-500 group-hover:scale-105" />
+                  <Image src={a.coverImage} alt={tr(a.title)} fill sizes="(max-width:640px) 100vw, 360px" className="object-cover transition duration-500 group-hover:scale-105" />
                   {articleTopicLabel(a.topic) && (
                     <span className="absolute left-2.5 top-2.5 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-forest-700">
-                      {articleTopicLabel(a.topic)}
+                      {tr(articleTopicLabel(a.topic))}
                     </span>
                   )}
                 </div>
               )}
               <div className="p-4">
                 <p className="text-xs text-gray-400">{formatDate(a.createdAt)}</p>
-                <h2 className="mt-1 line-clamp-2 font-semibold text-ink group-hover:text-forest-700">{a.title}</h2>
-                {a.excerpt && <p className="mt-1 line-clamp-2 text-sm text-gray-600">{a.excerpt}</p>}
+                <h2 className="mt-1 line-clamp-2 font-semibold text-ink group-hover:text-forest-700">{tr(a.title)}</h2>
+                {a.excerpt && <p className="mt-1 line-clamp-2 text-sm text-gray-600">{tr(a.excerpt)}</p>}
               </div>
             </Link>
           ))}

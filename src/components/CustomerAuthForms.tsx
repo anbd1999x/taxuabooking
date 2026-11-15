@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { loginAction, registerAction, type AuthState } from "@/app/(site)/tai-khoan/actions";
+import { useT } from "@/components/i18n/I18nProvider";
 
 const field =
   "w-full rounded-xl border border-gray-200 px-3.5 py-3 text-[15px] outline-none focus:border-forest-500 focus:ring-2 focus:ring-forest-200";
@@ -15,6 +16,7 @@ export function CustomerAuthForms({
   googleEnabled?: boolean;
   facebookEnabled?: boolean;
 }) {
+  const tr = useT();
   const [tab, setTab] = useState<"login" | "register">("login");
   const [loginState, login, lp] = useActionState<AuthState, FormData>(loginAction, {});
   const [regState, register, rp] = useActionState<AuthState, FormData>(registerAction, {});
@@ -29,7 +31,7 @@ export function CustomerAuthForms({
             onClick={() => setTab(t)}
             className={`rounded-lg py-2 text-sm font-bold transition ${tab === t ? "bg-white text-forest-700 shadow-sm" : "text-gray-500"}`}
           >
-            {t === "login" ? "Đăng nhập" : "Đăng ký"}
+            {t === "login" ? tr("Đăng nhập") : tr("Đăng ký")}
           </button>
         ))}
       </div>
@@ -37,22 +39,22 @@ export function CustomerAuthForms({
       {tab === "login" ? (
         <form action={login} className="flex flex-col gap-3">
           <input type="hidden" name="next" value={next} />
-          <input name="phone" inputMode="tel" placeholder="Số điện thoại" className={field} autoComplete="tel" />
-          <input name="password" type="password" placeholder="Mật khẩu" className={field} autoComplete="current-password" />
-          {loginState.error && <p className="text-sm font-semibold text-red-600">{loginState.error}</p>}
+          <input name="phone" inputMode="tel" placeholder={tr("Số điện thoại")} className={field} autoComplete="tel" />
+          <input name="password" type="password" placeholder={tr("Mật khẩu")} className={field} autoComplete="current-password" />
+          {loginState.error && <p className="text-sm font-semibold text-red-600">{tr(loginState.error)}</p>}
           <button disabled={lp} className="rounded-xl bg-forest-600 py-3 text-[15px] font-bold text-white hover:bg-forest-700 disabled:opacity-60">
-            {lp ? "Đang đăng nhập…" : "Đăng nhập"}
+            {lp ? tr("Đang đăng nhập…") : tr("Đăng nhập")}
           </button>
         </form>
       ) : (
         <form action={register} className="flex flex-col gap-3">
           <input type="hidden" name="next" value={next} />
-          <input name="name" placeholder="Họ và tên" className={field} autoComplete="name" />
-          <input name="phone" inputMode="tel" placeholder="Số điện thoại (VD: 0357452952)" className={field} autoComplete="tel" />
-          <input name="password" type="password" placeholder="Mật khẩu (tối thiểu 6 ký tự)" className={field} autoComplete="new-password" />
-          {regState.error && <p className="text-sm font-semibold text-red-600">{regState.error}</p>}
+          <input name="name" placeholder={tr("Họ và tên")} className={field} autoComplete="name" />
+          <input name="phone" inputMode="tel" placeholder={tr("Số điện thoại (VD: 0357452952)")} className={field} autoComplete="tel" />
+          <input name="password" type="password" placeholder={tr("Mật khẩu (tối thiểu 6 ký tự)")} className={field} autoComplete="new-password" />
+          {regState.error && <p className="text-sm font-semibold text-red-600">{tr(regState.error)}</p>}
           <button disabled={rp} className="rounded-xl bg-forest-600 py-3 text-[15px] font-bold text-white hover:bg-forest-700 disabled:opacity-60">
-            {rp ? "Đang tạo tài khoản…" : "Tạo tài khoản"}
+            {rp ? tr("Đang tạo tài khoản…") : tr("Tạo tài khoản")}
           </button>
         </form>
       )}
@@ -61,7 +63,7 @@ export function CustomerAuthForms({
       {(googleEnabled || facebookEnabled) && (
         <>
           <div className="mt-4 flex items-center gap-3 text-xs text-gray-400">
-            <span className="h-px flex-1 bg-gray-200" /> hoặc <span className="h-px flex-1 bg-gray-200" />
+            <span className="h-px flex-1 bg-gray-200" />{" "}{tr("hoặc")}{" "}<span className="h-px flex-1 bg-gray-200" />
           </div>
           <div className={`mt-3 grid gap-2 ${googleEnabled && facebookEnabled ? "grid-cols-2" : "grid-cols-1"}`}>
             {googleEnabled && (

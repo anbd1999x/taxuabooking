@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_COOKIE_NAME, verifySessionToken } from "@/lib/auth-token";
 import { isIpBlocked, requestIp } from "@/lib/ip-block";
+import { DEFAULT_LOCALE, LOCALE_HEADER, splitLocale } from "@/lib/i18n/config";
 
 const BLOCKED_HTML = `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Truy cập bị chặn</title></head><body style="font-family:system-ui,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;margin:0;background:#f5f7f5;color:#1f2a24"><div style="max-width:420px;padding:24px;text-align:center"><h1 style="font-size:20px">Truy cập bị từ chối</h1><p style="color:#5b6660;line-height:1.6">Địa chỉ mạng của bạn đã bị chặn do phát hiện hoạt động bất thường. Nếu đây là nhầm lẫn, vui lòng liên hệ Tà Xùa Booking.</p></div></body></html>`;
 
@@ -45,9 +46,17 @@ async function adminGuard(request: NextRequest) {
 }
 
 export async function proxy(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  // Đa ngôn ngữ: /en|/zh|/ko + đường dẫn gốc → rewrite về route tiếng Việt, gắn header x-locale.
+  const { locale, pathname } = splitLocale(request.nextUrl.pathname);
+  const isAdmin = pathname === "/admin" || pathname.startsWith("/admin/");
+  if (locale !== DEFAULT_LOCALE && (isAdmin || pathname.startsWith("/api/"))) {
+    // Khu quản trị & API không có bản dịch theo URL → về đường dẫn gốc.
+    const url = request.nextUrl.clone();
+    url.pathname = pathname;
+    return NextResponse.redirect(url);
+  }
   // /admin + API quản trị KHÔNG bị chặn IP (tránh admin tự khoá mình; đã có đăng nhập).
-  if (pathname === "/admin" || pathname.startsWith("/admin/")) return adminGuard(request);
+  if (isAdmin) return adminGuard(request);
   if (pathname.startsWith("/api/admin")) return NextResponse.next();
 
   // Chặn IP trong danh sách đen (lỗi tra cứu → cho qua, không làm sập site).
@@ -64,7 +73,14 @@ export async function proxy(request: NextRequest) {
   } catch {
     /* fail-open */
   }
-  return NextResponse.next();
+
+  // Luôn ghi đè x-locale (không tin header do client tự gửi).
+  const headers = new Headers(request.headers);
+  headers.set(LOCALE_HEADER, locale);
+  if (locale === DEFAULT_LOCALE) return NextResponse.next({ request: { headers } });
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
+  return NextResponse.rewrite(url, { request: { headers } });
 }
 
 export const config = {

@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Image from "next/image";
+import { useT } from "@/components/i18n/I18nProvider";
 
 export function Gallery({
   images,
@@ -10,13 +11,14 @@ export function Gallery({
   images: { url: string; alt: string | null }[];
   title: string;
 }) {
+  const t = useT();
   const trackRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
 
   if (images.length === 0) {
     return (
       <div className="flex aspect-[16/10] items-center justify-center rounded-2xl bg-forest-50 text-forest-300">
-        Tà Xùa Booking
+        {t("Tà Xùa Booking")}
       </div>
     );
   }
@@ -49,7 +51,7 @@ export function Gallery({
             <div key={i} className="relative aspect-[16/10] w-full flex-none snap-center bg-forest-50">
               <Image
                 src={img.url}
-                alt={img.alt ?? `${title} ${i + 1}`}
+                alt={t(img.alt) ?? `${t(title)} ${i + 1}`}
                 fill
                 priority={i === 0}
                 sizes="(max-width: 1024px) 100vw, 640px"
@@ -66,7 +68,7 @@ export function Gallery({
             <button
               type="button"
               onClick={() => go(active - 1)}
-              aria-label="Ảnh trước"
+              aria-label={t("Ảnh trước")}
               className="absolute left-2 top-1/2 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/85 text-forest-800 shadow ring-1 ring-black/5 transition hover:bg-white sm:flex"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m15 18-6-6 6-6" /></svg>
@@ -74,7 +76,7 @@ export function Gallery({
             <button
               type="button"
               onClick={() => go(active + 1)}
-              aria-label="Ảnh sau"
+              aria-label={t("Ảnh sau")}
               className="absolute right-2 top-1/2 hidden h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/85 text-forest-800 shadow ring-1 ring-black/5 transition hover:bg-white sm:flex"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="m9 18 6-6-6-6" /></svg>
@@ -91,7 +93,7 @@ export function Gallery({
                 <button
                   key={i}
                   type="button"
-                  aria-label={`Tới ảnh ${i + 1}`}
+                  aria-label={t("Tới ảnh {0}", [i + 1])}
                   onClick={() => go(i)}
                   className={`h-2 rounded-full transition-all ${i === active ? "w-5 bg-white" : "w-2 bg-white/60"}`}
                 />
@@ -113,7 +115,7 @@ export function Gallery({
                 active === i ? "ring-forest-500" : "ring-transparent hover:ring-forest-200"
               }`}
             >
-              <Image src={img.url} alt={img.alt ?? `${title} ${i + 1}`} fill sizes="96px" className="object-cover" />
+              <Image src={img.url} alt={t(img.alt) ?? `${t(title)} ${i + 1}`} fill sizes="96px" className="object-cover" />
             </button>
           ))}
         </div>

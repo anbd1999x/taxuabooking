@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import Image from "next/image";
+import { useT } from "@/components/i18n/I18nProvider";
 
 /** Slider ảnh nhỏ trong thẻ dịch vụ — vuốt được, nằm trong <Link> nên chặn điều hướng khi bấm chấm. */
 export function CardSlider({
@@ -11,11 +12,12 @@ export function CardSlider({
   images: { url: string; alt: string | null }[];
   title: string;
 }) {
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
 
   if (images.length === 0) {
-    return <div className="flex h-full items-center justify-center text-forest-300">Tà Xùa</div>;
+    return <div className="flex h-full items-center justify-center text-forest-300">{t("Tà Xùa")}</div>;
   }
 
   function onScroll() {
@@ -44,7 +46,7 @@ export function CardSlider({
           <div key={i} className="relative h-full w-full flex-none snap-center">
             <Image
               src={img.url}
-              alt={img.alt ?? `${title} ${i + 1}`}
+              alt={t(img.alt) ?? `${t(title)} ${i + 1}`}
               fill
               sizes="(max-width: 640px) 100vw, 320px"
               className="object-cover transition duration-500 group-hover:scale-105"
@@ -60,7 +62,7 @@ export function CardSlider({
             <button
               key={i}
               type="button"
-              aria-label={`Ảnh ${i + 1}`}
+              aria-label={t("Ảnh {0}", [i + 1])}
               onClick={(e) => go(e, i)}
               className={`h-1.5 rounded-full transition-all ${i === active ? "w-4 bg-white" : "w-1.5 bg-white/60"}`}
             />

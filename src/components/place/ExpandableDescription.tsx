@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useT } from "@/components/i18n/I18nProvider";
 
 const PAGE = "oklch(0.975 0.01 150)";
 const BORDER = "oklch(0.88 0.02 160)";
@@ -11,6 +12,7 @@ const BORDER = "oklch(0.88 0.02 160)";
  * thì ẩn luôn nút (không cần thu gọn).
  */
 export function ExpandableDescription({ children }: { children: React.ReactNode }) {
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [needsClamp, setNeedsClamp] = useState(true);
@@ -30,7 +32,7 @@ export function ExpandableDescription({ children }: { children: React.ReactNode 
       </div>
       {needsClamp && (
         <button type="button" onClick={() => setOpen((v) => !v)} className="self-start rounded-full bg-white px-4 py-2.5 text-sm font-bold" style={{ border: `1.5px solid ${BORDER}`, color: "oklch(0.3 0.05 160)" }}>
-          {open ? "Thu gọn ↑" : "Đọc đầy đủ ↓"}
+          {open ? t("Thu gọn ↑") : t("Đọc đầy đủ ↓")}
         </button>
       )}
     </div>

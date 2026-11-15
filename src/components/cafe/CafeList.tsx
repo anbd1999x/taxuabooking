@@ -1,9 +1,10 @@
 "use client";
 
 import { SiteZaloLink } from "@/components/SiteContact";
-import Link from "next/link";
+import Link from "@/components/Link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useT } from "@/components/i18n/I18nProvider";
 
 export interface CafeCard {
   id: string;
@@ -69,6 +70,7 @@ function fmtH(v: number) {
 }
 
 export function CafeList({ cafes }: { cafes: CafeCard[] }) {
+  const tr = useT();
   const [w, setW] = useState(1280);
   const [q, setQ] = useState("");
   const [meal, setMeal] = useState("all");
@@ -304,28 +306,28 @@ export function CafeList({ cafes }: { cafes: CafeCard[] }) {
   const hasFilter = Boolean(q || di || meal !== "all" || grp !== "all" || area !== "all");
   const clearAll = () => { setQ(""); setMeal("all"); setGrp("all"); setDi(""); setArea("all"); };
 
-  const listTitle = area === "all" ? "Cafe săn mây quanh Tà Xùa" : "Cafe khu " + area;
+  const listTitle = area === "all" ? tr("Cafe săn mây quanh Tà Xùa") : "Cafe khu " + area;
   const listSub =
     items.length +
-    " quán" +
+    tr(" quán") +
     (meal !== "all" ? " · " + (MEALS.find((mm) => mm[0] === meal)?.[1].toLowerCase() ?? "") : "") +
     (grp !== "all" ? " · " + (GRPS.find((g) => g[0] === grp)?.[1].toLowerCase() ?? "") : "") +
-    (di ? (wk ? " · cuối tuần, đi sớm để có bàn view" : " · ngày thường, thoải mái chọn bàn") : "");
+    (di ? (wk ? tr(" · cuối tuần, đi sớm để có bàn view") : tr(" · ngày thường, thoải mái chọn bàn")) : "");
 
   const cell = "flex min-w-0 flex-col gap-0.5 rounded-[14px] bg-[oklch(0.965_0.01_200)] px-3.5 py-2.5";
   const inp = "min-w-0 border-0 bg-transparent p-0 text-[15px] font-bold text-ink outline-none";
 
   const tips = [
-    { k: "5h30", t: "Giờ mây dày nhất", d: "Từ 5h30 tới 9h mây dâng tới lan can; tới quán trước 6h để có bàn mép ban công." },
-    { k: "16h", t: "Giờ hoàng hôn", d: "Chọn quán hướng tây ở Sống lưng khủng long hoặc Khe Cải, đẹp nhất 16h30–18h." },
-    { k: "T7", t: "Cuối tuần đông", d: "Bàn view hết rất nhanh; muốn ngồi chậm hãy đi ngày thường hoặc chọn quán xa trung tâm." },
+    { k: "5h30", t: tr("Giờ mây dày nhất"), d: tr("Từ 5h30 tới 9h mây dâng tới lan can; tới quán trước 6h để có bàn mép ban công.") },
+    { k: "16h", t: tr("Giờ hoàng hôn"), d: tr("Chọn quán hướng tây ở Sống lưng khủng long hoặc Khe Cải, đẹp nhất 16h30–18h.") },
+    { k: "T7", t: tr("Cuối tuần đông"), d: tr("Bàn view hết rất nhanh; muốn ngồi chậm hãy đi ngày thường hoặc chọn quán xa trung tâm.") },
   ];
   const others: [string, string][] = [
-    ["/nha-hang", "Nhà hàng & quán ăn Tà Xùa"],
-    ["/homestay", "Homestay & Bungalow Tà Xùa"],
-    ["/xe-cabin", "Xe cabin đi Tà Xùa"],
-    ["/thue-xe-may", "Thuê xe máy Tà Xùa"],
-    ["/combo", "Combo du lịch Tà Xùa"],
+    ["/nha-hang", tr("Nhà hàng & quán ăn Tà Xùa")],
+    ["/homestay", tr("Homestay & Bungalow Tà Xùa")],
+    ["/xe-cabin", tr("Xe cabin đi Tà Xùa")],
+    ["/thue-xe-may", tr("Thuê xe máy Tà Xùa")],
+    ["/combo", tr("Combo du lịch Tà Xùa")],
   ];
 
   return (
@@ -434,11 +436,11 @@ export function CafeList({ cafes }: { cafes: CafeCard[] }) {
 
         <div ref={heroTextRef} className="container-page relative z-[3] text-white will-change-transform" style={{ paddingTop: w < 640 ? 64 : 92 }}>
           <div data-in="0" className="flex gap-2 text-sm opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease, transform .9s cubic-bezier(.2,.7,.2,1)", color: "oklch(0.9 0.02 220)" }}>
-            <Link href="/" className="!text-[oklch(0.9_0.02_220)] hover:!text-white">Trang chủ</Link><span>/</span><span className="font-bold text-white">Cafe săn mây</span>
+            <Link href="/" className="!text-[oklch(0.9_0.02_220)] hover:!text-white">{tr("Trang chủ")}</Link><span>/</span><span className="font-bold text-white">{tr("Cafe săn mây")}</span>
           </div>
-          <h1 data-in="1" className="mt-4 text-[13px] font-bold uppercase tracking-[0.14em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .1s, transform .9s cubic-bezier(.2,.7,.2,1) .1s", color: "oklch(0.88 0.12 80)" }}>Quán cafe Tà Xùa · cà phê săn mây theo khu</h1>
-          <p data-in="2" className="mt-3.5 max-w-[760px] text-[clamp(32px,6vw,60px)] font-extrabold leading-[1.02] tracking-[-0.035em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .2s, transform .9s cubic-bezier(.2,.7,.2,1) .2s", textShadow: "0 2px 24px oklch(0.2 0.05 260 / .4)" }}>Một ly nóng, mây dâng tới lan can</p>
-          <p data-in="3" className="mt-3.5 max-w-[520px] text-[clamp(15px,1.7vw,18px)] leading-[1.5] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .3s, transform .9s cubic-bezier(.2,.7,.2,1) .3s", color: "oklch(0.97 0.02 80)" }}>Cafe săn mây quanh Tà Xùa: quán mở sớm đón mây dày 5h30–9h, quán hướng tây cho hoàng hôn 16h30–18h. Cuối tuần bàn mép ban công hết rất nhanh.</p>
+          <h1 data-in="1" className="mt-4 text-[13px] font-bold uppercase tracking-[0.14em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .1s, transform .9s cubic-bezier(.2,.7,.2,1) .1s", color: "oklch(0.88 0.12 80)" }}>{tr("Quán cafe Tà Xùa · cà phê săn mây theo khu")}</h1>
+          <p data-in="2" className="mt-3.5 max-w-[760px] text-[clamp(32px,6vw,60px)] font-extrabold leading-[1.02] tracking-[-0.035em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .2s, transform .9s cubic-bezier(.2,.7,.2,1) .2s", textShadow: "0 2px 24px oklch(0.2 0.05 260 / .4)" }}>{tr("Một ly nóng, mây dâng tới lan can")}</p>
+          <p data-in="3" className="mt-3.5 max-w-[520px] text-[clamp(15px,1.7vw,18px)] leading-[1.5] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .3s, transform .9s cubic-bezier(.2,.7,.2,1) .3s", color: "oklch(0.97 0.02 80)" }}>{tr("Cafe săn mây quanh Tà Xùa: quán mở sớm đón mây dày 5h30–9h, quán hướng tây cho hoàng hôn 16h30–18h. Cuối tuần bàn mép ban công hết rất nhanh.")}</p>
         </div>
       </section>
 
@@ -447,35 +449,35 @@ export function CafeList({ cafes }: { cafes: CafeCard[] }) {
         <div className="flex flex-col gap-2 rounded-[22px] border border-white/80 p-2.5 shadow-[0_24px_60px_-24px_oklch(0.25_0.06_220_/.45)]" style={{ background: "oklch(1 0 0 / .9)", backdropFilter: "blur(14px)" }}>
           <div className="grid gap-1.5" style={{ gridTemplateColumns: wide ? "1.4fr 1.2fr 1fr 1fr" : "repeat(auto-fit,minmax(min(100%,150px),1fr))" }}>
             <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Tìm quán</span>
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tên quán, đặc điểm…" className={inp} />
+              <span className="text-xs font-semibold text-gray-500">{tr("Tìm quán")}</span>
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Tên quán, đặc điểm…")} className={inp} />
             </label>
             <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Khung giờ</span>
+              <span className="text-xs font-semibold text-gray-500">{tr("Khung giờ")}</span>
               <select value={meal} onChange={(e) => setMeal(e.target.value)} className={inp}>
-                {MEALS.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+                {MEALS.map(([v, n]) => <option key={v} value={v}>{tr(n)}</option>)}
               </select>
             </label>
             <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Tiện ích</span>
+              <span className="text-xs font-semibold text-gray-500">{tr("Tiện ích")}</span>
               <select value={grp} onChange={(e) => setGrp(e.target.value)} className={inp}>
-                {GRPS.map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+                {GRPS.map(([v, n]) => <option key={v} value={v}>{tr(n)}</option>)}
               </select>
             </label>
             <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Ngày</span>
+              <span className="text-xs font-semibold text-gray-500">{tr("Ngày")}</span>
               <input type="date" value={di} onChange={(e) => setDi(e.target.value)} className={inp} />
             </label>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 px-1 py-0.5">
             <div className="flex flex-wrap gap-1.5">
-              {([["all", `Tất cả (${cafes.length})`], ...areaList.map(([a, n]) => [a, `${a} (${n})`] as [string, string])] as [string, string][]).map(([k, label]) => (
-                <button key={k} type="button" onClick={() => setArea(k)} className="cursor-pointer whitespace-nowrap rounded-full px-3.5 py-2 text-sm font-bold transition" style={{ background: area === k ? TH.G : "oklch(0.95 0.01 200)", color: area === k ? "white" : "oklch(0.35 0.02 160)" }}>{label}</button>
+              {([["all", tr("Tất cả ({0})", [cafes.length])], ...areaList.map(([a, n]) => [a, `${a} (${n})`] as [string, string])] as [string, string][]).map(([k, label]) => (
+                <button key={k} type="button" onClick={() => setArea(k)} className="cursor-pointer whitespace-nowrap rounded-full px-3.5 py-2 text-sm font-bold transition" style={{ background: area === k ? TH.G : "oklch(0.95 0.01 200)", color: area === k ? "white" : "oklch(0.35 0.02 160)" }}>{tr(label)}</button>
               ))}
             </div>
             <div className="flex items-center gap-2">
-              {hasFilter && <button type="button" onClick={clearAll} className="cursor-pointer px-3 py-2 text-sm font-bold" style={{ color: "oklch(0.45 0.02 160)" }}>Xoá lọc</button>}
-              <span className="text-sm font-semibold" style={{ color: "oklch(0.45 0.02 160)" }}>{items.length} quán</span>
+              {hasFilter && <button type="button" onClick={clearAll} className="cursor-pointer px-3 py-2 text-sm font-bold" style={{ color: "oklch(0.45 0.02 160)" }}>{tr("Xoá lọc")}</button>}
+              <span className="text-sm font-semibold" style={{ color: "oklch(0.45 0.02 160)" }}>{tr("{0} quán", [items.length])}</span>
             </div>
           </div>
         </div>
@@ -487,10 +489,10 @@ export function CafeList({ cafes }: { cafes: CafeCard[] }) {
         <div className="grid gap-3 sm:grid-cols-3">
           {tips.map((tp) => (
             <div key={tp.k} className="flex items-start gap-3 rounded-2xl border border-[oklch(0.92_0.01_200)] bg-white px-4 py-3.5">
-              <div className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-[10px] text-[13px] font-extrabold" style={{ background: "oklch(0.95 0.025 155)", color: "oklch(0.36 0.08 155)" }}>{tp.k}</div>
+              <div className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-[10px] text-[13px] font-extrabold" style={{ background: "oklch(0.95 0.025 155)", color: "oklch(0.36 0.08 155)" }}>{tr(tp.k)}</div>
               <div>
-                <div className="text-sm font-extrabold text-ink">{tp.t}</div>
-                <div className="mt-0.5 text-[13px] leading-[1.5]" style={{ color: "oklch(0.45 0.02 160)" }}>{tp.d}</div>
+                <div className="text-sm font-extrabold text-ink">{tr(tp.t)}</div>
+                <div className="mt-0.5 text-[13px] leading-[1.5]" style={{ color: "oklch(0.45 0.02 160)" }}>{tr(tp.d)}</div>
               </div>
             </div>
           ))}
@@ -498,12 +500,12 @@ export function CafeList({ cafes }: { cafes: CafeCard[] }) {
 
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <div className="text-[clamp(22px,2.6vw,28px)] font-extrabold tracking-[-0.02em] text-ink">{listTitle}</div>
-            <div className="mt-1 text-sm" style={{ color: "oklch(0.48 0.02 160)" }}>{listSub}</div>
+            <div className="text-[clamp(22px,2.6vw,28px)] font-extrabold tracking-[-0.02em] text-ink">{tr(listTitle)}</div>
+            <div className="mt-1 text-sm" style={{ color: "oklch(0.48 0.02 160)" }}>{tr(listSub)}</div>
           </div>
           <div className="inline-flex gap-1 rounded-xl bg-[oklch(0.93_0.01_200)] p-1">
-            {([["rec", "Gợi ý"], ["early", "Mở sớm"], ["late", "Đóng muộn"]] as const).map(([k, n]) => (
-              <button key={k} type="button" onClick={() => setSort(k)} className="rounded-[9px] px-3 py-1.5 text-[13px] font-bold transition" style={{ background: sort === k ? "white" : "transparent", color: sort === k ? TH.G : "oklch(0.42 0.02 160)", boxShadow: sort === k ? "0 1px 3px oklch(0.2 0.03 160 / .15)" : "none" }}>{n}</button>
+            {([["rec", tr("Gợi ý")], ["early", tr("Mở sớm")], ["late", tr("Đóng muộn")]] as const).map(([k, n]) => (
+              <button key={k} type="button" onClick={() => setSort(k)} className="rounded-[9px] px-3 py-1.5 text-[13px] font-bold transition" style={{ background: sort === k ? "white" : "transparent", color: sort === k ? TH.G : "oklch(0.42 0.02 160)", boxShadow: sort === k ? "0 1px 3px oklch(0.2 0.03 160 / .15)" : "none" }}>{tr(n)}</button>
             ))}
           </div>
         </div>
@@ -514,14 +516,14 @@ export function CafeList({ cafes }: { cafes: CafeCard[] }) {
             const sun = s.slots.includes("sunset") && s.close >= 18;
             const st: [string, string, string] =
               meal === "dawn" || (meal === "all" && dawn)
-                ? ["Mở " + fmtH(s.open), "oklch(0.95 0.06 70)", "oklch(0.48 0.15 50)"]
+                ? [tr("Mở ") + fmtH(s.open), "oklch(0.95 0.06 70)", "oklch(0.48 0.15 50)"]
                 : meal === "sunset" && sun
-                  ? ["Hướng hoàng hôn", "oklch(0.95 0.06 70)", "oklch(0.48 0.15 50)"]
+                  ? [tr("Hướng hoàng hôn"), "oklch(0.95 0.06 70)", "oklch(0.48 0.15 50)"]
                   : di && wk && s.am.includes("view")
-                    ? ["Cuối tuần đông", "oklch(0.95 0.03 250)", "oklch(0.42 0.1 250)"]
-                    : ["Đang mở", "oklch(0.95 0.05 155)", "oklch(0.38 0.1 155)"];
-            const kind = s.am.includes("stay") ? "Homestay & cafe" : s.am.includes("food") ? "Cafe & ăn" : /bar|cocktail/i.test(s.name + " " + s.tags.join(" ")) ? "Bar" : "Cafe";
-            const cta = s.am.includes("stay") ? "Xem homestay" : "Xem quán";
+                    ? [tr("Cuối tuần đông"), "oklch(0.95 0.03 250)", "oklch(0.42 0.1 250)"]
+                    : [tr("Đang mở"), "oklch(0.95 0.05 155)", "oklch(0.38 0.1 155)"];
+            const kind = s.am.includes("stay") ? "Homestay & cafe" : s.am.includes("food") ? tr("Cafe & ăn") : /bar|cocktail/i.test(s.name + " " + s.tags.join(" ")) ? "Bar" : "Cafe";
+            const cta = s.am.includes("stay") ? "Xem homestay" : tr("Xem quán");
             return (
               <article
                 key={s.id}
@@ -531,16 +533,16 @@ export function CafeList({ cafes }: { cafes: CafeCard[] }) {
               >
                 <div className="relative aspect-[16/11] overflow-hidden sm:aspect-[4/3]">
                   {s.image ? (
-                    <Image src={s.image} alt={s.name} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" />
+                    <Image src={s.image} alt={tr(s.name)} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" />
                   ) : (
                     <div className="flex h-full items-center justify-center text-5xl" style={{ background: "linear-gradient(160deg, oklch(0.9 0.04 150), oklch(0.82 0.05 120))" }}>☕</div>
                   )}
                   <div className="pointer-events-none absolute inset-x-2.5 top-2.5 flex justify-between gap-1.5 sm:inset-x-3 sm:top-3">
                     <div className="flex min-w-0 gap-1.5">
-                      <span className="truncate rounded-full bg-white px-2 py-0.5 text-[11px] font-bold sm:px-2.5 sm:py-1 sm:text-xs" style={{ color: "oklch(0.3 0.04 160)" }}>{kind}</span>
-                      {s.feat && <span className="rounded-full px-2 py-0.5 text-[11px] font-bold text-white sm:px-2.5 sm:py-1 sm:text-xs" style={{ background: "oklch(0.68 0.18 45)" }}>Gợi ý</span>}
+                      <span className="truncate rounded-full bg-white px-2 py-0.5 text-[11px] font-bold sm:px-2.5 sm:py-1 sm:text-xs" style={{ color: "oklch(0.3 0.04 160)" }}>{tr(kind)}</span>
+                      {s.feat && <span className="rounded-full px-2 py-0.5 text-[11px] font-bold text-white sm:px-2.5 sm:py-1 sm:text-xs" style={{ background: "oklch(0.68 0.18 45)" }}>{tr("Gợi ý")}</span>}
                     </div>
-                    <span className="hidden whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold sm:inline-block" style={{ background: st[1], color: st[2] }}>{st[0]}</span>
+                    <span className="hidden whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold sm:inline-block" style={{ background: st[1], color: st[2] }}>{tr(st[0])}</span>
                   </div>
                   <div className="pointer-events-none absolute bottom-2.5 left-2.5 sm:bottom-3 sm:left-3">
                     <span className="rounded-full px-2 py-0.5 text-[11px] font-bold text-white sm:px-2.5 sm:py-1 sm:text-xs" style={{ background: "oklch(0.15 0.03 200 / .55)", backdropFilter: "blur(6px)" }}>{fmtH(s.open)}–{fmtH(s.close)}</span>
@@ -548,27 +550,27 @@ export function CafeList({ cafes }: { cafes: CafeCard[] }) {
                 </div>
                 <div className="flex flex-1 flex-col gap-1.5 p-3 pt-2.5 sm:gap-2 sm:p-5 sm:pt-[18px]">
                   <div className="flex justify-between gap-2 text-[11px] font-semibold sm:text-[13px]" style={{ color: "oklch(0.5 0.02 160)" }}>
-                    <span>{s.area}</span>
-                    {s.dist && <span className="hidden whitespace-nowrap sm:inline">{s.dist}</span>}
+                    <span>{tr(s.area)}</span>
+                    {s.dist && <span className="hidden whitespace-nowrap sm:inline">{tr(s.dist)}</span>}
                   </div>
-                  <div className="line-clamp-2 text-[15px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink sm:line-clamp-none sm:text-[19px]">{s.name}</div>
-                  {s.desc && <div className="line-clamp-2 text-[13px] leading-[1.5] sm:line-clamp-3 sm:text-sm sm:leading-[1.55]" style={{ color: "oklch(0.42 0.02 160)" }}>{s.desc}</div>}
+                  <div className="line-clamp-2 text-[15px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink sm:line-clamp-none sm:text-[19px]">{tr(s.name)}</div>
+                  {s.desc && <div className="line-clamp-2 text-[13px] leading-[1.5] sm:line-clamp-3 sm:text-sm sm:leading-[1.55]" style={{ color: "oklch(0.42 0.02 160)" }}>{tr(s.desc)}</div>}
                   <div className="mt-0.5 hidden flex-wrap gap-1.5 sm:flex">
                     {s.tags.map((a) => (
-                      <span key={a} className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: "oklch(0.95 0.025 155)", color: "oklch(0.36 0.08 155)" }}>{a}</span>
+                      <span key={a} className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: "oklch(0.95 0.025 155)", color: "oklch(0.36 0.08 155)" }}>{tr(a)}</span>
                     ))}
                   </div>
                   <div className="flex-1" />
                   <div className="mt-1 flex items-end justify-between gap-2 border-t border-[oklch(0.94_0.01_200)] pt-2.5 sm:mt-0 sm:gap-2.5 sm:pt-3">
                     <div className="min-w-0">
-                      <div className="text-[11px] sm:text-xs" style={{ color: "oklch(0.5 0.02 160)" }}>{s.priceText ? "Đồ uống từ" : "Giá"}</div>
+                      <div className="text-[11px] sm:text-xs" style={{ color: "oklch(0.5 0.02 160)" }}>{s.priceText ? tr("Đồ uống từ") : tr("Giá")}</div>
                       <div className="font-extrabold leading-[1.2] tracking-[-0.02em]" style={{ color: s.priceText ? TH.price : "oklch(0.42 0.02 160)" }}>
-                        <span className={s.priceText ? "text-[17px] sm:text-[21px]" : "text-[13px] sm:text-[15px]"}>{s.priceText || "Theo menu quán"}</span>
+                        <span className={s.priceText ? "text-[17px] sm:text-[21px]" : "text-[13px] sm:text-[15px]"}>{tr(s.priceText) || tr("Theo menu quán")}</span>
                       </div>
                     </div>
                     <div className="flex flex-none gap-1.5">
-                      <a href={s.mapUrl} target="_blank" rel="noopener noreferrer" className="hidden whitespace-nowrap rounded-full border-[1.5px] px-3.5 py-2.5 text-sm font-bold sm:inline-flex" style={{ borderColor: "oklch(0.88 0.02 160)", color: "oklch(0.3 0.05 160)" }}>Bản đồ</a>
-                      <Link href={`/cafe/${s.slug}`} className="whitespace-nowrap rounded-full px-3 py-2 text-xs font-bold text-white transition group-hover:bg-sunset-500 sm:px-4 sm:py-2.5 sm:text-sm" style={{ background: TH.btn }}>{cta}</Link>
+                      <a href={s.mapUrl} target="_blank" rel="noopener noreferrer" className="hidden whitespace-nowrap rounded-full border-[1.5px] px-3.5 py-2.5 text-sm font-bold sm:inline-flex" style={{ borderColor: "oklch(0.88 0.02 160)", color: "oklch(0.3 0.05 160)" }}>{tr("Bản đồ")}</a>
+                      <Link href={`/cafe/${s.slug}`} className="whitespace-nowrap rounded-full px-3 py-2 text-xs font-bold text-white transition group-hover:bg-sunset-500 sm:px-4 sm:py-2.5 sm:text-sm" style={{ background: TH.btn }}>{tr(cta)}</Link>
                     </div>
                   </div>
                 </div>
@@ -579,21 +581,21 @@ export function CafeList({ cafes }: { cafes: CafeCard[] }) {
 
         {items.length === 0 && (
           <div className="rounded-[22px] border-[1.5px] border-dashed border-[oklch(0.85_0.02_200)] bg-white px-6 py-12 text-center text-[15px]" style={{ color: "oklch(0.45 0.02 160)" }}>
-            Chưa có quán phù hợp. Thử đổi khung giờ hoặc khu vực, hoặc <SiteZaloLink className="font-bold text-forest-700">nhắn Zalo</SiteZaloLink> để được gợi ý.
+            {tr("Chưa có quán phù hợp. Thử đổi khung giờ hoặc khu vực, hoặc")}{" "}<SiteZaloLink className="font-bold text-forest-700">{tr("nhắn Zalo")}</SiteZaloLink>{" "}{tr("để được gợi ý.")}
           </div>
         )}
 
         <div className="mt-2.5 rounded-[18px] border border-[oklch(0.9_0.04_155)] bg-[oklch(0.95_0.025_155)] px-5 py-4 text-sm leading-[1.6]" style={{ color: "oklch(0.3 0.05 160)" }}>
-          <b>Lưu ý:</b> giá và giờ mở cửa do từng quán quy định, có thể đổi theo mùa, nên xác nhận trực tiếp. Muốn "săn mây tại giường" thay vì ra quán? Chọn{" "}
-          <Link href="/homestay" className="font-bold text-forest-700 underline underline-offset-2">homestay view mây</Link> khu Đỉnh Gió. Đói bụng? Xem{" "}
-          <Link href="/nha-hang" className="font-bold text-forest-700 underline underline-offset-2">danh sách nhà hàng Tà Xùa</Link>.
+          <b>{tr("Lưu ý:")}</b>{" "}{tr("giá và giờ mở cửa do từng quán quy định, có thể đổi theo mùa, nên xác nhận trực tiếp. Muốn \"săn mây tại giường\" thay vì ra quán? Chọn")}{" "}
+          <Link href="/homestay" className="font-bold text-forest-700 underline underline-offset-2">{tr("homestay view mây")}</Link>{" "}{tr("khu Đỉnh Gió. Đói bụng? Xem")}{" "}
+          <Link href="/nha-hang" className="font-bold text-forest-700 underline underline-offset-2">{tr("danh sách nhà hàng Tà Xùa")}</Link>.
         </div>
 
         <div className="mt-3.5 flex flex-col gap-3 border-t border-[oklch(0.91_0.01_200)] pt-6">
-          <div className="text-[15px] font-bold" style={{ color: "oklch(0.45 0.02 160)" }}>Dịch vụ khác tại Tà Xùa</div>
+          <div className="text-[15px] font-bold" style={{ color: "oklch(0.45 0.02 160)" }}>{tr("Dịch vụ khác tại Tà Xùa")}</div>
           <div className="flex flex-wrap gap-2">
             {others.map(([href, label]) => (
-              <Link key={href} href={href} className="whitespace-nowrap rounded-full border border-[oklch(0.88_0.02_160)] bg-white px-4 py-2.5 text-[15px] font-semibold text-[oklch(0.3_0.05_160)]">{label}</Link>
+              <Link key={href} href={href} className="whitespace-nowrap rounded-full border border-[oklch(0.88_0.02_160)] bg-white px-4 py-2.5 text-[15px] font-semibold text-[oklch(0.3_0.05_160)]">{tr(label)}</Link>
             ))}
           </div>
         </div>

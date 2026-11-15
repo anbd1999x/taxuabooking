@@ -65,7 +65,7 @@ export default async function BookingDetailPage({
   const b = await prisma.bookingRequest.findUnique({
     where: { id },
     include: {
-      service: { include: { owner: true } },
+      service: { include: { owner: true, transport: true } },
       ctv: true,
       logs: { orderBy: { createdAt: "desc" }, take: 100 },
     },
@@ -314,8 +314,9 @@ export default async function BookingDetailPage({
     sups.push({
       kind: b.category === "COMBO" ? "Homestay" : cat.label,
       name: b.service.title,
-      owner: b.service.contactName || b.service.owner?.name || null,
-      phone: b.service.contactPhone,
+      // Taxi / xe ôm: liên hệ thẳng bác tài (SĐT bác tài chỉ dùng trong admin, không hiện cho khách).
+      owner: b.service.transport?.driverName || b.service.contactName || b.service.owner?.name || null,
+      phone: b.service.transport?.driverPhone || b.service.contactPhone,
       zalo: b.service.contactZalo,
       serviceId: b.service.id,
       slug: b.service.slug,

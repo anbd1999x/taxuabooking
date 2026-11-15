@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/Link";
 import { useEffect, useRef } from "react";
+import { useT } from "@/components/i18n/I18nProvider";
 
 export interface HeroPlan {
   id: string;
@@ -45,6 +46,7 @@ export function ItineraryHero({
   onPick: (id: string) => void;
   onTab: (tab: "checkin" | "cafe") => void;
 }) {
+  const tr = useT();
   const root = useRef<HTMLElement>(null);
   const wrap = useRef<HTMLDivElement>(null); // khung chung của cảnh + thẻ lịch trình (xe máy chạy trên cả hai)
   const card = useRef<HTMLDivElement>(null);
@@ -218,18 +220,18 @@ export function ItineraryHero({
 
         <div data-text className="container-page relative z-[4] pt-9 text-white will-change-transform min-[900px]:pt-12">
           <nav className="lth-in flex gap-2 text-sm text-[oklch(0.97_0.02_80)]" style={{ ...IN(0), textShadow: "0 1px 8px oklch(0.2 0.05 260 / .5)" }}>
-            <Link href="/" className="hover:underline">Trang chủ</Link>
+            <Link href="/" className="hover:underline">{tr("Trang chủ")}</Link>
             <span>/</span>
-            <Link href="/kinh-nghiem" className="hover:underline">Cẩm nang</Link>
+            <Link href="/kinh-nghiem" className="hover:underline">{tr("Cẩm nang")}</Link>
             <span>/</span>
-            <span className="font-bold text-white">Lịch trình</span>
+            <span className="font-bold text-white">{tr("Lịch trình")}</span>
           </nav>
-          <div className="lth-in mt-[18px] text-[13px] font-bold uppercase tracking-[.14em] text-[oklch(0.9_0.12_80)]" style={IN(1)}>Cẩm nang · Lịch trình gợi ý</div>
+          <div className="lth-in mt-[18px] text-[13px] font-bold uppercase tracking-[.14em] text-[oklch(0.9_0.12_80)]" style={IN(1)}>{tr("Cẩm nang · Lịch trình gợi ý")}</div>
           <h1 className="lth-in mt-3.5 max-w-[760px] text-balance text-[clamp(36px,6vw,66px)] font-extrabold leading-[1.03] tracking-[-.035em]" style={{ ...IN(2), textShadow: "0 2px 24px oklch(0.2 0.05 260 / .4)" }}>
-            Đi Tà Xùa mấy ngày, đi đâu, ăn gì?
+            {tr("Đi Tà Xùa mấy ngày, đi đâu, ăn gì?")}
           </h1>
           <p className="lth-in mt-3.5 max-w-[540px] text-pretty text-[clamp(16px,1.7vw,19px)] leading-normal text-[oklch(0.99_0.01_80)]" style={{ ...IN(3), textShadow: TEXT_SHADOW }}>
-            Lịch trình theo giờ cho chuyến xe cabin đêm từ Hà Nội, kèm điểm check-in, quán cafe và quán ăn nên ghé.
+            {tr("Lịch trình theo giờ cho chuyến xe cabin đêm từ Hà Nội, kèm điểm check-in, quán cafe và quán ăn nên ghé.")}
           </p>
         </div>
       </section>
@@ -241,7 +243,7 @@ export function ItineraryHero({
       {/* xe máy 2 người: phóng nhanh trên sườn núi, tới thẻ lịch trình thì phanh cháy khói, bê xe lên mép thẻ chạy tiếp, kéo băng rôn */}
       <div data-bike aria-hidden className="pointer-events-none absolute left-0 top-0 z-[2] h-[34px] w-11 will-change-transform" style={{ transform: "translate(-80px,0)" }}>
         <div data-flag className="absolute right-full top-[3px] flex origin-right items-center" style={{ transform: "scaleX(0)", opacity: 0 }}>
-          <span className="lth-flag whitespace-nowrap rounded-[3px] px-2 py-[3px] text-[11px] font-extrabold leading-tight" style={{ background: "oklch(0.58 0.22 27)", color: "oklch(0.93 0.16 95)", boxShadow: "0 3px 8px -2px oklch(0.2 0.04 260 / .5)", animation: "lth-wave 1.1s ease-in-out infinite", transformOrigin: "right center" }}>Đi Tà Xùa thôi!</span>
+          <span className="lth-flag whitespace-nowrap rounded-[3px] px-2 py-[3px] text-[11px] font-extrabold leading-tight" style={{ background: "oklch(0.58 0.22 27)", color: "oklch(0.93 0.16 95)", boxShadow: "0 3px 8px -2px oklch(0.2 0.04 260 / .5)", animation: "lth-wave 1.1s ease-in-out infinite", transformOrigin: "right center" }}>{tr("Đi Tà Xùa thôi!")}</span>
           <span className="h-px w-3.5" style={{ background: "oklch(0.3 0.03 250)" }} />
         </div>
         <div data-riders className="absolute inset-0 transition-transform duration-300">
@@ -279,24 +281,24 @@ export function ItineraryHero({
                   className="flex h-[52px] w-[52px] flex-none items-center justify-center rounded-2xl text-[15px] font-extrabold tracking-[-.02em]"
                   style={{ background: on ? "oklch(0.68 0.18 45)" : "oklch(0.95 0.03 155)", color: on ? "white" : "oklch(0.35 0.08 160)" }}
                 >
-                  {p.name}
+                  {tr(p.name)}
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-base font-extrabold">{p.title}</span>
-                  <span className="block text-[13px] leading-[1.4] opacity-80">{p.meta}</span>
+                  <span className="block text-base font-extrabold">{tr(p.title)}</span>
+                  <span className="block text-[13px] leading-[1.4] opacity-80">{tr(p.meta)}</span>
                 </span>
               </button>
             );
           })}
           <div className="flex flex-col gap-1.5">
-            {([["Điểm check-in", "checkin"], ["Cafe & quán ăn", "cafe"]] as const).map(([name, k]) => (
+            {([[tr("Điểm check-in"), "checkin"], [tr("Cafe & quán ăn"), "cafe"]] as const).map(([name, k]) => (
               <button
                 key={k}
                 type="button"
                 onClick={() => onTab(k)}
                 className="flex flex-1 items-center justify-between gap-2.5 whitespace-nowrap rounded-[14px] bg-[oklch(0.965_0.01_160)] px-3.5 py-2.5 text-sm font-bold text-ink hover:bg-[oklch(0.94_0.02_155)]"
               >
-                <span>{name}</span>
+                <span>{tr(name)}</span>
                 <span className="text-[oklch(0.6_0.18_45)]">↓</span>
               </button>
             ))}

@@ -2,13 +2,16 @@ import type { Metadata } from "next";
 import { ogImages } from "@/lib/og";
 import { notFound } from "next/navigation";
 import Image from "next/image";
-import Link from "next/link";
+import Link from "@/components/Link";
 import { getArticle } from "@/lib/queries";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/format";
 import { SITE } from "@/lib/site";
 import { renderMarkdown } from "@/lib/markdown";
 import { articleTopicLabel } from "@/lib/constants";
+import { getLocale, getT, tLong } from "@/lib/i18n/server";
+import { i18nAlternates } from "@/lib/i18n/meta";
+import { LOCALE_META } from "@/lib/i18n/config";
 
 export const dynamic = "force-dynamic";
 
@@ -18,16 +21,19 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const a = await getArticle(slug);
-  if (!a) return {};
+  const raw = await getArticle(slug);
+  if (!raw) return {};
+  // Tiêu đề/mô tả theo ngôn ngữ đang xem (bản dịch admin nhập; thiếu thì tiếng Việt).
+  const a = { ...raw, title: await tLong(raw.title), excerpt: await tLong(raw.excerpt) };
+  const locale = await getLocale();
   return {
     // Tiêu đề đã dài thì không nối thêm "| Tà Xùa Booking" (Google cắt ở ~60 ký tự).
     title: a.title.length > 48 ? { absolute: a.title } : a.title,
     description: a.excerpt ?? a.title,
-    alternates: { canonical: `/kinh-nghiem/${a.slug}` },
+    alternates: await i18nAlternates(`/kinh-nghiem/${a.slug}`),
     openGraph: {
       type: "article",
-      locale: "vi_VN",
+      locale: LOCALE_META[locale].og,
       siteName: SITE.name,
       publishedTime: a.createdAt.toISOString(),
       modifiedTime: a.updatedAt.toISOString(),
@@ -44,6 +50,7 @@ export default async function ArticlePage({
 }: {
   params: Promise<{ slug: string }>;
 }) {
+  const tr = await getT();
   const { slug } = await params;
   const a = await getArticle(slug);
   if (!a) notFound();
@@ -82,8 +89,8 @@ export default async function ArticlePage({
     {
       "@type": "BreadcrumbList",
       itemListElement: [
-        { "@type": "ListItem", position: 1, name: "Trang chủ", item: SITE.url },
-        { "@type": "ListItem", position: 2, name: "Kinh nghiệm Tà Xùa", item: `${SITE.url}/kinh-nghiem` },
+        { "@type": "ListItem", position: 1, name: tr("Trang chủ"), item: SITE.url },
+        { "@type": "ListItem", position: 2, name: tr("Kinh nghiệm Tà Xùa"), item: `${SITE.url}/kinh-nghiem` },
         { "@type": "ListItem", position: 3, name: a.title, item: pageUrl },
       ],
     },
@@ -101,7 +108,7 @@ export default async function ArticlePage({
     image: a.coverImage ? [`${SITE.url}${a.coverImage}`] : undefined,
     datePublished: a.createdAt.toISOString(),
     dateModified: a.updatedAt.toISOString(),
-    inLanguage: "vi",
+    inLanguage: LOCALE_META[await getLocale()].htmlLang,
     mainEntityOfPage: `${SITE.url}/kinh-nghiem/${a.slug}`,
     author: { "@type": "Organization", name: SITE.name, url: SITE.url },
     publisher: { "@type": "Organization", name: SITE.name, url: SITE.url },
@@ -112,20 +119,20 @@ export default async function ArticlePage({
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({ "@context": "https://schema.org", "@graph": extraLd }) }} />
       <nav className="mb-4 text-sm text-gray-500">
-        <a href="/kinh-nghiem" className="hover:text-forest-700">Kinh nghiệm</a>
+        <Link href="/kinh-nghiem" className="hover:text-forest-700">{tr("Kinh nghiệm")}</Link>
         <span className="mx-2">/</span>
-        <span className="text-gray-700">{a.title}</span>
+        <span className="text-gray-700">{tr(a.title)}</span>
       </nav>
       <p className="text-xs text-gray-400">{formatDate(a.createdAt)}</p>
-      <h1 className="mt-1 text-3xl font-bold text-ink">{a.title}</h1>
+      <h1 className="mt-1 text-3xl font-bold text-ink">{tr(a.title)}</h1>
       {a.coverImage && (
         <div className="relative mt-5 aspect-[16/9] overflow-hidden rounded-2xl">
-          <Image src={a.coverImage} alt={a.title} fill priority sizes="(max-width:768px) 100vw, 768px" className="object-cover" />
+          <Image src={a.coverImage} alt={tr(a.title)} fill priority sizes="(max-width:768px) 100vw, 768px" className="object-cover" />
         </div>
       )}
       <div
         className="mt-6 leading-relaxed text-gray-700 [&_a]:font-semibold [&_a]:text-forest-700 [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:my-4 [&_blockquote]:border-l-4 [&_blockquote]:border-forest-200 [&_blockquote]:pl-4 [&_blockquote]:italic [&_h2]:mt-8 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-ink [&_h3]:mt-6 [&_h3]:text-lg [&_h3]:font-bold [&_h3]:text-ink [&_img]:my-5 [&_img]:w-full [&_img]:rounded-2xl [&_li]:my-1 [&_p]:my-4 [&_ul]:my-4 [&_ul]:list-inside [&_ul]:list-disc"
-        dangerouslySetInnerHTML={{ __html: renderMarkdown(a.content) }}
+        dangerouslySetInnerHTML={{ __html: renderMarkdown(await tLong(a.content)) }}
       />
 
       {/* Bài viết cùng chủ đề */}
@@ -133,13 +140,13 @@ export default async function ArticlePage({
         <section className="mt-12 border-t border-gray-200 pt-8">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <h2 className="text-xl font-bold text-ink">
-              {a.topic ? "Bài viết cùng chủ đề" : "Bài viết khác"}
+              {a.topic ? tr("Bài viết cùng chủ đề") : tr("Bài viết khác")}
             </h2>
             <Link
               href={a.topic ? `/kinh-nghiem?topic=${a.topic}` : "/kinh-nghiem"}
               className="text-sm font-bold text-forest-700 hover:text-sunset-600"
             >
-              Xem tất cả →
+              {tr("Xem tất cả →")}
             </Link>
           </div>
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -151,17 +158,17 @@ export default async function ArticlePage({
               >
                 {r.coverImage && (
                   <div className="relative aspect-[16/9]">
-                    <Image src={r.coverImage} alt={r.title} fill sizes="(max-width:640px) 100vw, 240px" className="object-cover transition duration-500 group-hover:scale-105" />
+                    <Image src={r.coverImage} alt={tr(r.title)} fill sizes="(max-width:640px) 100vw, 240px" className="object-cover transition duration-500 group-hover:scale-105" />
                     {articleTopicLabel(r.topic) && (
                       <span className="absolute left-2.5 top-2.5 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-forest-700">
-                        {articleTopicLabel(r.topic)}
+                        {tr(articleTopicLabel(r.topic))}
                       </span>
                     )}
                   </div>
                 )}
                 <div className="p-3.5">
                   <p className="text-xs text-gray-400">{formatDate(r.createdAt)}</p>
-                  <h3 className="mt-1 line-clamp-2 text-[15px] font-semibold text-ink group-hover:text-forest-700">{r.title}</h3>
+                  <h3 className="mt-1 line-clamp-2 text-[15px] font-semibold text-ink group-hover:text-forest-700">{tr(r.title)}</h3>
                 </div>
               </Link>
             ))}

@@ -2,14 +2,16 @@
 
 import { We, useVoice } from "@/components/SiteContact";
 import { useActionState, useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/Link";
 import type { FeedbackType } from "@prisma/client";
 import { FEEDBACK_AREAS, FEEDBACK_MOODS, FEEDBACK_TYPES, feedbackType } from "@/lib/feedback";
 import { submitFeedback, type SubmitState } from "@/app/(site)/gop-y/actions";
+import { useT } from "@/components/i18n/I18nProvider";
 
 const LOGIN_HREF = "/tai-khoan?next=/gop-y";
 
 export function GopYForm({ loggedIn, userName }: { loggedIn: boolean; userName: string }) {
+  const tr = useT();
   const voice = useVoice(); // "tụi mình" / "mình" theo số chủ sở hữu đang hiện
   const [state, formAction, pending] = useActionState<SubmitState, FormData>(submitFeedback, {});
   const [type, setType] = useState<FeedbackType>("IDEA");
@@ -44,10 +46,10 @@ export function GopYForm({ loggedIn, userName }: { loggedIn: boolean; userName: 
       fd.append("file", file);
       const res = await fetch("/api/gop-y/upload", { method: "POST", body: fd });
       const data = await res.json();
-      if (!res.ok) setUpErr(data.error || "Tải ảnh thất bại.");
+      if (!res.ok) setUpErr(tr(data.error) || tr("Tải ảnh thất bại."));
       else setShot(data.url);
     } catch {
-      setUpErr("Tải ảnh thất bại. Thử lại nhé.");
+      setUpErr(tr("Tải ảnh thất bại. Thử lại nhé."));
     } finally {
       setUploading(false);
     }
@@ -61,20 +63,20 @@ export function GopYForm({ loggedIn, userName }: { loggedIn: boolean; userName: 
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-forest-100 text-2xl font-extrabold text-forest-700">
           ✓
         </div>
-        <h2 className="text-2xl font-extrabold tracking-tight text-ink">Cảm ơn bạn đã góp ý!</h2>
+        <h2 className="text-2xl font-extrabold tracking-tight text-ink">{tr("Cảm ơn bạn đã góp ý!")}</h2>
         <p className="text-[15px] leading-relaxed text-gray-600">
-          Mã góp ý <b className="font-mono text-ink">{state.code}</b>. Góp ý đã hiện trên bảng công khai bên dưới
-          {anon ? " (ẩn tên)" : ""}. <We cap /> sẽ trả lời ngay dưới góp ý của bạn.
+          {tr("Mã góp ý")}{" "}<b className="font-mono text-ink">{tr(state.code)}</b>{tr(". Góp ý đã hiện trên bảng công khai bên dưới")}
+          {anon ? tr(" (ẩn tên)") : ""}. <We cap />{" "}{tr("sẽ trả lời ngay dưới góp ý của bạn.")}
         </p>
         <div className="flex flex-wrap gap-2">
-          <a
+          <Link
             href="/gop-y"
             className="rounded-full bg-forest-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-forest-800"
           >
-            Gửi góp ý khác
-          </a>
+            {tr("Gửi góp ý khác")}
+          </Link>
           <Link href="/" className="rounded-full border border-gray-200 px-4 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50">
-            Về trang chủ
+            {tr("Về trang chủ")}
           </Link>
         </div>
       </section>
@@ -88,26 +90,26 @@ export function GopYForm({ loggedIn, userName }: { loggedIn: boolean; userName: 
       className="flex flex-col gap-4 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-black/5 sm:p-6"
     >
       <div>
-        <h2 className="text-xl font-extrabold tracking-tight text-ink">Gửi góp ý</h2>
+        <h2 className="text-xl font-extrabold tracking-tight text-ink">{tr("Gửi góp ý")}</h2>
         <p className="mt-0.5 text-sm text-gray-500">
-          Góp ý sẽ hiện công khai trên bảng bên dưới để mọi người cùng xem và bình chọn.
+          {tr("Góp ý sẽ hiện công khai trên bảng bên dưới để mọi người cùng xem và bình chọn.")}
         </p>
       </div>
 
       {!loggedIn && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-sunset-200 bg-sunset-50 px-4 py-3">
           <span className="text-sm text-sunset-800">
-            <b>Cần đăng nhập</b> để gửi góp ý, bình chọn và bình luận.
+            <b>{tr("Cần đăng nhập")}</b>{" "}{tr("để gửi góp ý, bình chọn và bình luận.")}
           </span>
           <Link href={LOGIN_HREF} className="whitespace-nowrap rounded-full bg-forest-700 px-4 py-2 text-[13px] font-bold text-white hover:bg-forest-800">
-            Đăng nhập
+            {tr("Đăng nhập")}
           </Link>
         </div>
       )}
 
       {/* Loại góp ý */}
       <div className="flex flex-col gap-2">
-        <div className="text-[13px] font-bold text-gray-700">Bạn muốn góp ý về</div>
+        <div className="text-[13px] font-bold text-gray-700">{tr("Bạn muốn góp ý về")}</div>
         <div className="grid grid-cols-2 gap-2">
           {FEEDBACK_TYPES.map((t) => {
             const on = type === t.key;
@@ -120,8 +122,8 @@ export function GopYForm({ loggedIn, userName }: { loggedIn: boolean; userName: 
                   on ? "border-forest-600 bg-forest-50" : "border-gray-200 bg-white hover:border-gray-300"
                 }`}
               >
-                <div className={`text-sm font-extrabold ${on ? "text-forest-700" : "text-ink"}`}>{t.name}</div>
-                <div className="mt-0.5 text-xs leading-snug text-gray-500">{t.desc}</div>
+                <div className={`text-sm font-extrabold ${on ? "text-forest-700" : "text-ink"}`}>{tr(t.name)}</div>
+                <div className="mt-0.5 text-xs leading-snug text-gray-500">{tr(t.desc)}</div>
               </button>
             );
           })}
@@ -130,7 +132,7 @@ export function GopYForm({ loggedIn, userName }: { loggedIn: boolean; userName: 
 
       {/* Chấm trải nghiệm */}
       <div className="flex flex-col gap-2">
-        <div className="text-[13px] font-bold text-gray-700">Trải nghiệm chung với website</div>
+        <div className="text-[13px] font-bold text-gray-700">{tr("Trải nghiệm chung với website")}</div>
         <div className="flex flex-wrap gap-1.5">
           {FEEDBACK_MOODS.map((name, i) => {
             const val = i + 1;
@@ -145,7 +147,7 @@ export function GopYForm({ loggedIn, userName }: { loggedIn: boolean; userName: 
                 }`}
               >
                 <span className={`text-lg font-extrabold ${on ? "text-sunset-600" : "text-gray-400"}`}>{val}</span>
-                <span className="whitespace-nowrap text-[11px] font-bold text-gray-500">{name}</span>
+                <span className="whitespace-nowrap text-[11px] font-bold text-gray-500">{tr(name)}</span>
               </button>
             );
           })}
@@ -155,7 +157,7 @@ export function GopYForm({ loggedIn, userName }: { loggedIn: boolean; userName: 
       {/* Khu vực liên quan */}
       <div className="flex flex-col gap-2">
         <div className="text-[13px] font-bold text-gray-700">
-          Trang hoặc tính năng liên quan <span className="font-medium text-gray-400">(không bắt buộc)</span>
+          {tr("Trang hoặc tính năng liên quan")}{" "}<span className="font-medium text-gray-400">{tr("(không bắt buộc)")}</span>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {FEEDBACK_AREAS.map((a) => {
@@ -169,7 +171,7 @@ export function GopYForm({ loggedIn, userName }: { loggedIn: boolean; userName: 
                   on ? "border-forest-600 bg-forest-600 text-white" : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
                 }`}
               >
-                {a}
+                {tr(a)}
               </button>
             );
           })}
@@ -179,7 +181,7 @@ export function GopYForm({ loggedIn, userName }: { loggedIn: boolean; userName: 
       {/* Nội dung */}
       <label className="flex flex-col gap-1.5">
         <span className="flex items-center justify-between text-[13px] font-bold text-gray-700">
-          <span>Nội dung góp ý</span>
+          <span>{tr("Nội dung góp ý")}</span>
           <span className={`font-medium ${n > 0 && n < 15 ? "text-sunset-600" : "text-gray-400"}`}>{n}/1000</span>
         </span>
         <textarea
@@ -188,7 +190,7 @@ export function GopYForm({ loggedIn, userName }: { loggedIn: boolean; userName: 
           onChange={(e) => setMsg(e.target.value)}
           rows={5}
           maxLength={1000}
-          placeholder={voice(feedbackType(type).ph)}
+          placeholder={tr(voice(feedbackType(type).ph))}
           className="resize-y rounded-2xl border border-gray-200 bg-gray-50/60 px-3.5 py-3 text-[15px] leading-relaxed focus:border-forest-400 focus:bg-white focus:outline-none"
         />
       </label>
@@ -196,17 +198,17 @@ export function GopYForm({ loggedIn, userName }: { loggedIn: boolean; userName: 
       {/* Ảnh chụp màn hình */}
       <div className="flex flex-col gap-1.5">
         <span className="text-[13px] font-bold text-gray-700">
-          Ảnh chụp màn hình <span className="font-medium text-gray-400">(nếu báo lỗi)</span>
+          {tr("Ảnh chụp màn hình")}{" "}<span className="font-medium text-gray-400">{tr("(nếu báo lỗi)")}</span>
         </span>
         {shot ? (
           <div className="relative w-fit">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={shot} alt="Ảnh chụp màn hình" className="max-h-40 rounded-xl border border-gray-200" />
+            <img src={shot} alt={tr("Ảnh chụp màn hình")} className="max-h-40 rounded-xl border border-gray-200" />
             <button
               type="button"
               onClick={() => setShot("")}
               className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-xs font-bold text-white"
-              aria-label="Xoá ảnh"
+              aria-label={tr("Xoá ảnh")}
             >
               ×
             </button>
@@ -217,27 +219,27 @@ export function GopYForm({ loggedIn, userName }: { loggedIn: boolean; userName: 
               loggedIn ? "hover:border-forest-400 hover:text-forest-600" : "cursor-not-allowed opacity-60"
             }`}
           >
-            {uploading ? "Đang tải ảnh…" : "Kéo thả hoặc bấm để chọn ảnh"}
+            {uploading ? tr("Đang tải ảnh…") : tr("Kéo thả hoặc bấm để chọn ảnh")}
             <input type="file" accept="image/*" className="hidden" disabled={!loggedIn || uploading} onChange={onFile} />
           </label>
         )}
-        {upErr && <span className="text-[13px] font-semibold text-red-600">{upErr}</span>}
+        {upErr && <span className="text-[13px] font-semibold text-red-600">{tr(upErr)}</span>}
       </div>
 
       {/* Ẩn danh (khi đã đăng nhập) */}
       {loggedIn && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gray-50 px-4 py-3">
           <div className="text-sm">
-            <span className="font-bold text-ink">Gửi với tên {anon ? '"Ẩn danh"' : userName}</span>
+            <span className="font-bold text-ink">{tr("Gửi với tên")}{" "}{anon ? tr("\"Ẩn danh\"") : tr(userName)}</span>
           </div>
           <label className="flex cursor-pointer items-center gap-2 text-[13px] font-semibold text-gray-600">
             <input type="checkbox" checked={anon} onChange={(e) => setAnon(e.target.checked)} className="h-4 w-4 accent-forest-700" />
-            Ẩn tên trên bảng góp ý
+            {tr("Ẩn tên trên bảng góp ý")}
           </label>
         </div>
       )}
 
-      {state.error && <div className="text-[13px] font-bold text-red-600">{state.error}</div>}
+      {state.error && <div className="text-[13px] font-bold text-red-600">{tr(state.error)}</div>}
 
       {/* Giá trị gửi kèm server action */}
       <input type="hidden" name="type" value={type} />
@@ -252,14 +254,14 @@ export function GopYForm({ loggedIn, userName }: { loggedIn: boolean; userName: 
           disabled={pending}
           className="rounded-full bg-sunset-500 py-3.5 text-center text-base font-extrabold text-white transition hover:bg-sunset-600 disabled:opacity-70"
         >
-          {pending ? "Đang gửi…" : "Gửi góp ý"}
+          {pending ? tr("Đang gửi…") : tr("Gửi góp ý")}
         </button>
       ) : (
         <Link
           href={LOGIN_HREF}
           className="rounded-full bg-sunset-500 py-3.5 text-center text-base font-extrabold text-white transition hover:bg-sunset-600"
         >
-          Đăng nhập để gửi góp ý
+          {tr("Đăng nhập để gửi góp ý")}
         </Link>
       )}
     </form>

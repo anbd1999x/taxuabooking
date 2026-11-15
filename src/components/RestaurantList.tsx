@@ -1,9 +1,10 @@
 "use client";
 
 import { SiteZaloLink, We } from "@/components/SiteContact";
-import Link from "next/link";
+import Link from "@/components/Link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useT } from "@/components/i18n/I18nProvider";
 
 export interface RestaurantCard {
   id: string;
@@ -43,6 +44,7 @@ const norm = (t: string) => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,
 const r2 = (v: number) => Math.round(v * 100) / 100;
 
 export function RestaurantList({ items: all, initialArea = "" }: { items: RestaurantCard[]; initialArea?: string }) {
+  const tr = useT();
   const [w, setW] = useState(1280);
   const [q, setQ] = useState("");
   const [kind, setKind] = useState("all");
@@ -295,7 +297,7 @@ export function RestaurantList({ items: all, initialArea = "" }: { items: Restau
           <div className="absolute left-0 top-0 h-[38px] w-[130px]" style={{ background: "oklch(0.36 0.06 45)", clipPath: "polygon(4% 100%, 50% 0, 96% 100%)" }} />
           <div className="absolute left-3 top-9 h-[60px] w-[106px]" style={{ background: "oklch(0.6 0.08 60)" }} />
           <div className="absolute left-3 top-9 h-[60px] w-[106px]" style={{ background: "repeating-linear-gradient(90deg, transparent 0 9px, oklch(0.5 0.07 55 / .5) 9px 10px)" }} />
-          <div className="absolute left-[34px] top-10 h-[11px] w-[62px] rounded-[2px] text-center" style={{ background: "oklch(0.3 0.05 45)", color: "oklch(0.95 0.03 90)", fontSize: "6.5px", fontWeight: 900, lineHeight: "11px", letterSpacing: ".8px" }}>NHÀ HÀNG</div>
+          <div className="absolute left-[34px] top-10 h-[11px] w-[62px] rounded-[2px] text-center" style={{ background: "oklch(0.3 0.05 45)", color: "oklch(0.95 0.03 90)", fontSize: "6.5px", fontWeight: 900, lineHeight: "11px", letterSpacing: ".8px" }}>{tr("NHÀ HÀNG")}</div>
           <div ref={winRef} className="absolute left-5 top-14 h-4 w-5 rounded-[2px]" style={{ border: "2px solid oklch(0.35 0.05 45)", background: "oklch(0.32 0.03 230)" }} />
           <div ref={win2Ref} className="absolute left-[88px] top-14 h-4 w-5 rounded-[2px]" style={{ border: "2px solid oklch(0.35 0.05 45)", background: "oklch(0.32 0.03 230)" }} />
           <div className="absolute left-[50px] top-[58px] h-[38px] w-6" style={{ borderRadius: "3px 3px 0 0", background: "oklch(0.85 0.12 80)", boxShadow: "inset 0 0 10px oklch(0.6 0.14 60)" }} />
@@ -357,11 +359,11 @@ export function RestaurantList({ items: all, initialArea = "" }: { items: Restau
 
         <div ref={heroTextRef} className="container-page relative z-[3] text-white will-change-transform" style={{ paddingTop: w < 640 ? 48 : 72 }}>
           <div data-in="0" className="flex gap-2 text-sm opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease, transform .9s cubic-bezier(.2,.7,.2,1)", color: "oklch(0.9 0.02 220)" }}>
-            <span>Trang chủ</span><span>/</span><span className="font-bold text-white">Nhà hàng & quán ăn</span>
+            <span>{tr("Trang chủ")}</span><span>/</span><span className="font-bold text-white">{tr("Nhà hàng & quán ăn")}</span>
           </div>
-          <h1 data-in="1" className="mt-4 text-[13px] font-bold uppercase tracking-[0.14em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .1s, transform .9s cubic-bezier(.2,.7,.2,1) .1s", color: "oklch(0.88 0.12 80)" }}>Nhà hàng, quán ăn Tà Xùa · theo khu vực</h1>
-          <p data-in="2" className="mt-3.5 max-w-[760px] text-[clamp(32px,6vw,60px)] font-extrabold leading-[1.02] tracking-[-0.035em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .2s, transform .9s cubic-bezier(.2,.7,.2,1) .2s", textShadow: "0 2px 24px oklch(0.2 0.05 260 / .4)" }}>Bếp than đỏ lửa, mâm cơm bản giữa sương</p>
-          <p data-in="3" className="mt-3.5 max-w-[520px] text-[clamp(15px,1.7vw,18px)] leading-[1.5] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .3s, transform .9s cubic-bezier(.2,.7,.2,1) .3s", color: "oklch(0.97 0.02 80)" }}>Quán ăn và nhà hàng quanh Tà Xùa: cơm suất giá mềm tới lẩu nướng tối lạnh. Nhóm đông nên đặt mâm trước từ chiều.</p>
+          <h1 data-in="1" className="mt-4 text-[13px] font-bold uppercase tracking-[0.14em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .1s, transform .9s cubic-bezier(.2,.7,.2,1) .1s", color: "oklch(0.88 0.12 80)" }}>{tr("Nhà hàng, quán ăn Tà Xùa · theo khu vực")}</h1>
+          <p data-in="2" className="mt-3.5 max-w-[760px] text-[clamp(32px,6vw,60px)] font-extrabold leading-[1.02] tracking-[-0.035em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .2s, transform .9s cubic-bezier(.2,.7,.2,1) .2s", textShadow: "0 2px 24px oklch(0.2 0.05 260 / .4)" }}>{tr("Bếp than đỏ lửa, mâm cơm bản giữa sương")}</p>
+          <p data-in="3" className="mt-3.5 max-w-[520px] text-[clamp(15px,1.7vw,18px)] leading-[1.5] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .3s, transform .9s cubic-bezier(.2,.7,.2,1) .3s", color: "oklch(0.97 0.02 80)" }}>{tr("Quán ăn và nhà hàng quanh Tà Xùa: cơm suất giá mềm tới lẩu nướng tối lạnh. Nhóm đông nên đặt mâm trước từ chiều.")}</p>
         </div>
       </section>
 
@@ -370,33 +372,33 @@ export function RestaurantList({ items: all, initialArea = "" }: { items: Restau
         <div className="flex flex-col gap-2 rounded-[22px] border border-white/80 p-2.5 shadow-[0_24px_60px_-24px_oklch(0.25_0.06_220_/.45)]" style={{ background: "oklch(1 0 0 / .9)", backdropFilter: "blur(14px)" }}>
           <div className="grid gap-1.5" style={{ gridTemplateColumns: w >= 900 ? "1.6fr 1fr 1fr" : "repeat(auto-fit,minmax(min(100%,150px),1fr))" }}>
             <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Tìm quán</span>
-              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Tên quán, món ăn…" className={inp} />
+              <span className="text-xs font-semibold text-gray-500">{tr("Tìm quán")}</span>
+              <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("Tên quán, món ăn…")} className={inp} />
             </label>
             <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Loại quán</span>
+              <span className="text-xs font-semibold text-gray-500">{tr("Loại quán")}</span>
               <select value={kind} onChange={(e) => setKind(e.target.value)} className={inp}>
-                <option value="all">Mọi loại quán</option>
-                {kinds.map((k) => <option key={k} value={k}>{k}</option>)}
+                <option value="all">{tr("Mọi loại quán")}</option>
+                {kinds.map((k) => <option key={k} value={k}>{tr(k)}</option>)}
               </select>
             </label>
             <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Khu vực</span>
+              <span className="text-xs font-semibold text-gray-500">{tr("Khu vực")}</span>
               <select value={area} onChange={(e) => setArea(e.target.value)} className={inp}>
-                <option value="">Mọi khu vực</option>
-                {areas.map(([a]) => <option key={a} value={a}>{a}</option>)}
+                <option value="">{tr("Mọi khu vực")}</option>
+                {areas.map(([a]) => <option key={a} value={a}>{tr(a)}</option>)}
               </select>
             </label>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 px-1 py-0.5">
             <div className="flex flex-wrap gap-1.5">
-              {([["", `Tất cả (${all.length})`]] as [string, string][]).concat(areas.map(([a, n]) => [a, `${a} (${n})`] as [string, string])).map(([k, n]) => (
-                <button key={k} type="button" onClick={() => setArea(k)} className="whitespace-nowrap rounded-full px-3.5 py-2 text-sm font-bold transition" style={{ background: area === k ? TH.G : "oklch(0.95 0.01 200)", color: area === k ? "white" : "oklch(0.35 0.02 160)" }}>{n}</button>
+              {([["", tr("Tất cả ({0})", [all.length])]] as [string, string][]).concat(areas.map(([a, n]) => [a, `${a} (${n})`] as [string, string])).map(([k, n]) => (
+                <button key={k} type="button" onClick={() => setArea(k)} className="whitespace-nowrap rounded-full px-3.5 py-2 text-sm font-bold transition" style={{ background: area === k ? TH.G : "oklch(0.95 0.01 200)", color: area === k ? "white" : "oklch(0.35 0.02 160)" }}>{tr(n)}</button>
               ))}
             </div>
             <div className="flex items-center gap-2">
-              {hasFilter && <button type="button" onClick={clearAll} className="px-3 py-2 text-sm font-bold text-gray-500">Xoá lọc</button>}
-              <span className="text-sm font-semibold text-gray-500">{items.length} quán</span>
+              {hasFilter && <button type="button" onClick={clearAll} className="px-3 py-2 text-sm font-bold text-gray-500">{tr("Xoá lọc")}</button>}
+              <span className="text-sm font-semibold text-gray-500">{tr("{0} quán", [items.length])}</span>
             </div>
           </div>
         </div>
@@ -406,15 +408,15 @@ export function RestaurantList({ items: all, initialArea = "" }: { items: Restau
       <main className="container-page flex flex-col gap-[22px] pb-[72px] pt-9">
         <div className="grid gap-3" style={{ gridTemplateColumns: w >= 760 ? "repeat(3,minmax(0,1fr))" : "1fr" }}>
           {[
-            { k: "01", t: "Nhóm đông đặt mâm từ chiều", d: "Cuối tuần quán kín nhanh, gọi trước 15:00 để giữ bàn và chọn món." },
-            { k: "02", t: "Hỏi giá món tính theo cân", d: "Gà đen, cá suối, lợn bản thường tính theo kg, hỏi giá trước khi gọi." },
-            { k: "03", t: "Tối lạnh chọn lẩu nướng", d: "Sau 18:00 nhiệt độ xuống nhanh, bếp than là lựa chọn ấm nhất." },
+            { k: "01", t: tr("Nhóm đông đặt mâm từ chiều"), d: tr("Cuối tuần quán kín nhanh, gọi trước 15:00 để giữ bàn và chọn món.") },
+            { k: "02", t: tr("Hỏi giá món tính theo cân"), d: tr("Gà đen, cá suối, lợn bản thường tính theo kg, hỏi giá trước khi gọi.") },
+            { k: "03", t: tr("Tối lạnh chọn lẩu nướng"), d: tr("Sau 18:00 nhiệt độ xuống nhanh, bếp than là lựa chọn ấm nhất.") },
           ].map((t) => (
             <div key={t.k} className="flex items-start gap-3 rounded-2xl border border-[oklch(0.92_0.01_200)] bg-white px-4 py-3.5">
-              <div className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-[10px] text-[13px] font-extrabold" style={{ background: "oklch(0.95 0.025 155)", color: "oklch(0.36 0.08 155)" }}>{t.k}</div>
+              <div className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-[10px] text-[13px] font-extrabold" style={{ background: "oklch(0.95 0.025 155)", color: "oklch(0.36 0.08 155)" }}>{tr(t.k)}</div>
               <div>
-                <div className="text-sm font-extrabold">{t.t}</div>
-                <div className="mt-0.5 text-[13px] leading-normal text-gray-500">{t.d}</div>
+                <div className="text-sm font-extrabold">{tr(t.t)}</div>
+                <div className="mt-0.5 text-[13px] leading-normal text-gray-500">{tr(t.d)}</div>
               </div>
             </div>
           ))}
@@ -422,12 +424,12 @@ export function RestaurantList({ items: all, initialArea = "" }: { items: Restau
 
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-[clamp(22px,2.6vw,28px)] font-extrabold tracking-[-0.02em]">{area ? `Quán ăn khu ${area}` : "Quán ăn quanh Tà Xùa"}</h2>
-            <div className="mt-1 text-sm text-gray-500">{items.length} quán{kind !== "all" ? ` · ${kind.toLowerCase()}` : ""}</div>
+            <h2 className="text-[clamp(22px,2.6vw,28px)] font-extrabold tracking-[-0.02em]">{area ? tr("Quán ăn khu {0}", [tr(area)]) : tr("Quán ăn quanh Tà Xùa")}</h2>
+            <div className="mt-1 text-sm text-gray-500">{items.length}{" "}{tr("quán")}{kind !== "all" ? ` · ${tr(kind.toLowerCase())}` : ""}</div>
           </div>
           <div className="inline-flex gap-1 rounded-xl p-1" style={{ background: "oklch(0.93 0.01 200)" }}>
-            {[["rec", "Gợi ý"], ["price", "Giá thấp"], ["az", "Tên A–Z"]].map(([k, n]) => (
-              <button key={k} type="button" onClick={() => setSort(k)} className="whitespace-nowrap rounded-[9px] px-3 py-[7px] text-[13px] font-bold transition" style={{ background: sort === k ? "white" : "transparent", color: sort === k ? TH.G : "oklch(0.42 0.02 160)", boxShadow: sort === k ? "0 1px 3px oklch(0.2 0.03 160 / .15)" : "none" }}>{n}</button>
+            {[["rec", tr("Gợi ý")], ["price", tr("Giá thấp")], ["az", tr("Tên A–Z")]].map(([k, n]) => (
+              <button key={k} type="button" onClick={() => setSort(k)} className="whitespace-nowrap rounded-[9px] px-3 py-[7px] text-[13px] font-bold transition" style={{ background: sort === k ? "white" : "transparent", color: sort === k ? TH.G : "oklch(0.42 0.02 160)", boxShadow: sort === k ? "0 1px 3px oklch(0.2 0.03 160 / .15)" : "none" }}>{tr(n)}</button>
             ))}
           </div>
         </div>
@@ -440,44 +442,44 @@ export function RestaurantList({ items: all, initialArea = "" }: { items: Restau
               className="group relative flex flex-col overflow-hidden rounded-[22px] border border-[oklch(0.92_0.01_200)] bg-white opacity-0 transition hover:shadow-[0_24px_50px_-24px_oklch(0.25_0.06_220_/.4)]"
               style={{ transform: "translateY(24px)", transitionProperty: "opacity, transform, box-shadow", transitionDuration: ".6s", transitionDelay: `${(i % 3) * 0.08}s` }}
             >
-              {s.slug && <Link href={`/nha-hang/${s.slug}`} aria-label={s.name} className="absolute inset-0 z-[1]" />}
+              {s.slug && <Link href={`/nha-hang/${s.slug}`} aria-label={tr(s.name)} className="absolute inset-0 z-[1]" />}
               <div className="relative aspect-[16/11] overflow-hidden bg-gray-100 sm:aspect-[4/3]">
                 {s.cover ? (
-                  <Image src={s.cover} alt={s.name} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" />
+                  <Image src={s.cover} alt={tr(s.name)} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" />
                 ) : (
                   <div className="flex h-full items-center justify-center text-4xl" style={{ background: "linear-gradient(160deg, oklch(0.95 0.025 155), oklch(0.93 0.03 95))" }}>🍲</div>
                 )}
                 <div className="pointer-events-none absolute left-2.5 right-2.5 top-2.5 flex justify-between gap-1.5 sm:left-3 sm:right-3 sm:top-3">
-                  <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold sm:px-2.5 sm:py-1 sm:text-xs" style={{ color: "oklch(0.3 0.04 160)" }}>{s.kind}</span>
-                  {s.hours && <span className="hidden whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold text-white sm:inline-block" style={{ background: "oklch(0.15 0.03 200 / .55)", backdropFilter: "blur(6px)" }}>{s.hours}</span>}
+                  <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold sm:px-2.5 sm:py-1 sm:text-xs" style={{ color: "oklch(0.3 0.04 160)" }}>{tr(s.kind)}</span>
+                  {s.hours && <span className="hidden whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold text-white sm:inline-block" style={{ background: "oklch(0.15 0.03 200 / .55)", backdropFilter: "blur(6px)" }}>{tr(s.hours)}</span>}
                 </div>
               </div>
               <div className="flex flex-1 flex-col gap-1.5 p-3 pt-2.5 sm:gap-2 sm:p-5 sm:pt-[18px]">
                 <div className="flex justify-between gap-2 text-[11px] font-semibold text-gray-500 sm:text-[13px]">
-                  <span>{s.area}</span>
-                  {s.address && <span className="hidden truncate text-right sm:inline">{s.address}</span>}
+                  <span>{tr(s.area)}</span>
+                  {s.address && <span className="hidden truncate text-right sm:inline">{tr(s.address)}</span>}
                 </div>
-                <h3 className="line-clamp-2 text-[15px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink transition group-hover:text-forest-700 sm:line-clamp-none sm:text-[19px]">{s.name}</h3>
-                {s.desc && <p className="line-clamp-2 text-[13px] leading-[1.5] text-gray-600 sm:line-clamp-3 sm:text-sm sm:leading-[1.55]">{s.desc}</p>}
+                <h3 className="line-clamp-2 text-[15px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink transition group-hover:text-forest-700 sm:line-clamp-none sm:text-[19px]">{tr(s.name)}</h3>
+                {s.desc && <p className="line-clamp-2 text-[13px] leading-[1.5] text-gray-600 sm:line-clamp-3 sm:text-sm sm:leading-[1.55]">{tr(s.desc)}</p>}
                 {s.tags.length > 0 && (
                   <div className="mt-0.5 hidden flex-wrap gap-1.5 sm:flex">
                     {s.tags.map((t) => (
-                      <span key={t} className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: "oklch(0.95 0.025 155)", color: "oklch(0.36 0.08 155)" }}>{t}</span>
+                      <span key={t} className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold" style={{ background: "oklch(0.95 0.025 155)", color: "oklch(0.36 0.08 155)" }}>{tr(t)}</span>
                     ))}
                   </div>
                 )}
                 <div className="flex-1" />
                 <div className="mt-1 flex items-end justify-between gap-2 border-t border-[oklch(0.94_0.01_200)] pt-2.5 sm:mt-1.5 sm:gap-2.5 sm:pt-3">
                   <div className="min-w-0">
-                    <div className="text-[11px] text-gray-500 sm:text-xs">{s.price ? "Giá / người" : "Giá"}</div>
+                    <div className="text-[11px] text-gray-500 sm:text-xs">{s.price ? tr("Giá / người") : tr("Giá")}</div>
                     {s.price ? (
-                      <div className="text-[17px] font-extrabold leading-[1.2] tracking-[-0.02em] sm:text-[21px]" style={{ color: "oklch(0.34 0.07 160)" }}>{s.price}</div>
+                      <div className="text-[17px] font-extrabold leading-[1.2] tracking-[-0.02em] sm:text-[21px]" style={{ color: "oklch(0.34 0.07 160)" }}>{tr(s.price)}</div>
                     ) : (
-                      <div className="text-[13px] font-extrabold leading-[1.2] sm:text-[15px]" style={{ color: "oklch(0.42 0.1 250)" }}>Liên hệ giá</div>
+                      <div className="text-[13px] font-extrabold leading-[1.2] sm:text-[15px]" style={{ color: "oklch(0.42 0.1 250)" }}>{tr("Liên hệ giá")}</div>
                     )}
                   </div>
                   <div className="flex flex-none gap-1.5">
-                    <span className="whitespace-nowrap rounded-full px-3 py-2 text-xs font-bold text-white transition group-hover:bg-sunset-500 sm:px-4 sm:py-2.5 sm:text-sm" style={{ background: TH.G }}>Xem quán</span>
+                    <span className="whitespace-nowrap rounded-full px-3 py-2 text-xs font-bold text-white transition group-hover:bg-sunset-500 sm:px-4 sm:py-2.5 sm:text-sm" style={{ background: TH.G }}>{tr("Xem quán")}</span>
                   </div>
                 </div>
               </div>
@@ -486,22 +488,20 @@ export function RestaurantList({ items: all, initialArea = "" }: { items: Restau
         </div>
         {items.length === 0 && (
           <div className="rounded-[22px] border-[1.5px] border-dashed border-[oklch(0.85_0.02_200)] bg-white px-6 py-12 text-center text-[15px] text-gray-500">
-            Chưa có quán phù hợp. <SiteZaloLink className="font-bold text-forest-700">Nhắn Tà Xùa Booking qua Zalo</SiteZaloLink>, <We /> gợi ý quán theo lịch trình của bạn.
+            {tr("Chưa có quán phù hợp.")}{" "}<SiteZaloLink className="font-bold text-forest-700">{tr("Nhắn Tà Xùa Booking qua Zalo")}</SiteZaloLink>, <We />{" "}{tr("gợi ý quán theo lịch trình của bạn.")}
           </div>
         )}
 
         <div className="mt-2.5 rounded-[18px] border px-5 py-[18px] text-sm leading-relaxed" style={{ background: "oklch(0.95 0.025 155)", borderColor: "oklch(0.9 0.04 155)", color: "oklch(0.3 0.05 160)" }}>
-          <b>Lưu ý:</b> giá và giờ mở cửa do quán tự cập nhật, có thể đổi theo mùa; nên nhắn Zalo xác nhận trước khi tới. Cần gợi ý quán hợp lịch trình? Nhắn Tà Xùa Booking qua Zalo, <We /> tư vấn miễn phí kèm{" "}
-          <Link href="/homestay" className="font-bold underline underline-offset-2">đặt phòng</Link> và <Link href="/xe-cabin" className="font-bold underline underline-offset-2">vé xe cabin</Link>.
-          Tìm chỗ ngồi ngắm mây uống cà phê? Xem <Link href="/cafe" className="font-bold underline underline-offset-2">danh sách cafe Tà Xùa</Link>.
-          Chưa biết gọi món gì? Đọc <Link href="/kinh-nghiem/an-gi-o-ta-xua" className="font-bold underline underline-offset-2">món gì nên thử ở Tà Xùa</Link>.
+          <b>{tr("Lưu ý:")}</b>{" "}{tr("giá và giờ mở cửa do quán tự cập nhật, có thể đổi theo mùa; nên nhắn Zalo xác nhận trước khi tới. Cần gợi ý quán hợp lịch trình? Nhắn Tà Xùa Booking qua Zalo,")}{" "}<We />{" "}{tr("tư vấn miễn phí kèm")}{" "}
+          <Link href="/homestay" className="font-bold underline underline-offset-2">{tr("đặt phòng")}</Link>{" "}{tr("và")}{" "}<Link href="/xe-cabin" className="font-bold underline underline-offset-2">{tr("vé xe cabin")}</Link>{tr(". Tìm chỗ ngồi ngắm mây uống cà phê? Xem")}{" "}<Link href="/cafe" className="font-bold underline underline-offset-2">{tr("danh sách cafe Tà Xùa")}</Link>{tr(". Chưa biết gọi món gì? Đọc")}{" "}<Link href="/kinh-nghiem/an-gi-o-ta-xua" className="font-bold underline underline-offset-2">{tr("món gì nên thử ở Tà Xùa")}</Link>.
         </div>
 
         <div className="mt-3.5 flex flex-col gap-3 border-t border-[oklch(0.91_0.01_200)] pt-[22px]">
-          <div className="text-[15px] font-bold text-gray-500">Dịch vụ khác tại Tà Xùa</div>
+          <div className="text-[15px] font-bold text-gray-500">{tr("Dịch vụ khác tại Tà Xùa")}</div>
           <div className="flex flex-wrap gap-2">
-            {[["/xe-cabin", "Xe cabin đi Tà Xùa"], ["/homestay", "Homestay & Bungalow Tà Xùa"], ["/thue-xe-may", "Thuê xe máy Tà Xùa"], ["/taxi", "Taxi Tà Xùa"], ["/combo", "Combo du lịch Tà Xùa"]].map(([href, n]) => (
-              <Link key={href} href={href} className="whitespace-nowrap rounded-full border bg-white px-4 py-2.5 text-[15px] font-semibold transition hover:bg-forest-50" style={{ borderColor: "oklch(0.88 0.02 160)", color: "oklch(0.3 0.05 160)" }}>{n}</Link>
+            {[["/xe-cabin", tr("Xe cabin đi Tà Xùa")], ["/homestay", tr("Homestay & Bungalow Tà Xùa")], ["/thue-xe-may", tr("Thuê xe máy Tà Xùa")], ["/taxi", tr("Taxi Tà Xùa")], ["/combo", tr("Combo du lịch Tà Xùa")]].map(([href, n]) => (
+              <Link key={href} href={href} className="whitespace-nowrap rounded-full border bg-white px-4 py-2.5 text-[15px] font-semibold transition hover:bg-forest-50" style={{ borderColor: "oklch(0.88 0.02 160)", color: "oklch(0.3 0.05 160)" }}>{tr(n)}</Link>
             ))}
           </div>
         </div>

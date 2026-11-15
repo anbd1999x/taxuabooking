@@ -3,11 +3,13 @@
 import { wdDmy } from "@/lib/date-format";
 import { SitePhone } from "@/components/SiteContact";
 import { cabinSeatTotal } from "@/lib/combo-pricing";
-import Link from "next/link";
+import Link from "@/components/Link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DateField } from "@/components/DateField";
 import { useSearchNav } from "@/components/useSearchNav";
+import { useT } from "@/components/i18n/I18nProvider";
+import type { TFunc } from "@/lib/i18n/config";
 
 interface TripAvail {
   id: string;
@@ -60,9 +62,9 @@ function rnd(i: number, k: number) {
   const x = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453;
   return x - Math.floor(x);
 }
-function fmtD(ds: string) {
+function fmtD(ds: string, t?: TFunc) {
   if (!ds) return "";
-  return wdDmy(ds); // "T7, 05/12/2026"
+  return wdDmy(ds, t); // "T7, 05/12/2026"
 }
 
 export function CabinList({
@@ -82,6 +84,7 @@ export function CabinList({
   /** Số khách đã tìm (?pax=) — truyền tiếp sang trang đặt vé. */
   pax?: number;
 }) {
+  const tr = useT();
   const { pending: searching, go } = useSearchNav();
   const [w, setW] = useState(1280);
   // Mặc định KHỨ HỒI; chỉ giữ "Một chiều" khi khách đã tìm 1 chiều (có ngày đi, không ngày về).
@@ -262,9 +265,9 @@ export function CabinList({
   const round = trip === "round";
   const dateErr =
     round && di && ve && ve < di
-      ? "Ngày về phải sau hoặc trùng ngày đi."
+      ? tr("Ngày về phải sau hoặc trùng ngày đi.")
       : tried && round && di && !ve
-        ? "Chọn ngày về (hoặc chọn Một chiều)."
+        ? tr("Chọn ngày về (hoặc chọn Một chiều).")
         : "";
 
   function search() {
@@ -291,10 +294,10 @@ export function CabinList({
   }, [operators, sort]);
 
   const searched = Boolean(from || to);
-  const listTitle = from ? `Chuyến ${fmtD(from)}${round && to ? ` · về ${fmtD(to)}` : ""}` : "Nhà xe đi Tà Xùa";
+  const listTitle = from ? tr("Chuyến {0}{1}", [fmtD(from, tr), round && to ? tr(" · về {0}", [fmtD(to, tr)]) : ""]) : tr("Nhà xe đi Tà Xùa");
   const listSub = searched
-    ? `${operators.length} nhà xe${round ? " có khứ hồi" : ""} · đón tại ${pickup} → Tà Xùa · chọn nhà xe để đặt vé`
-    : `Đón tại ${pickup} → Tà Xùa. Chọn ngày đi (và ngày về nếu khứ hồi) để xem nhà xe còn chỗ.`;
+    ? tr("{0} nhà xe{1} · đón tại {2} → Tà Xùa · chọn nhà xe để đặt vé", [operators.length, round ? tr(" có khứ hồi") : "", pickup])
+    : tr("Đón tại {0} → Tà Xùa. Chọn ngày đi (và ngày về nếu khứ hồi) để xem nhà xe còn chỗ.", [pickup]);
 
   const cell = "flex min-w-0 flex-col gap-0.5 rounded-[14px] bg-[oklch(0.965_0.01_200)] px-3.5 py-2.5";
   const inp = "min-w-0 border-0 bg-transparent p-0 text-[15px] font-semibold text-ink outline-none";
@@ -337,7 +340,7 @@ export function CabinList({
         {/* biển "ĐÓN" */}
         <div ref={stopRef} className="pointer-events-none absolute bottom-[17%] left-0 z-[1] h-16 w-[26px] will-change-transform">
           <div className="absolute left-3 top-3.5 h-[50px] w-[3px]" style={{ background: "oklch(0.55 0.01 200)" }} />
-          <div className="absolute left-0 top-0 flex h-[18px] w-[26px] items-center justify-center rounded border-2 border-white text-[7px] font-black tracking-wide text-white" style={{ background: "oklch(0.45 0.1 160)" }}>ĐÓN</div>
+          <div className="absolute left-0 top-0 flex h-[18px] w-[26px] items-center justify-center rounded border-2 border-white text-[7px] font-black tracking-wide text-white" style={{ background: "oklch(0.45 0.1 160)" }}>{tr("ĐÓN")}</div>
         </div>
         {/* khói phanh gấp */}
         {Array.from({ length: 10 }, (_, i) => (
@@ -371,11 +374,11 @@ export function CabinList({
 
         <div ref={heroTextRef} className="container-page relative z-[3] text-white will-change-transform" style={{ paddingTop: w < 640 ? 64 : 92 }}>
           <div data-in="0" className="flex gap-2 text-sm opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease, transform .9s cubic-bezier(.2,.7,.2,1)", color: "oklch(0.9 0.02 220)" }}>
-            <Link href="/" className="!text-[oklch(0.9_0.02_220)] hover:!text-white">Trang chủ</Link><span>/</span><span className="font-bold text-white">Xe cabin</span>
+            <Link href="/" className="!text-[oklch(0.9_0.02_220)] hover:!text-white">{tr("Trang chủ")}</Link><span>/</span><span className="font-bold text-white">Xe cabin</span>
           </div>
-          <h1 data-in="1" className="mt-4 text-[13px] font-bold uppercase tracking-[0.14em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .1s, transform .9s cubic-bezier(.2,.7,.2,1) .1s", color: "oklch(0.88 0.12 80)" }}>Xe cabin Hà Nội – Tà Xùa · giá vé & chỗ trống theo ngày</h1>
-          <p data-in="2" className="mt-3.5 max-w-[760px] text-[clamp(32px,6vw,60px)] font-extrabold leading-[1.02] tracking-[-0.035em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .2s, transform .9s cubic-bezier(.2,.7,.2,1) .2s", textShadow: "0 2px 24px oklch(0.2 0.05 260 / .4)" }}>Ngủ một giấc trên xe, mở mắt là biển mây</p>
-          <p data-in="3" className="mt-3.5 max-w-[520px] text-[clamp(15px,1.7vw,18px)] leading-[1.5] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .3s, transform .9s cubic-bezier(.2,.7,.2,1) .3s", color: "oklch(0.97 0.02 80)" }}>Xe cabin giường nằm Hà Nội ⇄ Tà Xùa, chạy đêm, có trung chuyển lên đỉnh. Chọn ngày để xem nhà xe còn chỗ.</p>
+          <h1 data-in="1" className="mt-4 text-[13px] font-bold uppercase tracking-[0.14em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .1s, transform .9s cubic-bezier(.2,.7,.2,1) .1s", color: "oklch(0.88 0.12 80)" }}>{tr("Xe cabin Hà Nội – Tà Xùa · giá vé & chỗ trống theo ngày")}</h1>
+          <p data-in="2" className="mt-3.5 max-w-[760px] text-[clamp(32px,6vw,60px)] font-extrabold leading-[1.02] tracking-[-0.035em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .2s, transform .9s cubic-bezier(.2,.7,.2,1) .2s", textShadow: "0 2px 24px oklch(0.2 0.05 260 / .4)" }}>{tr("Ngủ một giấc trên xe, mở mắt là biển mây")}</p>
+          <p data-in="3" className="mt-3.5 max-w-[520px] text-[clamp(15px,1.7vw,18px)] leading-[1.5] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .3s, transform .9s cubic-bezier(.2,.7,.2,1) .3s", color: "oklch(0.97 0.02 80)" }}>{tr("Xe cabin giường nằm Hà Nội ⇄ Tà Xùa, chạy đêm, có trung chuyển lên đỉnh. Chọn ngày để xem nhà xe còn chỗ.")}</p>
         </div>
       </section>
 
@@ -383,38 +386,38 @@ export function CabinList({
       <div data-in="4" className="container-page relative z-[4] -mt-[70px] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .4s, transform .9s cubic-bezier(.2,.7,.2,1) .4s" }}>
         <div className="flex flex-col gap-2 rounded-[22px] border border-white/80 p-2.5 shadow-[0_24px_60px_-24px_oklch(0.25_0.06_220_/.45)]" style={{ background: "oklch(1 0 0 / .9)", backdropFilter: "blur(14px)" }}>
           <div className="flex gap-1 p-0.5">
-            {([["round", "Khứ hồi"], ["one", "Một chiều"]] as const).map(([k, n]) => (
-              <button key={k} type="button" onClick={() => setTrip(k)} className="rounded-full px-3.5 py-2 text-sm font-bold transition" style={{ background: trip === k ? TH.G : "oklch(0.95 0.01 200)", color: trip === k ? "white" : "oklch(0.35 0.02 160)" }}>{n}</button>
+            {([["round", tr("Khứ hồi")], ["one", tr("Một chiều")]] as const).map(([k, n]) => (
+              <button key={k} type="button" onClick={() => setTrip(k)} className="rounded-full px-3.5 py-2 text-sm font-bold transition" style={{ background: trip === k ? TH.G : "oklch(0.95 0.01 200)", color: trip === k ? "white" : "oklch(0.35 0.02 160)" }}>{tr(n)}</button>
             ))}
           </div>
           <div className="grid gap-1.5" style={{ gridTemplateColumns: wide ? (round ? "1.1fr 1fr 1fr 150px auto" : "1.1fr 1fr 150px auto") : "repeat(auto-fit,minmax(min(100%,150px),1fr))" }}>
             <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Điểm đón</span>
+              <span className="text-xs font-semibold text-gray-500">{tr("Điểm đón")}</span>
               <select value={pickup} onChange={(e) => setPickup(e.target.value)} className={inp}>
-                {fromOpts.map((f) => <option key={f} value={f}>{f}</option>)}
+                {fromOpts.map((f) => <option key={f} value={f}>{tr(f)}</option>)}
               </select>
             </label>
             <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Ngày đi</span>
-              <DateField value={di} onChange={setDi} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Ngày đi" />
+              <span className="text-xs font-semibold text-gray-500">{tr("Ngày đi")}</span>
+              <DateField value={di} onChange={setDi} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel={tr("Ngày đi")} />
             </label>
             {round && (
               <label className={cell}>
-                <span className="text-xs font-semibold text-gray-500">Ngày về</span>
-                <DateField value={ve} min={di || undefined} onChange={setVe} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Ngày về" />
+                <span className="text-xs font-semibold text-gray-500">{tr("Ngày về")}</span>
+                <DateField value={ve} min={di || undefined} onChange={setVe} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel={tr("Ngày về")} />
               </label>
             )}
             <div className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Số khách</span>
+              <span className="text-xs font-semibold text-gray-500">{tr("Số khách")}</span>
               <div className="flex items-center gap-2.5 pt-0.5">
                 <button type="button" onClick={() => setPax((p) => Math.max(1, p - 1))} className="flex h-7 w-7 items-center justify-center rounded-lg bg-white font-bold">−</button>
                 <span className="min-w-[14px] text-center text-[15px] font-extrabold">{pax}</span>
                 <button type="button" onClick={() => setPax((p) => Math.min(20, p + 1))} className="flex h-7 w-7 items-center justify-center rounded-lg bg-white font-bold">+</button>
               </div>
             </div>
-            <button type="button" onClick={search} disabled={searching} className="flex items-center justify-center gap-2 whitespace-nowrap rounded-[14px] px-6 py-3.5 text-base font-extrabold text-white transition hover:bg-sunset-500 disabled:cursor-wait disabled:opacity-80" style={{ background: "oklch(0.68 0.18 45)" }}>Tìm vé →</button>
+            <button type="button" onClick={search} disabled={searching} className="flex items-center justify-center gap-2 whitespace-nowrap rounded-[14px] px-6 py-3.5 text-base font-extrabold text-white transition hover:bg-sunset-500 disabled:cursor-wait disabled:opacity-80" style={{ background: "oklch(0.68 0.18 45)" }}>{tr("Tìm vé →")}</button>
           </div>
-          {dateErr && <div className="px-1.5 pb-1 text-[13px] font-semibold text-red-600">{dateErr}</div>}
+          {dateErr && <div className="px-1.5 pb-1 text-[13px] font-semibold text-red-600">{tr(dateErr)}</div>}
         </div>
       </div>
 
@@ -422,13 +425,13 @@ export function CabinList({
       <main ref={listRef} className="container-page flex flex-col gap-[18px] pb-14 pt-9">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <div className="text-[clamp(22px,2.6vw,28px)] font-extrabold tracking-[-0.02em] text-ink">{listTitle}</div>
-            <div className="mt-1 text-sm text-gray-500">{listSub}</div>
+            <div className="text-[clamp(22px,2.6vw,28px)] font-extrabold tracking-[-0.02em] text-ink">{tr(listTitle)}</div>
+            <div className="mt-1 text-sm text-gray-500">{tr(listSub)}</div>
           </div>
           {operators.length > 0 && (
             <div className="inline-flex gap-1 rounded-xl bg-[oklch(0.93_0.01_200)] p-1">
-              {([["time", "Giờ đi sớm"], ["price", "Giá thấp"]] as const).map(([k, n]) => (
-                <button key={k} type="button" onClick={() => setSort(k)} className="rounded-[9px] px-3 py-1.5 text-[13px] font-bold transition" style={{ background: sort === k ? "white" : "transparent", color: sort === k ? TH.G : "oklch(0.42 0.02 160)", boxShadow: sort === k ? "0 1px 3px oklch(0.2 0.03 160 / .15)" : "none" }}>{n}</button>
+              {([["time", tr("Giờ đi sớm")], ["price", tr("Giá thấp")]] as const).map(([k, n]) => (
+                <button key={k} type="button" onClick={() => setSort(k)} className="rounded-[9px] px-3 py-1.5 text-[13px] font-bold transition" style={{ background: sort === k ? "white" : "transparent", color: sort === k ? TH.G : "oklch(0.42 0.02 160)", boxShadow: sort === k ? "0 1px 3px oklch(0.2 0.03 160 / .15)" : "none" }}>{tr(n)}</button>
               ))}
             </div>
           )}
@@ -436,8 +439,8 @@ export function CabinList({
 
         {operators.length === 0 ? (
           <div className="rounded-[22px] border border-dashed border-[oklch(0.85_0.02_200)] bg-white py-14 text-center">
-            <div className="text-[19px] font-extrabold text-ink">{searched ? "Không có nhà xe phù hợp" : "Chưa có nhà xe cabin"}</div>
-            <div className="mt-1 text-[15px] text-gray-500">{searched ? <>Thử đổi ngày, hoặc gọi <SitePhone /> để được hỗ trợ.</> : "Vui lòng quay lại sau."}</div>
+            <div className="text-[19px] font-extrabold text-ink">{searched ? tr("Không có nhà xe phù hợp") : tr("Chưa có nhà xe cabin")}</div>
+            <div className="mt-1 text-[15px] text-gray-500">{searched ? <>{tr("Thử đổi ngày, hoặc gọi")}{" "}<SitePhone />{" "}{tr("để được hỗ trợ.")}</> : tr("Vui lòng quay lại sau.")}</div>
           </div>
         ) : (
           // Thẻ nhà xe chứa sơ đồ tuyến + nút đặt → mobile để 1 cột (2 cột bị vỡ chữ).
@@ -449,9 +452,9 @@ export function CabinList({
               const tail = (() => { const p = new URLSearchParams(); if (from) p.set("from", from); if (to) p.set("to", to); if (pickup && pickup !== "Hà Nội") p.set("pickup", pickup); p.set("pax", String(pax)); const s = p.toString(); return s ? `?${s}` : ""; })();
               const amen: string[] = [];
               const anyTrip = op.outbound ?? op.ret;
-              if (anyTrip) amen.push("Cabin đôi · nằm ghép", "Cabin đơn · nằm riêng ×2");
-              if (op.ret) amen.push("Khứ hồi");
-              const cta = op.contactOnly ? "💬 Nhắn Zalo →" : !searched ? "Xem chuyến →" : full ? "Chọn ngày khác →" : op.state === "unk" ? "Gửi yêu cầu →" : "Xem & đặt vé →";
+              if (anyTrip) amen.push(tr("Cabin đôi · nằm ghép"), tr("Cabin đơn · nằm riêng ×2"));
+              if (op.ret) amen.push(tr("Khứ hồi"));
+              const cta = op.contactOnly ? tr("💬 Nhắn Zalo →") : !searched ? tr("Xem chuyến →") : full ? tr("Chọn ngày khác →") : op.state === "unk" ? tr("Gửi yêu cầu →") : tr("Xem & đặt vé →");
               return (
                 <Link
                   key={op.id}
@@ -462,29 +465,29 @@ export function CabinList({
                 >
                   <div className="relative aspect-[16/10] overflow-hidden bg-gray-100">
                     {op.coverImage ? (
-                      <Image src={op.coverImage} alt={op.title} fill sizes="(max-width:640px) 100vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" />
+                      <Image src={op.coverImage} alt={tr(op.title)} fill sizes="(max-width:640px) 100vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" />
                     ) : (
                       <div className="flex h-full items-center justify-center text-4xl">🚐</div>
                     )}
                     <div className="pointer-events-none absolute left-3 right-3 top-3 flex items-start justify-between gap-1.5">
-                      {op.ret ? <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[oklch(0.3_0.04_160)]">Có khứ hồi</span> : <span />}
+                      {op.ret ? <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[oklch(0.3_0.04_160)]">{tr("Có khứ hồi")}</span> : <span />}
                       {op.contactOnly ? (
-                        <span className="whitespace-nowrap rounded-full bg-sunset-500 px-2.5 py-1 text-xs font-bold text-white">💬 Nhắn tin đặt chỗ</span>
-                      ) : searched && <span className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: sm.bg, color: sm.fg }}>{sm.text}</span>}
+                        <span className="whitespace-nowrap rounded-full bg-sunset-500 px-2.5 py-1 text-xs font-bold text-white">{tr("💬 Nhắn tin đặt chỗ")}</span>
+                      ) : searched && <span className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: sm.bg, color: sm.fg }}>{tr(sm.text)}</span>}
                     </div>
                   </div>
                   <div className="flex flex-1 flex-col gap-2 p-3 sm:gap-3 sm:p-5 sm:pt-[18px]">
                     <div>
-                      <div className="line-clamp-1 text-[15px] font-extrabold leading-[1.3] tracking-[-0.015em] text-ink sm:text-[18px]">{op.title}</div>
-                      <div className="mt-[2px] line-clamp-1 text-[12px] font-semibold text-gray-500 sm:mt-[3px] sm:text-[13px]">{op.area ?? (anyTrip ? `${anyTrip.pickupPoint} → ${anyTrip.dropoffPoint}` : "Hà Nội → Tà Xùa")}</div>
+                      <div className="line-clamp-1 text-[15px] font-extrabold leading-[1.3] tracking-[-0.015em] text-ink sm:text-[18px]">{tr(op.title)}</div>
+                      <div className="mt-[2px] line-clamp-1 text-[12px] font-semibold text-gray-500 sm:mt-[3px] sm:text-[13px]">{tr(op.area) ?? (anyTrip ? `${tr(anyTrip.pickupPoint)} → ${tr(anyTrip.dropoffPoint)}` : tr("Hà Nội → Tà Xùa"))}</div>
                     </div>
                     <div className="grid items-center gap-2 rounded-[14px] bg-[oklch(0.97_0.008_200)] px-2.5 py-2 sm:gap-3 sm:px-3.5 sm:py-3" style={{ gridTemplateColumns: "auto minmax(0,1fr) auto" }}>
                       <div>
-                        <div className="text-[16px] font-extrabold leading-none tracking-[-0.02em] sm:text-[22px]">{op.outbound?.departureTime ?? "—"}</div>
-                        <div className="mt-[2px] truncate text-[11px] text-gray-500 sm:mt-[3px] sm:text-xs">{op.outbound?.pickupPoint ?? "Hà Nội"}</div>
+                        <div className="text-[16px] font-extrabold leading-none tracking-[-0.02em] sm:text-[22px]">{tr(op.outbound?.departureTime) ?? "—"}</div>
+                        <div className="mt-[2px] truncate text-[11px] text-gray-500 sm:mt-[3px] sm:text-xs">{tr(op.outbound?.pickupPoint) ?? tr("Hà Nội")}</div>
                       </div>
                       <div className="flex flex-col items-center gap-1">
-                        <div className="whitespace-nowrap text-[10px] font-bold text-gray-500 sm:text-[11px]">Xe đêm</div>
+                        <div className="whitespace-nowrap text-[10px] font-bold text-gray-500 sm:text-[11px]">{tr("Xe đêm")}</div>
                         <div className="flex w-full items-center gap-1">
                           <span className="h-2 w-2 flex-none rounded-full border-2" style={{ borderColor: TH.G }} />
                           <span className="h-[2px] flex-1" style={{ background: "repeating-linear-gradient(90deg, oklch(0.75 0.02 200) 0 5px, transparent 5px 9px)" }} />
@@ -492,46 +495,46 @@ export function CabinList({
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="text-[16px] font-extrabold leading-none tracking-[-0.02em] sm:text-[22px]">Tà Xùa</div>
-                        <div className="mt-[2px] text-[11px] text-gray-500 sm:mt-[3px] sm:text-xs">{op.outbound?.dropoffPoint ?? "Trung tâm"}</div>
+                        <div className="text-[16px] font-extrabold leading-none tracking-[-0.02em] sm:text-[22px]">{tr("Tà Xùa")}</div>
+                        <div className="mt-[2px] text-[11px] text-gray-500 sm:mt-[3px] sm:text-xs">{tr(op.outbound?.dropoffPoint) ?? tr("Trung tâm")}</div>
                       </div>
                     </div>
                     {amen.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
                         {amen.map((a, i) => (
-                          <span key={i} className="whitespace-nowrap rounded-full bg-[oklch(0.95_0.025_155)] px-2.5 py-1 text-xs font-semibold" style={{ color: "oklch(0.36 0.08 155)" }}>{a}</span>
+                          <span key={i} className="whitespace-nowrap rounded-full bg-[oklch(0.95_0.025_155)] px-2.5 py-1 text-xs font-semibold" style={{ color: "oklch(0.36 0.08 155)" }}>{tr(a)}</span>
                         ))}
                       </div>
                     )}
                     {round && op.ret && (
                       <div className="flex items-center justify-between gap-2 rounded-xl border border-dashed border-[oklch(0.85_0.02_200)] px-3 py-2.5 text-[13px]">
-                        <span><b>Chiều về {op.ret.departureTime}</b>{to ? ` · ${fmtD(to)}` : ""}</span>
+                        <span><b>{tr("Chiều về {0}", [tr(op.ret.departureTime)])}</b>{to ? ` · ${fmtD(to, tr)}` : ""}</span>
                       </div>
                     )}
                     <div className="flex-1" />
                     <div className="flex items-end justify-between gap-2 border-t border-[oklch(0.94_0.01_200)] pt-2 sm:gap-2.5 sm:pt-3">
                       <div>
-                        <div className="text-[11px] text-gray-500 sm:text-xs">{!searched ? "Vé khứ hồi/khách · chỉ từ" : op.ret != null || op.contactOnly ? "Vé khứ hồi/khách (nằm ghép)" : "Vé 1 chiều/khách (nằm ghép)"}</div>
+                        <div className="text-[11px] text-gray-500 sm:text-xs">{!searched ? tr("Vé khứ hồi/khách · chỉ từ") : op.ret != null || op.contactOnly ? tr("Vé khứ hồi/khách (nằm ghép)") : tr("Vé 1 chiều/khách (nằm ghép)")}</div>
                         {unit != null ? (
                           <>
-                            <div className="text-[18px] font-extrabold tracking-[-0.02em] sm:text-[22px]" style={{ color: "oklch(0.6 0.18 45)" }}>{vnd(unit)}</div>
+                            <div className="text-[18px] font-extrabold tracking-[-0.02em] sm:text-[22px]" style={{ color: "oklch(0.6 0.18 45)" }}>{tr(vnd(unit))}</div>
                             {op.contactOnly ? (
-                              <div className="text-xs font-semibold text-gray-500">Giá tham khảo · nhắn Zalo để kiểm tra chỗ & giữ vé</div>
+                              <div className="text-xs font-semibold text-gray-500">{tr("Giá tham khảo · nhắn Zalo để kiểm tra chỗ & giữ vé")}</div>
                             ) : !full && (
                               <div className="text-xs font-semibold text-gray-500">
-                                {pax} khách nằm ghép · tạm tính <b className="text-ink">{vnd(cabinSeatTotal(unit, pax, 0))}</b>
-                                <div className="font-normal">Cabin đôi: 2 người 1 buồng · Cabin đơn: 1 người 1 buồng ({vnd(2 * unit)})</div>
+                                {pax}{" "}{tr("khách nằm ghép · tạm tính")}{" "}<b className="text-ink">{tr(vnd(cabinSeatTotal(unit, pax, 0)))}</b>
+                                <div className="font-normal">{tr("Cabin đôi: 2 người 1 buồng · Cabin đơn: 1 người 1 buồng ({0})", [tr(vnd(2 * unit))])}</div>
                               </div>
                             )}
                           </>
                         ) : (
                           <div className="text-[15px] font-bold text-gray-500">
                             {/* Tìm 1 chiều mà nhà xe chỉ khai giá khứ hồi ⇒ mời nhắn Zalo (trang đặt vé cũng báo như vậy). */}
-                            {searched && !to && !op.contactOnly ? "Vé 1 chiều: Nhắn Zalo" : "Liên hệ xác nhận giá"}
+                            {searched && !to && !op.contactOnly ? tr("Vé 1 chiều: Nhắn Zalo") : tr("Liên hệ xác nhận giá")}
                           </div>
                         )}
                       </div>
-                      <span className="whitespace-nowrap rounded-full px-4 py-2.5 text-sm font-bold text-white transition group-hover:bg-sunset-500" style={{ background: full ? "oklch(0.6 0.01 160)" : TH.G }}>{cta}</span>
+                      <span className="whitespace-nowrap rounded-full px-4 py-2.5 text-sm font-bold text-white transition group-hover:bg-sunset-500" style={{ background: full ? "oklch(0.6 0.01 160)" : TH.G }}>{tr(cta)}</span>
                     </div>
                   </div>
                 </Link>
@@ -542,10 +545,10 @@ export function CabinList({
 
         {/* dịch vụ khác */}
         <div className="mt-6 flex flex-col gap-3 border-t border-[oklch(0.91_0.01_200)] pt-6">
-          <div className="text-[15px] font-bold text-gray-500">Dịch vụ khác tại Tà Xùa</div>
+          <div className="text-[15px] font-bold text-gray-500">{tr("Dịch vụ khác tại Tà Xùa")}</div>
           <div className="flex flex-wrap gap-2">
-            {[["/homestay", "Homestay & Bungalow"], ["/thue-xe-may", "Thuê xe máy"], ["/xe-om", "Xe ôm"], ["/taxi", "Taxi"], ["/combo", "Combo du lịch"]].map(([href, label]) => (
-              <Link key={href} href={href} className="whitespace-nowrap rounded-full border border-[oklch(0.88_0.02_160)] bg-white px-4 py-2.5 text-[15px] font-semibold text-[oklch(0.3_0.05_160)]">{label}</Link>
+            {[["/homestay", "Homestay & Bungalow"], ["/thue-xe-may", tr("Thuê xe máy")], ["/xe-om", tr("Xe ôm")], ["/taxi", "Taxi"], ["/combo", tr("Combo du lịch")]].map(([href, label]) => (
+              <Link key={href} href={href} className="whitespace-nowrap rounded-full border border-[oklch(0.88_0.02_160)] bg-white px-4 py-2.5 text-[15px] font-semibold text-[oklch(0.3_0.05_160)]">{tr(label)}</Link>
             ))}
           </div>
         </div>

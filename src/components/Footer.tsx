@@ -1,9 +1,11 @@
-import Link from "next/link";
+import Link from "@/components/Link";
 import { CATEGORY_LIST } from "@/lib/constants";
 import { SITE } from "@/lib/site";
 import { formatPhone, parseTrustPopup, TRUST_POPUP_KEY } from "@/lib/trust-popup";
+import { getT } from "@/lib/i18n/server";
 
-export function Footer({ settings }: { settings: Record<string, string> }) {
+export async function Footer({ settings }: { settings: Record<string, string> }) {
+  const t = await getT();
   const phone = settings.contactPhone || SITE.defaultPhone;
   const email = SITE.email;
   // Thông tin pháp lý (SiteSettings: legalName, taxCode) — có thì mới hiện.
@@ -15,7 +17,7 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
   const [facebook, facebook2] = parseTrustPopup(settings[TRUST_POPUP_KEY])
     .people.map((p, i) => (p.hidden ? "" : (/facebook\.com\/.+/.test(p.facebook) ? p.facebook : FB_DEFAULT[i])))
     .filter(Boolean);
-  const address = settings.contactAddress || "Tà Xùa, Bắc Yên, Sơn La";
+  const address = t(settings.contactAddress || "Tà Xùa, Bắc Yên, Sơn La");
 
   return (
     <footer className="mt-16 bg-forest-900 text-forest-100">
@@ -25,18 +27,18 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white font-bold text-forest-800">
               TX
             </span>
-            <span className="text-lg font-extrabold text-white">Tà Xùa Booking</span>
+            <span className="text-lg font-extrabold text-white">{t("Tà Xùa Booking")}</span>
           </div>
-          <p className="mt-3 text-sm text-forest-200">{SITE.description}</p>
+          <p className="mt-3 text-sm text-forest-200">{t(SITE.description)}</p>
         </div>
 
         <div>
-          <h4 className="font-semibold text-white">Dịch vụ</h4>
+          <h4 className="font-semibold text-white">{t("Dịch vụ")}</h4>
           <ul className="mt-3 space-y-2 text-sm">
             {CATEGORY_LIST.map((c) => (
               <li key={c.slug}>
                 <Link href={`/${c.slug}`} className="hover:text-white">
-                  {c.label}
+                  {t(c.label)}
                 </Link>
               </li>
             ))}
@@ -44,11 +46,11 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
         </div>
 
         <div>
-          <h4 className="font-semibold text-white">Liên hệ</h4>
+          <h4 className="font-semibold text-white">{t("Liên hệ")}</h4>
           <ul className="mt-3 space-y-2 text-sm text-forest-200">
             <li>📞 {formatPhone(phone)}</li>
-            <li>🕗 Giờ hoạt động: {SITE.supportHours}</li>
-            {email && <li>✉️ {email}</li>}
+            <li>{t("🕗 Giờ hoạt động: {0}", [t(SITE.supportHours)])}</li>
+            {email && <li>✉️ {t(email)}</li>}
             {facebook && (
               <li>
                 <a href={facebook} target="_blank" rel="noopener noreferrer" className="hover:text-white">
@@ -63,22 +65,22 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
                 </a>
               </li>
             )}
-            <li>📍 Khu vực hoạt động: {address}</li>
+            <li>{t("📍 Khu vực hoạt động: {0}", [t(address)])}</li>
           </ul>
         </div>
 
         <div>
-          <h4 className="font-semibold text-white">Khám phá</h4>
+          <h4 className="font-semibold text-white">{t("Khám phá")}</h4>
           <ul className="mt-3 space-y-2 text-sm">
-            <li><Link href="/huong-dan" className="hover:text-white">Hướng dẫn đặt dịch vụ</Link></li>
-            <li><Link href="/tra-cuu" className="hover:text-white">Tra cứu đơn đặt</Link></li>
-            <li><Link href="/lich-trinh" className="hover:text-white">Lịch trình Tà Xùa</Link></li>
-            <li><Link href="/ban-do" className="hover:text-white">Bản đồ check-in</Link></li>
-            <li><Link href="/kinh-nghiem" className="hover:text-white">Kinh nghiệm du lịch</Link></li>
-            <li><Link href="/gioi-thieu" className="hover:text-white">Giới thiệu</Link></li>
-            <li><Link href="/lien-he"className="hover:text-white">Thông tin liên hệ</Link></li>
-            <li><Link href="/chinh-sach-bao-mat" className="hover:text-white">Chính sách bảo mật</Link></li>
-            <li><Link href="/cam-ket/dieu-khoan" className="hover:text-white">Điều khoản & hoàn tiền</Link></li>
+            <li><Link href="/huong-dan" className="hover:text-white">{t("Hướng dẫn đặt dịch vụ")}</Link></li>
+            <li><Link href="/tra-cuu" className="hover:text-white">{t("Tra cứu đơn đặt")}</Link></li>
+            <li><Link href="/lich-trinh" className="hover:text-white">{t("Lịch trình Tà Xùa")}</Link></li>
+            <li><Link href="/ban-do" className="hover:text-white">{t("Bản đồ check-in")}</Link></li>
+            <li><Link href="/kinh-nghiem" className="hover:text-white">{t("Kinh nghiệm du lịch")}</Link></li>
+            <li><Link href="/gioi-thieu" className="hover:text-white">{t("Giới thiệu")}</Link></li>
+            <li><Link href="/lien-he"className="hover:text-white">{t("Thông tin liên hệ")}</Link></li>
+            <li><Link href="/chinh-sach-bao-mat" className="hover:text-white">{t("Chính sách bảo mật")}</Link></li>
+            <li><Link href="/cam-ket/dieu-khoan" className="hover:text-white">{t("Điều khoản & hoàn tiền")}</Link></li>
           </ul>
         </div>
       </div>
@@ -86,19 +88,18 @@ export function Footer({ settings }: { settings: Record<string, string> }) {
       <div className="border-t border-white/10 py-5 text-center text-xs leading-relaxed text-forest-300">
         <div className="container-page">
           <p>
-            Tà Xùa Booking là đơn vị trung gian đặt dịch vụ du lịch tại Tà Xùa. Homestay, nhà xe và các dịch vụ
-            trên website do chính chủ cơ sở sở hữu và vận hành; tên, hình ảnh thuộc về các cơ sở đó.
+            {t("Tà Xùa Booking là đơn vị trung gian đặt dịch vụ du lịch tại Tà Xùa. Homestay, nhà xe và các dịch vụ trên website do chính chủ cơ sở sở hữu và vận hành; tên, hình ảnh thuộc về các cơ sở đó.")}
           </p>
           {(legalName || taxCode) && (
             <p className="mt-1">
-              {legalName}
+              {t(legalName)}
               {legalName && taxCode ? " · " : ""}
-              {taxCode && <>MST: {taxCode}</>}
-              {" · Địa chỉ đăng ký: "}
-              {legalAddress}
+              {taxCode && <>MST: {t(taxCode)}</>}
+              {t(" · Địa chỉ đăng ký: ")}
+              {t(legalAddress)}
             </p>
           )}
-          <p className="mt-1">© {new Date().getFullYear()} Tà Xùa Booking. Dịch vụ du lịch Tà Xùa.</p>
+          <p className="mt-1">{t("© {0} Tà Xùa Booking. Dịch vụ du lịch Tà Xùa.", [new Date().getFullYear()])}</p>
         </div>
       </div>
     </footer>

@@ -4,6 +4,8 @@ import { Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 import { SITE } from "@/lib/site";
 import { ogImages } from "@/lib/og";
+import { getLocale, getT } from "@/lib/i18n/server";
+import { LOCALE_META } from "@/lib/i18n/config";
 
 const beVietnam = Be_Vietnam_Pro({
   variable: "--font-be-vietnam",
@@ -15,13 +17,15 @@ const beVietnam = Be_Vietnam_Pro({
 /** Mã vùng chứa thẻ Google (Google Ads cấp). Để chuỗi rỗng = tắt. */
 const GOOGLE_TAG_ID = "GTM-T89KS5CM";
 
-export const metadata: Metadata = {
+export async function generateMetadata(): Promise<Metadata> {
+  const [t, locale] = await Promise.all([getT(), getLocale()]);
+  return {
   metadataBase: new URL(SITE.url),
   title: {
-    default: `${SITE.name} — Đặt xe cabin, homestay, tour Tà Xùa`,
+    default: `${SITE.name} — ${t("Đặt xe cabin, homestay, tour Tà Xùa")}`,
     template: `%s | ${SITE.name}`,
   },
-  description: SITE.description,
+  description: t(SITE.description),
   keywords: [
     "Tà Xùa",
     "xe cabin Tà Xùa",
@@ -34,21 +38,22 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     type: "website",
-    locale: "vi_VN",
+    locale: LOCALE_META[locale].og,
     siteName: SITE.name,
-    title: `${SITE.name} - Đặt xe - Đặt phòng Tà Xùa chỉ với một chạm`,
-    description: SITE.description,
-    images: ogImages(),
+    title: `${SITE.name} - ${t("Đặt xe - Đặt phòng Tà Xùa chỉ với một chạm")}`,
+    description: t(SITE.description),
+    images: ogImages(undefined, t("Biển mây Tà Xùa")),
   },
   robots: { index: true, follow: true },
   // Mã xác minh Google Search Console (đặt GOOGLE_SITE_VERIFICATION trong .env server).
   verification: process.env.GOOGLE_SITE_VERIFICATION
     ? { google: process.env.GOOGLE_SITE_VERIFICATION }
     : undefined,
-};
+  };
+}
 
 // Dữ liệu có cấu trúc (JSON-LD) cho Google: doanh nghiệp du lịch + website.
-const jsonLd = (phone: string) => ({
+const jsonLd = (phone: string, lang: string) => ({
   "@context": "https://schema.org",
   "@graph": [
     {
@@ -71,7 +76,7 @@ const jsonLd = (phone: string) => ({
       "@id": `${SITE.url}/#website`,
       name: SITE.name,
       url: SITE.url,
-      inLanguage: "vi",
+      inLanguage: lang,
       publisher: { "@id": `${SITE.url}/#organization` },
     },
   ],
@@ -80,8 +85,9 @@ const jsonLd = (phone: string) => ({
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   // SĐT chung toàn web (theo chủ sở hữu được chọn ở /admin/popup); DB lỗi thì dùng số mặc định.
   const phone = (await getSettings().catch(() => ({}) as Record<string, string>)).contactPhone || SITE.defaultPhone;
+  const lang = LOCALE_META[await getLocale()].htmlLang;
   return (
-    <html lang="vi" className={`${beVietnam.variable} h-full`}>
+    <html lang={lang} className={`${beVietnam.variable} h-full`}>
       <head>
         {/* Thẻ Google (Google Ads — đo lượt chuyển đổi), vùng chứa GTM-T89KS5CM. Chỉ nạp ở bản
             production để lúc dev không bắn dữ liệu đo lường. Mỗi trang chỉ 1 thẻ Google. */}
@@ -97,7 +103,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         )}
       </head>
       <body className="min-h-full flex flex-col bg-cloud text-ink">
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd(phone)) }} />
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd(phone, lang)) }} />
         {children}
       </body>
     </html>

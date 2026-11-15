@@ -11,6 +11,20 @@ import { getCustomer } from "@/lib/customer";
 import { parseTrustPopup, TRUST_POPUP_KEY, visiblePeople } from "@/lib/trust-popup";
 import { SiteContactProvider } from "@/components/SiteContact";
 import { SITE } from "@/lib/site";
+import { getContentMap, getLocale } from "@/lib/i18n/server";
+import { I18nProvider } from "@/components/i18n/I18nProvider";
+import { I18nLocaleEn } from "@/components/i18n/I18nLocaleEn";
+import { I18nLocaleZh } from "@/components/i18n/I18nLocaleZh";
+import { I18nLocaleKo } from "@/components/i18n/I18nLocaleKo";
+
+/** Provider ngôn ngữ cho Client Component: mỗi ngôn ngữ 1 chunk từ điển riêng (tiếng Việt không tải gì thêm). */
+async function LocaleProvider({ children }: { children: React.ReactNode }) {
+  const locale = await getLocale();
+  if (locale === "vi") return <I18nProvider locale="vi" dict={{}}>{children}</I18nProvider>;
+  const content = await getContentMap(locale);
+  const P = locale === "en" ? I18nLocaleEn : locale === "zh" ? I18nLocaleZh : I18nLocaleKo;
+  return <P content={content}>{children}</P>;
+}
 
 export default async function SiteLayout({
   children,
@@ -22,6 +36,7 @@ export default async function SiteLayout({
   const trustPopup = { ...trustConfig, people: visiblePeople(trustConfig) }; // người bị ẩn không hiện ở popup
 
   return (
+    <LocaleProvider>
     <SiteContactProvider phone={settings.contactPhone || SITE.defaultPhone} solo={trustPopup.people.length === 1}>
       <VisitTracker />
       <TrustPopup config={trustPopup} />
@@ -34,5 +49,6 @@ export default async function SiteLayout({
       <BackgroundMusic />
       <LocationPrompt />
     </SiteContactProvider>
+    </LocaleProvider>
   );
 }

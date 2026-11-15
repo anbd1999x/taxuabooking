@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/components/i18n/I18nProvider";
+
 /** Email hợp lệ ở mức cơ bản (server kiểm tra lại bằng zod). Trống = hợp lệ vì không bắt buộc. */
 export function emailLooksValid(v: string): boolean {
   const s = v.trim();
@@ -21,6 +23,7 @@ export function BookingEmailField({
   inputClassName: string;
   error?: string | null;
 }) {
+  const t = useT();
   const bad = !emailLooksValid(value);
   return (
     <div className="flex flex-col gap-1">
@@ -30,13 +33,13 @@ export function BookingEmailField({
         onChange={(e) => onChange(e.target.value)}
         inputMode="email"
         autoComplete="email"
-        placeholder="Email (không bắt buộc)"
-        aria-label="Email (không bắt buộc)"
+        placeholder={t("Email (không bắt buộc)")}
+        aria-label={t("Email (không bắt buộc)")}
         className={`${inputClassName} ${bad || error ? "!border-red-400" : ""}`}
       />
-      {(bad || error) && <span className="text-xs text-red-600">{error || "Email không hợp lệ."}</span>}
+      {(bad || error) && <span className="text-xs text-red-600">{t(error) || t("Email không hợp lệ.")}</span>}
       <span className="text-[11.5px] leading-snug text-gray-500">
-        Có điền email: thông tin đơn sẽ được gửi qua email. Không điền: chúng tôi báo qua Zalo.
+        {t("Có điền email: thông tin đơn sẽ được gửi qua email. Không điền: chúng tôi báo qua Zalo.")}
       </span>
     </div>
   );

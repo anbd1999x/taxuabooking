@@ -8,6 +8,8 @@ import { isVideoUrl } from "@/lib/utils";
 import { CheckinMap, type MapSpot, type MapPlan } from "@/components/itinerary/CheckinMap";
 import { SatBoard, type BoardSpot, type BoardPlan } from "@/components/itinerary/SatBoard";
 import { roadPath } from "@/lib/road-path";
+import { getT } from "@/lib/i18n/server";
+import { i18nMeta } from "@/lib/i18n/meta";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +22,7 @@ const META = {
 
 /** Ảnh chia sẻ link lấy từ địa điểm thật trong DB (thiếu thì ảnh biển mây). */
 export async function generateMetadata(): Promise<Metadata> {
-  return pageMeta({ ...META, image: await placeShareImage("CHECKIN", 1) });
+  return i18nMeta({ ...META, image: await placeShareImage("CHECKIN", 1) });
 }
 
 /** "1,5 km từ trung tâm" / "300 m từ trung tâm" → km. */
@@ -32,6 +34,7 @@ function parseKm(s: string | null): number | null {
 }
 
 export default async function CheckinMapPage({ searchParams }: { searchParams: Promise<{ plan?: string; view?: string }> }) {
+  const tr = await getT();
   const { plan: initialPlan, view } = await searchParams;
   const rows = await prisma.place.findMany({
     where: { published: true },
@@ -45,8 +48,8 @@ export default async function CheckinMapPage({ searchParams }: { searchParams: P
     const firstImage = (p: (typeof rows)[number]) => [p.coverImage, ...(p.images ?? "").split("|")].map((u) => (u ?? "").trim()).find((u) => u && !isVideoUrl(u)) ?? null;
     const placed = rows.filter((p): p is typeof p & { lat: number; lng: number } => p.lat != null && p.lng != null);
     const spots: BoardSpot[] = [
-      { id: "tt", cat: "center", ...MAP_CENTER, name: "Trung tâm Tà Xùa", sub: "", desc: "Khu chợ, homestay, quán ăn. Điểm xuất phát của mọi cung đường.", tip: "Đổ xăng và ăn sáng ở đây trước khi đi xa.", best: "", image: null, mapUrl: `https://maps.google.com/?q=${MAP_CENTER.lat},${MAP_CENTER.lng}`, href: null },
-      { id: "by", cat: "start", ...MAP_GATE, name: "Bắc Yên (xe cabin)", sub: "", desc: "Nơi xe cabin dừng, từ đây lên Tà Xùa theo đèo quanh co.", tip: "", best: "", image: null, mapUrl: `https://maps.google.com/?q=${MAP_GATE.lat},${MAP_GATE.lng}`, href: null },
+      { id: "tt", cat: "center", ...MAP_CENTER, name: tr("Trung tâm Tà Xùa"), sub: "", desc: tr("Khu chợ, homestay, quán ăn. Điểm xuất phát của mọi cung đường."), tip: tr("Đổ xăng và ăn sáng ở đây trước khi đi xa."), best: "", image: null, mapUrl: `https://maps.google.com/?q=${MAP_CENTER.lat},${MAP_CENTER.lng}`, href: null },
+      { id: "by", cat: "start", ...MAP_GATE, name: tr("Bắc Yên (xe cabin)"), sub: "", desc: tr("Nơi xe cabin dừng, từ đây lên Tà Xùa theo đèo quanh co."), tip: "", best: "", image: null, mapUrl: `https://maps.google.com/?q=${MAP_GATE.lat},${MAP_GATE.lng}`, href: null },
       ...placed.map((p): BoardSpot => ({
         id: p.id,
         cat: p.kind === "CHECKIN" ? "cam" : "cafe",
@@ -83,7 +86,7 @@ export default async function CheckinMapPage({ searchParams }: { searchParams: P
         const seq = [...(days.length && stops[0].spotId !== "tt" ? ["tt"] : []), ...stops.map((x) => x.spotId)];
         days.push({ title: d.title, stops, path: await roadPath(seq.map((id) => at.get(id)!)) });
       }
-      boardPlans.push({ id: p.id, name: p.name || "Lịch trình", sub: p.sub, days });
+      boardPlans.push({ id: p.id, name: p.name || tr("Lịch trình"), sub: p.sub, days });
     }
     // "Khám phá tự do": đường từ Bắc Yên lên trung tâm ra điểm xa nhất, và nhánh về phía đối diện.
     const far = (from: { lat: number; lng: number }) => placed.reduce<(typeof placed)[number] | null>((b, p) => (!b || Math.hypot(p.lat - from.lat, p.lng - from.lng) > Math.hypot(b.lat - from.lat, b.lng - from.lng) ? p : b), null);
@@ -103,8 +106,8 @@ export default async function CheckinMapPage({ searchParams }: { searchParams: P
   const TT = posOf.get("tt")!, BY = posOf.get("by")!;
 
   const fixed: MapSpot[] = [
-    { id: "tt", pos: TT, ...MAP_CENTER, name: "Trung tâm Tà Xùa", km: 0, sub: "Chợ & UBND xã · mốc 0", desc: "Khu chợ, homestay, quán ăn. Điểm xuất phát của mọi cung đường.", tip: "Đổ xăng và ăn sáng ở đây trước khi đi xa.", best: "", image: null, mapUrl: `https://maps.google.com/?q=${MAP_CENTER.lat},${MAP_CENTER.lng}` },
-    { id: "by", pos: BY, ...MAP_GATE, name: "Thị trấn Bắc Yên", km: 15, sub: "Cửa ngõ · bến xe cabin", desc: "Nơi xe cabin dừng, từ đây lên Tà Xùa theo đèo quanh co.", tip: "Dừng ngắm toàn cảnh đèo ở các khúc cua.", best: "", image: null, mapUrl: `https://maps.google.com/?q=${MAP_GATE.lat},${MAP_GATE.lng}` },
+    { id: "tt", pos: TT, ...MAP_CENTER, name: tr("Trung tâm Tà Xùa"), km: 0, sub: tr("Chợ & UBND xã · mốc 0"), desc: tr("Khu chợ, homestay, quán ăn. Điểm xuất phát của mọi cung đường."), tip: tr("Đổ xăng và ăn sáng ở đây trước khi đi xa."), best: "", image: null, mapUrl: `https://maps.google.com/?q=${MAP_CENTER.lat},${MAP_CENTER.lng}` },
+    { id: "by", pos: BY, ...MAP_GATE, name: tr("Thị trấn Bắc Yên"), km: 15, sub: tr("Cửa ngõ · bến xe cabin"), desc: tr("Nơi xe cabin dừng, từ đây lên Tà Xùa theo đèo quanh co."), tip: tr("Dừng ngắm toàn cảnh đèo ở các khúc cua."), best: "", image: null, mapUrl: `https://maps.google.com/?q=${MAP_GATE.lat},${MAP_GATE.lng}` },
   ];
   const checkins: MapSpot[] = rows
     .filter((p) => p.kind === "CHECKIN")
@@ -137,7 +140,7 @@ export default async function CheckinMapPage({ searchParams }: { searchParams: P
       let gi = 0;
       return {
         id: p.id,
-        name: p.name || "Lịch trình",
+        name: p.name || tr("Lịch trình"),
         sub: p.sub,
         days: p.days
           .filter((d) => d.stops.length)

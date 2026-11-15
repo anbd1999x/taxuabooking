@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useT } from "@/components/i18n/I18nProvider";
 
 // ── Dữ liệu trang trí cố định (sinh 1 lần, giống nhau ở server & client) ──────
 const STARS = Array.from({ length: 34 }, (_, i) => ({ x: `${(i * 53 + 17) % 99}%`, y: `${(i * 29 + 5) % 44}%`, s: 1 + (i % 4) * 0.6 }));
@@ -64,6 +65,7 @@ export function BrocadeStrip({ id, height = 12, className }: { id: string; heigh
  * Vẽ bằng requestAnimationFrame qua ref (không setState mỗi khung hình); tôn trọng reduced-motion.
  */
 export function HeroScene() {
+  const tr = useT();
   const root = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -136,7 +138,7 @@ export function HeroScene() {
         if (text !== lastClock) {
           lastClock = text;
           clock.textContent = text;
-          clockLabel.textContent = hour < 5 || hour >= 19.5 ? "đêm sao" : hour < 7.5 ? "bình minh" : hour < 16.5 ? "nắng trên mây" : hour < 19.5 ? "hoàng hôn" : "đêm sao";
+          clockLabel.textContent = hour < 5 || hour >= 19.5 ? tr("đêm sao") : hour < 7.5 ? tr("bình minh") : hour < 16.5 ? tr("nắng trên mây") : hour < 19.5 ? tr("hoàng hôn") : tr("đêm sao");
         }
       }
       if (reduce) return;
@@ -260,7 +262,7 @@ export function HeroScene() {
                 <path d="M -33 -19.5 L -44 -25 M -33 -19.5 L -44 -14" stroke="oklch(0.35 0.02 60)" strokeWidth={0.8} fill="none" />
                 <rect x="-118" y="-27" width="74" height="15" rx="1.5" fill="oklch(0.68 0.18 45)" />
                 <rect x="-118" y="-27" width="74" height="15" rx="1.5" fill="none" stroke="oklch(0.98 0.02 90)" strokeWidth={0.8} />
-                <text x="-81" y="-16.764" textAnchor="middle" fontSize="7.6" fontWeight={800} letterSpacing=".3" fill="white">ĐI TÀ XÙA THÔI!</text>
+                <text x="-81" y="-16.764" textAnchor="middle" fontSize="7.6" fontWeight={800} letterSpacing=".3" fill="white">{tr("ĐI TÀ XÙA THÔI!")}</text>
               </g>
               <ellipse cx="0" cy="1" rx="34" ry="3" fill="oklch(0.1 0.02 160 / .35)" />
               <rect x="-32" y="-26" width="64" height="22" rx="6" fill="oklch(0.95 0.008 90)" />
@@ -276,7 +278,7 @@ export function HeroScene() {
                 <rect x="-78" y="-24" width="56" height="11" rx="1.5" fill="oklch(0.68 0.18 45)" />
                 <rect x="-78" y="-24" width="56" height="11" rx="1.5" fill="none" stroke="oklch(0.98 0.02 90)" strokeWidth={0.8} />
                 {/* xe máy chạy ngược chiều (lật ngang) → lật chữ lại cho đọc xuôi */}
-                <text x="50" y="-16.412" transform="scale(-1 1)" textAnchor="middle" fontSize="5.8" fontWeight={800} letterSpacing=".3" fill="white">ĐI TÀ XÙA THÔI!</text>
+                <text x="50" y="-16.412" transform="scale(-1 1)" textAnchor="middle" fontSize="5.8" fontWeight={800} letterSpacing=".3" fill="white">{tr("ĐI TÀ XÙA THÔI!")}</text>
               </g>
               <ellipse cx="0" cy="1" rx="13" ry="2" fill="oklch(0.1 0.02 160 / .35)" />
               <rect x="-10" y="-9" width="20" height="5" rx="2.5" fill="oklch(0.55 0.15 28)" />
@@ -347,15 +349,15 @@ export function HeroScene() {
       <div className="absolute bottom-[26%] right-5 top-[13%] hidden w-[150px] text-white lg:block xl:right-8">
         <div className="absolute bottom-0 right-0 top-0 w-px bg-white/45" />
         {[
-          { top: "0%", alt: "2.865 m", label: "đỉnh Tà Xùa" },
-          { top: "38%", alt: "2.100 m", label: "sống lưng khủng long" },
-          { top: "68%", alt: "1.500 m", label: "trung tâm · biển mây" },
-          { top: "100%", alt: "1.000 m", label: "Bắc Yên" },
+          { top: "0%", alt: "2.865 m", label: tr("đỉnh Tà Xùa") },
+          { top: "38%", alt: "2.100 m", label: tr("sống lưng khủng long") },
+          { top: "68%", alt: "1.500 m", label: tr("trung tâm · biển mây") },
+          { top: "100%", alt: "1.000 m", label: tr("Bắc Yên") },
         ].map((m) => (
           <div key={m.alt} className="absolute right-0 flex -translate-y-1/2 items-center gap-2" style={{ top: m.top }}>
             <div className="text-right leading-tight" style={{ textShadow: "0 1px 8px oklch(0.15 0.05 270 / .7)" }}>
-              <div className="text-[12px] font-extrabold tracking-[.06em]">{m.alt}</div>
-              <div className="text-[10.5px] font-medium opacity-75">{m.label}</div>
+              <div className="text-[12px] font-extrabold tracking-[.06em]">{tr(m.alt)}</div>
+              <div className="text-[10.5px] font-medium opacity-75">{tr(m.label)}</div>
             </div>
             <span className="h-px w-3.5 bg-white/80" />
           </div>
@@ -365,7 +367,7 @@ export function HeroScene() {
       {/* đồng hồ "giờ Tà Xùa" đổi theo màu trời */}
       <div className="absolute right-5 top-6 hidden items-baseline gap-2 text-white sm:flex xl:right-8" style={{ textShadow: "0 1px 10px oklch(0.15 0.05 270 / .7)" }}>
         <span data-clock className="font-mono text-[15px] font-bold tabular-nums tracking-[.04em]">11:00</span>
-        <span data-clock-label className="text-[11px] font-semibold uppercase tracking-[.16em] opacity-80">nắng trên mây</span>
+        <span data-clock-label className="text-[11px] font-semibold uppercase tracking-[.16em] opacity-80">{tr("nắng trên mây")}</span>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@
 import { createContext, useContext } from "react";
 import { SITE } from "@/lib/site";
 import { soloVoice } from "@/lib/trust-popup";
+import { useT } from "@/components/i18n/I18nProvider";
 
 /**
  * Thông tin dùng chung cho toàn bộ trang khách, lấy theo cấu hình ở /admin/popup:
@@ -29,7 +30,8 @@ export function useVoice(): (text: string) => string {
 
 /** Số điện thoại chung của web (dạng chữ). */
 export function SitePhone() {
-  return <>{useSitePhone()}</>;
+  const t = useT();
+  return <>{t(useSitePhone())}</>;
 }
 
 /** Link Zalo tới số chung của web. */
@@ -43,11 +45,13 @@ export function SiteZaloLink({ children, ...rest }: Omit<React.ComponentProps<"a
 
 /** Đại từ xưng hô của web: "tụi mình" (2 chủ sở hữu) hoặc "mình" (1 người). `cap` = viết hoa đầu câu. */
 export function We({ cap }: { cap?: boolean }) {
+  const t = useT();
   const { solo } = useContext(SiteContactContext);
-  return <>{solo ? (cap ? "Mình" : "mình") : cap ? "Tụi mình" : "tụi mình"}</>;
+  return <>{solo ? (cap ? t("Mình") : t("mình")) : cap ? t("Tụi mình") : t("tụi mình")}</>;
 }
 
 /** Hiện một chuỗi có sẵn (hằng số, câu ghép) với cách xưng hô đúng. */
 export function VoiceText({ text }: { text: string }) {
-  return <>{useVoice()(text)}</>;
+  const t = useT();
+  return <>{useVoice()(t(text))}</>;
 }

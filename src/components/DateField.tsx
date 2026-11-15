@@ -1,5 +1,7 @@
 "use client";
 
+import { useT } from "@/components/i18n/I18nProvider";
+
 /**
  * Ô chọn ngày dùng chung cho các form tìm kiếm.
  * - Vẫn dùng picker NGÀY NATIVE của trình duyệt/điện thoại (UX tốt trên mobile).
@@ -34,6 +36,7 @@ export function DateField({
   ariaLabel?: string;
   required?: boolean;
 }) {
+  const t = useT();
   const display = formatDMY(value);
   return (
     <span className="relative block w-full">
@@ -43,7 +46,7 @@ export function DateField({
         min={min}
         max={max}
         required={required}
-        aria-label={ariaLabel}
+        aria-label={t(ariaLabel)}
         onChange={(e) => onChange(e.currentTarget.value)}
         className={`${className} w-full`}
         // Ẩn chữ gốc của input để lớp phủ dd/mm/yyyy hiển thị thay thế.
@@ -53,7 +56,7 @@ export function DateField({
         aria-hidden
         className={`pointer-events-none absolute inset-0 flex items-center ${displayClassName} ${display ? "" : "!text-gray-400"}`}
       >
-        {display || placeholder}
+        {t(display) || t(placeholder)}
       </span>
     </span>
   );

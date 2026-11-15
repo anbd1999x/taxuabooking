@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useT } from "@/components/i18n/I18nProvider";
 
 const KEY = "txb:saved-places";
 const BORDER = "oklch(0.88 0.02 160)";
 
 /** Nút "Lưu quán" — lưu theo thiết bị (localStorage), không cần tài khoản. */
 export function SaveButton({ placeId }: { placeId: string }) {
+  const t = useT();
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -32,7 +34,7 @@ export function SaveButton({ placeId }: { placeId: string }) {
 
   return (
     <button type="button" onClick={toggle} className="whitespace-nowrap rounded-full bg-white px-4 py-2.5 text-sm font-bold" style={{ border: `1.5px solid ${BORDER}`, color: "oklch(0.3 0.05 160)" }}>
-      {saved ? "♥ Đã lưu" : "♡ Lưu quán"}
+      {saved ? t("♥ Đã lưu") : t("♡ Lưu quán")}
     </button>
   );
 }

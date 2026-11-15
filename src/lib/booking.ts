@@ -1,3 +1,4 @@
+import { quoteTransport, OTHER_POINT, type TransportLegDTO, type TransportPointDTO, type TransportPricing } from "./transport-legs";
 import { isRentalTime, rentalChargeDays, rentalDaysLabel } from "./rental-days";
 import "server-only";
 import { ensureServiceSheetFresh } from "./sheet-sync";
@@ -54,6 +55,9 @@ export interface TransportOption {
   fixedPrice: number | null;
   note: string | null;
   needsConfirmation: boolean;
+  /** Taxi / xe ôm: điểm cố định + giá (nguyên ngày, theo chặng, chở 1 / 2 người) — xem transport-legs.ts. */
+  points?: TransportPointDTO[];
+  pricing?: TransportPricing;
 }
 
 export interface ComputedAvailability {
@@ -247,7 +251,11 @@ export async function computeAvailability(
   }
 
   // transport (xe ôm / taxi)
-  const info = await prisma.transportInfo.findUnique({ where: { serviceId } });
+  const [info, legs, points] = await Promise.all([
+    prisma.transportInfo.findUnique({ where: { serviceId } }),
+    prisma.transportRoute.findMany({ where: { serviceId }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
+    prisma.transportPoint.findMany({ where: { active: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true } }),
+  ]);
   return {
     kind: "transport",
     nights: 1,
@@ -255,6 +263,14 @@ export async function computeAvailability(
       fixedPrice: toNumber(info?.fixedPrice),
       note: info?.priceNote ?? null,
       needsConfirmation: true,
+      points,
+      pricing: {
+        bike: service.category === "XEOM",
+        capacity: info?.capacity ?? (service.category === "XEOM" ? 2 : 4),
+        dayPrice: toNumber(info?.fixedPrice),
+        dayPriceTwo: toNumber(info?.dayPriceTwo),
+        legs: legs.map((l): TransportLegDTO => ({ id: l.id, fromId: l.fromPointId, toId: l.toPointId, oneWay: toNumber(l.priceOneWay), twoPax: toNumber(l.priceTwo), note: l.note })),
+      },
     },
   };
 }
@@ -312,6 +328,7 @@ export async function createBooking(
   let roomIdList: string[] = []; // homestay: mọi phòng của đơn (roomId = phòng đầu)
   let cabinTripId: string | null = null;
   let rentalVehicleId: string | null = null;
+  let transportRouteId: string | null = null;
   let stayCommission = 0; // chiết khấu CTV theo phòng/đêm (homestay)
   let bAdults: number | null = null; // người lớn (homestay)
   let bChildrenAges: number[] = []; // tuổi từng trẻ (homestay)
@@ -412,10 +429,32 @@ export async function createBooking(
       needsConfirmation = !opt.bookable;
     }
   } else if (computed?.kind === "transport") {
-    referencePrice =
-      computed.transport?.fixedPrice != null
-        ? computed.transport.fixedPrice
-        : null;
+    // Taxi / xe ôm: chặng 1 chiều (điểm đón → điểm đến) hoặc nguyên ngày; giá tính ở server theo số người + số
+    // tài xế / xe (không tin client). Chưa có giá ⇒ đơn "chờ báo giá".
+    const pricing = computed.transport?.pricing;
+    const points = computed.transport?.points ?? [];
+    const nameOf = (id: string | null | undefined, other: string | null | undefined) =>
+      id === OTHER_POINT ? (other?.trim() || null) : points.find((p) => p.id === id)?.name ?? null;
+    if (pricing && (input.transportMode === "LEG" || input.transportMode === "DAY")) {
+      const mode = input.transportMode;
+      const fromName = nameOf(input.fromPointId, input.fromOther);
+      const toName = mode === "LEG" ? nameOf(input.toPointId, input.toOther) : null;
+      if (mode === "LEG" && (!fromName || !toName)) throw new Error("Vui lòng chọn điểm đón và điểm đến.");
+      if (mode === "LEG" && fromName === toName) throw new Error("Điểm đón và điểm đến phải khác nhau.");
+      const drivers = input.drivers ?? 1;
+      const q = quoteTransport(pricing, { mode, fromId: input.fromPointId, toId: input.toPointId, people: qty, drivers });
+      if (q.error) throw new Error(q.error);
+      const unit = pricing.bike ? "tài xế" : "xe";
+      transportRouteId = q.leg?.id ?? null;
+      selectionLabel =
+        (mode === "LEG" ? `${fromName} → ${toName} · 1 chiều` : `Thuê nguyên ngày${fromName ? ` · đón tại ${fromName}` : ""}`) +
+        ` · ${qty} người · ${drivers} ${unit}${q.twos > 0 ? ` (${q.twos} xe chở 2)` : ""}` +
+        (q.leg?.note ? ` · ${q.leg.note}` : "") +
+        (q.total == null ? " · chờ báo giá" : "");
+      referencePrice = q.total;
+    } else {
+      referencePrice = computed.transport?.fixedPrice != null ? computed.transport.fixedPrice : null;
+    }
     needsConfirmation = true;
   } else if (computed?.manualConfirmOnly) {
     referencePrice = computed.basePrice != null ? computed.basePrice * qty : null;
@@ -469,6 +508,7 @@ export async function createBooking(
       roomIds: roomIdList,
       cabinTripId,
       rentalVehicleId,
+      transportRouteId,
       selectionLabel,
       referencePrice,
       needsConfirmation,

@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 import { CATEGORIES, CATEGORY_LIST } from "@/lib/constants";
 import { SITE } from "@/lib/site";
+import { LOCALE_META, TARGET_LOCALES, localePath } from "@/lib/i18n/config";
 
 export const dynamic = "force-dynamic";
 
@@ -77,5 +78,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  return [...staticRoutes, ...categoryRoutes, ...serviceRoutes, ...roomRoutes, ...articleRoutes, ...placeRoutes];
+  // Đa ngôn ngữ: mỗi URL khai kèm các bản /en, /zh, /ko (hreflang) để Google ghép cặp.
+  const all = [...staticRoutes, ...categoryRoutes, ...serviceRoutes, ...roomRoutes, ...articleRoutes, ...placeRoutes];
+  return all.map((r) => {
+    const path = r.url.slice(base.length) || "/";
+    const languages: Record<string, string> = { [LOCALE_META.vi.htmlLang]: r.url };
+    for (const l of TARGET_LOCALES) languages[LOCALE_META[l].htmlLang] = `${base}${localePath(path, l)}`;
+    return { ...r, alternates: { languages } };
+  });
 }

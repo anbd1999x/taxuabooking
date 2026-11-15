@@ -47,3 +47,6 @@ next-env.d.ts
 
 # Anh chup man hinh tam o thu muc goc
 /Screenshot*.png
+
+# i18n: báo cáo khoá thiếu (node scripts/i18n/extract.mjs --missing)
+scripts/i18n/out/

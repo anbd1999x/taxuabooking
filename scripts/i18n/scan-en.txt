@@ -1,0 +1,109 @@
+/	Hải Phòng
+/	Thái Nguyên
+/	Bắc Ninh
+/	Bắc Giang
+/	Quảng Ninh
+/	Thái Bình
+/	Hưng Yên
+/	Hải Dương
+/	Hà Nam
+/	Ninh Bình
+/	68 Mạc Thái Tổ, Cầu Giấy
+/	Lên xe tại Cầu Giấy, Hà Nội. Nhận chăn gối, ngả lưng.
+/	Phú Thọ
+/	Dừng nghỉ chân, vệ sinh, ăn nhẹ nếu cần.
+/	Tới Bắc Yên, chuẩn bị đổi xe.
+/	Trung chuyển lên Tà Xùa
+/	Xe trung chuyển đưa lên đỉnh, kịp đón bình minh và biển mây.
+/	Combo săn mây Tà Xùa 2N1Đ
+/	Trọn gói: xe cabin khứ hồi + homestay + xe máy + tư vấn lịch trình.
+/	Thuê xe máy Tà Xùa — Giao tận nơi
+/	Xe số, xe côn tay bền khỏe, leo đèo tốt, giao nhận tại trung tâm.
+/	Hà Nội → Tà Xùa, xe cabin đôi đời mới, đón/trả tận nơi khu vực nội thành.
+/	Bungalow Biển Mây Tà Xùa
+/	Đồi Tà Xùa
+/	Bungalow riêng biệt, cửa kính lớn đón trọn biển mây.
+/	Sống Lưng Khủng Long Homestay
+/	Ngay chân cung đường sống lưng khủng long nổi tiếng.
+/	Mây Homestay Tà Xùa
+/	'- Phòng nghỉ theo tiêu chuẩn, kích thước giường 1.8mx2.0m - Trà, nước lọc miẽn phí trong phòng - Bàn chải đánh răng, sữa tắm,... - Trang thiết bị: ấm siêu tốc,
+/	Nhà xe Khánh Châu
+/	Chuyên tuyến Tà Xùa từ các tỉnh miền bắc
+/	/khứ hồi
+/	Taxi Tà Xùa — Xe 4-7 chỗ
+/	Đưa đón Bắc Yên ↔ Tà Xùa, xe gầm cao đi đường đèo an toàn.
+/	/chuyến
+/	Kinh nghiệm săn mây Tà Xùa cho người mới
+/	Thời điểm, cung đường và lưu ý để săn mây Tà Xùa thành công.
+/	Đi Tà Xùa bằng xe cabin: nên chọn nhà xe nào?
+/	So sánh các nhà xe cabin và mẹo đặt vé ngày cao điểm.
+/	Gợi ý lịch trình Tà Xùa 2 ngày 1 đêm
+/	Lịch trình chi tiết tối ưu cho chuyến đi cuối tuần.
+/	Tà Xùa,xe cabin Tà Xùa,homestay Tà Xùa,bungalow Tà Xùa,thuê xe máy Tà Xùa,taxi Tà Xùa,combo du lịch Tà Xùa,săn mây Tà Xùa
+/	Combo săn mây
+/	Biển mây
+/	Phòng nghỉ
+/	Nhà xe Khánh Châu 1
+/	Nhà xe Khánh Châu 2
+/	Nhà xe Khánh Châu 3
+/	Nhà xe Khánh Châu 4
+/homestay	Gỗ Bungalow Tà Xùa
+/homestay	Trạm Mây Homestay
+/homestay	Bungalow đôi · Bungalow đôi 2
+/homestay	Phòng sạch sẽ, thoáng, view đẹp, phù hợp nghỉ dưỡng và săn mây.
+/homestay	Phòng đôi view mây
+/homestay	Phòng đôi ban công
+/homestay	Bungalow đôi · Bungalow đôi 3
+/homestay	Bungalow đôi · Bungalow đôi 4
+/homestay	Bungalow gia đình
+/homestay	Phòng gia đình
+/homestay	Phòng tập thể (dorm)
+/homestay	Phòng 3 người
+/homestay	Xã Tà Xùa
+/homestay	Bungalow đôi tiêu chuẩn
+/homestay	Phòng đôi tiêu chuẩn
+/homestay	Phòng tập thể 6 người
+/homestay	On weekends in cloud season (November to March) book 1 to 2 weeks ahead; for public holidays and Tết, 3 to 4 weeks ahead. On weekdays you can book close to the 
+/xe-cabin	Sơn La Cloud — Cabin đôi cao cấp
+/xe-cabin	Yes. Operators run transfer vehicles from Bắc Ninh, Bắc Giang, Hải Dương, Hải Phòng, Hưng Yên, Thái Bình, Nam Định, Ninh Bình, Hà Nam, Thái Nguyên, Quảng Ninh, 
+/xe-cabin	On weekdays, book 1 to 2 days ahead. On weekends in cloud season (November to March) book 5 to 7 days ahead, and 2 to 3 weeks ahead for public holidays and Tết.
+/thue-xe-may	Honda Wave (xe số)
+/thue-xe-may	Honda Winner (côn tay)
+/xe-om	Các điểm săn mây, sống lưng khủng long, cây cô đơn
+/xe-om	Chở khách tham quan các điểm săn mây, giá liên hệ theo tuyến.
+/xe-om	Giá tuỳ tuyến đường, liên hệ để báo giá.
+/taxi	Xe 4-7 chỗ gầm cao
+/taxi	Giá cho 1 chuyến xe 4 chỗ. Xe 7 chỗ liên hệ.
+/lich-trinh	Miễn phí
+/lich-trinh	Vé ~20.000đ
+/lich-trinh	1,5 km từ trung tâm
+/lich-trinh	Ngắm mây sát trung tâm
+/lich-trinh	Dải đồi lộng gió ngay sau trung tâm, đi bộ được.
+/lich-trinh	Hợp ngắm bình minh nếu không muốn đi xa.
+/lich-trinh	2 km từ trung tâm
+/lich-trinh	Biểu tượng săn mây
+/lich-trinh	Cây táu đứng một mình trên mỏm đồi, mây trôi ngay dưới chân.
+/lich-trinh	Tới trước 6h để có ảnh vắng người.
+/lich-trinh	3 km từ trung tâm
+/lich-trinh	Chè Shan tuyết trăm năm
+/lich-trinh	Rừng chè cổ thụ phủ rêu, thân to cả vòng tay.
+/lich-trinh	Mua chè trực tiếp của bà con làm quà.
+/lich-trinh	4 km từ trung tâm
+/lich-trinh	Đồi cỏ cắm trại · Chiều & đêm
+/lich-trinh	Đồi cỏ thoai thoải, dựng lều ngắm sao và đợi mây sớm.
+/lich-trinh	Thuê lều ~200.000đ
+/lich-trinh	Đêm rất lạnh, mang áo ấm dày.
+/lich-trinh	6 km từ trung tâm
+/lich-trinh	Bản người Mông
+/lich-trinh	Nhà trình tường, ruộng bậc thang, trẻ em chăn bò trên đồi.
+/lich-trinh	Xin phép trước khi chụp ảnh người dân.
+/lich-trinh	9 km từ trung tâm
+/lich-trinh	Mỏm đá nhô ra hình cá heo giữa biển mây.
+/lich-trinh	Đường đất dốc, nên đi xe ôm bản địa.
+/lich-trinh	12 km từ trung tâm
+/lich-trinh	Cung đường huyền thoại
+/lich-trinh	Sống núi hẹp hai bên vực, uốn lượn như lưng khủng long.
+/lich-trinh	Không đi khi mưa hoặc gió to; mang giày bám tốt.
+/gioi-thieu	Tà Xùa Booking (cá nhân kinh doanh)
+/tai-khoan	Biển mây Tà Xùa
+--- 108 đoạn còn tiếng Việt (en)

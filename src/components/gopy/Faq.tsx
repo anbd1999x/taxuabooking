@@ -3,12 +3,14 @@
 import { VoiceText } from "@/components/SiteContact";
 import { useState } from "react";
 import { FEEDBACK_FAQS } from "@/lib/feedback";
+import { useT } from "@/components/i18n/I18nProvider";
 
 export function Faq() {
+  const t = useT();
   const [open, setOpen] = useState<number>(-1);
   return (
     <section className="mt-4 flex flex-col gap-2.5">
-      <h2 className="text-xl font-extrabold tracking-tight text-ink sm:text-2xl">Câu hỏi thường gặp</h2>
+      <h2 className="text-xl font-extrabold tracking-tight text-ink sm:text-2xl">{t("Câu hỏi thường gặp")}</h2>
       {FEEDBACK_FAQS.map((f, i) => {
         const on = open === i;
         return (
@@ -18,7 +20,7 @@ export function Faq() {
               onClick={() => setOpen(on ? -1 : i)}
               className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left text-[15px] font-bold text-ink"
             >
-              {f.q}
+              {t(f.q)}
               <span className={`flex-none text-lg text-gray-400 transition-transform ${on ? "rotate-45" : ""}`}>+</span>
             </button>
             <div className={`grid transition-all duration-300 ${on ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>

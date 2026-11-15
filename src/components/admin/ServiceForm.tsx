@@ -81,6 +81,8 @@ export function ServiceForm({
   const catOptions = CATEGORY_LIST.some((c) => c.key === cat) ? CATEGORY_LIST : [CATEGORIES[cat], ...CATEGORY_LIST];
   // Homestay/bungalow chọn khu vực từ danh sách chuẩn; danh mục khác nhập tự do (tuyến đường...).
   const areaSelect = cat === "HOMESTAY" || cat === "BUNGALOW";
+  // Taxi / xe ôm: chỉ cần tên, mô tả, giá gạch, chủ dịch vụ… — giá & bác tài nhập ở mục riêng bên dưới trang.
+  const isTransport = cat === "XEOM" || cat === "TAXI";
   const areaOptions =
     initial.area && !AREA_OPTIONS.includes(initial.area) ? [initial.area, ...AREA_OPTIONS] : AREA_OPTIONS;
 
@@ -126,6 +128,25 @@ export function ServiceForm({
         <textarea name="description" defaultValue={initial.description ?? ""} rows={5} className={inputCls} required />
       </label>
 
+      {isTransport ? (
+        <>
+          {/* Taxi / xe ôm: ẩn các trường không dùng nhưng GIỮ giá trị cũ khi lưu. */}
+          <input type="hidden" name="area" value={initial.area ?? ""} />
+          <input type="hidden" name="basePrice" value={initial.basePrice ?? ""} />
+          <input type="hidden" name="priceUnit" value={initial.priceUnit ?? ""} />
+          <input type="hidden" name="mapUrl" value={initial.mapUrl ?? ""} />
+          <input type="hidden" name="policy" value={initial.policy ?? ""} />
+          <input type="hidden" name="contactName" value={initial.contactName ?? ""} />
+          <input type="hidden" name="contactPhone" value={initial.contactPhone ?? ""} />
+          <input type="hidden" name="contactZalo" value={initial.contactZalo ?? ""} />
+          <label className="block sm:max-w-sm">
+            <span className="text-sm font-medium text-gray-600">Giá gốc — gạch ngang (đ)</span>
+            <MoneyInput name="originalPrice" defaultValue={initial.originalPrice ?? ""} placeholder="Để trống = không giảm giá" className={inputCls} />
+            <span className="mt-1 block text-xs text-gray-400">Cao hơn giá thấp nhất của bác tài thì thẻ danh sách hiện giá gạch ngang.</span>
+          </label>
+        </>
+      ) : (
+        <>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <label className="block">
           <span className="text-sm font-medium text-gray-600">{areaSelect ? "Khu vực" : "Khu vực / tuyến"}</span>
@@ -169,7 +190,6 @@ export function ServiceForm({
         </label>
       </div>
       <p className="-mt-3 text-xs text-gray-400">Nhập &quot;Giá gốc&quot; cao hơn &quot;Giá bán&quot; để web hiển thị giá gạch ngang kèm % giảm (khuyến mãi).</p>
-
       <label className="block">
         <span className="text-sm font-medium text-gray-600">Link Google Maps</span>
         <input
@@ -208,6 +228,8 @@ export function ServiceForm({
           <input name="contactZalo" defaultValue={initial.contactZalo ?? ""} className={inputCls} />
         </label>
       </div>
+        </>
+      )}
 
       <label className="block sm:max-w-sm">
         <span className="text-sm font-medium text-gray-600">Chủ dịch vụ (nhà xe / homestay)</span>
@@ -295,6 +317,13 @@ export function ServiceForm({
         </div>
       )}
 
+      {isTransport ? (
+        <>
+          <input type="hidden" name="weekendPolicy" value={initial.weekendPolicy ?? "NONE"} />
+          {initial.easyRoad && <input type="hidden" name="easyRoad" value="on" />}
+          {initial.pool && <input type="hidden" name="pool" value="on" />}
+        </>
+      ) : (
       <label className="block sm:max-w-sm">
         <span className="text-sm font-medium text-gray-600">Chính sách bán cuối tuần (homestay)</span>
         <select name="weekendPolicy" defaultValue={initial.weekendPolicy ?? "NONE"} className={inputCls}>
@@ -306,6 +335,7 @@ export function ServiceForm({
         </select>
         <span className="mt-1 block text-xs text-gray-400">Cuối tuần chỉ nhận đặt nguyên cụm, không bán lẻ (vd không bán riêng đêm T7). Khách chọn ngày thiếu đêm trong cụm sẽ bị chặn.</span>
       </label>
+      )}
 
       <div className="flex flex-wrap gap-6">
         <label className="flex items-center gap-2">
@@ -316,6 +346,7 @@ export function ServiceForm({
           <input type="checkbox" name="featured" defaultChecked={initial.featured ?? false} className="accent-forest-600 h-4 w-4" />
           <span className="text-sm text-gray-700">Dịch vụ nổi bật</span>
         </label>
+        {!isTransport && (<>
         <label className="flex items-center gap-2">
           <input type="checkbox" name="easyRoad" defaultChecked={initial.easyRoad ?? false} className="accent-forest-600 h-4 w-4" />
           <span className="text-sm text-gray-700">Đường dễ đi (lọc combo)</span>
@@ -324,6 +355,7 @@ export function ServiceForm({
           <input type="checkbox" name="pool" defaultChecked={initial.pool ?? false} className="accent-forest-600 h-4 w-4" />
           <span className="text-sm text-gray-700">🏊 Hồ bơi (lọc combo)</span>
         </label>
+        </>)}
         <label className="flex items-center gap-2">
           <input ref={contactOnlyRef} type="checkbox" name="contactOnly" checked={contactOnly} onChange={(e) => { setContactOnly(e.target.checked); if (e.target.checked) setInquiryOnly(false); }} className="accent-forest-600 h-4 w-4" />
           <span className="text-sm text-gray-700">

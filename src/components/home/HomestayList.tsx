@@ -1,12 +1,14 @@
 "use client";
 
 import { SitePhone, We } from "@/components/SiteContact";
-import Link from "next/link";
+import Link from "@/components/Link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DateField } from "@/components/DateField";
 import { useSearchNav } from "@/components/useSearchNav";
 import { AREA_OPTIONS, areaZone } from "@/lib/constants";
+import { useT } from "@/components/i18n/I18nProvider";
+import type { TFunc } from "@/lib/i18n/config";
 
 /**
  * Mỗi thẻ = một LOẠI phòng cụ thể: các phòng giống hệt nhau (cùng hạng + giá +
@@ -53,11 +55,11 @@ const AMENITIES: { key: AmenKey; label: string; icon: string }[] = [
   { key: "easyRoad", label: "Đường dễ đi", icon: "🛣️" },
 ];
 
-const STATUS: Record<HomestayCard["status"], { bg: string; fg: string; text: (n: number) => string }> = {
-  ok: { bg: "oklch(0.95 0.05 155)", fg: "oklch(0.38 0.1 155)", text: (n) => `Còn ${n} phòng` },
-  low: { bg: "oklch(0.95 0.06 70)", fg: "oklch(0.48 0.15 50)", text: (n) => `Còn ${n} phòng` },
-  full: { bg: "oklch(0.93 0 0)", fg: "oklch(0.42 0 0)", text: () => "Hết phòng" },
-  none: { bg: "oklch(1 0 0 / .92)", fg: "oklch(0.4 0.02 160)", text: () => "Chọn ngày để xem" },
+const STATUS: Record<HomestayCard["status"], { bg: string; fg: string; text: (n: number, t: TFunc) => string }> = {
+  ok: { bg: "oklch(0.95 0.05 155)", fg: "oklch(0.38 0.1 155)", text: (n, t) => t("Còn {0} phòng", [n]) },
+  low: { bg: "oklch(0.95 0.06 70)", fg: "oklch(0.48 0.15 50)", text: (n, t) => t("Còn {0} phòng", [n]) },
+  full: { bg: "oklch(0.93 0 0)", fg: "oklch(0.42 0 0)", text: (_n, t) => t("Hết phòng") },
+  none: { bg: "oklch(1 0 0 / .92)", fg: "oklch(0.4 0.02 160)", text: (_n, t) => t("Chọn ngày để xem") },
 };
 
 // Theme "Rừng núi Tây Bắc"
@@ -97,6 +99,7 @@ export function HomestayList({
   /** Số người trong đoàn (?people= từ trang chủ); 0 = không lọc. */
   initialPeople?: number;
 }) {
+  const tr = useT();
   const { pending: searching, go } = useSearchNav();
   const [w, setW] = useState(1280);
   const [q, setQ] = useState(initialQ);
@@ -332,7 +335,7 @@ export function HomestayList({
 
   // ---- filtering ----
   const norm = (t: string) => t.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-  const dateErr = ci && co && co <= ci ? "Ngày trả phòng phải sau ngày nhận phòng." : "";
+  const dateErr = ci && co && co <= ci ? tr("Ngày trả phòng phải sau ngày nhận phòng.") : "";
   // hasDates/nights theo ngày ĐÃ ÁP DỤNG (trên URL) — khớp với tình trạng server
   // đã tính trong items; ngày nháp chưa bấm Tìm kiếm không đổi hiển thị.
   const hasDates = Boolean(initialFrom && initialTo && initialTo > initialFrom);
@@ -584,11 +587,11 @@ export function HomestayList({
 
         <div ref={heroTextRef} className="container-page relative z-[3] text-white will-change-transform" style={{ paddingTop: w < 640 ? 48 : 72 }}>
           <div data-in="0" className="flex gap-2 text-sm opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease, transform .9s cubic-bezier(.2,.7,.2,1)", color: "oklch(0.9 0.02 220)" }}>
-            <span>Trang chủ</span><span>/</span><span className="font-bold text-white">Homestay</span>
+            <span>{tr("Trang chủ")}</span><span>/</span><span className="font-bold text-white">Homestay</span>
           </div>
-          <h1 data-in="1" className="mt-4 text-[13px] font-bold uppercase tracking-[0.14em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .1s, transform .9s cubic-bezier(.2,.7,.2,1) .1s", color: "oklch(0.88 0.12 80)" }}>Homestay Tà Xùa · giá & phòng trống theo ngày</h1>
-          <p data-in="2" className="mt-3.5 max-w-[760px] text-[clamp(32px,6vw,60px)] font-extrabold leading-[1.02] tracking-[-0.035em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .2s, transform .9s cubic-bezier(.2,.7,.2,1) .2s", textShadow: "0 2px 24px oklch(0.2 0.05 260 / .4)" }}>Giữa rừng Tây Bắc, thức dậy trên biển mây</p>
-          <p data-in="3" className="mt-3.5 max-w-[520px] text-[clamp(15px,1.7vw,18px)] leading-[1.5] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .3s, transform .9s cubic-bezier(.2,.7,.2,1) .3s", color: "oklch(0.97 0.02 80)" }}>Homestay và bungalow giữa núi rừng Tà Xùa, sát điểm săn mây. Chọn ngày để xem phòng trống và giá đêm đó.</p>
+          <h1 data-in="1" className="mt-4 text-[13px] font-bold uppercase tracking-[0.14em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .1s, transform .9s cubic-bezier(.2,.7,.2,1) .1s", color: "oklch(0.88 0.12 80)" }}>{tr("Homestay Tà Xùa · giá & phòng trống theo ngày")}</h1>
+          <p data-in="2" className="mt-3.5 max-w-[760px] text-[clamp(32px,6vw,60px)] font-extrabold leading-[1.02] tracking-[-0.035em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .2s, transform .9s cubic-bezier(.2,.7,.2,1) .2s", textShadow: "0 2px 24px oklch(0.2 0.05 260 / .4)" }}>{tr("Giữa rừng Tây Bắc, thức dậy trên biển mây")}</p>
+          <p data-in="3" className="mt-3.5 max-w-[520px] text-[clamp(15px,1.7vw,18px)] leading-[1.5] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .3s, transform .9s cubic-bezier(.2,.7,.2,1) .3s", color: "oklch(0.97 0.02 80)" }}>{tr("Homestay và bungalow giữa núi rừng Tà Xùa, sát điểm săn mây. Chọn ngày để xem phòng trống và giá đêm đó.")}</p>
         </div>
       </section>
 
@@ -597,28 +600,28 @@ export function HomestayList({
         <div className="flex flex-col gap-2 rounded-[22px] border border-white/80 p-2.5 shadow-[0_24px_60px_-24px_oklch(0.3_0.08_270_/.45)]" style={{ background: "oklch(1 0 0 / .9)", backdropFilter: "blur(14px)" }}>
           <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,170px),1fr))" }}>
             <label className={cell} style={{ gridColumn: wide ? "span 1" : "1 / -1" }}>
-              <span className="text-xs font-semibold text-gray-500">Tìm kiếm</span>
-              <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submitSearch(); }} placeholder="Tên homestay, khu vực…" className={inp} />
+              <span className="text-xs font-semibold text-gray-500">{tr("Tìm kiếm")}</span>
+              <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submitSearch(); }} placeholder={tr("Tên homestay, khu vực…")} className={inp} />
             </label>
             <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Nhận phòng</span>
-              <DateField value={ci} onChange={setCi} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Nhận phòng" />
+              <span className="text-xs font-semibold text-gray-500">{tr("Nhận phòng")}</span>
+              <DateField value={ci} onChange={setCi} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel={tr("Nhận phòng")} />
             </label>
             <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Trả phòng</span>
-              <DateField value={co} min={ci || undefined} onChange={setCo} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Trả phòng" />
+              <span className="text-xs font-semibold text-gray-500">{tr("Trả phòng")}</span>
+              <DateField value={co} min={ci || undefined} onChange={setCo} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel={tr("Trả phòng")} />
             </label>
             <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Người lớn</span>
+              <span className="text-xs font-semibold text-gray-500">{tr("Người lớn")}</span>
               <select value={adults} onChange={(e) => setAdults(Number(e.target.value))} className={inp}>
-                <option value={0}>Mọi số khách</option>
+                <option value={0}>{tr("Mọi số khách")}</option>
                 {Array.from({ length: 20 }, (_, i) => i + 1).map((n) => (
-                  <option key={n} value={n}>{n} người lớn</option>
+                  <option key={n} value={n}>{tr("{0} người lớn", [n])}</option>
                 ))}
               </select>
             </label>
             <div className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Trẻ em</span>
+              <span className="text-xs font-semibold text-gray-500">{tr("Trẻ em")}</span>
               <select
                 value={childAges.length}
                 onChange={(e) => {
@@ -628,7 +631,7 @@ export function HomestayList({
                 className={inp}
               >
                 {Array.from({ length: 11 }, (_, i) => i).map((n) => (
-                  <option key={n} value={n}>{n === 0 ? "Không có trẻ" : `${n} trẻ`}</option>
+                  <option key={n} value={n}>{n === 0 ? tr("Không có trẻ") : tr("{0} trẻ", [n])}</option>
                 ))}
               </select>
               {childAges.length > 0 && (
@@ -640,7 +643,7 @@ export function HomestayList({
                       min={0}
                       max={17}
                       value={age}
-                      aria-label={`Tuổi bé ${i + 1}`}
+                      aria-label={tr("Tuổi bé {0}", [i + 1])}
                       onChange={(e) => {
                         const v = Math.max(0, Math.min(17, parseInt(e.target.value || "0", 10) || 0));
                         setChildAges((arr) => arr.map((x, j) => (j === i ? v : x)));
@@ -652,15 +655,15 @@ export function HomestayList({
               )}
             </div>
             <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Khoảng giá</span>
+              <span className="text-xs font-semibold text-gray-500">{tr("Khoảng giá")}</span>
               <select value={price} onChange={(e) => setPrice(e.target.value)} className={inp}>
-                {[["all", "Mọi mức giá"], ["lt500", "Dưới 500k"], ["mid", "500k – 900k"], ["gt900", "Trên 900k"], ["lt1500", "Dưới 1.500k"], ["gt1500", "Trên 1.500k"]].map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+                {[["all", tr("Mọi mức giá")], ["lt500", tr("Dưới 500k")], ["mid", "500k – 900k"], ["gt900", tr("Trên 900k")], ["lt1500", tr("Dưới 1.500k")], ["gt1500", tr("Trên 1.500k")]].map(([v, n]) => <option key={v} value={v}>{tr(n)}</option>)}
               </select>
             </label>
             <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Sắp xếp</span>
+              <span className="text-xs font-semibold text-gray-500">{tr("Sắp xếp")}</span>
               <select value={sort} onChange={(e) => setSort(e.target.value)} className={inp}>
-                {[["rec", "Phù hợp nhất"], ["priceAsc", "Giá thấp → cao"], ["priceDesc", "Giá cao → thấp"], ["near", "Gần trung tâm nhất"]].map(([v, n]) => <option key={v} value={v}>{n}</option>)}
+                {[["rec", tr("Phù hợp nhất")], ["priceAsc", tr("Giá thấp → cao")], ["priceDesc", tr("Giá cao → thấp")], ["near", tr("Gần trung tâm nhất")]].map(([v, n]) => <option key={v} value={v}>{tr(n)}</option>)}
               </select>
             </label>
             <button
@@ -674,23 +677,23 @@ export function HomestayList({
                 <circle cx="11" cy="11" r="7" />
                 <path d="m20.5 20.5-4.2-4.2" />
               </svg>
-              Tìm kiếm
+              {tr("Tìm kiếm")}
             </button>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 px-1 py-0.5">
             <div className="flex flex-wrap items-center gap-1.5">
-              {[["all", "Tất cả"], ["Homestay", "Homestay"], ["Bungalow", "Bungalow"]].map(([k, n]) => (
-                <button key={k} type="button" onClick={() => setType(k)} className="rounded-full px-3.5 py-2 text-sm font-bold transition" style={{ background: type === k ? TH.G : "oklch(0.95 0.01 230)", color: type === k ? "white" : "oklch(0.35 0.02 160)" }}>{n}</button>
+              {[["all", tr("Tất cả")], ["Homestay", "Homestay"], ["Bungalow", "Bungalow"]].map(([k, n]) => (
+                <button key={k} type="button" onClick={() => setType(k)} className="rounded-full px-3.5 py-2 text-sm font-bold transition" style={{ background: type === k ? TH.G : "oklch(0.95 0.01 230)", color: type === k ? "white" : "oklch(0.35 0.02 160)" }}>{tr(n)}</button>
               ))}
             </div>
             <div className="flex items-center gap-2">
-              {hasFilter && <button type="button" onClick={clearAll} className="px-3 py-2 text-sm font-bold text-gray-500">Xoá lọc</button>}
+              {hasFilter && <button type="button" onClick={clearAll} className="px-3 py-2 text-sm font-bold text-gray-500">{tr("Xoá lọc")}</button>}
               <span className="text-sm font-semibold text-gray-500">
-                {items.length} loại phòng{hasDates ? ` · ${nights} đêm` : ""}
-                {hiddenFull > 0 && <span className="text-gray-400"> · đã ẩn {hiddenFull} loại hết phòng</span>}
+                {items.length}{" "}{tr("loại phòng")}{hasDates ? tr(" · {0} đêm", [nights]) : ""}
+                {hiddenFull > 0 && <span className="text-gray-400">{" "}{tr("· đã ẩn {0} loại hết phòng", [hiddenFull])}</span>}
                 {hiddenPolicyHomes > 0 && (
                   <span className="block text-[13px] font-medium text-amber-700">
-                    ⚠️ {hiddenPolicyHomes} homestay không bán lẻ đêm cuối tuần nên đã ẩn — chọn thêm đêm thứ 6 hoặc chủ nhật để xem.
+                    {tr("⚠️ {0} homestay không bán lẻ đêm cuối tuần nên đã ẩn — chọn thêm đêm thứ 6 hoặc chủ nhật để xem.", [hiddenPolicyHomes])}
                   </span>
                 )}
               </span>
@@ -708,12 +711,12 @@ export function HomestayList({
                   className="rounded-full px-3 py-1.5 text-[13px] font-bold transition"
                   style={{ background: on ? "oklch(0.95 0.05 155)" : "oklch(0.97 0.005 230)", color: on ? "oklch(0.32 0.09 155)" : "oklch(0.45 0.02 160)", boxShadow: on ? "inset 0 0 0 1.5px oklch(0.55 0.1 155)" : "inset 0 0 0 1px oklch(0.92 0.01 230)" }}
                 >
-                  {a.icon} {a.label}
+                  {tr(a.icon)} {tr(a.label)}
                 </button>
               );
             })}
           </div>
-          {dateErr && <div className="px-1.5 pb-1 text-[13px] font-semibold text-red-600">{dateErr}</div>}
+          {dateErr && <div className="px-1.5 pb-1 text-[13px] font-semibold text-red-600">{tr(dateErr)}</div>}
         </div>
       </div>
 
@@ -724,32 +727,32 @@ export function HomestayList({
           <div className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-2">
             {homeNames.length > 1 && (
               <label className="flex items-center gap-2 text-[13px] font-semibold text-gray-500">
-                Xem theo nhà
+                {tr("Xem theo nhà")}
                 <select
                   value={home}
                   onChange={(e) => setHome(e.target.value)}
                   className="max-w-[260px] cursor-pointer border-0 bg-transparent p-0 text-[13px] font-extrabold outline-none"
                   style={{ color: TH.G }}
                 >
-                  <option value="all">Tất cả homestay</option>
+                  <option value="all">{tr("Tất cả homestay")}</option>
                   {homeNames.map((n) => (
-                    <option key={n} value={n}>{n}</option>
+                    <option key={n} value={n}>{tr(n)}</option>
                   ))}
                 </select>
               </label>
             )}
             {zones.length > 1 && (
               <label className="flex items-center gap-2 text-[13px] font-semibold text-gray-500">
-                Khu vực
+                {tr("Khu vực")}
                 <select
                   value={zone}
                   onChange={(e) => setZone(e.target.value)}
                   className="max-w-[220px] cursor-pointer border-0 bg-transparent p-0 text-[13px] font-extrabold outline-none"
                   style={{ color: "oklch(0.52 0.12 50)" }}
                 >
-                  <option value="all">Mọi khu vực</option>
+                  <option value="all">{tr("Mọi khu vực")}</option>
                   {zones.map((z) => (
-                    <option key={z} value={z}>{z.replace(/^Trung tâm Tà Xùa$/i, "Trung tâm")}</option>
+                    <option key={z} value={z}>{tr(z.replace(/^Trung tâm Tà Xùa$/i, "Trung tâm"))}</option>
                   ))}
                 </select>
               </label>
@@ -766,41 +769,41 @@ export function HomestayList({
               style={{ transform: "translateY(24px)", transitionProperty: "opacity, transform, box-shadow", transitionDuration: ".6s", transitionDelay: `${(i % 3) * 0.08}s` }}
             >
               <div className="relative aspect-[16/10] overflow-hidden bg-gray-100 sm:aspect-[4/3]">
-                {s.cover ? <Image src={s.cover} alt={s.name} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" /> : <div className="flex h-full items-center justify-center text-4xl">🏠</div>}
+                {s.cover ? <Image src={s.cover} alt={tr(s.name)} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" /> : <div className="flex h-full items-center justify-center text-4xl">🏠</div>}
                 <div className="pointer-events-none absolute left-3 right-3 top-3 flex justify-between gap-1.5">
                   <div className="flex gap-1.5">
-                    <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[oklch(0.3_0.04_160)]">{s.cat}</span>
+                    <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[oklch(0.3_0.04_160)]">{tr(s.cat)}</span>
                     {(s.roomFeatured || s.featured) && (
-                      <span className="rounded-full bg-sunset-500 px-2.5 py-1 text-xs font-bold text-white">{s.roomFeatured ? "⭐ Nổi bật" : "Nổi bật"}</span>
+                      <span className="rounded-full bg-sunset-500 px-2.5 py-1 text-xs font-bold text-white">{s.roomFeatured ? tr("⭐ Nổi bật") : tr("Nổi bật")}</span>
                     )}
                   </div>
-                  <span className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: STATUS[s.status].bg, color: STATUS[s.status].fg }}>{STATUS[s.status].text(s.freeRooms)}</span>
+                  <span className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: STATUS[s.status].bg, color: STATUS[s.status].fg }}>{tr(STATUS[s.status].text(s.freeRooms, tr))}</span>
                 </div>
               </div>
               <div className="flex flex-1 flex-col gap-1 p-3 sm:gap-2 sm:p-5 sm:pt-[18px]">
                 <div className="line-clamp-1 text-[11px] font-semibold text-gray-500 sm:text-[13px]">
-                  {s.homeName} · {s.area}
-                  {s.distanceKm != null && (s.distanceKm === 0 ? " · ngay trung tâm" : ` · cách trung tâm ${s.distanceKm.toLocaleString("vi-VN")}km`)}
+                  {tr(s.homeName)} · {tr(s.area)}
+                  {s.distanceKm != null && (s.distanceKm === 0 ? tr(" · ngay trung tâm") : tr(" · cách trung tâm {0}km", [s.distanceKm.toLocaleString("vi-VN")]))}
                 </div>
-                <div className="line-clamp-1 text-[15px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink sm:line-clamp-none sm:text-[19px]">{s.name}</div>
-                <div className="text-[11px] font-semibold text-gray-500 sm:text-[12px]">Tối đa {s.capacity} khách{s.count > 1 ? ` · ${s.count} phòng loại này` : ""}</div>
+                <div className="line-clamp-1 text-[15px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink sm:line-clamp-none sm:text-[19px]">{tr(s.name)}</div>
+                <div className="text-[11px] font-semibold text-gray-500 sm:text-[12px]">{tr("Tối đa")}{" "}{s.capacity}{" "}{tr("khách")}{s.count > 1 ? tr(" · {0} phòng loại này", [s.count]) : ""}</div>
                 {(() => {
                   const tags = AMENITIES.filter((a) => s.amen?.[a.key]);
                   if (tags.length === 0) return null;
                   return (
                     <div className="flex flex-wrap gap-1">
                       {tags.slice(0, 4).map((a) => (
-                        <span key={a.key} className="rounded-full bg-[oklch(0.96_0.02_155)] px-2 py-0.5 text-[10px] font-semibold text-[oklch(0.36_0.08_155)] sm:text-[11px]">{a.icon} {a.label}</span>
+                        <span key={a.key} className="rounded-full bg-[oklch(0.96_0.02_155)] px-2 py-0.5 text-[10px] font-semibold text-[oklch(0.36_0.08_155)] sm:text-[11px]">{tr(a.icon)} {tr(a.label)}</span>
                       ))}
                       {tags.length > 4 && <span className="rounded-full bg-[oklch(0.96_0.005_230)] px-2 py-0.5 text-[10px] font-semibold text-gray-500 sm:text-[11px]">+{tags.length - 4}</span>}
                     </div>
                   );
                 })()}
-                <div className="line-clamp-2 text-[13px] leading-[1.5] text-gray-500 sm:line-clamp-3 sm:text-sm sm:leading-[1.55]">{s.desc}</div>
+                <div className="line-clamp-2 text-[13px] leading-[1.5] text-gray-500 sm:line-clamp-3 sm:text-sm sm:leading-[1.55]">{tr(s.desc)}</div>
                 <div className="flex-1" />
                 <div className="mt-1 flex flex-wrap items-end justify-between gap-x-2 gap-y-2 border-t border-[oklch(0.94_0.01_230)] pt-2 sm:mt-1.5 sm:pt-3">
                   <div className="min-w-0">
-                    <div className="text-[11px] text-gray-500 sm:text-xs">{s.price > 0 ? (hasDates ? `${nights} đêm từ` : "Giá từ") : "Giá phòng"}</div>
+                    <div className="text-[11px] text-gray-500 sm:text-xs">{s.price > 0 ? (hasDates ? tr("{0} đêm từ", [nights]) : tr("Giá từ")) : tr("Giá phòng")}</div>
                     <div>
                       {s.price > 0 ? (() => {
                         // Có ngày: dùng TỔNG cả kỳ (giá bán & giá gạch theo thứ) nếu tính được;
@@ -810,17 +813,17 @@ export function HomestayList({
                         return (
                         <>
                           {old != null && old > shown && (
-                            <span className="mr-1.5 text-[12px] text-gray-400 line-through sm:text-[14px]">{vnd(old)}</span>
+                            <span className="mr-1.5 text-[12px] text-gray-400 line-through sm:text-[14px]">{tr(vnd(old))}</span>
                           )}
-                          <span className="text-[17px] font-extrabold tracking-[-0.02em] sm:text-[21px]" style={{ color: TH.G }}>{vnd(shown)}</span>{!hasDates && <span className="text-[12px] text-gray-500 sm:text-[13px]">/đêm</span>}
+                          <span className="text-[17px] font-extrabold tracking-[-0.02em] sm:text-[21px]" style={{ color: TH.G }}>{tr(vnd(shown))}</span>{!hasDates && <span className="text-[12px] text-gray-500 sm:text-[13px]">{tr("/đêm")}</span>}
                         </>
                         );
                       })() : (
-                        <span className="text-[15px] font-extrabold tracking-[-0.02em] sm:text-[18px]" style={{ color: TH.G }}>IB để biết giá</span>
+                        <span className="text-[15px] font-extrabold tracking-[-0.02em] sm:text-[18px]" style={{ color: TH.G }}>{tr("IB để biết giá")}</span>
                       )}
                     </div>
                   </div>
-                  <span className="whitespace-nowrap rounded-full px-3 py-2 text-xs font-bold text-white transition group-hover:bg-sunset-500 sm:px-4 sm:py-2.5 sm:text-sm" style={{ background: TH.G }}>Xem chi tiết</span>
+                  <span className="whitespace-nowrap rounded-full px-3 py-2 text-xs font-bold text-white transition group-hover:bg-sunset-500 sm:px-4 sm:py-2.5 sm:text-sm" style={{ background: TH.G }}>{tr("Xem chi tiết")}</span>
                 </div>
               </div>
             </Link>
@@ -829,15 +832,15 @@ export function HomestayList({
         {items.length > limit && (
           <div ref={moreRef} className="mt-6 flex justify-center">
             <button type="button" onClick={() => setLim({ k: fkey, n: limit + PAGE })} className="rounded-full border border-[oklch(0.88_0.02_230)] bg-white px-6 py-3 text-sm font-bold text-ink hover:bg-gray-50">
-              Xem thêm {Math.min(PAGE, items.length - limit)} phòng (còn {items.length - limit})
+              {tr("Xem thêm {0} phòng (còn {1})", [Math.min(PAGE, items.length - limit), items.length - limit])}
             </button>
           </div>
         )}
         {items.length === 0 && (
           <div className="flex flex-col items-center gap-2.5 rounded-[22px] border border-dashed border-[oklch(0.85_0.02_230)] bg-white px-6 py-14 text-center">
-            <div className="text-[19px] font-extrabold text-ink">Không có phòng phù hợp</div>
-            <div className="max-w-[420px] text-[15px] text-gray-500">Thử đổi ngày hoặc khoảng giá. Hoặc gọi <SitePhone />, <We /> tìm chỗ giúp.</div>
-            <button type="button" onClick={clearAll} className="mt-1.5 rounded-full px-5 py-2.5 text-sm font-bold text-white" style={{ background: TH.G }}>Xoá bộ lọc</button>
+            <div className="text-[19px] font-extrabold text-ink">{tr("Không có phòng phù hợp")}</div>
+            <div className="max-w-[420px] text-[15px] text-gray-500">{tr("Thử đổi ngày hoặc khoảng giá. Hoặc gọi")}{" "}<SitePhone />, <We />{" "}{tr("tìm chỗ giúp.")}</div>
+            <button type="button" onClick={clearAll} className="mt-1.5 rounded-full px-5 py-2.5 text-sm font-bold text-white" style={{ background: TH.G }}>{tr("Xoá bộ lọc")}</button>
           </div>
         )}
       </main>

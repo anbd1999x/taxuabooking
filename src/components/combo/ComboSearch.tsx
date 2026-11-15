@@ -5,6 +5,7 @@ import { useState } from "react";
 import { DateField } from "@/components/DateField";
 import { QtyInput } from "@/components/QtyInput";
 import { useSearchNav } from "@/components/useSearchNav";
+import { useT } from "@/components/i18n/I18nProvider";
 
 function todayKey() {
   return new Date().toISOString().slice(0, 10);
@@ -79,6 +80,7 @@ export function ComboSearch({
   /** Điểm xuất phát đã khai trong bảng giá chặng (server truyền xuống). */
   origins?: string[];
 }) {
+  const t = useT();
   const { pending, go } = useSearchNav();
   const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState(initialTo);
@@ -139,30 +141,30 @@ export function ComboSearch({
       <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,170px),1fr))" }}>
         {origins.length > 0 && (
           <label className={cell}>
-            <span className={lab}>Điểm xuất phát</span>
+            <span className={lab}>{t("Điểm xuất phát")}</span>
             <select value={origin} onChange={(e) => setOrigin(e.target.value)} className={inp}>
-              <option value="">Chọn điểm đón</option>
+              <option value="">{t("Chọn điểm đón")}</option>
               {origins.map((o) => (
-                <option key={o} value={o}>{o}</option>
+                <option key={o} value={o}>{t(o)}</option>
               ))}
-              {origin && !origins.includes(origin) && <option value={origin}>{origin}</option>}
+              {origin && !origins.includes(origin) && <option value={origin}>{t(origin)}</option>}
             </select>
           </label>
         )}
         <label className={cell}>
-          <span className={lab}>Ngày đi (lên xe)</span>
-          <DateField value={from} min={todayKey()} onChange={setFrom} className={inp} displayClassName="text-[15px] font-bold text-ink" ariaLabel="Ngày đi" />
+          <span className={lab}>{t("Ngày đi (lên xe)")}</span>
+          <DateField value={from} min={todayKey()} onChange={setFrom} className={inp} displayClassName="text-[15px] font-bold text-ink" ariaLabel={t("Ngày đi")} />
         </label>
         <label className={cell}>
-          <span className={lab}>Ngày về (xe chạy về)</span>
-          <DateField value={to} min={from || todayKey()} onChange={setTo} className={inp} displayClassName="text-[15px] font-bold text-ink" ariaLabel="Ngày về" />
+          <span className={lab}>{t("Ngày về (xe chạy về)")}</span>
+          <DateField value={to} min={from || todayKey()} onChange={setTo} className={inp} displayClassName="text-[15px] font-bold text-ink" ariaLabel={t("Ngày về")} />
         </label>
         <div className={cell}>
-          <span className={lab}>Người lớn</span>
+          <span className={lab}>{t("Người lớn")}</span>
           <div className="flex items-center gap-2.5 pt-0.5">
             <button
               type="button"
-              aria-label="Giảm người lớn"
+              aria-label={t("Giảm người lớn")}
               onClick={() => setPeople(Math.max(1, people - 1))}
               className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-lg bg-white font-bold text-ink shadow-sm transition hover:bg-forest-50"
             >
@@ -174,11 +176,11 @@ export function ComboSearch({
               value={people}
               onChange={setPeople}
               className="w-10 border-0 bg-transparent p-0 text-center text-[15px] font-extrabold text-ink outline-none"
-              ariaLabel="Người lớn"
+              ariaLabel={t("Người lớn")}
             />
             <button
               type="button"
-              aria-label="Tăng người lớn"
+              aria-label={t("Tăng người lớn")}
               onClick={() => setPeople(Math.min(20, people + 1))}
               className="flex h-[26px] w-[26px] flex-none items-center justify-center rounded-lg bg-white font-bold text-ink shadow-sm transition hover:bg-forest-50"
             >
@@ -187,7 +189,7 @@ export function ComboSearch({
           </div>
         </div>
         <div className={cell}>
-          <span className={lab}>Trẻ em</span>
+          <span className={lab}>{t("Trẻ em")}</span>
           <select
             value={childAges.length}
             onChange={(e) => {
@@ -197,7 +199,7 @@ export function ComboSearch({
             className={inp}
           >
             {Array.from({ length: 11 }, (_, i) => i).map((n) => (
-              <option key={n} value={n}>{n === 0 ? "Không có trẻ" : `${n} trẻ`}</option>
+              <option key={n} value={n}>{n === 0 ? t("Không có trẻ") : t("{0} trẻ", [n])}</option>
             ))}
           </select>
           {childAges.length > 0 && (
@@ -209,7 +211,7 @@ export function ComboSearch({
                   min={0}
                   max={17}
                   value={age}
-                  aria-label={`Tuổi bé ${i + 1}`}
+                  aria-label={t("Tuổi bé {0}", [i + 1])}
                   onChange={(e) => {
                     const v = Math.max(0, Math.min(17, parseInt(e.target.value || "0", 10) || 0));
                     setChildAges((arr) => arr.map((x, j) => (j === i ? v : x)));
@@ -221,10 +223,10 @@ export function ComboSearch({
           )}
         </div>
         <label className={cell}>
-          <span className={lab}>Giá mong muốn / khách</span>
+          <span className={lab}>{t("Giá mong muốn / khách")}</span>
           <select value={price} onChange={(e) => setPrice(e.target.value)} className={inp}>
             {PRICE_OPTIONS.map(([v, n]) => (
-              <option key={v} value={v}>{n}</option>
+              <option key={v} value={v}>{t(n)}</option>
             ))}
           </select>
         </label>
@@ -235,18 +237,16 @@ export function ComboSearch({
         <span className="h-1.5 w-1.5 flex-none rounded-full bg-sunset-500" />
         {nights != null && !dateErr ? (
           <span>
-            Lên xe <b className="text-ink">tối {fmtD(from)}</b> → nhận phòng <b className="text-ink">sáng {fmtD(checkIn)}</b> → trả phòng
-            &amp; xe chạy về <b className="text-ink">ngày {fmtD(to)}</b> · <b className="text-ink">{nights} đêm homestay</b>
+            {t("Lên xe")}{" "}<b className="text-ink">{t("tối {0}", [fmtD(from)])}</b>{" "}{t("→ nhận phòng")}{" "}<b className="text-ink">{t("sáng {0}", [fmtD(checkIn)])}</b>{" "}{t("→ trả phòng & xe chạy về")}{" "}<b className="text-ink">{t("ngày {0}", [fmtD(to)])}</b> · <b className="text-ink">{t("{0} đêm homestay", [nights])}</b>
           </span>
         ) : (
           <span>
-            <b className="text-ink">Ngày đi là đêm bạn lên xe</b> — xe chạy xuyên đêm, sáng hôm sau mới tới Tà Xùa nhận phòng.
-            VD: nhận phòng ngày 15, trả ngày 16 → chọn Ngày đi 14 · Ngày về 16
+            <b className="text-ink">{t("Ngày đi là đêm bạn lên xe")}</b>{" "}{t("— xe chạy xuyên đêm, sáng hôm sau mới tới Tà Xùa nhận phòng. VD: nhận phòng ngày 15, trả ngày 16 → chọn Ngày đi 14 · Ngày về 16")}
           </span>
         )}
         {dateErr && (
           <span className="font-bold text-[oklch(0.55_0.19_28)]">
-            · Chọn vậy chưa có đêm nghỉ nào — muốn nhận phòng {fmtD(from)} hãy chọn Ngày đi {fmtD(suggFrom)} · Ngày về {fmtD(suggTo)}
+            {t("· Chọn vậy chưa có đêm nghỉ nào — muốn nhận phòng {0} hãy chọn Ngày đi {1} · Ngày về {2}", [fmtD(from), fmtD(suggFrom), fmtD(suggTo)])}
           </span>
         )}
         {dateErr && canQuickFix && (
@@ -255,7 +255,7 @@ export function ComboSearch({
             onClick={() => { setFrom(suggFrom); setTo(suggTo); }}
             className="rounded-full bg-red-600 px-3 py-1 text-xs font-bold text-white hover:bg-red-700"
           >
-            Sửa giúp tôi →
+            {t("Sửa giúp tôi →")}
           </button>
         )}
       </div>
@@ -264,19 +264,19 @@ export function ComboSearch({
 
       {/* Bộ lọc: nhãn trái + chip phải (theo thiết kế) */}
       <div className="grid items-center gap-x-4 gap-y-2.5 px-1.5" style={{ gridTemplateColumns: "auto minmax(0,1fr)" }}>
-        <span className="whitespace-nowrap text-[13px] font-bold text-[oklch(0.45_0.02_160)]">Loại phòng</span>
+        <span className="whitespace-nowrap text-[13px] font-bold text-[oklch(0.45_0.02_160)]">{t("Loại phòng")}</span>
         <div className="flex flex-wrap gap-1.5">
           {ROOM_KIND_OPTIONS.map((o) => (
             <button key={o.key} type="button" onClick={() => setKind(o.key)} className={chip(kind === o.key)}>
-              {o.label}
+              {t(o.label)}
             </button>
           ))}
         </div>
-        <span className="whitespace-nowrap text-[13px] font-bold text-[oklch(0.45_0.02_160)]">Tiện ích</span>
+        <span className="whitespace-nowrap text-[13px] font-bold text-[oklch(0.45_0.02_160)]">{t("Tiện ích")}</span>
         <div className="flex flex-wrap gap-1.5">
           {COMBO_FILTER_OPTIONS.map((o) => (
             <button key={o.key} type="button" onClick={() => toggle(o.key)} className={chip(filters.has(o.key))}>
-              {o.icon} {o.label}
+              {t(o.icon)} {t(o.label)}
             </button>
           ))}
         </div>
@@ -288,7 +288,7 @@ export function ComboSearch({
         disabled={pending}
         className="flex w-full items-center justify-center gap-2 rounded-[14px] bg-sunset-500 px-6 py-3.5 text-base font-extrabold text-white transition hover:bg-sunset-600 active:scale-[0.99] disabled:cursor-wait disabled:opacity-80"
       >
-        Tìm combo khớp giá <span>→</span>
+        {t("Tìm combo khớp giá")}{" "}<span>→</span>
       </button>
     </div>
   );

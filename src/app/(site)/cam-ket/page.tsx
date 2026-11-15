@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import { pageMeta } from "@/lib/og";
-import Link from "next/link";
+import Link from "@/components/Link";
 import { notFound } from "next/navigation";
 import { getSettings } from "@/lib/queries";
 import { parseTrustPopup, TRUST_POPUP_KEY, OFFICIAL_SITES, visiblePeople } from "@/lib/trust-popup";
 import { CommitmentIntro, FiveKhongBlock, PeopleColumn, PromisesBlock } from "@/components/trust/parts";
+import { getT } from "@/lib/i18n/server";
+import { i18nMeta } from "@/lib/i18n/meta";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = pageMeta({
+export const generateMetadata = () => i18nMeta({
   title: "Cam kết uy tín",
   description:
     "Cam kết uy tín của Tà Xùa Booking: website thật, người thật. Chi trả đến 100 triệu nếu nhận tiền mà không cung cấp dịch vụ, bồi thường 10 triệu nếu báo cao hơn giá niêm yết.",
@@ -16,6 +18,7 @@ export const metadata: Metadata = pageMeta({
 });
 
 export default async function CommitmentPage() {
+  const t = await getT();
   const settings = await getSettings();
   const config = parseTrustPopup(settings[TRUST_POPUP_KEY]);
   if (!config.enabled && !config.showLinks) notFound(); // tắt cả popup lẫn menu/link ⇒ ẩn cả trang
@@ -26,7 +29,7 @@ export default async function CommitmentPage() {
       className="bg-forest-50/40"
       style={{ fontFamily: "'Be Vietnam Pro',system-ui,sans-serif", color: "oklch(0.22 0.03 160)" }}
     >
-      <h1 className="sr-only">Cam kết uy tín của Tà Xùa Booking</h1>
+      <h1 className="sr-only">{t("Cam kết uy tín của Tà Xùa Booking")}</h1>
       <div className="container-page py-8 sm:py-12">
         {/* Thẻ chính: 2 cột như popup */}
         <div
@@ -47,11 +50,10 @@ export default async function CommitmentPage() {
             href="/cam-ket/dieu-khoan"
             className="inline-flex items-center gap-1.5 rounded-full bg-forest-800 px-6 py-3 text-sm font-extrabold text-white transition hover:bg-forest-900"
           >
-            Xem điều khoản cam kết đầy đủ →
+            {t("Xem điều khoản cam kết đầy đủ →")}
           </Link>
           <p className="text-sm text-gray-500">
-            Mọi cam kết chỉ áp dụng cho giao dịch qua website chính thức <b>{OFFICIAL_SITES.join(", ")}</b> và Zalo/điện
-            thoại của {people.length > 1 ? "hai người" : "người"} phụ trách ở trên. Ngoài các địa chỉ này đều là giả mạo.
+            {t("Mọi cam kết chỉ áp dụng cho giao dịch qua website chính thức")}{" "}<b>{OFFICIAL_SITES.join(", ")}</b>{" "}{t("và Zalo/điện thoại của")}{" "}{people.length > 1 ? t("hai người") : t("người")}{" "}{t("phụ trách ở trên. Ngoài các địa chỉ này đều là giả mạo.")}
           </p>
         </div>
       </div>

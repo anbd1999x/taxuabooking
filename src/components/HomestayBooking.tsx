@@ -11,6 +11,8 @@ import { billableOccupants, multiRoomExtraCost } from "@/lib/occupancy";
 import { CommitmentLink } from "@/components/trust/parts";
 import { vnPhoneError } from "@/lib/phone";
 import { BookingEmailField, emailLooksValid } from "@/components/BookingEmailField";
+import { useT } from "@/components/i18n/I18nProvider";
+import Link from "@/components/Link";
 
 export interface HomestayMedia {
   url: string;
@@ -160,6 +162,7 @@ export function HomestayBooking({
   /** Homestay khác gần đây (gợi ý cuối trang). */
   suggestions?: HomestaySuggestion[];
 }) {
+  const tr = useT();
   const map = resolveMap(mapUrl, mapQuery);
   // Link nhắn tin cho homestay "chỉ liên hệ": ưu tiên Zalo, không có thì gọi điện.
   const chatOnly = Boolean(contactOnly || inquiryOnly); // không có form đặt: mọi nút đặt → nhắn tin
@@ -285,7 +288,7 @@ export function HomestayBooking({
       for (const d of nights) {
         if (d.getUTCDay() !== 6) continue;
         if (!have.has(keyOf(addDays(d, -1))) && !have.has(keyOf(addDays(d, 1)))) {
-          return "Homestay này không bán lẻ đêm thứ 7 — vui lòng đặt kèm đêm thứ 6 hoặc chủ nhật (T6+T7, T7+CN hoặc cả ba đêm).";
+          return tr("Homestay này không bán lẻ đêm thứ 7 — vui lòng đặt kèm đêm thứ 6 hoặc chủ nhật (T6+T7, T7+CN hoặc cả ba đêm).");
         }
       }
       return null;
@@ -298,7 +301,7 @@ export function HomestayBooking({
       const anchor = addDays(d, -pos);
       for (let i = 0; i < b.wd.length; i++) {
         if (!have.has(keyOf(addDays(anchor, i)))) {
-          return `Homestay này cuối tuần chỉ nhận đặt nguyên cụm ${b.label} — vui lòng chọn đủ các đêm ${b.label} (không bán lẻ).`;
+          return tr("Homestay này cuối tuần chỉ nhận đặt nguyên cụm {0} — vui lòng chọn đủ các đêm {1} (không bán lẻ).", [b.label, b.label]);
         }
       }
     }
@@ -363,17 +366,17 @@ export function HomestayBooking({
 
   const canPrev = cursor.y > start.getUTCFullYear() || (cursor.y === start.getUTCFullYear() && cursor.m > start.getUTCMonth());
   const canNext = cursor.y < end.getUTCFullYear() || (cursor.y === end.getUTCFullYear() && cursor.m < end.getUTCMonth());
-  const monthLabel = `Tháng ${cursor.m + 1}, ${cursor.y}`;
+  const monthLabel = tr("Tháng {0}, {1}", [cursor.m + 1, cursor.y]);
 
   const dname = (k: string) => {
     const d = parseKey(k);
-    return WD[wdIndex(d)] + ", " + dmy(k);
+    return tr(WD[wdIndex(d)]) + ", " + dmy(k);
   };
   const calHint = !ci
-    ? "Bấm chọn ngày nhận phòng"
+    ? tr("Bấm chọn ngày nhận phòng")
     : !co
-      ? `${dname(ci)} → ${dname(coEff!)} · 1 đêm (bấm thêm ngày nếu ở nhiều đêm)`
-      : `${dname(ci)} → ${dname(co)} · ${nN} đêm`;
+      ? tr("{0} → {1} · 1 đêm (bấm thêm ngày nếu ở nhiều đêm)", [dname(ci), dname(coEff!)])
+      : tr("{0} → {1} · {2} đêm", [dname(ci), dname(co), nN]);
 
   // ----- Thẻ phòng theo kỳ đã chọn -----
   const roomView = rooms.map((r, i) => {
@@ -399,11 +402,11 @@ export function HomestayBooking({
     const wdP = r.days[3] ?? r.base; // T4 đại diện ngày thường (chỉ mục getUTCDay)
     const weP = r.days[6] ?? r.base; // T7 đại diện cuối tuần
     let status: string, tone: "ok" | "low" | "full" | "idle";
-    if (contactOnly) { status = "Nhắn để hỏi"; tone = "idle"; }
-    else if (!nN) { status = "Chọn ngày"; tone = "idle"; }
-    else if (roomFree && policyWarn) { status = "Không bán lẻ cuối tuần"; tone = "full"; }
-    else if (!free) { status = "Hết phòng"; tone = "full"; }
-    else { status = "Còn phòng"; tone = "ok"; }
+    if (contactOnly) { status = tr("Nhắn để hỏi"); tone = "idle"; }
+    else if (!nN) { status = tr("Chọn ngày"); tone = "idle"; }
+    else if (roomFree && policyWarn) { status = tr("Không bán lẻ cuối tuần"); tone = "full"; }
+    else if (!free) { status = tr("Hết phòng"); tone = "full"; }
+    else { status = tr("Còn phòng"); tone = "ok"; }
     return { r, i, free, ib, stayPrice, stayStrike, wdP, weP, status, tone };
   });
 
@@ -440,19 +443,19 @@ export function HomestayBooking({
     if (!ready) {
       setErr(
         !nN
-          ? "Vui lòng chọn ngày nhận và trả phòng."
+          ? tr("Vui lòng chọn ngày nhận và trả phòng.")
           : !hasSel
-            ? "Vui lòng chọn ít nhất một phòng còn trống."
-            : `Số khách (${occupants}) vượt sức chứa tối đa của ${sels.length > 1 ? `${sels.length} phòng đã chọn` : "phòng"} (${selMax}) — chọn thêm phòng.`,
+            ? tr("Vui lòng chọn ít nhất một phòng còn trống.")
+            : tr("Số khách ({0}) vượt sức chứa tối đa của {1} ({2}) — chọn thêm phòng.", [occupants, sels.length > 1 ? tr("{0} phòng đã chọn", [sels.length]) : tr("phòng"), selMax]),
       );
       return;
     }
     if (!name.trim() || !phoneOk) {
       setTried(true);
-      setErr(!name.trim() ? "Vui lòng nhập họ tên." : phoneErr ?? "");
+      setErr(!name.trim() ? tr("Vui lòng nhập họ tên.") : phoneErr ?? "");
       return;
     }
-    if (!emailLooksValid(email)) { setErr("Email không hợp lệ (có thể để trống)."); return; }
+    if (!emailLooksValid(email)) { setErr(tr("Email không hợp lệ (có thể để trống).")); return; }
     setSubmitting(true);
     try {
       const res = await fetch("/api/bookings", {
@@ -475,10 +478,10 @@ export function HomestayBooking({
         }),
       });
       const data = await res.json();
-      if (!res.ok) setErr(data.error ?? "Gửi yêu cầu thất bại, vui lòng thử lại.");
+      if (!res.ok) setErr(tr(data.error) ?? tr("Gửi yêu cầu thất bại, vui lòng thử lại."));
       else { trackLeadConversion(); setResult(data); }
     } catch {
-      setErr("Lỗi kết nối, vui lòng thử lại.");
+      setErr(tr("Lỗi kết nối, vui lòng thử lại."));
     } finally {
       setSubmitting(false);
     }
@@ -512,7 +515,7 @@ export function HomestayBooking({
               className="overflow-hidden transition-[max-height] duration-500 ease-out"
               style={{ maxHeight: descLong && !descOpen ? 120 : 2000 }}
             >
-              <p className="whitespace-pre-line text-[15px] leading-relaxed text-gray-700">{descText}</p>
+              <p className="whitespace-pre-line text-[15px] leading-relaxed text-gray-700">{tr(descText)}</p>
             </div>
             {descLong && !descOpen && (
               <div className="pointer-events-none absolute inset-x-0 bottom-10 h-16 bg-gradient-to-b from-transparent to-cloud" />
@@ -523,7 +526,7 @@ export function HomestayBooking({
                 onClick={() => setDescOpen((o) => !o)}
                 className="mt-2.5 inline-flex items-center gap-1.5 rounded-full border border-forest-200 bg-white px-3.5 py-2 text-sm font-bold text-forest-700 transition hover:bg-forest-50"
               >
-                {descOpen ? "Thu gọn ↑" : "Xem đầy đủ mô tả ↓"}
+                {descOpen ? tr("Thu gọn ↑") : tr("Xem đầy đủ mô tả ↓")}
               </button>
             )}
           </section>
@@ -534,13 +537,13 @@ export function HomestayBooking({
         <section ref={calRef} className="flex flex-col gap-3">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="text-xl font-bold text-ink">Chọn ngày ở</h2>
-              <p className="mt-1 text-sm text-gray-500">{calHint}</p>
+              <h2 className="text-xl font-bold text-ink">{tr("Chọn ngày ở")}</h2>
+              <p className="mt-1 text-sm text-gray-500">{tr(calHint)}</p>
             </div>
             <div className="flex flex-wrap gap-3 text-xs font-medium text-gray-500">
-              <Legend color="bg-forest-500" label="Còn phòng" />
-              <Legend color="bg-amber-500" label="Còn ít" />
-              <Legend color="bg-gray-400" label="Hết phòng" />
+              <Legend color="bg-forest-500" label={tr("Còn phòng")} />
+              <Legend color="bg-amber-500" label={tr("Còn ít")} />
+              <Legend color="bg-gray-400" label={tr("Hết phòng")} />
             </div>
           </div>
           <div className="rounded-2xl bg-white p-3 ring-1 ring-black/5 sm:p-5">
@@ -550,24 +553,24 @@ export function HomestayBooking({
                 onClick={() => canPrev && setCursor((c) => (c.m === 0 ? { y: c.y - 1, m: 11 } : { y: c.y, m: c.m - 1 }))}
                 disabled={!canPrev}
                 className="flex h-8 w-8 items-center justify-center rounded-full ring-1 ring-gray-200 disabled:opacity-30"
-                aria-label="Tháng trước"
+                aria-label={tr("Tháng trước")}
               >
                 ‹
               </button>
-              <div className="text-base font-extrabold text-ink">{monthLabel}</div>
+              <div className="text-base font-extrabold text-ink">{tr(monthLabel)}</div>
               <button
                 type="button"
                 onClick={() => canNext && setCursor((c) => (c.m === 11 ? { y: c.y + 1, m: 0 } : { y: c.y, m: c.m + 1 }))}
                 disabled={!canNext}
                 className="flex h-8 w-8 items-center justify-center rounded-full ring-1 ring-gray-200 disabled:opacity-30"
-                aria-label="Tháng sau"
+                aria-label={tr("Tháng sau")}
               >
                 ›
               </button>
             </div>
             <div className="grid grid-cols-7 gap-1.5">
               {WD.map((w) => (
-                <div key={w} className="pb-2 pt-1 text-center text-[11px] font-bold text-gray-400">{w}</div>
+                <div key={w} className="pb-2 pt-1 text-center text-[11px] font-bold text-gray-400">{tr(w)}</div>
               ))}
               {monthCells.map((c, idx) => {
                 if (!c.key) return <div key={idx} />;
@@ -579,7 +582,7 @@ export function HomestayBooking({
                     type="button"
                     onClick={() => !disabled && pickDay(c.key!)}
                     disabled={disabled}
-                    title={c.inWindow ? (c.status === "full" ? "Hết phòng" : c.free + " phòng trống") : ""}
+                    title={c.inWindow ? (c.status === "full" ? tr("Hết phòng") : c.free + tr(" phòng trống")) : ""}
                     className={[
                       "flex h-16 flex-col justify-between rounded-xl border px-1.5 py-1.5 text-left transition",
                       c.isEnd
@@ -597,7 +600,7 @@ export function HomestayBooking({
                       {c.inWindow && <span className={`h-1.5 w-1.5 rounded-full ${c.isEnd ? "bg-white" : dotColor}`} />}
                     </span>
                     <span className={`truncate text-[10px] font-semibold ${c.isEnd ? "text-forest-100" : c.status === "full" ? "text-gray-400" : "text-gray-500"}`}>
-                      {c.inWindow ? (c.status === "full" ? "Hết" : c.minP != null ? shortK(c.minP) : c.free > 0 ? "IB" : "") : ""}
+                      {c.inWindow ? (c.status === "full" ? tr("Hết") : c.minP != null ? shortK(c.minP) : c.free > 0 ? "IB" : "") : ""}
                     </span>
                   </button>
                 );
@@ -610,17 +613,17 @@ export function HomestayBooking({
         {/* Thẻ phòng */}
         <section className="flex flex-col gap-3">
           <div>
-            <h2 className="text-xl font-bold text-ink">Các phòng</h2>
+            <h2 className="text-xl font-bold text-ink">{tr("Các phòng")}</h2>
             <p className="mt-1 text-sm text-gray-500">
               {contactOnly
-                ? "Giá tham khảo từng phòng bên dưới — nhắn tin để nhận thông tin phòng trống & giữ phòng."
+                ? tr("Giá tham khảo từng phòng bên dưới — nhắn tin để nhận thông tin phòng trống & giữ phòng.")
                 : inquiryOnly
-                  ? nN ? `Giá & tình trạng cho ${nN} đêm · ${dname(ci!)} → ${dname(coEff!)} — nhắn tin để biết chi tiết & giữ phòng.` : "Chọn ngày để xem phòng trống, rồi nhắn tin để biết chi tiết & giữ phòng."
-                : nN ? `Giá & tình trạng cho ${nN} đêm · ${dname(ci!)} → ${dname(coEff!)}.` : "Chọn ngày để xem giá và phòng trống cho cả kỳ ở."}
+                  ? nN ? tr("Giá & tình trạng cho {0} đêm · {1} → {2} — nhắn tin để biết chi tiết & giữ phòng.", [nN, tr(dname(ci!)), tr(dname(coEff!))]) : tr("Chọn ngày để xem phòng trống, rồi nhắn tin để biết chi tiết & giữ phòng.")
+                : nN ? tr("Giá & tình trạng cho {0} đêm · {1} → {2}.", [nN, tr(dname(ci!)), tr(dname(coEff!))]) : tr("Chọn ngày để xem giá và phòng trống cho cả kỳ ở.")}
             </p>
             {!contactOnly && policyWarn && (
               <div className="mt-2 rounded-xl bg-amber-50 px-3.5 py-3 text-[13px] font-medium leading-relaxed text-amber-800">
-                ⚠️ {policyWarn}
+                ⚠️ {tr(policyWarn)}
               </div>
             )}
           </div>
@@ -640,7 +643,7 @@ export function HomestayBooking({
                           type="button"
                           onClick={() => v.r.media.length && openLb(v.r.media, k)}
                           className={`group relative aspect-[4/3] flex-1 overflow-hidden transition-[flex-grow] duration-500 ease-out hover:grow-[2.6] sm:aspect-auto ${v.r.media.length ? "cursor-pointer" : "cursor-default"}`}
-                          aria-label="Xem ảnh/video phòng"
+                          aria-label={tr("Xem ảnh/video phòng")}
                         >
                           {m ? (
                             m.type === "video" ? (
@@ -649,10 +652,10 @@ export function HomestayBooking({
                                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-2xl text-white drop-shadow">▶</span>
                               </>
                             ) : (
-                              <Image src={m.url} alt={v.r.name} fill sizes="(max-width:640px) 50vw, 220px" className="object-cover" />
+                              <Image src={m.url} alt={tr(v.r.name)} fill sizes="(max-width:640px) 50vw, 220px" className="object-cover" />
                             )
                           ) : (
-                            <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">Chưa có ảnh</div>
+                            <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">{tr("Chưa có ảnh")}</div>
                           )}
                         </button>
                       ))}
@@ -666,12 +669,12 @@ export function HomestayBooking({
                     <div className="flex min-w-0 flex-col gap-3 p-4 sm:p-5">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-forest-700">{v.r.typeName}</div>
-                          <div className="truncate text-lg font-extrabold text-ink">{v.r.name}</div>
+                          <div className="text-[11px] font-semibold uppercase tracking-wide text-forest-700">{tr(v.r.typeName)}</div>
+                          <div className="truncate text-lg font-extrabold text-ink">{tr(v.r.name)}</div>
                           <div className="mt-0.5 text-xs text-gray-500">
                             {v.r.maxCapacity && v.r.maxCapacity > v.r.capacity
-                              ? `${v.r.capacity} khách · tối đa ${v.r.maxCapacity} (phụ thu)`
-                              : `Tối đa ${v.r.capacity} người`}
+                              ? tr("{0} khách · tối đa {1} (phụ thu)", [v.r.capacity, v.r.maxCapacity])
+                              : tr("Tối đa {0} người", [v.r.capacity])}
                           </div>
                         </div>
                         <StatusChip tone={v.tone} label={v.status} />
@@ -679,42 +682,41 @@ export function HomestayBooking({
                       {v.r.amenities.length > 0 && (
                         <div className="flex flex-wrap gap-1.5">
                           {v.r.amenities.slice(0, 5).map((a, k) => (
-                            <span key={k} className="rounded-lg bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-600 ring-1 ring-gray-100">{a}</span>
+                            <span key={k} className="rounded-lg bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-600 ring-1 ring-gray-100">{tr(a)}</span>
                           ))}
                         </div>
                       )}
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-gray-500">
                         {v.r.por ? (
-                          <span className="font-semibold text-forest-700">{IB}</span>
+                          <span className="font-semibold text-forest-700">{tr(IB)}</span>
                         ) : (
                           <>
-                            <span>Ngày thường <b className="text-ink">{v.wdP > 0 ? fmt(v.wdP) : IB}</b></span>
-                            <span>Cuối tuần <b className="text-ink">{v.weP > 0 ? fmt(v.weP) : IB}</b></span>
-                            {v.r.hasSale && <span className="text-gray-400 line-through">{fmt(v.r.listPrice)}</span>}
+                            <span>{tr("Ngày thường")}{" "}<b className="text-ink">{v.wdP > 0 ? tr(fmt(v.wdP)) : tr(IB)}</b></span>
+                            <span>{tr("Cuối tuần")}{" "}<b className="text-ink">{v.weP > 0 ? tr(fmt(v.weP)) : tr(IB)}</b></span>
+                            {v.r.hasSale && <span className="text-gray-400 line-through">{tr(fmt(v.r.listPrice))}</span>}
                           </>
                         )}
                       </div>
                       {(v.r.extraFee || v.r.earlyFee || v.r.lateFee) && (
                         <div className="text-xs leading-relaxed text-gray-400">
-                          Phụ thu:{" "}
-                          {[
-                            v.r.extraFee ? `người thêm ${fmt(v.r.extraFee)}/đêm` : null,
-                            v.r.earlyFee ? `check-in sớm ${fmt(v.r.earlyFee)}` : null,
-                            v.r.lateFee ? `check-out muộn ${fmt(v.r.lateFee)}` : null,
+                          {tr("Phụ thu: {0}", [[
+                            v.r.extraFee ? tr("người thêm {0}/đêm", [fmt(v.r.extraFee)]) : null,
+                            v.r.earlyFee ? tr("check-in sớm {0}", [fmt(v.r.earlyFee)]) : null,
+                            v.r.lateFee ? tr("check-out muộn {0}", [fmt(v.r.lateFee)]) : null,
                           ]
                             .filter(Boolean)
-                            .join(" · ")}
+                            .join(" · ")])}
                         </div>
                       )}
                       <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-3">
                         <div>
-                          <div className="text-xs text-gray-500">{v.r.por || v.ib ? "Giá phòng" : nN ? `${nN} đêm` : "Mỗi đêm từ"}</div>
+                          <div className="text-xs text-gray-500">{v.r.por || v.ib ? tr("Giá phòng") : nN ? tr("{0} đêm", [nN]) : tr("Mỗi đêm từ")}</div>
                           <div className={`font-extrabold text-ink ${v.r.por || v.ib ? "text-base text-forest-700" : "text-xl"}`}>
                             {!(v.r.por || v.ib) && (() => {
                               const strike = nN ? v.stayStrike : fromStrike(v.r);
-                              return strike != null ? <span className="mr-1.5 align-middle text-sm font-semibold text-gray-400 line-through">{fmt(strike)}</span> : null;
+                              return strike != null ? <span className="mr-1.5 align-middle text-sm font-semibold text-gray-400 line-through">{tr(fmt(strike))}</span> : null;
                             })()}
-                            {v.r.por || v.ib ? IB : nN ? fmt(v.stayPrice) : fmt(fromPrice(v.r))}
+                            {v.r.por || v.ib ? tr(IB) : nN ? tr(fmt(v.stayPrice)) : tr(fmt(fromPrice(v.r)))}
                           </div>
                         </div>
                         {chatOnly ? (
@@ -724,7 +726,7 @@ export function HomestayBooking({
                             rel={zalo ? "noopener noreferrer" : undefined}
                             className="rounded-xl bg-sunset-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-sunset-600"
                           >
-                            {contactOnly ? "💬 Nhắn tin nhận thông tin" : "💬 Nhắn tin để biết chi tiết"}
+                            {contactOnly ? tr("💬 Nhắn tin nhận thông tin") : tr("💬 Nhắn tin để biết chi tiết")}
                           </a>
                         ) : (
                         <button
@@ -734,7 +736,7 @@ export function HomestayBooking({
                             toggleRoom(v.r.id);
                             setResult(null);
                           }}
-                          title={isSel ? "Bấm để bỏ chọn phòng này" : "Thêm phòng này vào đơn (chọn được nhiều phòng)"}
+                          title={isSel ? tr("Bấm để bỏ chọn phòng này") : tr("Thêm phòng này vào đơn (chọn được nhiều phòng)")}
                           className={[
                             "rounded-xl px-5 py-2.5 text-sm font-bold transition",
                             !v.free
@@ -744,7 +746,7 @@ export function HomestayBooking({
                                 : "bg-forest-100 text-forest-800 hover:bg-forest-200",
                           ].join(" ")}
                         >
-                          {!v.free ? (v.tone === "full" ? v.status : "Hết phòng") : isSel ? "Đã chọn ✓ · Bỏ" : hasSel ? "+ Thêm phòng" : "Chọn phòng"}
+                          {!v.free ? (v.tone === "full" ? tr(v.status) : tr("Hết phòng")) : isSel ? tr("Đã chọn ✓ · Bỏ") : hasSel ? tr("+ Thêm phòng") : tr("Chọn phòng")}
                         </button>
                         )}
                       </div>
@@ -759,12 +761,12 @@ export function HomestayBooking({
         {/* Chính sách homestay */}
         {policyLines.length > 0 && (
           <section className="flex flex-col gap-3">
-            <h2 className="text-xl font-bold text-ink">Chính sách homestay</h2>
+            <h2 className="text-xl font-bold text-ink">{tr("Chính sách homestay")}</h2>
             <ul className="flex flex-col gap-2.5 rounded-2xl bg-white p-5 ring-1 ring-black/5">
               {policyLines.map((line, i) => (
                 <li key={i} className="flex gap-2.5 text-[15px] leading-relaxed text-gray-700">
                   <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-forest-500" />
-                  <span>{line}</span>
+                  <span>{tr(line)}</span>
                 </li>
               ))}
             </ul>
@@ -775,8 +777,8 @@ export function HomestayBooking({
         <section id="vi-tri" className="flex scroll-mt-20 flex-col gap-3">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="text-xl font-bold text-ink">Vị trí</h2>
-              {area && <p className="mt-1 text-sm text-gray-500">{area}</p>}
+              <h2 className="text-xl font-bold text-ink">{tr("Vị trí")}</h2>
+              {area && <p className="mt-1 text-sm text-gray-500">{tr(area)}</p>}
             </div>
             <a
               href={map.openUrl}
@@ -784,7 +786,7 @@ export function HomestayBooking({
               rel="noopener noreferrer"
               className="whitespace-nowrap rounded-full bg-forest-700 px-4 py-2 text-sm font-semibold text-white hover:bg-forest-800"
             >
-              Mở Google Maps ↗
+              {tr("Mở Google Maps ↗")}
             </a>
           </div>
           <div className="h-[280px] overflow-hidden rounded-2xl ring-1 ring-black/5">
@@ -792,7 +794,7 @@ export function HomestayBooking({
               src={map.embedSrc}
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
-              title="Bản đồ"
+              title={tr("Bản đồ")}
               className="h-full w-full border-0"
             />
           </div>
@@ -803,25 +805,25 @@ export function HomestayBooking({
           <section className="flex flex-col gap-3">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <h2 className="text-xl font-bold text-ink">Homestay khác gần đây</h2>
+                <h2 className="text-xl font-bold text-ink">{tr("Homestay khác gần đây")}</h2>
                 <p className="mt-1 text-sm text-gray-500">
-                  {nN ? `Cùng khu Tà Xùa · xem cho ${nN} đêm bạn chọn` : "Cùng khu Tà Xùa, bấm xem để chọn ngày"}
+                  {nN ? tr("Cùng khu Tà Xùa · xem cho {0} đêm bạn chọn", [nN]) : tr("Cùng khu Tà Xùa, bấm xem để chọn ngày")}
                 </p>
               </div>
-              <a href={`/homestay${dateQS}`} className="whitespace-nowrap text-sm font-bold text-forest-700 hover:text-sunset-600">
-                Xem tất cả →
-              </a>
+              <Link href={`/homestay${dateQS}`} className="whitespace-nowrap text-sm font-bold text-forest-700 hover:text-sunset-600">
+                {tr("Xem tất cả →")}
+              </Link>
             </div>
             <div className="-m-0.5 grid snap-x snap-mandatory auto-cols-[48%] grid-flow-col gap-3 overflow-x-auto p-0.5 pb-2 [-ms-overflow-style:none] [scrollbar-width:none] sm:auto-cols-[minmax(0,1fr)] sm:gap-3.5 [&::-webkit-scrollbar]:hidden">
               {suggestions.map((g) => (
-                <a
+                <Link
                   key={g.slug}
                   href={`/homestay/${g.slug}${dateQS}`}
                   className="flex snap-start flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-black/5 transition hover:-translate-y-0.5 hover:shadow-lg"
                 >
                   <div className="relative aspect-[4/3] bg-forest-50">
                     {g.cover ? (
-                      <Image src={g.cover} alt={g.name} fill sizes="(max-width:640px) 72vw, 240px" className="object-cover" />
+                      <Image src={g.cover} alt={tr(g.name)} fill sizes="(max-width:640px) 72vw, 240px" className="object-cover" />
                     ) : (
                       <div className="flex h-full items-center justify-center text-3xl">🏠</div>
                     )}
@@ -835,22 +837,22 @@ export function HomestayBooking({
                               : "bg-gray-200 text-gray-600"
                         }`}
                       >
-                        {g.status === "ok" ? "Còn phòng" : g.status === "low" ? "Còn ít" : "Hết phòng"}
+                        {g.status === "ok" ? tr("Còn phòng") : g.status === "low" ? tr("Còn ít") : tr("Hết phòng")}
                       </span>
                     )}
                   </div>
                   <div className="flex flex-col gap-1.5 p-3.5">
-                    <div className="text-[15px] font-extrabold leading-snug text-ink">{g.name}</div>
-                    <div className="text-xs text-gray-500">{g.area}</div>
+                    <div className="text-[15px] font-extrabold leading-snug text-ink">{tr(g.name)}</div>
+                    <div className="text-xs text-gray-500">{tr(g.area)}</div>
                     <div className="mt-1 flex items-baseline justify-between gap-2">
                       <span className="font-extrabold text-sunset-600">
-                        {g.price > 0 ? <span className="text-base">{fmt(g.price)}</span> : <span className="text-sm">{IB}</span>}
-                        {g.price > 0 && <span className="text-xs font-medium text-gray-400">/đêm</span>}
+                        {g.price > 0 ? <span className="text-base">{tr(fmt(g.price))}</span> : <span className="text-sm">{tr(IB)}</span>}
+                        {g.price > 0 && <span className="text-xs font-medium text-gray-400">{tr("/đêm")}</span>}
                       </span>
-                      <span className="text-xs font-semibold text-gray-500">{g.cat}</span>
+                      <span className="text-xs font-semibold text-gray-500">{tr(g.cat)}</span>
                     </div>
                   </div>
-                </a>
+                </Link>
               ))}
             </div>
           </section>
@@ -862,11 +864,11 @@ export function HomestayBooking({
         <div className="flex flex-col gap-3.5 rounded-2xl bg-white p-5 shadow-md ring-1 ring-black/5">
           {chatOnly ? (
             <div className="flex flex-col gap-3">
-              <div className="text-lg font-extrabold text-ink">{contactOnly ? "Nhắn tin để nhận thông tin" : "Nhắn tin để biết chi tiết"}</div>
+              <div className="text-lg font-extrabold text-ink">{contactOnly ? tr("Nhắn tin để nhận thông tin") : tr("Nhắn tin để biết chi tiết")}</div>
               <p className="text-sm leading-relaxed text-gray-600">
                 {contactOnly
-                  ? "Homestay này không hiển thị lịch trống trên web. Nhắn tin hoặc gọi cho Tà Xùa Booking để kiểm tra phòng trống, nhận báo giá chính xác và giữ phòng — phản hồi nhanh trong giờ hành chính."
-                  : "Homestay này không nhận đặt trực tiếp trên web. Chọn ngày để xem phòng còn trống, rồi nhắn tin hoặc gọi cho Tà Xùa Booking để biết chi tiết và giữ phòng."}
+                  ? tr("Homestay này không hiển thị lịch trống trên web. Nhắn tin hoặc gọi cho Tà Xùa Booking để kiểm tra phòng trống, nhận báo giá chính xác và giữ phòng — phản hồi nhanh trong giờ hành chính.")
+                  : tr("Homestay này không nhận đặt trực tiếp trên web. Chọn ngày để xem phòng còn trống, rồi nhắn tin hoặc gọi cho Tà Xùa Booking để biết chi tiết và giữ phòng.")}
               </p>
               <a
                 href={chatUrl}
@@ -874,31 +876,31 @@ export function HomestayBooking({
                 rel={zalo ? "noopener noreferrer" : undefined}
                 className="rounded-xl bg-sunset-500 px-4 py-3.5 text-center text-base font-bold text-white transition hover:bg-sunset-600"
               >
-                {contactOnly ? "💬 Nhắn tin nhận thông tin" : "💬 Nhắn tin để biết chi tiết"}
+                {contactOnly ? tr("💬 Nhắn tin nhận thông tin") : tr("💬 Nhắn tin để biết chi tiết")}
               </a>
               <p className="text-center text-xs leading-relaxed text-gray-500">
-                Giá hiển thị là giá tham khảo theo bảng giá niêm yết của homestay.
+                {tr("Giá hiển thị là giá tham khảo theo bảng giá niêm yết của homestay.")}
               </p>
             </div>
           ) : result ? (
             <div className="flex flex-col gap-2 rounded-xl bg-forest-50 p-4">
-              <div className="text-[11px] font-bold uppercase tracking-wide text-forest-700">Đã gửi yêu cầu</div>
-              <div className="text-2xl font-extrabold text-ink">Mã: {result.code}</div>
+              <div className="text-[11px] font-bold uppercase tracking-wide text-forest-700">{tr("Đã gửi yêu cầu")}</div>
+              <div className="text-2xl font-extrabold text-ink">{tr("Mã: {0}", [tr(result.code)])}</div>
               <p className="text-sm leading-relaxed text-gray-600">
                 <VoiceText text={result.needsConfirmation
-                  ? `Tụi mình sẽ gọi ${cphone} để xác nhận phòng (chưa thanh toán online).`
-                  : `Tụi mình sẽ gọi ${cphone} để xác nhận chi tiết.`} />
+                  ? tr("Tụi mình sẽ gọi {0} để xác nhận phòng (chưa thanh toán online).", [cphone])
+                  : tr("Tụi mình sẽ gọi {0} để xác nhận chi tiết.", [cphone])} />
               </p>
               <SupportHoursNote />
               <button type="button" onClick={reset} className="mt-1 self-start rounded-lg bg-white px-4 py-2 text-sm font-bold text-forest-800 ring-1 ring-gray-200">
-                Đặt thêm
+                {tr("Đặt thêm")}
               </button>
             </div>
           ) : (
             <>
               <div className="flex items-baseline justify-between">
-                <div className="text-lg font-extrabold text-ink">Đặt phòng</div>
-                <div className="text-xs text-gray-500">Không cần tài khoản</div>
+                <div className="text-lg font-extrabold text-ink">{tr("Đặt phòng")}</div>
+                <div className="text-xs text-gray-500">{tr("Không cần tài khoản")}</div>
               </div>
 
               {/* Nhận / trả */}
@@ -908,19 +910,19 @@ export function HomestayBooking({
                 className="grid grid-cols-2 overflow-hidden rounded-xl text-left ring-1 ring-gray-200"
               >
                 <div className="border-r border-gray-200 px-3.5 py-2.5">
-                  <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Nhận phòng</div>
-                  <div className="mt-0.5 text-sm font-bold text-ink">{ci ? dname(ci) : "Chọn ngày"}</div>
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">{tr("Nhận phòng")}</div>
+                  <div className="mt-0.5 text-sm font-bold text-ink">{ci ? tr(dname(ci)) : tr("Chọn ngày")}</div>
                 </div>
                 <div className="px-3.5 py-2.5">
-                  <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Trả phòng</div>
-                  <div className="mt-0.5 text-sm font-bold text-ink">{coEff ? dname(coEff) : "Chọn ngày"}</div>
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">{tr("Trả phòng")}</div>
+                  <div className="mt-0.5 text-sm font-bold text-ink">{coEff ? tr(dname(coEff)) : tr("Chọn ngày")}</div>
                 </div>
               </button>
 
               {/* Số khách: người lớn + trẻ em (kèm tuổi) */}
               <div className="flex flex-col gap-2.5 py-0.5">
                 <div className="flex items-center justify-between">
-                  <div className="text-sm font-bold text-ink">Người lớn</div>
+                  <div className="text-sm font-bold text-ink">{tr("Người lớn")}</div>
                   <div className="flex items-center gap-2.5">
                     <button type="button" onClick={() => setAdults((g) => Math.max(1, g - 1))} className="flex h-8 w-8 items-center justify-center rounded-full text-lg ring-1 ring-gray-200">−</button>
                     <span className="min-w-[16px] text-center font-extrabold">{adults}</span>
@@ -929,8 +931,8 @@ export function HomestayBooking({
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <div className="text-sm font-bold text-ink">Trẻ em</div>
-                    <div className="text-xs text-gray-500">Dưới {childFreeUnderAge} tuổi: miễn phí</div>
+                    <div className="text-sm font-bold text-ink">{tr("Trẻ em")}</div>
+                    <div className="text-xs text-gray-500">{tr("Dưới {0} tuổi: miễn phí", [childFreeUnderAge])}</div>
                   </div>
                   <div className="flex items-center gap-2.5">
                     <button type="button" onClick={() => setChildAges((a) => a.slice(0, -1))} className="flex h-8 w-8 items-center justify-center rounded-full text-lg ring-1 ring-gray-200">−</button>
@@ -942,7 +944,7 @@ export function HomestayBooking({
                   <div className="flex flex-wrap gap-2">
                     {childAges.map((age, i) => (
                       <label key={i} className="flex items-center gap-1.5 rounded-lg bg-gray-50 px-2 py-1 text-xs ring-1 ring-gray-200">
-                        <span className="text-gray-500">Bé {i + 1}</span>
+                        <span className="text-gray-500">{tr("Bé {0}", [i + 1])}</span>
                         <input
                           type="number"
                           min={0}
@@ -954,7 +956,7 @@ export function HomestayBooking({
                           }}
                           className="w-12 rounded border border-gray-200 px-1.5 py-1 text-center font-bold text-ink outline-none"
                         />
-                        <span className="text-gray-500">tuổi</span>
+                        <span className="text-gray-500">{tr("tuổi")}</span>
                       </label>
                     ))}
                   </div>
@@ -962,11 +964,11 @@ export function HomestayBooking({
                 <div className={`text-xs ${over ? "text-red-600" : "text-gray-500"}`}>
                   {hasSel
                     ? over
-                      ? `Vượt tối đa ${selMax} người${sels.length > 1 ? ` của ${sels.length} phòng` : ""} (đang ${occupants}) — chọn thêm phòng`
+                      ? tr("Vượt tối đa {0} người{1} (đang {2}) — chọn thêm phòng", [selMax, sels.length > 1 ? tr(" của {0} phòng", [sels.length]) : "", occupants])
                       : extraGuests > 0
-                        ? `${occupants} người tính phí · ${extraGuests} vượt chuẩn${sels[0].r.extraFee ? ` · phụ thu ${fmt(sels[0].r.extraFee)}/người/đêm` : ""}`
-                        : `${sels.length > 1 ? `${sels.length} phòng · ` : ""}Sức chứa ${selCap}${selMax > selCap ? ` · tối đa ${selMax}` : ""} người · đang ${occupants} tính phí`
-                    : "Chọn phòng để biết sức chứa · đặt được nhiều phòng trong 1 đơn"}
+                        ? tr("{0} người tính phí · {1} vượt chuẩn{2}", [occupants, extraGuests, sels[0].r.extraFee ? tr(" · phụ thu {0}/người/đêm", [tr(fmt(sels[0].r.extraFee))]) : ""])
+                        : tr("{0}Sức chứa {1}{2} người · đang {3} tính phí", [sels.length > 1 ? tr("{0} phòng · ", [sels.length]) : "", selCap, selMax > selCap ? tr(" · tối đa {0}", [selMax]) : "", occupants])
+                    : tr("Chọn phòng để biết sức chứa · đặt được nhiều phòng trong 1 đơn")}
                 </div>
               </div>
 
@@ -974,19 +976,19 @@ export function HomestayBooking({
               {hasSel ? (
                 <div className="flex flex-col gap-2 rounded-xl bg-forest-50/60 p-3.5">
                   {sels.length > 1 && (
-                    <div className="text-[11px] font-bold uppercase tracking-wide text-forest-700">{sels.length} phòng · {nN} đêm</div>
+                    <div className="text-[11px] font-bold uppercase tracking-wide text-forest-700">{tr("{0} phòng · {1} đêm", [sels.length, nN])}</div>
                   )}
                   {sels.map((v) => (
                     <div key={v.r.id} className="flex items-start justify-between gap-2 text-[13px]">
-                      <span className="min-w-0 text-gray-600">{v.r.typeName} · {v.r.name}{sels.length > 1 ? "" : ` · ${nN} đêm`}</span>
+                      <span className="min-w-0 text-gray-600">{tr(v.r.typeName)} · {tr(v.r.name)}{sels.length > 1 ? "" : tr(" · {0} đêm", [nN])}</span>
                       <span className="flex flex-none items-center gap-1.5">
-                        <span className="whitespace-nowrap font-bold text-ink">{v.ib ? IB : fmt(v.stayPrice)}</span>
+                        <span className="whitespace-nowrap font-bold text-ink">{v.ib ? tr(IB) : tr(fmt(v.stayPrice))}</span>
                         {sels.length > 1 && (
                           <button
                             type="button"
                             onClick={() => toggleRoom(v.r.id)}
                             className="flex h-5 w-5 items-center justify-center rounded-full text-xs text-gray-400 ring-1 ring-gray-200 hover:text-red-600"
-                            aria-label={`Bỏ ${v.r.name}`}
+                            aria-label={tr("Bỏ {0}", [tr(v.r.name)])}
                           >
                             ×
                           </button>
@@ -996,27 +998,27 @@ export function HomestayBooking({
                   ))}
                   {!anyIb && extraCost > 0 && (
                     <div className="flex justify-between gap-2 text-[13px]">
-                      <span className="min-w-0 text-gray-600">Phụ thu {extraGuests} người thêm × {nN} đêm</span>
-                      <span className="whitespace-nowrap font-bold text-ink">{fmt(extraCost)}</span>
+                      <span className="min-w-0 text-gray-600">{tr("Phụ thu {0} người thêm × {1} đêm", [extraGuests, nN])}</span>
+                      <span className="whitespace-nowrap font-bold text-ink">{tr(fmt(extraCost))}</span>
                     </div>
                   )}
                 </div>
               ) : (
                 <div className="rounded-xl border border-dashed border-gray-300 p-3.5 text-[13px] leading-relaxed text-gray-500">
-                  Chọn ngày ở và một hoặc nhiều phòng còn trống bên trái.
+                  {tr("Chọn ngày ở và một hoặc nhiều phòng còn trống bên trái.")}
                 </div>
               )}
 
               {policyWarn && (
                 <div className="rounded-xl bg-amber-50 px-3.5 py-3 text-[13px] font-medium leading-relaxed text-amber-800">
-                  ⚠️ {policyWarn}
+                  ⚠️ {tr(policyWarn)}
                 </div>
               )}
 
               <div className="flex items-baseline justify-between">
-                <span className="font-bold text-ink">Tạm tính</span>
+                <span className="font-bold text-ink">{tr("Tạm tính")}</span>
                 <span className={`font-extrabold text-sunset-600 ${anyIb ? "text-lg" : "text-2xl"}`}>
-                  {anyIb ? IB : fmt(total, "0đ")}
+                  {anyIb ? tr(IB) : tr(fmt(total, tr("0đ")))}
                 </span>
               </div>
 
@@ -1025,14 +1027,14 @@ export function HomestayBooking({
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Họ và tên *"
+                  placeholder={tr("Họ và tên *")}
                   className={`rounded-xl border px-3.5 py-3 text-base outline-none focus:ring-2 focus:ring-forest-200 ${tried && !name.trim() ? "border-red-400" : "border-gray-200 focus:border-forest-500"}`}
                 />
                 <input
                   value={cphone}
                   onChange={(e) => setCphone(e.target.value)}
                   inputMode="tel"
-                  placeholder="Số điện thoại *"
+                  placeholder={tr("Số điện thoại *")}
                   className={`rounded-xl border px-3.5 py-3 text-base outline-none focus:ring-2 focus:ring-forest-200 ${tried && !phoneOk ? "border-red-400" : "border-gray-200 focus:border-forest-500"}`}
                 />
                 <BookingEmailField value={email} onChange={setEmail} inputClassName="rounded-xl border border-gray-200 px-3.5 py-3 text-base outline-none focus:border-forest-500 focus:ring-2 focus:ring-forest-200" />
@@ -1040,22 +1042,22 @@ export function HomestayBooking({
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   rows={2}
-                  placeholder="Ghi chú (giờ tới, trẻ nhỏ…)"
+                  placeholder={tr("Ghi chú (giờ tới, trẻ nhỏ…)")}
                   className="resize-y rounded-xl border border-gray-200 px-3.5 py-3 text-sm outline-none focus:border-forest-500 focus:ring-2 focus:ring-forest-200"
                 />
-                {err && <div className="text-sm font-semibold text-red-600">{err}</div>}
+                {err && <div className="text-sm font-semibold text-red-600">{tr(err)}</div>}
                 <button
                   type="button"
                   onClick={submit}
                   disabled={submitting}
                   className={`rounded-xl px-4 py-3.5 text-base font-bold transition ${ready && !submitting ? "bg-sunset-500 text-white hover:bg-sunset-600" : "bg-gray-200 text-gray-500"}`}
                 >
-                  {submitting ? "Đang gửi..." : "Gửi yêu cầu đặt phòng"}
+                  {submitting ? tr("Đang gửi...") : tr("Gửi yêu cầu đặt phòng")}
                 </button>
                 <ItineraryLink nights={nN} />
                 <CommitmentLink className="flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-forest-700 transition hover:text-forest-900" />
                 <p className="text-center text-xs leading-relaxed text-gray-500">
-                  Giá tham khảo. Chủ nhà gọi xác nhận, không thanh toán online.
+                  {tr("Giá tham khảo. Chủ nhà gọi xác nhận, không thanh toán online.")}
                 </p>
               </div>
             </>
@@ -1063,7 +1065,7 @@ export function HomestayBooking({
 
           <div className="grid grid-cols-2 gap-2">
             <a href={`tel:${phone.replace(/\s/g, "")}`} className="whitespace-nowrap rounded-xl px-3 py-2.5 text-center text-sm font-bold text-forest-800 ring-1 ring-gray-200">
-              Gọi {phone}
+              {tr("Gọi {0}", [tr(phone)])}
             </a>
             {zalo && (
               <a href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="whitespace-nowrap rounded-xl px-3 py-2.5 text-center text-sm font-bold text-sunset-600 ring-1 ring-gray-200">
@@ -1078,8 +1080,8 @@ export function HomestayBooking({
       {chatOnly ? (
         <div className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-between gap-3 border-t border-gray-200 bg-white px-4 py-3 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.2)] lg:hidden">
           <div className="min-w-0">
-            <div className="truncate text-xs text-gray-500">Kiểm tra phòng trống & giữ phòng</div>
-            <div className="text-base font-extrabold text-ink">{contactOnly ? "Nhắn tin nhận thông tin" : "Nhắn tin để biết chi tiết"}</div>
+            <div className="truncate text-xs text-gray-500">{tr("Kiểm tra phòng trống & giữ phòng")}</div>
+            <div className="text-base font-extrabold text-ink">{contactOnly ? tr("Nhắn tin nhận thông tin") : tr("Nhắn tin để biết chi tiết")}</div>
           </div>
           <a
             href={chatUrl}
@@ -1087,21 +1089,21 @@ export function HomestayBooking({
             rel={zalo ? "noopener noreferrer" : undefined}
             className="whitespace-nowrap rounded-xl bg-sunset-500 px-5 py-3 text-sm font-bold text-white"
           >
-            💬 Nhắn tin
+            {tr("💬 Nhắn tin")}
           </a>
         </div>
       ) : !result && (
         <div className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-between gap-3 border-t border-gray-200 bg-white px-4 py-3 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.2)] lg:hidden">
           <div className="min-w-0">
-            <div className="truncate text-xs text-gray-500">{nN ? `${nN} đêm${hasSel ? ` · ${sels.length} phòng` : ""}` : "Chọn ngày ở"}</div>
-            <div className="text-lg font-extrabold text-ink">{anyIb ? IB : fmt(total, "0đ")}</div>
+            <div className="truncate text-xs text-gray-500">{nN ? tr("{0} đêm{1}", [nN, hasSel ? tr(" · {0} phòng", [sels.length]) : ""]) : tr("Chọn ngày ở")}</div>
+            <div className="text-lg font-extrabold text-ink">{anyIb ? tr(IB) : tr(fmt(total, tr("0đ")))}</div>
           </div>
           <button
             type="button"
             onClick={() => scrollTo(panelRef.current, 12)}
             className="whitespace-nowrap rounded-xl bg-sunset-500 px-5 py-3 text-sm font-bold text-white"
           >
-            Đặt phòng
+            {tr("Đặt phòng")}
           </button>
         </div>
       )}
@@ -1109,14 +1111,14 @@ export function HomestayBooking({
       {/* Lightbox slider ảnh/video của phòng */}
       {lb && (
         <div onClick={() => setLb(null)} className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4">
-          <button type="button" onClick={() => setLb(null)} className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-2xl text-white hover:bg-white/25" aria-label="Đóng">×</button>
+          <button type="button" onClick={() => setLb(null)} className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-2xl text-white hover:bg-white/25" aria-label={tr("Đóng")}>×</button>
           {lb.media.length > 1 && (
             <>
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setLb((s) => (s ? { ...s, i: (s.i - 1 + s.media.length) % s.media.length } : s)); }}
                 className="absolute left-3 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-white/15 text-3xl text-white hover:bg-white/25"
-                aria-label="Trước"
+                aria-label={tr("Trước")}
               >
                 ‹
               </button>
@@ -1147,7 +1149,7 @@ export function HomestayBooking({
                       type="button"
                       onClick={(e) => { e.stopPropagation(); setLb((s) => (s ? { ...s, i: k } : s)); }}
                       className={`h-2 rounded-full transition-all ${k === lb.i ? "w-5 bg-white" : "w-2 bg-white/40"}`}
-                      aria-label={`Mục ${k + 1}`}
+                      aria-label={tr("Mục {0}", [k + 1])}
                     />
                   ))}
                 </div>
@@ -1161,15 +1163,17 @@ export function HomestayBooking({
 }
 
 function Legend({ color, label }: { color: string; label: string }) {
+  const tr = useT();
   return (
     <span className="flex items-center gap-1.5 whitespace-nowrap">
       <span className={`h-2 w-2 rounded-full ${color}`} />
-      {label}
+      {tr(label)}
     </span>
   );
 }
 
 function StatusChip({ tone, label }: { tone: "ok" | "low" | "full" | "idle"; label: string }) {
+  const tr = useT();
   const cls =
     tone === "ok"
       ? "bg-forest-100 text-forest-800"
@@ -1178,5 +1182,5 @@ function StatusChip({ tone, label }: { tone: "ok" | "low" | "full" | "idle"; lab
         : tone === "full"
           ? "bg-gray-200 text-gray-600"
           : "bg-gray-100 text-gray-500";
-  return <span className={`flex-none whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold ${cls}`}>{label}</span>;
+  return <span className={`flex-none whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold ${cls}`}>{tr(label)}</span>;
 }

@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import { pageMeta } from "@/lib/og";
-import Link from "next/link";
+import Link from "@/components/Link";
 import { notFound } from "next/navigation";
 import { getSettings } from "@/lib/queries";
 import { formatPhone, parseTrustPopup, soloVoice, TRUST_POPUP_KEY, visibleLegalNames, visiblePeople } from "@/lib/trust-popup";
 import { SITE } from "@/lib/site";
+import { getT } from "@/lib/i18n/server";
+import { i18nMeta } from "@/lib/i18n/meta";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = pageMeta({
+export const generateMetadata = () => i18nMeta({
   title: "Cam kết minh bạch – điều khoản sử dụng dịch vụ",
   description:
     "Cam kết minh bạch của Tà Xùa Booking: chi trả tối đa 100 triệu nếu nhận tiền mà không cung cấp dịch vụ và không hoàn tiền, bồi thường 10 triệu nếu cố ý báo cao hơn giá niêm yết, cách xử lý sự cố và quy trình hoàn tiền.",
@@ -213,12 +215,13 @@ const LEGAL: [string, string][] = [
 
 const TOC = [
   { id: "dinh-nghia", name: "Định nghĩa" },
-  ...SECTIONS.map((s) => ({ id: s.id, name: s.title.split(" — ")[0] })),
+  ...SECTIONS.map((s) => ({ id: s.id, name: s.title })),
   { id: "phap-ly", name: "Bên cam kết" },
   { id: "lien-he", name: "Gửi yêu cầu hoàn tiền, bồi thường" },
 ];
 
 export default async function TermsPage() {
+  const tr = await getT();
   // admin tắt cả popup lẫn menu/link cam kết (/admin/popup) ⇒ ẩn cả trang điều khoản
   const settings = await getSettings();
   const trust = parseTrustPopup(settings[TRUST_POPUP_KEY]);
@@ -227,17 +230,17 @@ export default async function TermsPage() {
   // Chỉ còn 1 chủ sở hữu hiện (ẩn người kia ở /admin/popup) ⇒ xưng "mình", và chỉ nêu tài khoản của người đó.
   const solo = visiblePeople(trust).length === 1;
   const owners = visibleLegalNames(trust);
+  // Dịch trước (khoá từ điển = nguyên văn tiếng Việt), rồi mới đổi giọng xưng hô + tên chủ tài khoản.
+  // Bản dịch giữ nguyên cụm "Bùi Danh An <hoặc|or|或|또는> Tăng Mai Linh" để thay theo người đang hiện.
   const tx = (s: string) =>
-    soloVoice(s, solo)
-      .replace("tài khoản ngân hàng Bùi Danh An hoặc Tăng Mai Linh", `tài khoản ngân hàng ${owners.join(" hoặc ")}`)
-      .replace("(tài khoản ngân hàng Bùi Danh An hoặc Tăng Mai Linh)", `(tài khoản ngân hàng ${owners.join(" hoặc ")})`);
+    soloVoice(tr(s), solo).replace(/Bùi Danh An (hoặc|or|或|또는) Tăng Mai Linh/g, (_m, or: string) => owners.join(` ${or} `));
   const R = (s: string) => rich(tx(s));
   // Thông tin pháp lý (tên đăng ký kinh doanh, MST, địa chỉ) lấy từ SiteSettings — có thì mới hiện.
   const legal: [string, string][] = [
-    ["Đơn vị kinh doanh", settings.legalName || SITE.legalName],
-    ["Mã số thuế", settings.taxCode || SITE.taxCode],
-    ["Người chịu trách nhiệm", owners[0]],
-    ["Địa chỉ đăng ký", settings.legalAddress || SITE.legalAddress],
+    [tr("Đơn vị kinh doanh"), tr(settings.legalName || SITE.legalName)],
+    [tr("Mã số thuế"), settings.taxCode || SITE.taxCode],
+    [tr("Người chịu trách nhiệm"), owners[0]],
+    [tr("Địa chỉ đăng ký"), settings.legalAddress || SITE.legalAddress],
     ["Hotline", formatPhone(phone)],
     ...LEGAL.slice(1),
   ];
@@ -262,7 +265,7 @@ export default async function TermsPage() {
             className="px-2.5 py-1.5"
             style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".1em", textTransform: "uppercase", color: "oklch(0.5 0.02 160)" }}
           >
-            Mục lục
+            {tr("Mục lục")}
           </div>
           {TOC.map((t) => (
             <a
@@ -271,7 +274,7 @@ export default async function TermsPage() {
               className="rounded-[10px] px-2.5 py-2 transition-colors hover:bg-[oklch(0.96_0.02_155)]"
               style={{ fontSize: 14, fontWeight: 600, color: "oklch(0.3 0.03 160)" }}
             >
-              {t.name}
+              {tr(t.name).split(" — ")[0]}
             </a>
           ))}
         </nav>
@@ -279,7 +282,7 @@ export default async function TermsPage() {
         <article className="flex min-w-0 flex-col gap-[18px]">
           <div>
             <Link href="/cam-ket" style={{ fontSize: 14, fontWeight: 700, color: "oklch(0.4 0.08 160)" }}>
-              ← Quay lại
+              {tr("← Quay lại")}
             </Link>
             <h1
               style={{
@@ -290,10 +293,10 @@ export default async function TermsPage() {
                 lineHeight: 1.1,
               }}
             >
-              Cam kết minh bạch – Tà Xùa Booking
+              {tr("Cam kết minh bạch – Tà Xùa Booking")}
             </h1>
             <div style={{ fontSize: 14, color: "oklch(0.48 0.02 160)", marginTop: 8 }}>
-              Áp dụng từ 01/11/2026 · Cập nhật lần cuối 15/11/2026
+              {tr("Áp dụng từ 01/11/2026 · Cập nhật lần cuối 15/11/2026")}
             </div>
             <p style={{ margin: "12px 0 0", fontSize: 16, lineHeight: 1.65, color: INK }}>{tx(INTRO)}</p>
           </div>
@@ -304,17 +307,17 @@ export default async function TermsPage() {
               href="#c100"
               style={{ padding: 18, borderRadius: 18, background: "oklch(0.97 0.03 70)", border: "1.5px solid oklch(0.88 0.08 65)", color: "inherit" }}
             >
-              <div style={{ fontSize: 26, fontWeight: 800, color: "oklch(0.58 0.18 42)", letterSpacing: "-.03em" }}>100 triệu</div>
-              <div style={{ fontSize: 14, fontWeight: 700, marginTop: 4 }}>Cam kết minh bạch</div>
-              <div style={{ fontSize: 13, color: "oklch(0.45 0.03 60)", marginTop: 2 }}>Tổng chi trả tối đa / đơn hàng</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: "oklch(0.58 0.18 42)", letterSpacing: "-.03em" }}>{tr("100 triệu")}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, marginTop: 4 }}>{tr("Cam kết minh bạch")}</div>
+              <div style={{ fontSize: 13, color: "oklch(0.45 0.03 60)", marginTop: 2 }}>{tr("Tổng chi trả tối đa / đơn hàng")}</div>
             </a>
             <a
               href="#c10"
               style={{ padding: 18, borderRadius: 18, background: "oklch(0.97 0.02 155)", border: "1.5px solid oklch(0.86 0.06 155)", color: "inherit" }}
             >
-              <div style={{ fontSize: 26, fontWeight: 800, color: "oklch(0.42 0.11 155)", letterSpacing: "-.03em" }}>10 triệu</div>
-              <div style={{ fontSize: 14, fontWeight: 700, marginTop: 4 }}>Đúng giá niêm yết</div>
-              <div style={{ fontSize: 13, color: "oklch(0.4 0.04 155)", marginTop: 2 }}>Bồi thường nếu cố ý báo cao hơn giá niêm yết</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: "oklch(0.42 0.11 155)", letterSpacing: "-.03em" }}>{tr("10 triệu")}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, marginTop: 4 }}>{tr("Đúng giá niêm yết")}</div>
+              <div style={{ fontSize: 13, color: "oklch(0.4 0.04 155)", marginTop: 2 }}>{tr("Bồi thường nếu cố ý báo cao hơn giá niêm yết")}</div>
             </a>
           </div>
 
@@ -324,7 +327,7 @@ export default async function TermsPage() {
             className="flex scroll-mt-20 flex-col gap-3 rounded-[20px] border bg-white"
             style={{ padding: "22px clamp(16px,2.5vw,26px)", borderColor: "oklch(0.92 0.01 160)" }}
           >
-            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, letterSpacing: "-.015em" }}>Định nghĩa</h2>
+            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, letterSpacing: "-.015em" }}>{tr("Định nghĩa")}</h2>
             {DEFINITIONS.map((d, i) => (
               <div key={i} style={{ display: "grid", gridTemplateColumns: "18px minmax(0,1fr)", gap: 8, fontSize: 15, lineHeight: 1.6, color: INK }}>
                 <span style={{ color: BRAND, fontWeight: 800 }}>•</span>
@@ -359,20 +362,20 @@ export default async function TermsPage() {
                 >
                   {i + 1}
                 </span>
-                <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, letterSpacing: "-.015em" }}>{s.title}</h2>
+                <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, letterSpacing: "-.015em" }}>{tr(s.title)}</h2>
               </div>
               {s.body.map((blk, bi) =>
                 typeof blk === "string" ? (
                   <div key={bi} style={{ fontSize: 15, lineHeight: 1.65, color: INK }}>{R(blk)}</div>
                 ) : (
                   <div key={bi} className="flex flex-col gap-1.5">
-                    <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: ".04em", color: blk.c }}>{blk.h}</div>
+                    <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: ".04em", color: blk.c }}>{tr(blk.h)}</div>
                     {blk.items.map((item, ii) => (
                       <div
                         key={ii}
                         style={{ display: "grid", gridTemplateColumns: "18px minmax(0,1fr)", gap: 8, fontSize: 15, lineHeight: 1.6, color: INK }}
                       >
-                        <span style={{ color: blk.c, fontWeight: 800 }}>{blk.ordered ? `${ii + 1}.` : blk.mark}</span>
+                        <span style={{ color: blk.c, fontWeight: 800 }}>{blk.ordered ? `${ii + 1}.` : tr(blk.mark)}</span>
                         <span>{R(item)}</span>
                       </div>
                     ))}
@@ -388,7 +391,7 @@ export default async function TermsPage() {
             className="flex scroll-mt-20 flex-col gap-3 rounded-[20px] border bg-white"
             style={{ padding: "22px clamp(16px,2.5vw,26px)", borderColor: "oklch(0.92 0.01 160)" }}
           >
-            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, letterSpacing: "-.015em" }}>Bên cam kết</h2>
+            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, letterSpacing: "-.015em" }}>{tr("Bên cam kết")}</h2>
             <div className="flex flex-col">
               {legal.map(([k, v]) => (
                 <div
@@ -403,13 +406,13 @@ export default async function TermsPage() {
                     lineHeight: 1.5,
                   }}
                 >
-                  <span style={{ fontWeight: 700, color: "oklch(0.45 0.02 160)" }}>{k}</span>
-                  <span style={{ fontWeight: 600 }}>{v}</span>
+                  <span style={{ fontWeight: 700, color: "oklch(0.45 0.02 160)" }}>{tr(k)}</span>
+                  <span style={{ fontWeight: 600 }}>{tr(v)}</span>
                 </div>
               ))}
             </div>
             <div style={{ fontSize: 13, lineHeight: 1.55, color: "oklch(0.5 0.02 160)" }}>
-              Điều khoản được xây dựng trên tinh thần Luật Bảo vệ quyền lợi người tiêu dùng 2023. Cảm ơn bạn đã tin tưởng Tà Xùa Booking.
+              {tr("Điều khoản được xây dựng trên tinh thần Luật Bảo vệ quyền lợi người tiêu dùng 2023. Cảm ơn bạn đã tin tưởng Tà Xùa Booking.")}
             </div>
           </section>
 
@@ -419,12 +422,12 @@ export default async function TermsPage() {
             className="flex scroll-mt-20 flex-col gap-3 rounded-[20px]"
             style={{ padding: "22px clamp(16px,2.5vw,26px)", background: BRAND, color: "white" }}
           >
-            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>Gửi yêu cầu hoàn tiền, bồi thường</h2>
+            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800 }}>{tr("Gửi yêu cầu hoàn tiền, bồi thường")}</h2>
             <div style={{ fontSize: 14, lineHeight: 1.6, color: "oklch(0.88 0.03 160)" }}>
-              Gửi bằng chứng qua Zalo hoặc email. {solo ? "Mình" : "Tụi mình"} phản hồi trong 24 giờ và giải quyết xong trong tối đa 7 ngày làm việc.
+              {tr("Gửi bằng chứng qua Zalo hoặc email.")}{" "}{solo ? tr("Mình") : tr("Tụi mình")}{" "}{tr("phản hồi trong 24 giờ và giải quyết xong trong tối đa 7 ngày làm việc.")}
             </div>
             <Link href="/tra-cuu" style={{ fontSize: 14, fontWeight: 700, color: "oklch(0.85 0.1 70)" }}>
-              Tra cứu đơn bằng mã đơn →
+              {tr("Tra cứu đơn bằng mã đơn →")}
             </Link>
             <div className="flex flex-wrap gap-2">
               <a

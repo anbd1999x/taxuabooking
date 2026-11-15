@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { AvailabilityKind } from "@/lib/constants";
 import { DateField } from "@/components/DateField";
 import { useSearchNav } from "@/components/useSearchNav";
+import { useT } from "@/components/i18n/I18nProvider";
 
 const PRICE_RANGES = [
   { label: "Mọi mức giá", min: "", max: "" },
@@ -25,6 +26,7 @@ export function FilterBar({
   kind: AvailabilityKind;
   initial: { q?: string; from?: string; to?: string; priceMin?: string; priceMax?: string };
 }) {
+  const t = useT();
   const { pending, go } = useSearchNav();
   const pathname = usePathname();
   const [q, setQ] = useState(initial.q ?? "");
@@ -63,18 +65,18 @@ export function FilterBar({
       className="grid gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5 md:grid-cols-2 lg:grid-cols-6"
     >
       <label className="flex flex-col gap-1 lg:col-span-2">
-        <span className="text-xs font-medium text-gray-500">Tìm kiếm</span>
+        <span className="text-xs font-medium text-gray-500">{t("Tìm kiếm")}</span>
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Tên dịch vụ, khu vực..."
+          placeholder={t("Tên dịch vụ, khu vực...")}
           className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-200"
         />
       </label>
 
       <label className="flex flex-col gap-1">
         <span className="text-xs font-medium text-gray-500">
-          {kind === "trip" ? "Ngày đi" : needsRange ? "Nhận" : "Ngày"}
+          {kind === "trip" ? t("Ngày đi") : needsRange ? t("Nhận") : t("Ngày")}
         </span>
         <DateField
           value={from}
@@ -82,33 +84,33 @@ export function FilterBar({
           onChange={setFrom}
           className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-200"
           displayClassName="px-3 text-sm text-gray-900"
-          ariaLabel={kind === "trip" ? "Ngày đi" : needsRange ? "Ngày nhận" : "Ngày"}
+          ariaLabel={kind === "trip" ? t("Ngày đi") : needsRange ? t("Ngày nhận") : t("Ngày")}
         />
       </label>
 
       {needsRange && (
         <label className="flex flex-col gap-1">
-          <span className="text-xs font-medium text-gray-500">Trả</span>
+          <span className="text-xs font-medium text-gray-500">{t("Trả")}</span>
           <DateField
             value={to}
             min={from || todayKey()}
             onChange={setTo}
             className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-200"
             displayClassName="px-3 text-sm text-gray-900"
-            ariaLabel="Ngày trả"
+            ariaLabel={t("Ngày trả")}
           />
         </label>
       )}
 
       <label className="flex flex-col gap-1">
-        <span className="text-xs font-medium text-gray-500">Khoảng giá</span>
+        <span className="text-xs font-medium text-gray-500">{t("Khoảng giá")}</span>
         <select
           value={priceIdx}
           onChange={(e) => setPriceIdx(Number(e.target.value))}
           className="rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-200"
         >
           {PRICE_RANGES.map((r, i) => (
-            <option key={i} value={i}>{r.label}</option>
+            <option key={i} value={i}>{t(r.label)}</option>
           ))}
         </select>
       </label>
@@ -119,7 +121,7 @@ export function FilterBar({
           disabled={pending}
           className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-forest-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-forest-700 disabled:cursor-wait disabled:opacity-80"
         >
-          Lọc
+          {t("Lọc")}
         </button>
         <button
           type="button"
@@ -127,7 +129,7 @@ export function FilterBar({
           disabled={pending}
           className="rounded-xl border border-gray-200 px-4 py-2.5 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-60"
         >
-          Xoá
+          {t("Xoá")}
         </button>
       </div>
     </form>

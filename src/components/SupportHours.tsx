@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SITE } from "@/lib/site";
+import { useT } from "@/components/i18n/I18nProvider";
 
 /** Đang ngoài giờ hỗ trợ (theo giờ Việt Nam)? null = chưa biết (render phía server). */
 function useOffHours(): boolean | null {
@@ -23,6 +24,7 @@ function useOffHours(): boolean | null {
  * không có người hỗ trợ, đơn được xử lý khi vào giờ. Đang ngoài giờ ⇒ nổi bật màu cam.
  */
 export function SupportHoursNote({ className = "" }: { className?: string }) {
+  const tr = useT();
   const off = useOffHours();
   const open = `${SITE.supportOpenHour}:00`;
   return (
@@ -31,10 +33,10 @@ export function SupportHoursNote({ className = "" }: { className?: string }) {
         off ? "bg-amber-50 text-amber-900 ring-1 ring-amber-200" : "bg-white/80 text-gray-600 ring-1 ring-black/5"
       } ${className}`}
     >
-      <b>🕗 Giờ hoạt động: {SITE.supportHours} hằng ngày.</b>{" "}
+      <b>{tr("🕗 Giờ hoạt động: {0} hằng ngày.", [tr(SITE.supportHours)])}</b>{" "}
       {off
-        ? `Hiện đã ngoài giờ làm việc nên chưa có người hỗ trợ — đơn của bạn đã được ghi nhận và sẽ được xác nhận từ ${open}.`
-        : `Đơn gửi sau giờ làm việc sẽ không có người hỗ trợ ngay, được xác nhận từ ${open} hôm sau.`}
+        ? tr("Hiện đã ngoài giờ làm việc nên chưa có người hỗ trợ — đơn của bạn đã được ghi nhận và sẽ được xác nhận từ {0}.", [tr(open)])
+        : tr("Đơn gửi sau giờ làm việc sẽ không có người hỗ trợ ngay, được xác nhận từ {0} hôm sau.", [tr(open)])}
     </div>
   );
 }

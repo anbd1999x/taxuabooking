@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ogBlock } from "@/lib/og";
 import { unstable_cache } from "next/cache";
-import Link from "next/link";
+import Link from "@/components/Link";
 import { notFound, redirect } from "next/navigation";
 import Image from "next/image";
 import { getServiceDetail, getSettings, getHomestayCards } from "@/lib/queries";
@@ -21,6 +21,8 @@ import { buildDirectionOptions, getCabinFareOptions } from "@/lib/cabin";
 import { CabinRoutes } from "@/components/CabinRoutes";
 import { Gallery } from "@/components/Gallery";
 import { Badge } from "@/components/ui/Badge";
+import { getT, lp, tLong } from "@/lib/i18n/server";
+import { i18nAlternates, i18nOg } from "@/lib/i18n/meta";
 
 export const dynamic = "force-dynamic";
 
@@ -53,34 +55,35 @@ export async function generateMetadata({
 }: {
   params: Promise<{ category: string; slug: string }>;
 }): Promise<Metadata> {
+  const tr = await getT();
   const { slug } = await params;
   const service = await getServiceDetail(slug);
   if (!service) return {};
   const cat = CATEGORIES[service.category];
   const cover = service.images.find((i) => i.isCover)?.url ?? service.images[0]?.url;
   // Tiêu đề tìm kiếm: tên + loại dịch vụ + "Tà Xùa" (tên trần như "Nhà bên suối" không nói lên trang bán gì).
-  const t = service.title.trim();
+  const t = tr(service.title.trim());
   const tx = /tà xùa/i.test(t) ? "" : " Tà Xùa";
   const title =
     service.category === "HOMESTAY" || service.category === "BUNGALOW"
-      ? `${t}${/homestay|homstay|bungalow|retreat|home|house|village|garden/i.test(t) ? "" : " Homestay"}${tx}: giá phòng & lịch trống`
+      ? tr("{0}{1}{2}: giá phòng & lịch trống", [t, /homestay|homstay|bungalow|retreat|home|house|village|garden/i.test(t) ? "" : " Homestay", tx])
       : service.category === "CABIN"
-        ? `${t}: xe cabin Hà Nội – Tà Xùa`
+        ? tr("{0}: xe cabin Hà Nội – Tà Xùa", [t])
         : `${t}${tx}`;
   // Mô tả: phần chủ cơ sở viết thường rất ngắn ⇒ nối thêm khu vực + lời mời xem giá/đặt chỗ.
-  const base = (service.summary ?? "").trim().replace(/[.\s]+$/, "");
+  const base = ((await tLong(service.summary)) ?? "").trim().replace(/[.\s]+$/, "");
   const tail =
     service.category === "HOMESTAY" || service.category === "BUNGALOW"
-      ? `${service.area && !/^tà xùa$/i.test(service.area.trim()) ? ` Khu ${service.area}.` : ""} Xem giá từng phòng, lịch trống theo ngày và đặt phòng tại Tà Xùa Booking.`
+      ? tr("{0} Xem giá từng phòng, lịch trống theo ngày và đặt phòng tại Tà Xùa Booking.", [service.area && !/^tà xùa$/i.test(service.area.trim()) ? " " + tr("Khu {0}.", [tr(service.area)]) : ""])
       : service.category === "CABIN"
-        ? " Xem giá vé khứ hồi theo điểm đón, giờ chạy, chỗ trống theo ngày và đặt vé tại Tà Xùa Booking."
-        : " Xem giá, tình trạng theo ngày và đặt tại Tà Xùa Booking.";
+        ? tr(" Xem giá vé khứ hồi theo điểm đón, giờ chạy, chỗ trống theo ngày và đặt vé tại Tà Xùa Booking.")
+        : tr(" Xem giá, tình trạng theo ngày và đặt tại Tà Xùa Booking.");
   const description = base.length >= 120 ? base + "." : `${base ? base + "." : t + "."}${tail}`;
   return {
     title,
     description,
-    alternates: { canonical: `/${cat.slug}/${service.slug}` },
-    openGraph: ogBlock({ title, description, path: `/${cat.slug}/${service.slug}`, image: cover, alt: service.title }),
+    alternates: await i18nAlternates(`/${cat.slug}/${service.slug}`),
+    openGraph: await i18nOg({ title, description, path: `/${cat.slug}/${service.slug}`, image: cover, alt: tr(service.title) }),
   };
 }
 
@@ -91,6 +94,7 @@ export default async function ServiceDetailPage({
   params: Promise<{ category: string; slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const tr = await getT();
   const { category, slug } = await params;
   const sp = await searchParams;
   const [service, settings] = await Promise.all([
@@ -101,7 +105,7 @@ export default async function ServiceDetailPage({
 
   const cat = CATEGORIES[service.category];
   // Chuẩn hoá URL: nếu sai danh mục, chuyển về URL đúng (tốt cho SEO).
-  if (category !== cat.slug) redirect(`/${cat.slug}/${service.slug}`);
+  if (category !== cat.slug) redirect(await lp(`/${cat.slug}/${service.slug}`));
 
   // Đơn đặt do Tà Xùa Booking gọi xác nhận → dùng số nền tảng (settings), không dùng số riêng của cơ sở.
   const phone = settings.contactPhone || SITE.defaultPhone;
@@ -203,18 +207,18 @@ export default async function ServiceDetailPage({
           telephone: phone.replace(/\s/g, ""),
           address: {
             "@type": "PostalAddress",
-            addressLocality: service.area ?? "Tà Xùa, Bắc Yên",
-            addressRegion: "Sơn La",
+            addressLocality: service.area ?? tr("Tà Xùa, Bắc Yên"),
+            addressRegion: tr("Sơn La"),
             addressCountry: "VN",
           },
           ...(roomPrices.length
-            ? { priceRange: `${Math.min(...roomPrices).toLocaleString("vi-VN")}–${Math.max(...roomPrices).toLocaleString("vi-VN")}đ/đêm` }
+            ? { priceRange: tr("{0}–{1}đ/đêm", [Math.min(...roomPrices).toLocaleString("vi-VN"), Math.max(...roomPrices).toLocaleString("vi-VN")]) }
             : {}),
         },
         {
           "@type": "BreadcrumbList",
           itemListElement: [
-            { "@type": "ListItem", position: 1, name: "Trang chủ", item: SITE.url },
+            { "@type": "ListItem", position: 1, name: tr("Trang chủ"), item: SITE.url },
             { "@type": "ListItem", position: 2, name: cat.shortLabel, item: `${SITE.url}/${cat.slug}` },
             { "@type": "ListItem", position: 3, name: service.title, item: pageUrl },
           ],
@@ -226,11 +230,11 @@ export default async function ServiceDetailPage({
       <div className="container-page py-8 pb-28 lg:pb-8">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(stayJsonLd) }} />
         <nav className="mb-4 text-sm text-gray-500">
-          <Link href="/" className="hover:text-forest-700">Trang chủ</Link>
+          <Link href="/" className="hover:text-forest-700">{tr("Trang chủ")}</Link>
           <span className="mx-2">/</span>
-          <a href={`/${cat.slug}`} className="hover:text-forest-700">{cat.shortLabel}</a>
+          <Link href={`/${cat.slug}`} className="hover:text-forest-700">{tr(cat.shortLabel)}</Link>
           <span className="mx-2">/</span>
-          <span className="text-gray-700">{service.title}</span>
+          <span className="text-gray-700">{tr(service.title)}</span>
         </nav>
         <AgentNote name={service.title} />
 
@@ -248,7 +252,7 @@ export default async function ServiceDetailPage({
           area={service.area}
           mapQuery={mapQuery}
           mapUrl={resolvedMapUrl}
-          policy={service.policy}
+          policy={await tLong(service.policy)}
           weekendPolicy={service.weekendPolicy}
           childFreeUnderAge={service.childFreeUnderAge}
           initialAdults={typeof sp.adults === "string" ? Math.max(1, parseInt(sp.adults, 10) || 0) || undefined : undefined}
@@ -257,23 +261,23 @@ export default async function ServiceDetailPage({
               ? sp.kids.split("-").map((x) => parseInt(x, 10)).filter((n) => Number.isInteger(n) && n >= 0 && n <= 17)
               : undefined
           }
-          description={service.description}
+          description={await tLong(service.description)}
           suggestions={suggestions}
           header={
             <div className="flex flex-col gap-4">
-              <Gallery images={service.images.map((i) => ({ url: i.url, alt: i.alt }))} title={service.title} />
+              <Gallery images={service.images.map((i) => ({ url: i.url, alt: i.alt }))} title={tr(service.title)} />
               <div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge tone="ok">{cat.shortLabel}</Badge>
-                  {service.featured && <Badge tone="warn">Nổi bật</Badge>}
+                  <Badge tone="ok">{tr(cat.shortLabel)}</Badge>
+                  {service.featured && <Badge tone="warn">{tr("Nổi bật")}</Badge>}
                   {service.area && (
                     <a href="#vi-tri" className="text-sm font-semibold text-forest-700 underline underline-offset-4 hover:text-sunset-600">
-                      📍 {service.area} · Xem bản đồ ↓
+                      {tr("📍 {0} · Xem bản đồ ↓", [tr(service.area)])}
                     </a>
                   )}
                 </div>
-                <h1 className="mt-2 text-[clamp(26px,4vw,40px)] font-extrabold leading-[1.1] tracking-tight text-ink">{service.title}</h1>
-                <p className="mt-2 text-[17px] text-gray-600">{service.summary}</p>
+                <h1 className="mt-2 text-[clamp(26px,4vw,40px)] font-extrabold leading-[1.1] tracking-tight text-ink">{tr(service.title)}</h1>
+                <p className="mt-2 text-[17px] text-gray-600">{tr(service.summary)}</p>
               </div>
             </div>
           }
@@ -312,14 +316,14 @@ export default async function ServiceDetailPage({
         description: service.summary,
         url: svcUrl,
         image: service.images.slice(0, 5).map((i) => `${SITE.url}${i.url}`),
-        areaServed: "Tà Xùa, Sơn La",
+        areaServed: tr("Tà Xùa, Sơn La"),
         provider: { "@type": "TravelAgency", name: SITE.name, url: SITE.url, telephone: phone.replace(/\s/g, "") },
         ...(svcPrice > 0 ? { offers: { "@type": "Offer", price: svcPrice, priceCurrency: "VND", url: svcUrl, availability: "https://schema.org/InStock" } } : {}),
       },
       {
         "@type": "BreadcrumbList",
         itemListElement: [
-          { "@type": "ListItem", position: 1, name: "Trang chủ", item: SITE.url },
+          { "@type": "ListItem", position: 1, name: tr("Trang chủ"), item: SITE.url },
           { "@type": "ListItem", position: 2, name: cat.shortLabel, item: `${SITE.url}/${cat.slug}` },
           { "@type": "ListItem", position: 3, name: service.title, item: svcUrl },
         ],
@@ -331,11 +335,11 @@ export default async function ServiceDetailPage({
     <div className="container-page py-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(svcJsonLd) }} />
       <nav className="mb-4 text-sm text-gray-500">
-        <Link href="/" className="hover:text-forest-700">Trang chủ</Link>
+        <Link href="/" className="hover:text-forest-700">{tr("Trang chủ")}</Link>
         <span className="mx-2">/</span>
-        <a href={`/${cat.slug}`} className="hover:text-forest-700">{cat.shortLabel}</a>
+        <Link href={`/${cat.slug}`} className="hover:text-forest-700">{tr(cat.shortLabel)}</Link>
         <span className="mx-2">/</span>
-        <span className="text-gray-700">{service.title}</span>
+        <span className="text-gray-700">{tr(service.title)}</span>
       </nav>
       <AgentNote name={service.title} />
 
@@ -344,17 +348,17 @@ export default async function ServiceDetailPage({
         <div className="min-w-0">
           <Gallery
             images={service.images.map((i) => ({ url: i.url, alt: i.alt }))}
-            title={service.title}
+            title={tr(service.title)}
           />
 
           <div className="mt-5 flex flex-wrap items-center gap-2">
-            <Badge tone="ok">{cat.shortLabel}</Badge>
-            {service.featured && <Badge tone="warn">Nổi bật</Badge>}
-            {service.area && <span className="text-sm text-gray-500">📍 {service.area}</span>}
+            <Badge tone="ok">{tr(cat.shortLabel)}</Badge>
+            {service.featured && <Badge tone="warn">{tr("Nổi bật")}</Badge>}
+            {service.area && <span className="text-sm text-gray-500">📍 {tr(service.area)}</span>}
           </div>
 
-          <h1 className="mt-2 text-2xl font-bold text-ink sm:text-3xl">{service.title}</h1>
-          <p className="mt-2 text-gray-600">{service.summary}</p>
+          <h1 className="mt-2 text-2xl font-bold text-ink sm:text-3xl">{tr(service.title)}</h1>
+          <p className="mt-2 text-gray-600">{tr(service.summary)}</p>
 
           {(() => {
             const base = toNumber(service.basePrice);
@@ -363,13 +367,13 @@ export default async function ServiceDetailPage({
             if (base == null) return null;
             return (
               <p className="mt-3 flex flex-wrap items-baseline gap-x-2">
-                <span className="text-sm text-gray-500">Giá từ</span>
-                {onSale && <span className="text-base text-gray-400 line-through">{formatPrice(orig)}</span>}
-                <span className="text-2xl font-extrabold text-forest-700">{formatPrice(base)}</span>
-                {service.priceUnit && <span className="text-sm text-gray-500">{service.priceUnit}</span>}
+                <span className="text-sm text-gray-500">{tr("Giá từ")}</span>
+                {onSale && <span className="text-base text-gray-400 line-through">{tr(formatPrice(orig))}</span>}
+                <span className="text-2xl font-extrabold text-forest-700">{tr(formatPrice(base))}</span>
+                {service.priceUnit && <span className="text-sm text-gray-500">{tr(service.priceUnit)}</span>}
                 {onSale && (
                   <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-bold text-red-600 ring-1 ring-red-100">
-                    Giảm {Math.round((1 - base / orig) * 100)}%
+                    {tr("Giảm {0}%", [Math.round((1 - base / orig) * 100)])}
                   </span>
                 )}
               </p>
@@ -377,9 +381,9 @@ export default async function ServiceDetailPage({
           })()}
 
           <section className="mt-6">
-            <h2 className="text-lg font-semibold text-ink">Giới thiệu</h2>
+            <h2 className="text-lg font-semibold text-ink">{tr("Giới thiệu")}</h2>
             <p className="mt-2 whitespace-pre-line leading-relaxed text-gray-700">
-              {service.description}
+              {await tLong(service.description)}
             </p>
           </section>
 
@@ -406,7 +410,7 @@ export default async function ServiceDetailPage({
           {/* Loại phòng */}
           {service.roomTypes.length > 0 && (
             <section className="mt-8">
-              <h2 className="text-lg font-semibold text-ink">Các loại phòng</h2>
+              <h2 className="text-lg font-semibold text-ink">{tr("Các loại phòng")}</h2>
               <div className="mt-3 space-y-3">
                 {service.roomTypes.map((r) => {
                   // Phòng rẻ nhất + giá niêm yết của nó (để gạch ngang khi đang giảm).
@@ -428,20 +432,20 @@ export default async function ServiceDetailPage({
                   <div key={r.id} className="rounded-xl bg-white p-3 ring-1 ring-black/5">
                     <div className="flex items-start gap-4">
                       <div className="flex-1">
-                        <p className="font-medium text-ink">{r.name}</p>
-                        <p className="text-xs text-gray-500">Sức chứa {capLabel} người · {r.rooms.length || r.totalRooms} phòng</p>
+                        <p className="font-medium text-ink">{tr(r.name)}</p>
+                        <p className="text-xs text-gray-500">{tr("Sức chứa {0} người · {1} phòng", [tr(capLabel), r.rooms.length || r.totalRooms])}</p>
                         <p className="mt-1 text-sm">
                           {fromPrice != null ? (
                             <>
-                              <span className="text-gray-500">Từ </span>
+                              <span className="text-gray-500">{tr("Từ")}{" "}</span>
                               {fromOld != null && (
-                                <span className="mr-1 text-gray-400 line-through">{formatPrice(fromOld)}</span>
+                                <span className="mr-1 text-gray-400 line-through">{tr(formatPrice(fromOld))}</span>
                               )}
-                              <span className="font-semibold text-forest-700">{formatPrice(fromPrice)}</span>
-                              <span className="text-gray-500">/đêm</span>
+                              <span className="font-semibold text-forest-700">{tr(formatPrice(fromPrice))}</span>
+                              <span className="text-gray-500">{tr("/đêm")}</span>
                             </>
                           ) : (
-                            <span className="font-semibold text-forest-700">IB để biết giá</span>
+                            <span className="font-semibold text-forest-700">{tr("IB để biết giá")}</span>
                           )}
                         </p>
                       </div>
@@ -456,7 +460,7 @@ export default async function ServiceDetailPage({
                             {img.type === "video" ? (
                               <video src={img.url} className="h-full w-full object-cover" controls playsInline preload="metadata" />
                             ) : (
-                              <Image src={img.url} alt={img.alt} fill sizes="160px" className="object-cover" />
+                              <Image src={img.url} alt={tr(img.alt)} fill sizes="160px" className="object-cover" />
                             )}
                           </div>
                         ))}
@@ -470,15 +474,15 @@ export default async function ServiceDetailPage({
                             href={`/${cat.slug}/${service.slug}/phong/${room.id}`}
                             className="rounded-lg bg-forest-50 px-3 py-1.5 text-sm font-medium text-forest-700 transition hover:bg-forest-100"
                           >
-                            {room.name} ·{" "}
+                            {tr(room.name)} ·{" "}
                             {isRoomPriceOnRequest(room) ? (
-                              <span className="font-semibold text-forest-700">IB để biết giá</span>
+                              <span className="font-semibold text-forest-700">{tr("IB để biết giá")}</span>
                             ) : (
                               <>
                                 {room.salePrice != null && toNumber(room.listPrice)! > toNumber(room.salePrice)! && (
-                                  <span className="font-normal text-gray-400 line-through">{formatPrice(room.listPrice)} </span>
+                                  <span className="font-normal text-gray-400 line-through">{tr(formatPrice(room.listPrice))} </span>
                                 )}
-                                {formatPrice(room.salePrice ?? room.listPrice)}
+                                {tr(formatPrice(room.salePrice ?? room.listPrice))}
                               </>
                             )} →
                           </Link>
@@ -495,59 +499,87 @@ export default async function ServiceDetailPage({
           {/* Xe cho thuê */}
           {service.rentalVehicles.length > 0 && (
             <section className="mt-8">
-              <h2 className="text-lg font-semibold text-ink">Các loại xe</h2>
+              <h2 className="text-lg font-semibold text-ink">{tr("Các loại xe")}</h2>
               <div className="mt-3 space-y-3">
                 {service.rentalVehicles.map((v) => (
                   <div key={v.id} className="flex items-center justify-between rounded-xl bg-white p-3 ring-1 ring-black/5">
                     <div>
-                      <p className="font-medium text-ink">{v.vehicleType}</p>
+                      <p className="font-medium text-ink">{tr(v.vehicleType)}</p>
                       <p className="text-xs text-gray-500">
-                        {v.totalUnits} xe{v.deliveryFee ? ` · phí giao nhận ${formatPrice(v.deliveryFee)}` : ""}
+                        {v.totalUnits} xe{v.deliveryFee ? tr(" · phí giao nhận {0}", [tr(formatPrice(v.deliveryFee))]) : ""}
                       </p>
                     </div>
-                    <p className="font-semibold text-forest-700">{formatPrice(v.pricePerDay)}/ngày</p>
+                    <p className="font-semibold text-forest-700">{tr("{0}/ngày", [tr(formatPrice(v.pricePerDay))])}</p>
                   </div>
                 ))}
               </div>
             </section>
           )}
 
-          {/* Thông tin tuyến (xe ôm / taxi) */}
-          {service.transport && (
-            <section className="mt-8">
-              <h2 className="text-lg font-semibold text-ink">Thông tin tuyến</h2>
-              <div className="mt-3 rounded-xl bg-white p-4 ring-1 ring-black/5 text-sm">
-                <p><span className="text-gray-500">Điểm đón: </span>{service.transport.fromPoint}</p>
-                <p className="mt-1"><span className="text-gray-500">Điểm đến: </span>{service.transport.toArea}</p>
-                {service.transport.vehicleType && (
-                  <p className="mt-1"><span className="text-gray-500">Phương tiện: </span>{service.transport.vehicleType}</p>
+          {/* Bác tài & bảng giá (xe ôm / taxi): giá nguyên ngày + giá 1 chiều theo chặng (xe ôm: chở 1 / 2 người) */}
+          {service.transport && (() => {
+            const t = service.transport;
+            const bike = service.category === "XEOM";
+            const cap = t.capacity ?? (bike ? 2 : 4);
+            const money = (v: unknown) => (v != null ? tr(formatPrice(v as never)) : tr("Liên hệ"));
+            return (
+              <section className="mt-8">
+                <h2 className="text-lg font-semibold text-ink">{tr("Bác tài & bảng giá")}</h2>
+                <div className="mt-3 rounded-xl bg-white p-4 text-sm ring-1 ring-black/5">
+                  {t.driverName && (
+                    <p><span className="text-gray-500">{tr("Bác tài:")}{" "}</span>{tr(t.driverName)}{t.driverBirthYear ? ` · ${tr("sinh năm {0}", [t.driverBirthYear])}` : ""}</p>
+                  )}
+                  {t.vehicleType && <p className="mt-1"><span className="text-gray-500">{tr("Phương tiện:")}{" "}</span>{tr(t.vehicleType)}</p>}
+                  <p className="mt-1"><span className="text-gray-500">{tr("Chở tối đa:")}{" "}</span>{bike ? tr("{0} người / tài xế", [cap === 1 ? 1 : 2]) : tr("{0} khách / xe", [cap])}</p>
+                  <p className="mt-1">
+                    <span className="text-gray-500">{tr("Thuê nguyên ngày:")}{" "}</span>
+                    <span className="font-semibold text-forest-700">
+                      {bike && cap !== 1
+                        ? `${tr("chở 1 người")} ${money(t.fixedPrice)} · ${tr("chở 2 người")} ${money(t.dayPriceTwo)}`
+                        : money(t.fixedPrice)}
+                    </span>
+                  </p>
+                </div>
+                {service.transportRoutes.length > 0 && (
+                  <div className="mt-3 overflow-hidden rounded-xl bg-white text-sm ring-1 ring-black/5">
+                    <table className="w-full">
+                      <thead className="bg-forest-50 text-left text-xs text-gray-500">
+                        <tr>
+                          <th className="px-3 py-2 font-semibold">{tr("Chặng 1 chiều")}</th>
+                          <th className="px-3 py-2 text-right font-semibold">{bike ? tr("Chở 1 người") : tr("Giá cả xe")}</th>
+                          {bike && cap !== 1 && <th className="px-3 py-2 text-right font-semibold">{tr("Chở 2 người")}</th>}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {service.transportRoutes.map((r) => (
+                          <tr key={r.id} className="border-t border-gray-100">
+                            <td className="px-3 py-2">{tr(r.fromPoint.name)} ⇄ {tr(r.toPoint.name)}{r.note ? <span className="block text-xs text-gray-400">{tr(r.note)}</span> : null}</td>
+                            <td className="px-3 py-2 text-right font-semibold text-forest-700">{money(r.priceOneWay)}</td>
+                            {bike && cap !== 1 && <td className="px-3 py-2 text-right font-semibold text-forest-700">{money(r.priceTwo)}</td>}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
-                <p className="mt-1">
-                  <span className="text-gray-500">Giá: </span>
-                  {service.transport.fixedPrice != null
-                    ? <span className="font-semibold text-forest-700">{formatPrice(service.transport.fixedPrice)}{service.category === "TAXI" ? "/ngày" : ""}</span>
-                    : <span className="font-medium text-sky-700">Liên hệ xác nhận giá</span>}
-                </p>
-                {service.transport.priceNote && (
-                  <p className="mt-1 text-gray-500">{service.transport.priceNote}</p>
-                )}
-              </div>
-            </section>
-          )}
+                <p className="mt-2 text-xs text-gray-500">{tr("Điểm không có trong danh sách: nhắn tin để được báo giá.")}</p>
+              </section>
+            );
+          })()}
 
           {/* Lộ trình & giá từng chặng (cabin) */}
           {service.cabinPriceRows.length > 0 && (
             <section className="mt-8">
-              <h2 className="text-lg font-semibold text-ink">Giá vé theo chặng</h2>
-              {service.area && <p className="mt-1 text-sm text-gray-500">Lộ trình: {service.area}</p>}
+              <h2 className="text-lg font-semibold text-ink">{tr("Giá vé theo chặng")}</h2>
+              {service.area && <p className="mt-1 text-sm text-gray-500">{tr("Lộ trình: {0}", [tr(service.area)])}</p>}
               <div className="mt-3 overflow-hidden rounded-xl ring-1 ring-black/5">
                 <table className="w-full text-sm">
                   <thead className="bg-forest-50 text-left text-xs uppercase text-gray-500">
                     <tr>
-                      <th className="px-4 py-2">Loại vé</th>
-                      <th className="px-4 py-2">Điểm đón</th>
-                      <th className="px-4 py-2">Điểm đến</th>
-                      <th className="px-4 py-2 text-right">Giá vé</th>
+                      <th className="px-4 py-2">{tr("Loại vé")}</th>
+                      <th className="px-4 py-2">{tr("Điểm đón")}</th>
+                      <th className="px-4 py-2">{tr("Điểm đến")}</th>
+                      <th className="px-4 py-2 text-right">{tr("Giá vé")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 bg-white">
@@ -555,12 +587,12 @@ export default async function ServiceDetailPage({
                       <tr key={row.id}>
                         <td className="px-4 py-2">
                           <span className="rounded-full bg-forest-100 px-2 py-0.5 text-xs font-medium text-forest-700">
-                            {row.ticketType === "OUTBOUND" ? "Chiều đi" : row.ticketType === "RETURN" ? "Chiều về" : "Khứ hồi"}
+                            {row.ticketType === "OUTBOUND" ? tr("Chiều đi") : row.ticketType === "RETURN" ? tr("Chiều về") : tr("Khứ hồi")}
                           </span>
                         </td>
-                        <td className="px-4 py-2 font-medium text-ink">{row.pickupPoint}</td>
-                        <td className="px-4 py-2 text-gray-600">{row.destination}</td>
-                        <td className="px-4 py-2 text-right font-bold text-forest-700">{formatPrice(row.price)}</td>
+                        <td className="px-4 py-2 font-medium text-ink">{tr(row.pickupPoint)}</td>
+                        <td className="px-4 py-2 text-gray-600">{tr(row.destination)}</td>
+                        <td className="px-4 py-2 text-right font-bold text-forest-700">{tr(formatPrice(row.price))}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -571,10 +603,10 @@ export default async function ServiceDetailPage({
 
           {/* Liên hệ */}
           <section className="mt-8 rounded-xl bg-forest-50 p-4">
-            <h2 className="text-sm font-semibold text-forest-800">Liên hệ trực tiếp</h2>
+            <h2 className="text-sm font-semibold text-forest-800">{tr("Liên hệ trực tiếp")}</h2>
             <div className="mt-2 flex flex-wrap gap-2">
               <a href={`tel:${phone.replace(/\s/g, "")}`} className="rounded-lg bg-forest-600 px-4 py-2 text-sm font-semibold text-white hover:bg-forest-700">
-                📞 {phone}
+                📞 {tr(phone)}
               </a>
               {zalo && (
                 <a href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-sunset-500 px-4 py-2 text-sm font-semibold text-white hover:bg-sunset-600">
@@ -615,6 +647,18 @@ export default async function ServiceDetailPage({
               kind={cat.availabilityKind}
               phone={phone}
               zalo={zalo}
+              initialTransport={
+                cat.availabilityKind === "transport"
+                  ? {
+                      date: typeof sp.from === "string" && /^\d{4}-\d{2}-\d{2}$/.test(sp.from) ? sp.from : undefined,
+                      from: typeof sp.dpt === "string" ? sp.dpt.slice(0, 40) : undefined,
+                      to: typeof sp.dst === "string" ? sp.dst.slice(0, 40) : undefined,
+                      mode: typeof sp.tm === "string" ? sp.tm : undefined,
+                      pax: typeof sp.pax === "string" ? Math.min(40, Math.max(1, parseInt(sp.pax, 10) || 1)) : undefined,
+                      drv: typeof sp.drv === "string" ? Math.min(20, Math.max(1, parseInt(sp.drv, 10) || 1)) : undefined,
+                    }
+                  : undefined
+              }
             />
           )}
         </div>

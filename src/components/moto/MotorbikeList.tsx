@@ -2,11 +2,13 @@
 
 import { wdDmy } from "@/lib/date-format";
 import { SitePhone } from "@/components/SiteContact";
-import Link from "next/link";
+import Link from "@/components/Link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DateField } from "@/components/DateField";
 import { useSearchNav } from "@/components/useSearchNav";
+import { useT } from "@/components/i18n/I18nProvider";
+import type { TFunc } from "@/lib/i18n/config";
 
 export interface RentalBike {
   id: string;
@@ -53,12 +55,13 @@ function rnd(i: number, kk: number) {
   const x = Math.sin(i * 12.9898 + kk * 78.233) * 43758.5453;
   return x - Math.floor(x);
 }
-function fmtD(ds: string) {
+function fmtD(ds: string, t?: TFunc) {
   if (!ds) return "";
-  return wdDmy(ds); // "T7, 05/12/2026"
+  return wdDmy(ds, t); // "T7, 05/12/2026"
 }
 
 export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: string; to: string }) {
+  const tr = useT();
   const { pending: searching, go } = useSearchNav();
   const [w, setW] = useState(1280);
   const [type, setType] = useState<"all" | RentalBike["kind"]>("all");
@@ -260,7 +263,7 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
   const wide = w >= 980;
   const heroH = w < 640 ? 520 : 600;
   const ship = mode === "ship";
-  const dateErr = ci && co && co < ci ? "Ngày trả xe phải sau hoặc trùng ngày nhận." : "";
+  const dateErr = ci && co && co < ci ? tr("Ngày trả xe phải sau hoặc trùng ngày nhận.") : "";
   // Số ngày tạm tính trên thẻ: theo mốc 24 giờ với giờ nhận = giờ trả (vd nhận 01/12, trả 02/12 = 1 ngày).
   // Giờ nhận/trả cụ thể chọn ở trang đặt xe — khi đó tiền thuê tính lại chính xác (1 / 1,5 / 2 ngày…).
   const days = ci ? (co && co > ci ? Math.max(1, Math.round((+new Date(co) - +new Date(ci)) / 864e5)) : 1) : 0;
@@ -283,8 +286,8 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
 
   const searched = Boolean(from);
   const FEE = 30000;
-  const listTitle = from ? `Xe trống ${fmtD(from)}${to && to !== from ? ` → ${fmtD(to)}` : ""}` : "Xe máy cho thuê tại Tà Xùa";
-  const listSub = `${items.length} loại xe · ${ship ? "giao tận nơi, phí 30k" : "nhận tại trung tâm Tà Xùa"} · cần CCCD hoặc bằng lái khi nhận xe`;
+  const listTitle = from ? tr("Xe trống {0}{1}", [fmtD(from, tr), to && to !== from ? ` → ${fmtD(to, tr)}` : ""]) : tr("Xe máy cho thuê tại Tà Xùa");
+  const listSub = tr("{0} loại xe · {1} · cần CCCD hoặc bằng lái khi nhận xe", [items.length, ship ? tr("giao tận nơi, phí 30k") : tr("nhận tại trung tâm Tà Xùa")]);
 
   const cell = "flex min-w-0 flex-col gap-0.5 rounded-[14px] bg-[oklch(0.965_0.01_200)] px-3.5 py-2.5";
   const inp = "min-w-0 border-0 bg-transparent p-0 text-[15px] font-semibold text-ink outline-none";
@@ -368,11 +371,11 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
 
         <div ref={heroTextRef} className="container-page relative z-[3] text-white will-change-transform" style={{ paddingTop: w < 640 ? 64 : 92 }}>
           <div data-in="0" className="flex gap-2 text-sm opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease, transform .9s cubic-bezier(.2,.7,.2,1)", color: "oklch(0.9 0.02 220)" }}>
-            <Link href="/" className="!text-[oklch(0.9_0.02_220)] hover:!text-white">Trang chủ</Link><span>/</span><span className="font-bold text-white">Thuê xe máy</span>
+            <Link href="/" className="!text-[oklch(0.9_0.02_220)] hover:!text-white">{tr("Trang chủ")}</Link><span>/</span><span className="font-bold text-white">{tr("Thuê xe máy")}</span>
           </div>
-          <h1 data-in="1" className="mt-4 text-[13px] font-bold uppercase tracking-[0.14em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .1s, transform .9s cubic-bezier(.2,.7,.2,1) .1s", color: "oklch(0.88 0.12 80)" }}>Thuê xe máy Tà Xùa · giá thuê & xe trống theo ngày</h1>
-          <p data-in="2" className="mt-3.5 max-w-[760px] text-[clamp(32px,6vw,60px)] font-extrabold leading-[1.02] tracking-[-0.035em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .2s, transform .9s cubic-bezier(.2,.7,.2,1) .2s", textShadow: "0 2px 24px oklch(0.2 0.05 260 / .4)" }}>Vặn ga qua đèo, đón biển mây trên đỉnh</p>
-          <p data-in="3" className="mt-3.5 max-w-[520px] text-[clamp(15px,1.7vw,18px)] leading-[1.5] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .3s, transform .9s cubic-bezier(.2,.7,.2,1) .3s", color: "oklch(0.97 0.02 80)" }}>Thuê xe máy Tà Xùa bền khoẻ, leo đèo tốt. Kèm mũ bảo hiểm, áo mưa, giao tận homestay.</p>
+          <h1 data-in="1" className="mt-4 text-[13px] font-bold uppercase tracking-[0.14em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .1s, transform .9s cubic-bezier(.2,.7,.2,1) .1s", color: "oklch(0.88 0.12 80)" }}>{tr("Thuê xe máy Tà Xùa · giá thuê & xe trống theo ngày")}</h1>
+          <p data-in="2" className="mt-3.5 max-w-[760px] text-[clamp(32px,6vw,60px)] font-extrabold leading-[1.02] tracking-[-0.035em] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .2s, transform .9s cubic-bezier(.2,.7,.2,1) .2s", textShadow: "0 2px 24px oklch(0.2 0.05 260 / .4)" }}>{tr("Vặn ga qua đèo, đón biển mây trên đỉnh")}</p>
+          <p data-in="3" className="mt-3.5 max-w-[520px] text-[clamp(15px,1.7vw,18px)] leading-[1.5] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .3s, transform .9s cubic-bezier(.2,.7,.2,1) .3s", color: "oklch(0.97 0.02 80)" }}>{tr("Thuê xe máy Tà Xùa bền khoẻ, leo đèo tốt. Kèm mũ bảo hiểm, áo mưa, giao tận homestay.")}</p>
         </div>
       </section>
 
@@ -382,35 +385,35 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
           <div className="flex flex-wrap items-center justify-between gap-2 p-0.5">
             <div className="flex flex-wrap gap-1">
               {(["all", "Xe số", "Xe côn tay", "Xe địa hình"] as const).map((kk) => (
-                <button key={kk} type="button" onClick={() => setType(kk)} className="rounded-full px-3.5 py-2 text-sm font-bold transition" style={{ background: type === kk ? TH.G : "oklch(0.95 0.01 200)", color: type === kk ? "white" : "oklch(0.35 0.02 160)" }}>{kk === "all" ? "Tất cả" : kk}</button>
+                <button key={kk} type="button" onClick={() => setType(kk)} className="rounded-full px-3.5 py-2 text-sm font-bold transition" style={{ background: type === kk ? TH.G : "oklch(0.95 0.01 200)", color: type === kk ? "white" : "oklch(0.35 0.02 160)" }}>{kk === "all" ? tr("Tất cả") : tr(kk)}</button>
               ))}
             </div>
             <div className="inline-flex gap-[3px] rounded-full bg-[oklch(0.95_0.01_200)] p-[3px]">
-              {([["shop", "Nhận tại cửa hàng"], ["ship", "Giao tận nơi"]] as const).map(([kk, n]) => (
-                <button key={kk} type="button" onClick={() => setMode(kk)} className="rounded-full px-3 py-1.5 text-[13px] font-bold transition" style={{ background: mode === kk ? "white" : "transparent", color: mode === kk ? TH.G : "oklch(0.42 0.02 160)", boxShadow: mode === kk ? "0 1px 3px oklch(0.2 0.03 160 / .15)" : "none" }}>{n}</button>
+              {([["shop", tr("Nhận tại cửa hàng")], ["ship", tr("Giao tận nơi")]] as const).map(([kk, n]) => (
+                <button key={kk} type="button" onClick={() => setMode(kk)} className="rounded-full px-3 py-1.5 text-[13px] font-bold transition" style={{ background: mode === kk ? "white" : "transparent", color: mode === kk ? TH.G : "oklch(0.42 0.02 160)", boxShadow: mode === kk ? "0 1px 3px oklch(0.2 0.03 160 / .15)" : "none" }}>{tr(n)}</button>
               ))}
             </div>
           </div>
           <div className="grid gap-1.5" style={{ gridTemplateColumns: wide ? "1fr 1fr 150px auto" : "repeat(auto-fit,minmax(min(100%,150px),1fr))" }}>
             <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Ngày nhận xe</span>
-              <DateField value={ci} onChange={setCi} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Ngày nhận xe" />
+              <span className="text-xs font-semibold text-gray-500">{tr("Ngày nhận xe")}</span>
+              <DateField value={ci} onChange={setCi} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel={tr("Ngày nhận xe")} />
             </label>
             <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Ngày trả xe</span>
-              <DateField value={co} min={ci || undefined} onChange={setCo} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel="Ngày trả xe" />
+              <span className="text-xs font-semibold text-gray-500">{tr("Ngày trả xe")}</span>
+              <DateField value={co} min={ci || undefined} onChange={setCo} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel={tr("Ngày trả xe")} />
             </label>
             <div className={cell}>
-              <span className="text-xs font-semibold text-gray-500">Số xe</span>
+              <span className="text-xs font-semibold text-gray-500">{tr("Số xe")}</span>
               <div className="flex items-center gap-2.5 pt-0.5">
                 <button type="button" onClick={() => setQty((q) => Math.max(1, q - 1))} className="flex h-7 w-7 items-center justify-center rounded-lg bg-white font-bold">−</button>
                 <span className="min-w-[14px] text-center text-[15px] font-extrabold">{qty}</span>
                 <button type="button" onClick={() => setQty((q) => Math.min(10, q + 1))} className="flex h-7 w-7 items-center justify-center rounded-lg bg-white font-bold">+</button>
               </div>
             </div>
-            <button type="button" onClick={search} disabled={searching} className="flex items-center justify-center gap-2 whitespace-nowrap rounded-[14px] px-6 py-3.5 text-base font-extrabold text-white transition hover:bg-sunset-500 disabled:cursor-wait disabled:opacity-80" style={{ background: "oklch(0.68 0.18 45)" }}>Tìm xe →</button>
+            <button type="button" onClick={search} disabled={searching} className="flex items-center justify-center gap-2 whitespace-nowrap rounded-[14px] px-6 py-3.5 text-base font-extrabold text-white transition hover:bg-sunset-500 disabled:cursor-wait disabled:opacity-80" style={{ background: "oklch(0.68 0.18 45)" }}>{tr("Tìm xe →")}</button>
           </div>
-          {dateErr && <div className="px-1.5 pb-1 text-[13px] font-semibold text-red-600">{dateErr}</div>}
+          {dateErr && <div className="px-1.5 pb-1 text-[13px] font-semibold text-red-600">{tr(dateErr)}</div>}
         </div>
       </div>
 
@@ -418,13 +421,13 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
       <main ref={listRef} className="container-page flex flex-col gap-[18px] pb-14 pt-9">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <div className="text-[clamp(22px,2.6vw,28px)] font-extrabold tracking-[-0.02em] text-ink">{listTitle}</div>
-            <div className="mt-1 text-sm text-gray-500">{listSub}</div>
+            <div className="text-[clamp(22px,2.6vw,28px)] font-extrabold tracking-[-0.02em] text-ink">{tr(listTitle)}</div>
+            <div className="mt-1 text-sm text-gray-500">{tr(listSub)}</div>
           </div>
           {items.length > 0 && (
             <div className="inline-flex gap-1 rounded-xl bg-[oklch(0.93_0.01_200)] p-1">
-              {([["feat", "Nổi bật"], ["price", "Giá thấp"]] as const).map(([kk, n]) => (
-                <button key={kk} type="button" onClick={() => setSort(kk)} className="rounded-[9px] px-3 py-1.5 text-[13px] font-bold transition" style={{ background: sort === kk ? "white" : "transparent", color: sort === kk ? TH.G : "oklch(0.42 0.02 160)", boxShadow: sort === kk ? "0 1px 3px oklch(0.2 0.03 160 / .15)" : "none" }}>{n}</button>
+              {([["feat", tr("Nổi bật")], ["price", tr("Giá thấp")]] as const).map(([kk, n]) => (
+                <button key={kk} type="button" onClick={() => setSort(kk)} className="rounded-[9px] px-3 py-1.5 text-[13px] font-bold transition" style={{ background: sort === kk ? "white" : "transparent", color: sort === kk ? TH.G : "oklch(0.42 0.02 160)", boxShadow: sort === kk ? "0 1px 3px oklch(0.2 0.03 160 / .15)" : "none" }}>{tr(n)}</button>
               ))}
             </div>
           )}
@@ -432,8 +435,8 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
 
         {items.length === 0 ? (
           <div className="rounded-[22px] border border-dashed border-[oklch(0.85_0.02_200)] bg-white py-14 text-center">
-            <div className="text-[19px] font-extrabold text-ink">Không có xe phù hợp</div>
-            <div className="mt-1 text-[15px] text-gray-500">Thử đổi loại xe hoặc ngày, hoặc gọi <SitePhone /> để được hỗ trợ.</div>
+            <div className="text-[19px] font-extrabold text-ink">{tr("Không có xe phù hợp")}</div>
+            <div className="mt-1 text-[15px] text-gray-500">{tr("Thử đổi loại xe hoặc ngày, hoặc gọi")}{" "}<SitePhone />{" "}{tr("để được hỗ trợ.")}</div>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] sm:gap-[22px]">
@@ -442,22 +445,22 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
               const sm = ST[stKey];
               const full = searched && (b.available != null && (b.available <= 0 || b.available < qty));
               const status = !searched
-                ? "Chọn ngày để xem xe"
+                ? tr("Chọn ngày để xem xe")
                 : b.available == null
-                  ? "Chưa cập nhật"
+                  ? tr("Chưa cập nhật")
                   : b.available <= 0
-                    ? "Hết xe"
+                    ? tr("Hết xe")
                     : b.available < qty
-                      ? `Chỉ còn ${b.available} xe`
-                      : `Còn ${b.available} xe`;
+                      ? tr("Chỉ còn {0} xe", [b.available])
+                      : tr("Còn {0} xe", [b.available]);
               const total = days ? b.pricePerDay * days * qty + (ship ? (b.deliveryFee ?? FEE) : 0) : 0;
               const tail = (() => { const p = new URLSearchParams(); if (from) p.set("from", from); if (to) p.set("to", to); const s = p.toString(); return s ? `?${s}` : ""; })();
               const stockLabel = searched && b.available != null ? `${b.available} xe` : `${b.totalUnits} xe`;
               const feeText = ship
                 ? b.deliveryFee != null
-                  ? days ? `Đã gồm phí giao ${k(b.deliveryFee)}` : `Giao tận nơi +${k(b.deliveryFee)}`
-                  : days ? `Đã gồm phí giao ${k(FEE)}` : `Giao tận nơi +${k(FEE)}`
-                : "Nhận tại trung tâm Tà Xùa, miễn phí";
+                  ? days ? tr("Đã gồm phí giao {0}", [k(b.deliveryFee)]) : tr("Giao tận nơi +{0}", [k(b.deliveryFee)])
+                  : days ? tr("Đã gồm phí giao {0}", [k(FEE)]) : tr("Giao tận nơi +{0}", [k(FEE)])
+                : tr("Nhận tại trung tâm Tà Xùa, miễn phí");
               return (
                 <Link
                   key={b.id}
@@ -468,46 +471,46 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
                 >
                   <div className="relative aspect-[16/10] overflow-hidden bg-gray-100 sm:aspect-[4/3]">
                     {b.image ? (
-                      <Image src={b.image} alt={b.name} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" />
+                      <Image src={b.image} alt={tr(b.name)} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" />
                     ) : (
                       <div className="flex h-full items-center justify-center text-4xl">🛵</div>
                     )}
                     <div className="pointer-events-none absolute left-2 right-2 top-2 flex flex-wrap items-start justify-between gap-1 sm:left-3 sm:right-3 sm:top-3 sm:gap-1.5">
                       <div className="flex flex-wrap gap-1 sm:gap-1.5">
-                        <span className="whitespace-nowrap rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-[oklch(0.3_0.04_160)] sm:px-2.5 sm:py-1 sm:text-xs">{b.kind}</span>
-                        {b.featured && <span className="whitespace-nowrap rounded-full bg-sunset-500 px-2 py-0.5 text-[11px] font-bold text-white sm:px-2.5 sm:py-1 sm:text-xs">Nổi bật</span>}
+                        <span className="whitespace-nowrap rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-[oklch(0.3_0.04_160)] sm:px-2.5 sm:py-1 sm:text-xs">{tr(b.kind)}</span>
+                        {b.featured && <span className="whitespace-nowrap rounded-full bg-sunset-500 px-2 py-0.5 text-[11px] font-bold text-white sm:px-2.5 sm:py-1 sm:text-xs">{tr("Nổi bật")}</span>}
                       </div>
-                      <span className="max-w-full truncate rounded-full px-2 py-0.5 text-[11px] font-bold sm:px-2.5 sm:py-1 sm:text-xs" style={{ background: sm.bg, color: sm.fg }}>{status}</span>
+                      <span className="max-w-full truncate rounded-full px-2 py-0.5 text-[11px] font-bold sm:px-2.5 sm:py-1 sm:text-xs" style={{ background: sm.bg, color: sm.fg }}>{tr(status)}</span>
                     </div>
                   </div>
                   <div className="flex flex-1 flex-col gap-2 p-3 sm:gap-3 sm:p-5 sm:pt-[18px]">
                     <div>
-                      <div className="line-clamp-1 text-[15px] font-extrabold leading-[1.3] tracking-[-0.015em] text-ink sm:text-[18px]">{b.name}</div>
-                      <div className="mt-0.5 line-clamp-1 text-[12px] leading-[1.5] text-gray-500 sm:mt-1 sm:text-sm">{b.shopTitle}</div>
+                      <div className="line-clamp-1 text-[15px] font-extrabold leading-[1.3] tracking-[-0.015em] text-ink sm:text-[18px]">{tr(b.name)}</div>
+                      <div className="mt-0.5 line-clamp-1 text-[12px] leading-[1.5] text-gray-500 sm:mt-1 sm:text-sm">{tr(b.shopTitle)}</div>
                     </div>
                     <div className="grid grid-cols-2 gap-px overflow-hidden rounded-[14px] bg-[oklch(0.92_0.01_200)]">
                       <div className="bg-[oklch(0.975_0.006_200)] px-2.5 py-2 sm:px-3 sm:py-2.5">
-                        <div className="text-[11px] font-semibold text-gray-500">Giá / ngày</div>
+                        <div className="text-[11px] font-semibold text-gray-500">{tr("Giá / ngày")}</div>
                         <div className="mt-0.5 whitespace-nowrap text-[14px] font-extrabold text-ink sm:text-[15px]">{k(b.pricePerDay)}</div>
                       </div>
                       <div className="bg-[oklch(0.975_0.006_200)] px-2.5 py-2 sm:px-3 sm:py-2.5">
-                        <div className="text-[11px] font-semibold text-gray-500">Còn trống</div>
-                        <div className="mt-0.5 whitespace-nowrap text-[15px] font-extrabold" style={{ color: stKey === "full" ? "oklch(0.52 0.17 28)" : stKey === "low" ? "oklch(0.52 0.15 50)" : "oklch(0.38 0.1 155)" }}>{stockLabel}</div>
+                        <div className="text-[11px] font-semibold text-gray-500">{tr("Còn trống")}</div>
+                        <div className="mt-0.5 whitespace-nowrap text-[15px] font-extrabold" style={{ color: stKey === "full" ? "oklch(0.52 0.17 28)" : stKey === "low" ? "oklch(0.52 0.15 50)" : "oklch(0.38 0.1 155)" }}>{tr(stockLabel)}</div>
                       </div>
                     </div>
                     <div className="flex-1" />
                     <div className="flex flex-col gap-2 border-t border-[oklch(0.94_0.01_200)] pt-2 sm:flex-row sm:items-end sm:justify-between sm:gap-2.5 sm:pt-3">
                       <div className="min-w-0">
-                        <div className="text-[11px] text-gray-500 sm:text-xs">{days ? `${days} ngày × ${qty} xe` : "Giá thuê"}</div>
+                        <div className="text-[11px] text-gray-500 sm:text-xs">{days ? tr("{0} ngày × {1} xe", [days, qty]) : tr("Giá thuê")}</div>
                         {/* Giá gạch chỉ hiện khi chưa chọn ngày (lúc đó số to là giá/ngày, so sánh cùng đơn vị). */}
-                        {!days && b.originalPrice != null && <div className="text-[12px] font-semibold leading-none text-gray-400 line-through sm:text-[13px]">{vnd(b.originalPrice)}</div>}
+                        {!days && b.originalPrice != null && <div className="text-[12px] font-semibold leading-none text-gray-400 line-through sm:text-[13px]">{tr(vnd(b.originalPrice))}</div>}
                         <div>
-                          <span className="whitespace-nowrap text-[18px] font-extrabold tracking-[-0.02em] sm:text-[22px]" style={{ color: "oklch(0.34 0.07 160)" }}>{days ? vnd(total) : vnd(b.pricePerDay)}</span>
-                          {!days && <span className="text-[12px] text-gray-500 sm:text-[13px]">/ngày</span>}
+                          <span className="whitespace-nowrap text-[18px] font-extrabold tracking-[-0.02em] sm:text-[22px]" style={{ color: "oklch(0.34 0.07 160)" }}>{days ? tr(vnd(total)) : tr(vnd(b.pricePerDay))}</span>
+                          {!days && <span className="text-[12px] text-gray-500 sm:text-[13px]">{tr("/ngày")}</span>}
                         </div>
-                        <div className="truncate text-[11px] font-semibold text-gray-500 sm:text-xs">{feeText}</div>
+                        <div className="truncate text-[11px] font-semibold text-gray-500 sm:text-xs">{tr(feeText)}</div>
                       </div>
-                      <span className="whitespace-nowrap rounded-full px-3 py-2 text-center text-xs font-bold text-white transition group-hover:bg-sunset-500 sm:px-4 sm:py-2.5 sm:text-sm" style={{ background: full ? "oklch(0.6 0.01 160)" : TH.G }}>{full ? "Chọn ngày khác →" : "Đặt xe →"}</span>
+                      <span className="whitespace-nowrap rounded-full px-3 py-2 text-center text-xs font-bold text-white transition group-hover:bg-sunset-500 sm:px-4 sm:py-2.5 sm:text-sm" style={{ background: full ? "oklch(0.6 0.01 160)" : TH.G }}>{full ? tr("Chọn ngày khác →") : tr("Đặt xe →")}</span>
                     </div>
                   </div>
                 </Link>
@@ -517,10 +520,10 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
         )}
 
         <div className="mt-6 flex flex-col gap-3 border-t border-[oklch(0.91_0.01_200)] pt-6">
-          <div className="text-[15px] font-bold text-gray-500">Dịch vụ khác tại Tà Xùa</div>
+          <div className="text-[15px] font-bold text-gray-500">{tr("Dịch vụ khác tại Tà Xùa")}</div>
           <div className="flex flex-wrap gap-2">
-            {[["/xe-cabin", "Xe cabin đi Tà Xùa"], ["/homestay", "Homestay & Bungalow"], ["/xe-om", "Xe ôm"], ["/taxi", "Taxi"], ["/combo", "Combo du lịch"]].map(([href, label]) => (
-              <Link key={href} href={href} className="whitespace-nowrap rounded-full border border-[oklch(0.88_0.02_160)] bg-white px-4 py-2.5 text-[15px] font-semibold text-[oklch(0.3_0.05_160)]">{label}</Link>
+            {[["/xe-cabin", tr("Xe cabin đi Tà Xùa")], ["/homestay", "Homestay & Bungalow"], ["/xe-om", tr("Xe ôm")], ["/taxi", "Taxi"], ["/combo", tr("Combo du lịch")]].map(([href, label]) => (
+              <Link key={href} href={href} className="whitespace-nowrap rounded-full border border-[oklch(0.88_0.02_160)] bg-white px-4 py-2.5 text-[15px] font-semibold text-[oklch(0.3_0.05_160)]">{tr(label)}</Link>
             ))}
           </div>
         </div>

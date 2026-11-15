@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type { StopKind } from "@/lib/itinerary";
+import { useT } from "@/components/i18n/I18nProvider";
 
 /** Một cảnh của "phim lịch trình" = một điểm dừng (đã trải phẳng qua các ngày). */
 export interface SceneStop {
@@ -53,6 +54,7 @@ export function ItineraryScene({
   onToggle: () => void;
   onJump: (i: number) => void;
 }) {
+  const tr = useT();
   const sceneRef = useRef<HTMLDivElement>(null);
   const busRef = useRef<HTMLDivElement>(null);
   const carRef = useRef<HTMLDivElement>(null);
@@ -205,17 +207,17 @@ export function ItineraryScene({
     grpB: spot ? "26.5%" : "12%",
     spotOp: spot ? 1 : 0, flatOp: spot ? 0 : 1,
     pTree: f.prop === "tree" ? 1 : 0, pTea: f.prop === "tea" ? 1 : 0, pFlag: f.prop === "flag" ? 1 : 0, pHut: f.prop === "hut" ? 1 : 0, pStop: f.prop === "stop" ? 1 : 0,
-    hutLabel: f.kind === "cafe" ? "CAFE" : f.kind === "food" ? "QUÁN ĂN" : "BẢN MÔNG",
-    stopLabel: f.mode === "leave" ? "TÀ XÙA → HÀ NỘI" : "BẾN XE BẮC YÊN",
-    dayLabel: `Ngày ${f.di + 1}`, dayC: DAY_COLORS[f.di % DAY_COLORS.length], time: f.time, name: f.name,
-    note: f.mode === "arrive" ? "Cả đoàn xuống xe cabin, lên xe con trung chuyển lên Tà Xùa." : f.mode === "leave" ? "Cả đoàn lên xe cabin, về Hà Nội." : f.note,
+    hutLabel: f.kind === "cafe" ? "CAFE" : f.kind === "food" ? tr("QUÁN ĂN") : tr("BẢN MÔNG"),
+    stopLabel: f.mode === "leave" ? tr("TÀ XÙA → HÀ NỘI") : tr("BẾN XE BẮC YÊN"),
+    dayLabel: tr("Ngày {0}", [f.di + 1]), dayC: DAY_COLORS[f.di % DAY_COLORS.length], time: f.time, name: f.name,
+    note: f.mode === "arrive" ? tr("Cả đoàn xuống xe cabin, lên xe con trung chuyển lên Tà Xùa.") : f.mode === "leave" ? tr("Cả đoàn lên xe cabin, về Hà Nội.") : f.note,
     type: TT[0], tBg: TT[1], tFg: TT[2],
   };
   const prevStop = onPrev;
   const nextStop = onNext;
   const togglePlay = onToggle;
   const playIcon = playing ? "❚❚" : "▶";
-  const playTitle = playing ? "Tạm dừng" : "Chạy tiếp";
+  const playTitle = playing ? tr("Tạm dừng") : tr("Chạy tiếp");
 
   return (
     <div ref={sceneRef} id="lt-scene" className={(compact ? "lt-compact h-[150px] sm:h-[300px] lg:h-[220px]" : "h-[260px] sm:h-[300px] lg:h-[340px]") + " transition-[height] duration-300"} style={{ position: "relative", borderRadius: "24px", overflow: "hidden", isolation: "isolate", background: "linear-gradient(180deg, oklch(0.62 0.11 242) 0%, oklch(0.76 0.08 232) 40%, oklch(0.9 0.04 215) 72%, oklch(0.96 0.02 200) 100%)" }}>
@@ -282,7 +284,7 @@ export function ItineraryScene({
           <div style={{ position: "absolute", left: "-48px", bottom: "0", width: "96px", height: "50px", borderRadius: "4px", background: "linear-gradient(180deg, oklch(0.62 0.06 60), oklch(0.5 0.05 55))" }}></div>
           <div style={{ position: "absolute", left: "-60px", bottom: "46px", width: "120px", height: "40px", background: "oklch(0.36 0.04 40)", clipPath: "polygon(50% 0,100% 100%,0 100%)" }}></div>
           <div style={{ position: "absolute", left: "-12px", bottom: "0", width: "24px", height: "32px", borderRadius: "12px 12px 0 0", background: "oklch(0.3 0.03 45)" }}></div>
-          <div style={{ position: "absolute", left: "-40px", bottom: "38px", width: "80px", height: "16px", borderRadius: "4px", background: "oklch(0.97 0.02 90)", fontSize: "9px", fontWeight: "900", letterSpacing: ".06em", lineHeight: "16px", textAlign: "center", color: "oklch(0.35 0.06 45)", whiteSpace: "nowrap" }}>{sc.hutLabel}</div>
+          <div style={{ position: "absolute", left: "-40px", bottom: "38px", width: "80px", height: "16px", borderRadius: "4px", background: "oklch(0.97 0.02 90)", fontSize: "9px", fontWeight: "900", letterSpacing: ".06em", lineHeight: "16px", textAlign: "center", color: "oklch(0.35 0.06 45)", whiteSpace: "nowrap" }}>{tr(sc.hutLabel)}</div>
           <div ref={steamRef} style={{ position: "absolute", left: "18px", bottom: "86px", width: "0", height: "0" }}>
             <div data-steam="1" style={{ position: "absolute", left: "0", top: "0", width: "12px", height: "12px", borderRadius: "50%", background: "oklch(1 0 0 / .8)", filter: "blur(2px)" }}></div>
             <div data-steam="2" style={{ position: "absolute", left: "6px", top: "0", width: "10px", height: "10px", borderRadius: "50%", background: "oklch(1 0 0 / .8)", filter: "blur(2px)" }}></div>
@@ -291,14 +293,14 @@ export function ItineraryScene({
         </div>
         <div style={{ opacity: `${sc.pStop}`, transition: "opacity .4s" }}>
           <div style={{ position: "absolute", left: "-2px", bottom: "0", width: "4px", height: "62px", background: "oklch(0.35 0.02 160)" }}></div>
-          <div style={{ position: "absolute", left: "-56px", bottom: "56px", width: "112px", height: "22px", borderRadius: "5px", background: "oklch(0.45 0.12 250)", border: "2px solid white", fontSize: "10px", fontWeight: "900", lineHeight: "18px", textAlign: "center", color: "white", whiteSpace: "nowrap" }}>{sc.stopLabel}</div>
+          <div style={{ position: "absolute", left: "-56px", bottom: "56px", width: "112px", height: "22px", borderRadius: "5px", background: "oklch(0.45 0.12 250)", border: "2px solid white", fontSize: "10px", fontWeight: "900", lineHeight: "18px", textAlign: "center", color: "white", whiteSpace: "nowrap" }}>{tr(sc.stopLabel)}</div>
         </div>
       </div>
 
       <div ref={dynRef} style={{ position: "absolute", inset: "0", pointerEvents: "none" }}>
         <div ref={carRef} style={{ position: "absolute", left: "0", bottom: "9%", width: "116px", height: "56px", willChange: "transform" }}>
           <div style={{ position: "absolute", left: "-12px", top: "22px", width: "14px", height: "1px", background: "oklch(0.35 0.02 60)", transform: "rotate(-8deg)" }}></div><div style={{ position: "absolute", left: "-12px", top: "32px", width: "14px", height: "1px", background: "oklch(0.35 0.02 60)", transform: "rotate(8deg)" }}></div>
-          <div data-fl="1" style={{ position: "absolute", left: "-78px", top: "18px", width: "66px", height: "16px", borderRadius: "2px 4px 4px 2px", background: "linear-gradient(180deg, oklch(0.72 0.17 48), oklch(0.62 0.17 42))", boxShadow: "0 3px 8px -3px oklch(0.2 0.05 40 / .5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "7.5px", fontWeight: "800", letterSpacing: ".04em", color: "white", whiteSpace: "nowrap", transformOrigin: "right center" }}>ĐI TÀ XÙA THÔI!</div>
+          <div data-fl="1" style={{ position: "absolute", left: "-78px", top: "18px", width: "66px", height: "16px", borderRadius: "2px 4px 4px 2px", background: "linear-gradient(180deg, oklch(0.72 0.17 48), oklch(0.62 0.17 42))", boxShadow: "0 3px 8px -3px oklch(0.2 0.05 40 / .5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "7.5px", fontWeight: "800", letterSpacing: ".04em", color: "white", whiteSpace: "nowrap", transformOrigin: "right center" }}>{tr("ĐI TÀ XÙA THÔI!")}</div>
           <div style={{ position: "absolute", left: "6%", bottom: "-4px", width: "88%", height: "7px", borderRadius: "50%", background: "oklch(0.15 0.02 200 / .28)", filter: "blur(2px)" }}></div>
           <div style={{ position: "absolute", left: "20px", top: "2px", width: "70px", height: "26px", borderRadius: "14px 22px 3px 3px", background: "linear-gradient(180deg, oklch(0.62 0.07 170), oklch(0.5 0.07 170))" }}></div>
           <div style={{ position: "absolute", left: "28px", top: "7px", width: "24px", height: "15px", borderRadius: "8px 2px 1px 1px", background: "linear-gradient(160deg, oklch(0.88 0.03 220), oklch(0.6 0.04 230))" }}></div>
@@ -310,20 +312,20 @@ export function ItineraryScene({
         </div>
         <div ref={busRef} style={{ position: "absolute", left: "0", bottom: "9%", width: "160px", height: "64px", willChange: "transform" }}>
           <div style={{ position: "absolute", left: "-14px", top: "14px", width: "16px", height: "1px", background: "oklch(0.35 0.02 60)", transform: "rotate(-8deg)" }}></div><div style={{ position: "absolute", left: "-14px", top: "26px", width: "16px", height: "1px", background: "oklch(0.35 0.02 60)", transform: "rotate(8deg)" }}></div>
-          <div data-fl="1" style={{ position: "absolute", left: "-94px", top: "10px", width: "80px", height: "20px", borderRadius: "2px 4px 4px 2px", background: "linear-gradient(180deg, oklch(0.72 0.17 48), oklch(0.62 0.17 42))", boxShadow: "0 3px 8px -3px oklch(0.2 0.05 40 / .5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", fontWeight: "800", letterSpacing: ".04em", color: "white", whiteSpace: "nowrap", transformOrigin: "right center" }}>ĐI TÀ XÙA THÔI!</div>
+          <div data-fl="1" style={{ position: "absolute", left: "-94px", top: "10px", width: "80px", height: "20px", borderRadius: "2px 4px 4px 2px", background: "linear-gradient(180deg, oklch(0.72 0.17 48), oklch(0.62 0.17 42))", boxShadow: "0 3px 8px -3px oklch(0.2 0.05 40 / .5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", fontWeight: "800", letterSpacing: ".04em", color: "white", whiteSpace: "nowrap", transformOrigin: "right center" }}>{tr("ĐI TÀ XÙA THÔI!")}</div>
           <div style={{ position: "absolute", left: "6%", bottom: "-4px", width: "88%", height: "7px", borderRadius: "50%", background: "oklch(0.15 0.02 200 / .28)", filter: "blur(2px)" }}></div>
           <div style={{ position: "absolute", left: "0", top: "0", width: "160px", height: "48px", borderRadius: "10px 22px 8px 8px", background: "linear-gradient(180deg, oklch(0.97 0.005 90), oklch(0.88 0.01 90))" }}></div>
           <div style={{ position: "absolute", left: "0", top: "30px", width: "160px", height: "6px", background: "oklch(0.6 0.13 45)" }}></div>
           <div style={{ position: "absolute", left: "0", top: "37px", width: "160px", height: "2px", background: "oklch(0.36 0.06 160)" }}></div>
           <div style={{ position: "absolute", left: "8px", top: "7px", width: "110px", height: "17px", borderRadius: "4px", background: "linear-gradient(180deg, oklch(0.4 0.03 240), oklch(0.26 0.03 240))" }}></div>
           <div style={{ position: "absolute", left: "122px", top: "6px", width: "32px", height: "21px", borderRadius: "4px 16px 3px 3px", background: "linear-gradient(160deg, oklch(0.6 0.04 230), oklch(0.3 0.03 240))" }}></div>
-          <div style={{ position: "absolute", left: "12px", top: "11px", fontSize: "9px", fontWeight: "800", letterSpacing: ".14em", color: "oklch(1 0 0 / .8)" }}>TÀ XÙA CABIN</div>
+          <div style={{ position: "absolute", left: "12px", top: "11px", fontSize: "9px", fontWeight: "800", letterSpacing: ".14em", color: "oklch(1 0 0 / .8)" }}>{tr("TÀ XÙA CABIN")}</div>
           <div style={{ position: "absolute", right: "2px", top: "38px", width: "8px", height: "5px", borderRadius: "2px", background: "oklch(0.97 0.08 95)", boxShadow: "0 0 10px 3px oklch(0.96 0.1 95 / .4)" }}></div>
           <div style={{ position: "absolute", left: "18px", top: "40px", width: "24px", height: "24px", borderRadius: "50%", background: "radial-gradient(circle, oklch(0.75 0.005 250) 0 28%, oklch(0.4 0.005 250) 30% 36%, oklch(0.22 0.01 250) 38%)" }}></div><div style={{ position: "absolute", left: "116px", top: "40px", width: "24px", height: "24px", borderRadius: "50%", background: "radial-gradient(circle, oklch(0.75 0.005 250) 0 28%, oklch(0.4 0.005 250) 30% 36%, oklch(0.22 0.01 250) 38%)" }}></div>
         </div>
         <div ref={bike1Ref} style={{ position: "absolute", left: "0", top: "0", width: "70px", height: "52px", transformOrigin: "35px 52px", willChange: "transform" }}>
           <div style={{ position: "absolute", left: "14px", top: "-20px", width: "2px", height: "42px", borderRadius: "1px", background: "oklch(0.35 0.02 60)" }}></div>
-          <div data-fl="1" style={{ position: "absolute", left: "-50px", top: "-20px", width: "64px", height: "14px", borderRadius: "2px 4px 4px 2px", background: "linear-gradient(180deg, oklch(0.72 0.17 48), oklch(0.62 0.17 42))", boxShadow: "0 3px 8px -3px oklch(0.2 0.05 40 / .5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "7px", fontWeight: "800", letterSpacing: ".04em", color: "white", whiteSpace: "nowrap", transformOrigin: "right center" }}>ĐI TÀ XÙA THÔI!</div>
+          <div data-fl="1" style={{ position: "absolute", left: "-50px", top: "-20px", width: "64px", height: "14px", borderRadius: "2px 4px 4px 2px", background: "linear-gradient(180deg, oklch(0.72 0.17 48), oklch(0.62 0.17 42))", boxShadow: "0 3px 8px -3px oklch(0.2 0.05 40 / .5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "7px", fontWeight: "800", letterSpacing: ".04em", color: "white", whiteSpace: "nowrap", transformOrigin: "right center" }}>{tr("ĐI TÀ XÙA THÔI!")}</div>
           <div style={{ position: "absolute", left: "6%", bottom: "-4px", width: "88%", height: "7px", borderRadius: "50%", background: "oklch(0.15 0.02 200 / .28)", filter: "blur(2px)" }}></div>
           <div data-riders="1">
             <div style={{ position: "absolute", left: "18px", top: "14px", width: "11px", height: "18px", borderRadius: "4px 4px 2px 2px", background: "oklch(0.55 0.08 250)" }}></div>
@@ -342,7 +344,7 @@ export function ItineraryScene({
         </div>
         <div ref={bike2Ref} style={{ position: "absolute", left: "0", top: "0", width: "70px", height: "52px", transformOrigin: "35px 52px", willChange: "transform" }}>
           <div style={{ position: "absolute", left: "14px", top: "-20px", width: "2px", height: "42px", borderRadius: "1px", background: "oklch(0.35 0.02 60)" }}></div>
-          <div data-fl="1" style={{ position: "absolute", left: "-50px", top: "-20px", width: "64px", height: "14px", borderRadius: "2px 4px 4px 2px", background: "linear-gradient(180deg, oklch(0.72 0.17 48), oklch(0.62 0.17 42))", boxShadow: "0 3px 8px -3px oklch(0.2 0.05 40 / .5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "7px", fontWeight: "800", letterSpacing: ".04em", color: "white", whiteSpace: "nowrap", transformOrigin: "right center" }}>ĐI TÀ XÙA THÔI!</div>
+          <div data-fl="1" style={{ position: "absolute", left: "-50px", top: "-20px", width: "64px", height: "14px", borderRadius: "2px 4px 4px 2px", background: "linear-gradient(180deg, oklch(0.72 0.17 48), oklch(0.62 0.17 42))", boxShadow: "0 3px 8px -3px oklch(0.2 0.05 40 / .5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "7px", fontWeight: "800", letterSpacing: ".04em", color: "white", whiteSpace: "nowrap", transformOrigin: "right center" }}>{tr("ĐI TÀ XÙA THÔI!")}</div>
           <div style={{ position: "absolute", left: "6%", bottom: "-4px", width: "88%", height: "7px", borderRadius: "50%", background: "oklch(0.15 0.02 200 / .28)", filter: "blur(2px)" }}></div>
           <div data-riders="1">
             <div style={{ position: "absolute", left: "18px", top: "14px", width: "11px", height: "18px", borderRadius: "4px 4px 2px 2px", background: "oklch(0.5 0.12 28)" }}></div>
@@ -361,7 +363,7 @@ export function ItineraryScene({
         </div>
         <div ref={groupRef} style={{ position: "absolute", left: "0", bottom: `${sc.grpB}`, width: "80px", height: "46px", willChange: "transform,opacity", opacity: "0" }}>
         <div style={{ position: "absolute", left: "72px", top: "-26px", width: "2px", height: "58px", borderRadius: "1px", background: "oklch(0.35 0.02 60)" }}></div>
-        <div data-fl="1" style={{ position: "absolute", left: "-4px", top: "-26px", width: "76px", height: "16px", borderRadius: "2px 4px 4px 2px", background: "linear-gradient(180deg, oklch(0.72 0.17 48), oklch(0.62 0.17 42))", boxShadow: "0 3px 8px -3px oklch(0.2 0.05 40 / .5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "8px", fontWeight: "800", letterSpacing: ".04em", color: "white", whiteSpace: "nowrap", transformOrigin: "right center" }}>ĐI TÀ XÙA THÔI!</div>
+        <div data-fl="1" style={{ position: "absolute", left: "-4px", top: "-26px", width: "76px", height: "16px", borderRadius: "2px 4px 4px 2px", background: "linear-gradient(180deg, oklch(0.72 0.17 48), oklch(0.62 0.17 42))", boxShadow: "0 3px 8px -3px oklch(0.2 0.05 40 / .5)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "8px", fontWeight: "800", letterSpacing: ".04em", color: "white", whiteSpace: "nowrap", transformOrigin: "right center" }}>{tr("ĐI TÀ XÙA THÔI!")}</div>
         {PEOPLE.map(([c, hat, skin, bag], i) => (
           <div key={i} data-p="1" style={{ position: "absolute", left: i * 19, bottom: 0, width: 16, height: 46 }}>
             <div data-leg="1" style={{ position: "absolute", left: 4, top: 30, width: 4, height: 16, borderRadius: 2, background: "oklch(0.28 0.03 255)", transformOrigin: "top center" }} />
@@ -377,17 +379,17 @@ export function ItineraryScene({
       <div style={{ position: "absolute", inset: "0", background: "oklch(0.2 0.06 265)", opacity: `${sc.tintOp}`, transition: "opacity 1.2s", pointerEvents: "none" }}></div>
       <div style={{ position: "absolute", inset: "0", pointerEvents: "none", background: "radial-gradient(ellipse 85% 75% at 50% 45%, transparent 60%, oklch(0.2 0.05 260 / .28) 100%)" }}></div>
       <div ref={flashRef} style={{ position: "absolute", inset: "0", background: "white", opacity: "0", pointerEvents: "none" }}></div>
-      <div ref={dayRef} style={{ position: "absolute", left: "50%", top: "42%", transform: "translate(-50%,-50%)", fontSize: "clamp(28px,5vw,44px)", fontWeight: "800", letterSpacing: "-.02em", color: "white", padding: "10px 26px", borderRadius: "999px", background: "oklch(0.25 0.05 160 / .75)", opacity: "0", pointerEvents: "none", whiteSpace: "nowrap" }}>{sc.dayLabel}</div>
+      <div ref={dayRef} style={{ position: "absolute", left: "50%", top: "42%", transform: "translate(-50%,-50%)", fontSize: "clamp(28px,5vw,44px)", fontWeight: "800", letterSpacing: "-.02em", color: "white", padding: "10px 26px", borderRadius: "999px", background: "oklch(0.25 0.05 160 / .75)", opacity: "0", pointerEvents: "none", whiteSpace: "nowrap" }}>{tr(sc.dayLabel)}</div>
 
       <div data-lt-card="1" style={{ position: "absolute", left: "14px", top: "14px", maxWidth: "min(400px,calc(100% - 150px))", padding: "12px 16px", borderRadius: "18px", background: "oklch(1 0 0 / .86)", backdropFilter: "blur(12px)", border: "1px solid oklch(1 0 0 / .7)", boxShadow: "0 16px 40px -18px oklch(0.25 0.06 220 / .5)", display: "flex", flexDirection: "column", gap: "3px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}><span style={{ fontSize: "11px", fontWeight: "800", padding: "2px 8px", borderRadius: "999px", background: `${sc.dayC}`, color: "white", whiteSpace: "nowrap" }}>{sc.dayLabel} · {sc.time}</span><span data-lt-type="1" style={{ fontSize: "11px", fontWeight: "800", padding: "2px 8px", borderRadius: "999px", background: `${sc.tBg}`, color: `${sc.tFg}`, whiteSpace: "nowrap" }}>{sc.type}</span></div>
-        <div data-lt-name="1" style={{ fontSize: "18px", fontWeight: "800", letterSpacing: "-.015em", lineHeight: "1.25" }}>{sc.name}</div>
-        <div className="hidden sm:block" style={{ fontSize: "13px", lineHeight: "1.45", color: "oklch(0.42 0.02 160)" }}>{sc.note}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}><span style={{ fontSize: "11px", fontWeight: "800", padding: "2px 8px", borderRadius: "999px", background: `${sc.dayC}`, color: "white", whiteSpace: "nowrap" }}>{tr(sc.dayLabel)} · {tr(sc.time)}</span><span data-lt-type="1" style={{ fontSize: "11px", fontWeight: "800", padding: "2px 8px", borderRadius: "999px", background: `${sc.tBg}`, color: `${sc.tFg}`, whiteSpace: "nowrap" }}>{tr(sc.type)}</span></div>
+        <div data-lt-name="1" style={{ fontSize: "18px", fontWeight: "800", letterSpacing: "-.015em", lineHeight: "1.25" }}>{tr(sc.name)}</div>
+        <div className="hidden sm:block" style={{ fontSize: "13px", lineHeight: "1.45", color: "oklch(0.42 0.02 160)" }}>{tr(sc.note)}</div>
       </div>
       <div data-lt-ctrl="1" style={{ position: "absolute", right: "14px", top: "14px", display: "flex", gap: "6px" }}>
-        <button type="button" onClick={prevStop} title="Cảnh trước" aria-label="Cảnh trước" style={{ cursor: "pointer", width: "38px", height: "38px", borderRadius: "50%", background: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", fontWeight: "800", boxShadow: "0 4px 12px -4px oklch(0.2 0.04 150 / .35)" }}>‹</button>
-        <button type="button" onClick={togglePlay} title={playTitle} aria-label={playTitle} style={{ cursor: "pointer", width: "38px", height: "38px", borderRadius: "50%", background: "oklch(0.68 0.18 45)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "800", boxShadow: "0 4px 12px -4px oklch(0.2 0.04 150 / .35)" }}>{playIcon}</button>
-        <button type="button" onClick={nextStop} title="Cảnh sau" aria-label="Cảnh sau" style={{ cursor: "pointer", width: "38px", height: "38px", borderRadius: "50%", background: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", fontWeight: "800", boxShadow: "0 4px 12px -4px oklch(0.2 0.04 150 / .35)" }}>›</button>
+        <button type="button" onClick={prevStop} title={tr("Cảnh trước")} aria-label={tr("Cảnh trước")} style={{ cursor: "pointer", width: "38px", height: "38px", borderRadius: "50%", background: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", fontWeight: "800", boxShadow: "0 4px 12px -4px oklch(0.2 0.04 150 / .35)" }}>‹</button>
+        <button type="button" onClick={togglePlay} title={tr(playTitle)} aria-label={tr(playTitle)} style={{ cursor: "pointer", width: "38px", height: "38px", borderRadius: "50%", background: "oklch(0.68 0.18 45)", color: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: "800", boxShadow: "0 4px 12px -4px oklch(0.2 0.04 150 / .35)" }}>{tr(playIcon)}</button>
+        <button type="button" onClick={nextStop} title={tr("Cảnh sau")} aria-label={tr("Cảnh sau")} style={{ cursor: "pointer", width: "38px", height: "38px", borderRadius: "50%", background: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "16px", fontWeight: "800", boxShadow: "0 4px 12px -4px oklch(0.2 0.04 150 / .35)" }}>›</button>
       </div>
       <div style={{ position: "absolute", left: "14px", right: "14px", bottom: "8px", display: "flex", gap: "3px" }}>
         {flat.map((x, i) => (
@@ -395,8 +397,8 @@ export function ItineraryScene({
             key={i}
             type="button"
             onClick={() => onJump(i)}
-            title={`Ngày ${x.di + 1} · ${x.time} · ${x.name}`}
-            aria-label={`Ngày ${x.di + 1} · ${x.time} · ${x.name}`}
+            title={tr("Ngày {0} · {1} · {2}", [x.di + 1, tr(x.time), tr(x.name)])}
+            aria-label={tr("Ngày {0} · {1} · {2}", [x.di + 1, tr(x.time), tr(x.name)])}
             style={{ cursor: "pointer", flex: 1, padding: "6px 0", marginLeft: x.si === 0 && x.di > 0 ? 8 : 0 }}
           >
             <div style={{ height: 5, borderRadius: 3, background: i === cur ? "oklch(0.68 0.18 45)" : i < cur ? "oklch(1 0 0 / .95)" : "oklch(1 0 0 / .45)", transition: "background .3s" }} />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useT } from "@/components/i18n/I18nProvider";
 
 /**
  * Ô nhập số lượng (số người/số vé...): cho phép xoá trắng khi đang gõ
@@ -22,6 +23,7 @@ export function QtyInput({
   className?: string;
   ariaLabel?: string;
 }) {
+  const tr = useT();
   const [text, setText] = useState(String(value));
   const focused = useRef(false);
 
@@ -39,7 +41,7 @@ export function QtyInput({
       min={min}
       max={max}
       value={text}
-      aria-label={ariaLabel}
+      aria-label={tr(ariaLabel)}
       onFocus={(e) => {
         focused.current = true;
         e.target.select();

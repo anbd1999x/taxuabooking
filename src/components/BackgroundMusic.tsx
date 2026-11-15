@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useT } from "@/components/i18n/I18nProvider";
 
 /** File nhạc nền (bóc từ video, bắt đầu từ giây thứ 3, có fade đầu/cuối để lặp mượt). */
 const SRC = "/audio/nhac-nen.mp3";
@@ -16,6 +17,7 @@ const VOLUME = 0.35;
  * Khách bấm tắt → nhớ (localStorage), lần sau không tự phát. Ẩn tab → tạm dừng.
  */
 export function BackgroundMusic() {
+  const t = useT();
   const ref = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [off, setOff] = useState(true); // mặc định "tắt" tới khi đọc xong lựa chọn của khách
@@ -105,8 +107,8 @@ export function BackgroundMusic() {
       <button
         type="button"
         onClick={toggle}
-        aria-label={playing ? "Tắt nhạc nền" : "Bật nhạc nền"}
-        title={playing ? "Tắt nhạc nền" : off ? "Bật nhạc nền" : "Chạm vào trang để phát nhạc"}
+        aria-label={playing ? t("Tắt nhạc nền") : t("Bật nhạc nền")}
+        title={playing ? t("Tắt nhạc nền") : off ? t("Bật nhạc nền") : t("Chạm vào trang để phát nhạc")}
         // Nút rất nhỏ, mờ (chỉ rõ khi rê chuột/chạm) — vẫn giữ để khách TẮT được nhạc.
         className="fixed bottom-[84px] left-2 z-30 flex h-7 w-7 items-center justify-center rounded-full bg-black/25 text-white opacity-60 backdrop-blur transition hover:bg-forest-800/90 hover:opacity-100 lg:bottom-3 lg:left-3"
       >

@@ -168,6 +168,7 @@ model Service {
   cabinTrips     CabinTrip[]
   rentalVehicles RentalVehicle[]
   transport      TransportInfo?
+  transportRoutes TransportRoute[] // taxi / xe ôm: nhiều tuyến, mỗi tuyến một giá
   bookings       BookingRequest[]
   cabinPriceRows CabinPriceRow[]
   cabinRoutes    CabinRoute[]
@@ -446,6 +447,42 @@ model RentalAvailability {
 }
 
 /// Thông tin xe ôm / taxi (1-1 với Service). Giá có thể null = "Liên hệ xác nhận giá".
+/// ĐIỂM CỐ ĐỊNH ở Tà Xùa dùng làm điểm đón / điểm đến cho taxi, xe ôm (admin quản lý ở /admin/transport-points).
+model TransportPoint {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  area      String? // khu vực (Trung tâm, Háng Đồng, Bắc Yên…)
+  sortOrder Int      @default(0)
+  active    Boolean  @default(true) // ẩn khỏi danh sách chọn của khách (vẫn giữ các chặng đã khai)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  routesFrom TransportRoute[] @relation("RouteFrom")
+  routesTo   TransportRoute[] @relation("RouteTo")
+}
+
+/// Một CHẶNG bác tài (dịch vụ taxi / xe ôm) nhận chở giữa 2 điểm cố định, giá 1 chiều và/hoặc 2 chiều.
+/// Chặng dùng cho cả hai hướng (A → B = B → A). Xem src/lib/transport-legs.ts.
+model TransportRoute {
+  id             String         @id @default(cuid())
+  serviceId      String
+  service        Service        @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  fromPointId    String
+  fromPoint      TransportPoint @relation("RouteFrom", fields: [fromPointId], references: [id], onDelete: Cascade)
+  toPointId      String
+  toPoint        TransportPoint @relation("RouteTo", fields: [toPointId], references: [id], onDelete: Cascade)
+  priceOneWay    Decimal?       @db.Decimal(12, 0) // giá 1 chiều (xe ôm: chở 1 người · taxi: cả xe); null = chưa báo
+  priceTwo       Decimal?       @db.Decimal(12, 0) // xe ôm: giá 1 chiều khi chở 2 người
+  priceRoundTrip Decimal?       @db.Decimal(12, 0) // null = chưa báo giá 2 chiều
+  note           String? // vd "chờ 2 tiếng", "tối đa 4 khách"
+  sortOrder      Int            @default(0)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([serviceId, fromPointId, toPointId])
+  @@index([serviceId])
+}
+
 model TransportInfo {
   id         String   @id @default(cuid())
   serviceId  String   @unique
@@ -453,7 +490,9 @@ model TransportInfo {
   fromPoint  String // điểm đón
   toArea     String // điểm đến hoặc khu vực phục vụ
   vehicleType String?
-  fixedPrice Decimal? @db.Decimal(12, 0) // null = chưa có giá -> liên hệ xác nhận
+  fixedPrice Decimal? @db.Decimal(12, 0) // GIÁ CHẠY NGUYÊN NGÀY (xe ôm: chở 1 người · taxi: cả xe); null = liên hệ
+  dayPriceTwo Decimal? @db.Decimal(12, 0) // xe ôm: giá nguyên ngày khi chở 2 người
+  capacity   Int? // xe ôm: chở tối đa 1 | 2 người / tài xế · taxi: số khách / xe (mặc định 2 | 4)
   priceNote  String?
   // Thông tin bác tài (xe ôm / taxi). Avatar dùng ảnh dịch vụ (ảnh đầu tiên).
   driverName      String? // tên bác tài
@@ -505,6 +544,7 @@ model BookingRequest {
   cabinShared     Int?
   cabinSolo       Int?
   rentalVehicleId String?
+  transportRouteId String? // taxi / xe ôm: tuyến khách chọn (không FK — xoá tuyến vẫn giữ đơn, nhãn ở selectionLabel)
   selectionLabel  String? // mô tả lựa chọn (loại phòng/chuyến/xe) dạng text
 
   referencePrice  Decimal?      @db.Decimal(12, 0) // giá tham khảo khi gửi (combo: TỔNG khách trả)
@@ -900,4 +940,23 @@ model BookingReminder {
 
   @@unique([bookingId, kind])
   @@index([sentAt])
+}
+
+/// Bản dịch nội dung do admin nhập tay (đa ngôn ngữ) — xem src/lib/i18n/content.ts.
+/// Mỗi dòng = 1 trường của 1 bản ghi ở 1 ngôn ngữ. Khi hiển thị, tra theo CHUỖI GỐC tiếng Việt
+/// (`source`/`sourceHash`): nội dung gốc đổi ⇒ bản dịch cũ tự hết hiệu lực (web hiện tiếng Việt)
+/// cho tới khi admin lưu lại ở /admin/translations.
+model Translation {
+  id         String   @id @default(cuid())
+  entity     String // "Service" | "RoomType" | "Room" | "Article" | "Place" | ... | "Phrase" (cụm từ tự do)
+  entityId   String
+  field      String
+  locale     String // en | zh | ko
+  source     String // chuỗi tiếng Việt tại thời điểm dịch
+  sourceHash String // sha1(source) — để tra nhanh nội dung dài
+  value      String
+  updatedAt  DateTime @updatedAt
+
+  @@unique([entity, entityId, field, locale])
+  @@index([locale, sourceHash])
 }
