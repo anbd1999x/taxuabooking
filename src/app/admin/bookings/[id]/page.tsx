@@ -19,6 +19,8 @@ import {
   SurchargePanel,
   SupplierPayoutForm,
   SupplierPayableForm,
+  CollectorForm,
+  ProviderExtraForm,
 } from "@/components/admin/BookingDetailClient";
 import { supplierPayouts } from "@/lib/supplier-payout";
 import { resolveBusCommissions, resolveRoomCommissions } from "@/lib/provider-commission";
@@ -34,6 +36,7 @@ import { regionLabel } from "@/lib/track-labels";
 import { bookingPax, isRentalCategory } from "@/lib/occupancy";
 import { bookingCabinBerths, cabinBerthsLabel, cabinBerthLines } from "@/lib/combo-pricing";
 import { parseSurcharges } from "@/lib/surcharges";
+import { bookingRentalDays, rentalDaysLabel } from "@/lib/rental-days";
 
 export const dynamic = "force-dynamic";
 
@@ -240,7 +243,8 @@ export default async function BookingDetailPage({
     const isRental = isRentalCategory(b.category);
     const isStay = !isRental && b.nights != null && b.endDate != null;
     // Thuê xe máy: nights = số NGÀY thuê (tính cả ngày nhận lẫn ngày trả), quantity = số XE.
-    const rentDays = b.nights ?? 1;
+    const rentDays = rentalDaysLabel(bookingRentalDays(b)).replace(" ngày", "");
+    const rentTimes = b.pickupTime && b.returnTime ? ` · giờ nhận ${b.pickupTime}, giờ trả ${b.returnTime}` : "";
     const roomChips = rooms.length > 1 ? [`${rooms.length} phòng`] : [];
     parts.push({
       key: "room",
@@ -248,7 +252,7 @@ export default async function BookingDetailPage({
       icTone: "bg-forest-100 text-forest-700",
       name: stay,
       detail: isRental
-        ? `Nhận xe ${formatDate(b.useDate)} · Trả xe ${formatDate(b.endDate ?? b.useDate)} · ${rentDays} ngày thuê · ${b.quantity} xe${b.selectionLabel ? ` ${b.selectionLabel}` : ""}`
+        ? `Nhận xe ${formatDate(b.useDate)} · Trả xe ${formatDate(b.endDate ?? b.useDate)} · ${rentDays} ngày thuê${rentTimes} · ${b.quantity} xe${b.selectionLabel ? ` ${b.selectionLabel}` : ""}`
         : isStay
         ? `Nhận ${formatDate(b.useDate)} · Trả ${formatDate(b.endDate!)} · ${b.nights} đêm · ${bookingPax(b)} người`
         : `${formatDate(b.useDate)}${b.endDate ? ` → ${formatDate(b.endDate)}` : ""} · SL ${b.quantity}${b.selectionLabel && !rooms.length ? ` · ${b.selectionLabel}` : ""}`,
@@ -525,7 +529,7 @@ export default async function BookingDetailPage({
               </div>
               <div>
                 <div className="text-xs text-gray-500">{isRental ? "Số xe thuê" : "Số khách"}</div>
-                <div className="font-bold text-ink">{isRental ? `${b.quantity} xe · ${b.nights ?? 1} ngày thuê` : <>{bookingPax(b)} {b.category === "HOMESTAY" || b.category === "COMBO" ? "người" : ""}</>}</div>
+                <div className="font-bold text-ink">{isRental ? `${b.quantity} xe · ${rentalDaysLabel(bookingRentalDays(b))} thuê` : <>{bookingPax(b)} {b.category === "HOMESTAY" || b.category === "COMBO" ? "người" : ""}</>}</div>
               </div>
               <div>
                 <div className="text-xs text-gray-500">Ghi chú của khách</div>
@@ -905,6 +909,20 @@ export default async function BookingDetailPage({
                     <div className="text-[11px] text-gray-500">
                       Bán ra {formatPrice(s.gross)} {s.discount > 0 ? `− chiết khấu sàn ${formatPrice(s.discount)}` : `+ sàn bù ${formatPrice(-s.discount)}`}
                     </div>
+                  )}
+                  {/* Ai thu tiền khách + tiền chủ dịch vụ thu thêm (không áp cho combo). */}
+                  {b.category !== "COMBO" && (
+                    <>
+                      <CollectorForm id={b.id} collector={s.collector} />
+                      {(s.extra > 0 || s.held > 0 || s.providerOwes > 0) && (
+                        <div className="rounded-lg bg-amber-50 px-2.5 py-2 text-[12px] leading-relaxed text-amber-900">
+                          {s.extra > 0 && <div>Chủ dịch vụ thu thêm của khách: <b>{formatPrice(s.extra)}</b> (đã cộng vào giá đơn, tính chiết khấu cùng mức)</div>}
+                          {s.held > 0 && <div>Chủ dịch vụ đang giữ tiền khách: <b>{formatPrice(s.held)}</b></div>}
+                          {s.providerOwes > 0 && <div>Chủ dịch vụ phải chuyển lại sàn: <b>{formatPrice(s.providerOwes)}</b></div>}
+                        </div>
+                      )}
+                      {(b.status === "CONFIRMED" || b.status === "COMPLETED") && <ProviderExtraForm key={`extra-${s.extra}`} id={b.id} extra={s.extra} />}
+                    </>
                   )}
                   <SupplierPayableForm id={b.id} side={s.side} label={s.name} payable={s.payable} autoPayable={s.autoPayable} overridden={s.overridden} />
                   <SupplierPayoutForm id={b.id} side={s.side} label={s.name} payable={s.payable} paid={s.paid} />

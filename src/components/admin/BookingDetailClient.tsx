@@ -7,6 +7,8 @@ import {
   saveBookingStage,
   recordBookingPayment,
   recordSupplierPayout,
+  setBookingCollector,
+  saveProviderExtra,
   setSupplierPayable,
   addBookingNote,
   deleteBooking,
@@ -611,6 +613,50 @@ export function DeleteBookingButton({ id, code }: { id: string; code: string }) 
     >
       <input type="hidden" name="id" value={id} />
       <button className="text-[13px] font-bold text-red-600 hover:text-red-700">Xoá yêu cầu</button>
+    </form>
+  );
+}
+
+/** Admin chọn AI THU TIỀN KHÁCH của đơn: sàn thu (mặc định) hay chủ dịch vụ thu. */
+export function CollectorForm({ id, collector, onDone }: { id: string; collector: "PLATFORM" | "PROVIDER"; onDone?: () => void }) {
+  const [state, action, pending] = useActionState<BookingActionState, FormData>(setBookingCollector, {});
+  useResultToast(state, onDone);
+  return (
+    <form action={action} className="flex flex-wrap items-center gap-2 rounded-lg bg-gray-50 px-2.5 py-2">
+      <input type="hidden" name="id" value={id} />
+      <span className="text-[12px] font-semibold text-gray-600">Thu tiền khách:</span>
+      <select key={collector} name="collector" defaultValue={collector} disabled={pending} className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-[13px] font-semibold text-ink">
+        <option value="PLATFORM">Sàn thu (chuyển chủ dịch vụ phần thực nhận)</option>
+        <option value="PROVIDER">Chủ dịch vụ thu (chuyển lại sàn chiết khấu)</option>
+      </select>
+      <button disabled={pending} className="rounded-lg bg-forest-600 px-3 py-1.5 text-[13px] font-bold text-white hover:bg-forest-700 disabled:opacity-60">Lưu</button>
+    </form>
+  );
+}
+
+/** Chủ dịch vụ (hoặc admin) nhập tiền THU THÊM của khách ở đơn (vd trả xe quá giờ). 0 = xoá. */
+export function ProviderExtraForm({ id, extra, onDone }: { id: string; extra: number; onDone?: () => void }) {
+  const [amt, setAmt] = useState(extra > 0 ? String(extra) : "");
+  const [state, action, pending] = useActionState<BookingActionState, FormData>(saveProviderExtra, {});
+  useResultToast(state, onDone);
+  const shown = amt ? Number(amt).toLocaleString("vi-VN") : "";
+  return (
+    <form action={action} className="flex flex-wrap items-end gap-2">
+      <input type="hidden" name="id" value={id} />
+      <input type="hidden" name="amount" value={amt || "0"} />
+      <label className="flex min-w-[160px] flex-1 flex-col gap-1">
+        <span className="text-[12px] font-semibold text-gray-600">Tiền thu thêm của khách (đ)</span>
+        <input
+          inputMode="numeric"
+          value={shown}
+          onChange={(e) => setAmt(e.target.value.replace(/\D/g, "").slice(0, 9))}
+          placeholder="VD: 140.000 (quá giờ)"
+          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-ink"
+        />
+      </label>
+      <button disabled={pending} className="rounded-lg bg-forest-600 px-3.5 py-2 text-[13px] font-bold text-white hover:bg-forest-700 disabled:opacity-60">
+        {pending ? "Đang lưu…" : extra > 0 ? "Cập nhật" : "Lưu"}
+      </button>
     </form>
   );
 }

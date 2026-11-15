@@ -1,3 +1,4 @@
+import { rentalOriginalTotal } from "./rental-days";
 import "server-only";
 import { prisma } from "./prisma";
 import { parseDateOnly, addDays } from "./dates";
@@ -20,6 +21,7 @@ export interface StatRow {
   commission: number; // hoa hồng CTV (đơn đã chốt)
   commissionUnpaid: number; // hoa hồng chưa trả CTV
   discount: number; // tổng chiết khấu đã trừ khỏi doanh thu (phạm vi chủ dịch vụ)
+  listTotal: number; // tổng TIỀN GỐC (giá gạch admin cấu hình; không có thì giá bán) của đơn đã chốt
   // ---- Doanh thu SÀN (admin) — chỉ đơn đã chốt ----
   homeDiscount: number; // chiết khấu homestay cho sàn (theo phòng/đêm)
   busDiscount: number; // chiết khấu nhà xe cho sàn (theo khách/chiều)
@@ -49,7 +51,7 @@ export interface StatsResult {
 function emptyRow(id: string, name: string): StatRow {
   return {
     id, name, orders: 0, completed: 0, awaiting: 0, revenue: 0, collected: 0, outstanding: 0,
-    commission: 0, commissionUnpaid: 0, discount: 0, homeDiscount: 0, busDiscount: 0, platformProfit: 0,
+    commission: 0, commissionUnpaid: 0, discount: 0, listTotal: 0, homeDiscount: 0, busDiscount: 0, platformProfit: 0,
   };
 }
 
@@ -63,6 +65,7 @@ type Bk = {
   commissionPaid: boolean;
   roomCommission: unknown; // chiết khấu từng căn (trừ khỏi doanh thu khi xem ở phạm vi chủ dịch vụ)
   busCommission: unknown; // chiết khấu nhà xe (trừ khỏi doanh thu nhà xe ở phạm vi chủ dịch vụ)
+  originalTotal?: number | null; // tiền gốc (giá gạch) của đơn — xe máy: giá gốc/ngày × số xe × số ngày
 };
 
 /**
@@ -114,6 +117,7 @@ function accumulate(row: StatRow, b: Bk, net = false) {
   if (isChot) {
     row.revenue += price;
     row.discount += discount;
+    row.listTotal += b.originalTotal ?? gross;
     row.outstanding += Math.max(0, price - collected);
     row.homeDiscount += homeDisc;
     row.busDiscount += busDisc;
@@ -178,6 +182,10 @@ export async function computeStats(fromKey: string, toKey: string, ownerId?: str
       busCommission: true,
       cabinReturnTripId: true,
       quantity: true,
+      // Thuê xe máy: cần để tính bù chiết khấu cho sàn (đ/xe/ngày) ở đơn chưa có snapshot.
+      serviceId: true,
+      nights: true,
+      rentalDays: true,
       seatsSingle: true,
       seatsDouble: true,
       roomId: true,
@@ -189,7 +197,9 @@ export async function computeStats(fromKey: string, toKey: string, ownerId?: str
       paidToBus: true,
       payableRoomOverride: true,
       payableBusOverride: true,
-      service: { select: { id: true, title: true, category: true, ownerId: true, owner: { select: { name: true } } } },
+      surcharges: true, // tiền chủ dịch vụ thu thêm (chịu chiết khấu cùng tỉ lệ)
+      collector: true,
+      service: { select: { id: true, title: true, category: true, ownerId: true, originalPrice: true, owner: { select: { name: true } } } },
     },
   });
 
@@ -201,6 +211,7 @@ export async function computeStats(fromKey: string, toKey: string, ownerId?: str
     const eff = effectiveDiscounts(b, roomDisc.get(b.id) ?? 0, busDisc.get(b.id) ?? 0);
     (b as { roomCommission: unknown }).roomCommission = eff.room;
     (b as { busCommission: unknown }).busCommission = eff.bus;
+    (b as { originalTotal?: number | null }).originalTotal = rentalOriginalTotal(b, b.service?.originalPrice);
   }
 
   // Chủ nhà xe của các đơn combo (tra theo chuyến đi) — cho bảng theo chủ dịch vụ.

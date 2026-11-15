@@ -15,6 +15,7 @@ import { Badge } from "./ui/Badge";
 import { CommitmentLink } from "@/components/trust/parts";
 import { ensureSheetFresh } from "@/components/ensureSheet";
 import { showGlobalLoading } from "@/components/useSearchNav";
+import { RENTAL_HOURS, RENTAL_DEFAULT_HOUR, rentalChargeDays, rentalDaysLabel } from "@/lib/rental-days";
 
 function formatVnd(n: number | null | undefined, fallback = "Liên hệ") {
   if (n == null) return fallback;
@@ -33,6 +34,7 @@ interface StayOption {
   availableUnits: number;
   pricePerUnit: number | null;
   count: number;
+  colors?: string[];
 }
 interface TripOption {
   id: string;
@@ -76,11 +78,20 @@ export function BookingPanel({
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [quantity, setQuantity] = useState(1);
+  // Thuê xe máy: giờ nhận / giờ trả — tiền thuê tính theo số ngày quy đổi từ khoảng thời gian này.
+  const isRental = kind === "rental";
+  const [pickupTime, setPickupTime] = useState(RENTAL_DEFAULT_HOUR);
+  const [returnTime, setReturnTime] = useState(RENTAL_DEFAULT_HOUR);
+  // Ngày trả trùng ngày nhận (hoặc để trống) = trả trong ngày.
+  const rentTo = isRental && to && to > from ? to : null;
+  const rentDays = isRental && from ? rentalChargeDays(from, rentTo, pickupTime, returnTime) : null;
 
   const [checking, setChecking] = useState(false);
   const [avail, setAvail] = useState<AvailabilityResponse | null>(null);
   const [availError, setAvailError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Thuê xe máy: màu xe khách chọn ("" = màu nào cũng được). Đổi loại xe ⇒ chọn lại.
+  const [color, setColor] = useState("");
 
   const [name, setName] = useState("");
   const [custPhone, setCustPhone] = useState("");
@@ -106,6 +117,10 @@ export function BookingPanel({
       setAvailError(kind === "rental" ? "Ngày trả xe không được trước ngày nhận xe." : "Ngày trả phải sau ngày nhận.");
       return;
     }
+    if (isRental && rentDays == null) {
+      setAvailError("Giờ trả xe phải sau giờ nhận xe (hoặc chọn ngày trả sau ngày nhận).");
+      return;
+    }
     setChecking(true);
     // Homestay: làm tươi lịch phòng từ Google Sheet trước khi hiện tình trạng
     // (server bỏ qua nếu vừa đồng bộ <60s) — hiện overlay loading trong lúc chờ.
@@ -115,7 +130,11 @@ export function BookingPanel({
     }
     try {
       const params = new URLSearchParams({ serviceId, from, quantity: String(quantity) });
-      if (needsRange && to) params.set("to", to);
+      if (isRental) {
+        if (rentTo) params.set("to", rentTo);
+        params.set("pickup", pickupTime);
+        params.set("ret", returnTime);
+      } else if (needsRange && to) params.set("to", to);
       const res = await fetch(`/api/availability?${params.toString()}`);
       const data = await res.json();
       if (!res.ok) {
@@ -140,7 +159,10 @@ export function BookingPanel({
       const payload = {
         serviceId,
         useDate: from,
-        endDate: needsRange && to ? to : null,
+        endDate: isRental ? rentTo : needsRange && to ? to : null,
+        rentalColor: isRental && color ? color : null,
+        pickupTime: isRental ? pickupTime : null,
+        returnTime: isRental ? returnTime : null,
         quantity: kind === "stay" ? 1 : quantity,
         roomTypeId: null,
         roomId: kind === "stay" ? selectedId : null,
@@ -265,6 +287,26 @@ export function BookingPanel({
             />
           </label>
         )}
+        {isRental && (
+          <>
+            {([
+              ["Giờ nhận xe", pickupTime, setPickupTime],
+              ["Giờ trả xe", returnTime, setReturnTime],
+            ] as const).map(([label, value, set]) => (
+              <label key={label} className="flex flex-col gap-1">
+                <span className="text-xs font-medium text-gray-500">{label}</span>
+                <select
+                  value={value}
+                  onChange={(e) => { set(e.target.value); setAvail(null); }}
+                  aria-label={label}
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-200"
+                >
+                  {RENTAL_HOURS.map((h) => <option key={h} value={h}>{h}</option>)}
+                </select>
+              </label>
+            ))}
+          </>
+        )}
         {kind !== "stay" && (
           <label className="flex flex-col gap-1">
             <span className="text-xs font-medium text-gray-500">{qtyLabel}</span>
@@ -279,6 +321,14 @@ export function BookingPanel({
           </label>
         )}
       </div>
+
+      {isRental && (
+        <p className="mt-3 rounded-xl bg-forest-50 px-3 py-2 text-xs leading-relaxed text-gray-600">
+          {from && rentDays != null && <b className="text-forest-800">Thời gian thuê tính {rentalDaysLabel(rentDays)}. </b>}
+          {from && rentDays == null && <b className="text-red-600">Giờ trả xe phải sau giờ nhận xe. </b>}
+          Cách tính: mỗi 24 giờ kể từ giờ nhận = 1 ngày; trả trễ tới 6 giờ tính thêm nửa ngày, trễ hơn 6 giờ tính thêm 1 ngày.
+        </p>
+      )}
 
       <button
         type="button"
@@ -324,7 +374,7 @@ export function BookingPanel({
                     name="option"
                     className="mt-1 accent-forest-600"
                     checked={selectedId === o.id}
-                    onChange={() => setSelectedId(o.id)}
+                    onChange={() => { setSelectedId(o.id); setColor(""); }}
                   />
                   <span className="flex-1">
                     <span className="flex items-center justify-between gap-2">
@@ -333,14 +383,33 @@ export function BookingPanel({
                     </span>
                     <span className="mt-0.5 block text-xs text-gray-500">
                       {kind === "stay" ? `Sức chứa ${o.capacity} người · ` : ""}
-                      {o.count} {kind === "stay" ? "đêm" : "ngày thuê (tính cả ngày nhận và ngày trả)"}
+                      {kind === "stay" ? `${o.count} đêm` : `tính ${rentalDaysLabel(o.count)} thuê`}
                       {o.bookable ? ` · còn ${o.availableUnits}` : ""}
                     </span>
                     <span className="mt-1 block font-bold text-forest-700">
                       {o.pricePerUnit != null
-                        ? `${formatVnd(o.pricePerUnit * quantity)} cho ${quantity} ${kind === "stay" ? "phòng" : `xe × ${o.count} ngày`}`
+                        ? `${formatVnd(o.pricePerUnit * quantity)} cho ${quantity} ${kind === "stay" ? "phòng" : `xe × ${rentalDaysLabel(o.count)}`}`
                         : "Liên hệ xác nhận giá"}
                     </span>
+                    {/* Chọn màu xe (admin cấu hình ở loại xe) — chỉ hiện ở loại xe đang chọn. */}
+                    {kind === "rental" && selectedId === o.id && (o.colors?.length ?? 0) > 0 && (
+                      <span className="mt-2 block">
+                        <span className="block text-xs font-medium text-gray-500">Màu xe</span>
+                        <span className="mt-1 flex flex-wrap gap-1.5">
+                          {["", ...o.colors!].map((c) => (
+                            <button
+                              key={c || "any"}
+                              type="button"
+                              onClick={(e) => { e.preventDefault(); setColor(c); }}
+                              aria-pressed={color === c}
+                              className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${color === c ? "border-forest-600 bg-forest-600 text-white" : "border-gray-200 bg-white text-ink hover:border-forest-300"}`}
+                            >
+                              {c || "Màu nào cũng được"}
+                            </button>
+                          ))}
+                        </span>
+                      </span>
+                    )}
                   </span>
                 </label>
               ))

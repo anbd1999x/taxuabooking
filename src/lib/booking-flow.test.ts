@@ -20,10 +20,19 @@ test("providerUnlocked: chỉ mở khoá khi CONFIRMED + đã có cọc", () => 
 test("providerCanSetStatus: chỉ hoàn thành đơn đã xác nhận & thu đủ", () => {
   assert.equal(providerCanSetStatus("CONFIRMED", "COMPLETED", "PAID"), true);
   assert.equal(providerCanSetStatus("CONFIRMED", "COMPLETED", "DEPOSITED"), false);
-  // Không được tự xác nhận, hủy, hay chạm Mới/Đang liên hệ.
+  // Không được tự xác nhận hay khôi phục.
   assert.equal(providerCanSetStatus("NEW", "CONFIRMED", "UNPAID"), false);
   assert.equal(providerCanSetStatus("CONTACTING", "CONFIRMED", "UNPAID"), false);
-  assert.equal(providerCanSetStatus("CONFIRMED", "CANCELLED", "DEPOSITED"), false);
+  assert.equal(providerCanSetStatus("CANCELLED", "NEW", "UNPAID"), false);
+});
+
+test("providerCanSetStatus: được huỷ đơn chưa hoàn thành, trừ đơn combo", () => {
+  assert.equal(providerCanSetStatus("NEW", "CANCELLED", "UNPAID"), true);
+  assert.equal(providerCanSetStatus("CONFIRMED", "CANCELLED", "DEPOSITED"), true);
+  assert.equal(providerCanSetStatus("COMPLETED", "CANCELLED", "PAID"), false); // đơn đã hoàn thành: không huỷ
+  assert.equal(providerCanSetStatus("CANCELLED", "CANCELLED", "UNPAID"), false);
+  assert.equal(providerCanSetStatus("CONFIRMED", "CANCELLED", "DEPOSITED", true), false); // combo: chỉ sàn huỷ
+  assert.equal(canRoleAct("PROVIDER", "CONFIRMED", "PAID", "status", "CANCELLED", true), false);
 });
 
 test("providerCanPay: chỉ thu tiền sau khi đã mở khoá (sàn thu cọc trước)", () => {
@@ -53,7 +62,7 @@ test("canRoleAct: PROVIDER bị chặn ở giai đoạn đầu, mở khoá sau c
   assert.equal(canRoleAct("PROVIDER", "CONFIRMED", "DEPOSITED", "held"), true);
   assert.equal(canRoleAct("PROVIDER", "CONFIRMED", "DEPOSITED", "status", "COMPLETED"), false); // chưa thu đủ
   assert.equal(canRoleAct("PROVIDER", "CONFIRMED", "PAID", "status", "COMPLETED"), true);
-  assert.equal(canRoleAct("PROVIDER", "CONFIRMED", "PAID", "status", "CANCELLED"), false); // không được hủy
+  assert.equal(canRoleAct("PROVIDER", "CONFIRMED", "PAID", "status", "CANCELLED"), true); // được huỷ đơn của mình (kèm lý do)
 });
 
 test("canRoleAct: CTV không có quyền", () => {

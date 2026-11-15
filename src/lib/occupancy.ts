@@ -1,3 +1,4 @@
+import { bookingRentalDays, rentalDaysLabel } from "./rental-days";
 /**
  * Người lớn / trẻ em theo tuổi (homestay + combo).
  * Quy tắc: trẻ DƯỚI `freeUnderAge` = miễn phí, KHÔNG tính vào số người; trẻ từ
@@ -93,9 +94,9 @@ export function isRentalCategory(category: string): boolean {
 }
 
 /** "2 đêm" (lưu trú) hoặc "2 ngày thuê" (xe máy); null khi đơn không có thời lượng. */
-export function durationLabel(b: { category: string; nights: number | null }): string | null {
+export function durationLabel(b: { category: string; nights: number | null; rentalDays?: unknown }): string | null {
   if (!b.nights) return null;
-  return isRentalCategory(b.category) ? `${b.nights} ngày thuê` : `${b.nights} đêm`;
+  return isRentalCategory(b.category) ? `${rentalDaysLabel(bookingRentalDays(b))} thuê` : `${b.nights} đêm`;
 }
 
 /** "3 xe" (thuê xe máy) hoặc "4 người". */

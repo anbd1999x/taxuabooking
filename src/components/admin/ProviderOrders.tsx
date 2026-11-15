@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ProviderExtraForm } from "./BookingDetailClient";
 import {
   advanceBookingStatusResult as advanceBookingStatus,
+  saveBookingStage,
   setBookingPaymentStep,
   setBookingCommissionPaid,
 } from "@/app/admin/bookings/actions";
@@ -49,10 +51,198 @@ export interface ProviderOrderVM {
   payoutDue: number; // sàn phải chuyển = bán ra − chiết khấu sàn
   payoutReceived: number; // đã nhận từ sàn
   payoutOwed: number; // còn thiếu (chỉ tính đơn đã chốt)
+  /** Được khôi phục đơn đã huỷ (chỉ sàn). */
+  canRestore?: boolean;
+  /** Lý do huỷ (đơn đã huỷ). */
+  cancelReason?: string;
+  /** true = chủ dịch vụ tự thu tiền khách ở đơn này (admin cấu hình); false = sàn thu. */
+  selfCollect?: boolean;
+  /** Tiền chủ dịch vụ thu thêm của khách (quá giờ…), đã cộng vào giá đơn. */
+  extra?: number;
+  /** Chủ dịch vụ phải chuyển lại sàn (chiết khấu) — tính khi đơn đã xác nhận / hoàn thành. */
+  providerOwes?: number;
+  /** Được nhập tiền thu thêm (đơn đã xác nhận, không phải combo). */
+  canExtra?: boolean;
+  /** Thứ được giữ cho khách: "phòng" (homestay) | "xe" (thuê xe máy) | "chỗ" (vé xe, taxi…). */
+  unit?: string;
+  /** Tiền gốc hiện gạch ngang cạnh số thực nhận (giá gốc admin cấu hình, hoặc giá bán khi có chiết khấu). */
+  strike?: number | null;
 }
 
 const G = "oklch(0.29 0.055 160)";
 const K = (n: number) => n.toLocaleString("vi-VN") + "đ";
+const CAL_WD = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+const CAL_HEAT = ["white", "oklch(0.975 0.015 155)", "oklch(0.955 0.03 155)", "oklch(0.93 0.045 155)", "oklch(0.9 0.06 155)"];
+
+/** Lịch tháng của trang đơn: mỗi ô hiện số đơn nhận trong ngày + chấm màu theo trạng thái; bấm ô để lọc. */
+function MonthGrid({
+  ym,
+  todayKey,
+  byDay,
+  selDay,
+  onPick,
+  onShift,
+  onToday,
+  unit,
+}: {
+  ym: string; // "yyyy-mm"
+  todayKey: string;
+  byDay: Map<string, ProviderOrderVM[]>;
+  selDay: string | null;
+  onPick: (k: string) => void;
+  onShift: (d: number) => void;
+  onToday: () => void;
+  unit: string;
+}) {
+  const [y, m] = ym.split("-").map(Number);
+  const first = new Date(Date.UTC(y, m - 1, 1));
+  const lead = (first.getUTCDay() + 6) % 7; // số ô trống trước ngày 1 (tuần bắt đầu Thứ 2)
+  const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const cells: (string | null)[] = [
+    ...Array.from({ length: lead }, () => null),
+    ...Array.from({ length: days }, (_, i) => `${ym}-${String(i + 1).padStart(2, "0")}`),
+  ];
+  while (cells.length % 7) cells.push(null);
+  const total = [...byDay.values()].reduce((n, a) => n + a.length, 0);
+  const navBtn = { cursor: "pointer", width: 34, height: 34, borderRadius: 10, border: "1px solid oklch(0.9 0.01 160)", background: "white", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800 } as const;
+  return (
+    <div style={{ borderRadius: 18, background: "white", border: "1px solid oklch(0.92 0.01 160)", padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <div onClick={() => onShift(-1)} style={navBtn} aria-label="Tháng trước">‹</div>
+        <div style={{ fontSize: 17, fontWeight: 800, minWidth: 130, textAlign: "center" }}>Tháng {m}/{y}</div>
+        <div onClick={() => onShift(1)} style={navBtn} aria-label="Tháng sau">›</div>
+        <div onClick={onToday} style={{ cursor: "pointer", fontSize: 13, fontWeight: 700, padding: "7px 12px", borderRadius: 10, border: "1px solid oklch(0.9 0.01 160)", whiteSpace: "nowrap" }}>Hôm nay</div>
+        <span style={{ flex: 1 }} />
+        <span style={{ fontSize: 13, fontWeight: 700, color: "oklch(0.45 0.02 160)" }}>{total} đơn nhận {unit} trong tháng</span>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7,minmax(0,1fr))", gap: 4 }}>
+        {CAL_WD.map((w) => (
+          <div key={w} style={{ textAlign: "center", fontSize: 12, fontWeight: 800, color: "oklch(0.5 0.02 160)", padding: "4px 0" }}>{w}</div>
+        ))}
+        {cells.map((k, idx) => {
+          if (!k) return <div key={"e" + idx} />;
+          const list = byDay.get(k) ?? [];
+          const n = list.length;
+          const on = selDay === k;
+          const isToday = k === todayKey;
+          const due = list.reduce((a, o) => a + Math.max(0, o.net - o.collected), 0);
+          return (
+            <div
+              key={k}
+              onClick={() => onPick(k)}
+              style={{
+                cursor: "pointer",
+                minHeight: 74,
+                padding: "6px 7px",
+                borderRadius: 12,
+                background: on ? "oklch(0.95 0.04 155)" : CAL_HEAT[n === 0 ? 0 : n === 1 ? 1 : n <= 3 ? 2 : n <= 5 ? 3 : 4],
+                border: on ? `2px solid ${G}` : isToday ? "2px solid oklch(0.68 0.18 45)" : "1px solid oklch(0.93 0.01 160)",
+                display: "flex",
+                flexDirection: "column",
+                gap: 4,
+                minWidth: 0,
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 4 }}>
+                <span style={{ fontSize: 13, fontWeight: 800, color: isToday ? "oklch(0.55 0.17 45)" : "oklch(0.3 0.03 160)" }}>{Number(k.slice(8, 10))}</span>
+                {n > 0 && <span style={{ fontSize: 11, fontWeight: 800, padding: "1px 6px", borderRadius: 999, background: G, color: "white" }}>{n}</span>}
+              </div>
+              {n > 0 && (
+                <>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+                    {list.slice(0, 8).map((o) => (
+                      <span key={o.id} title={`${o.code} · ${o.name}`} style={{ width: 8, height: 8, borderRadius: "50%", background: ST[o.st].dot }} />
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "oklch(0.42 0.02 160)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {list[0].name}{n > 1 ? ` +${n - 1}` : ""}
+                  </div>
+                  {due > 0 && <div style={{ fontSize: 10.5, fontWeight: 700, color: "oklch(0.55 0.17 40)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>thiếu {K(due)}</div>}
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12, color: "oklch(0.5 0.02 160)" }}>
+        {(Object.keys(ST) as POStatus[]).map((k) => (
+          <span key={k} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: ST[k].dot }} />
+            {W(ST[k].label, unit)}
+          </span>
+        ))}
+        <span>· Bấm một ngày để chỉ xem đơn của ngày đó.</span>
+      </div>
+    </div>
+  );
+}
+
+type RunFn = (a: (fd: FormData) => Promise<void | { error?: string }>, f: Record<string, string>, m?: string) => void;
+
+const CANCEL_PRESETS = ["Khách báo huỷ", "Khách đổi lịch", "Khách không tới", "Không liên lạc được khách", "Hết chỗ / không sắp xếp được"];
+
+/**
+ * Popup huỷ đơn: chọn nhanh một lý do hoặc tự ghi — bắt buộc có lý do (lưu vào đơn để thống kê và ghi trong
+ * email báo huỷ gửi khách). Esc / bấm nền / "Không huỷ" để đóng.
+ */
+function CancelDialog({ o, onClose, run }: { o: { id: string; code: string; name: string; unit?: string }; onClose: () => void; run: RunFn }) {
+  const [preset, setPreset] = useState("");
+  const [note, setNote] = useState("");
+  const [tried, setTried] = useState(false);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const reason = [preset, note.trim()].filter(Boolean).join(" — ").slice(0, 300);
+  const submit = () => {
+    if (!reason) return setTried(true);
+    run((fd) => saveBookingStage({}, fd), { id: o.id, status: "CANCELLED", cancelReason: reason }, "Đã huỷ " + o.code);
+    onClose();
+  };
+  return (
+    <div role="dialog" aria-modal="true" aria-label={"Huỷ đơn " + o.code} onMouseDown={(e) => e.target === e.currentTarget && onClose()} style={{ position: "fixed", inset: 0, zIndex: 70, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "oklch(0.15 0.03 160 / .55)" }}>
+      <div style={{ width: "min(460px,100%)", maxHeight: "100%", overflowY: "auto", borderRadius: 20, background: "white", boxShadow: "0 30px 80px -20px oklch(0.2 0.05 160 / .5)", display: "flex", flexDirection: "column" }}>
+        <div style={{ padding: "18px 20px 14px", borderBottom: "1px solid oklch(0.93 0.01 160)", display: "flex", alignItems: "flex-start", gap: 12 }}>
+          <span style={{ flex: "none", width: 40, height: 40, borderRadius: 12, background: "oklch(0.96 0.03 28)", color: "oklch(0.5 0.18 28)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 800 }}>!</span>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 17, fontWeight: 800 }}>Huỷ đơn {o.code}?</div>
+            <div style={{ marginTop: 2, fontSize: 13, color: "oklch(0.5 0.02 160)" }}>Khách: {o.name}. {W("Phòng", o.unit)} đang giữ cho đơn này sẽ được trả lại.</div>
+          </div>
+          <div onClick={onClose} aria-label="Đóng" style={{ cursor: "pointer", flex: "none", width: 32, height: 32, borderRadius: 999, background: "oklch(0.96 0.005 160)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>✕</div>
+        </div>
+        <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "oklch(0.42 0.02 160)" }}>Lý do huỷ <span style={{ color: "oklch(0.55 0.18 28)" }}>*</span></div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {CANCEL_PRESETS.map((p) => {
+              const on = preset === p;
+              return (
+                <div key={p} onClick={() => { setPreset(on ? "" : p); setTried(false); }} style={{ cursor: "pointer", padding: "8px 12px", borderRadius: 999, fontSize: 13, fontWeight: 700, border: `1.5px solid ${on ? G : "oklch(0.9 0.01 160)"}`, background: on ? G : "white", color: on ? "white" : "oklch(0.3 0.03 160)" }}>{p}</div>
+              );
+            })}
+          </div>
+          <textarea
+            value={note}
+            onChange={(e) => { setNote(e.target.value); setTried(false); }}
+            rows={3}
+            maxLength={250}
+            placeholder="Ghi thêm chi tiết (không bắt buộc nếu đã chọn lý do ở trên)…"
+            style={{ width: "100%", resize: "vertical", padding: "10px 12px", borderRadius: 12, border: `1.5px solid ${tried && !reason ? "oklch(0.6 0.18 28)" : "oklch(0.9 0.01 160)"}`, fontSize: 14, fontFamily: "inherit", outline: "none" }}
+          />
+          {tried && !reason && <div style={{ fontSize: 13, fontWeight: 700, color: "oklch(0.52 0.18 28)" }}>Vui lòng chọn hoặc nhập lý do huỷ.</div>}
+          <div style={{ fontSize: 12, color: "oklch(0.5 0.02 160)", lineHeight: 1.5 }}>Lý do được lưu vào đơn và ghi trong thư báo huỷ gửi khách (nếu khách có email). Đơn đã huỷ chỉ Tà Xùa Booking khôi phục được.</div>
+        </div>
+        <div style={{ padding: "14px 20px 18px", display: "flex", gap: 10, justifyContent: "flex-end", borderTop: "1px solid oklch(0.93 0.01 160)" }}>
+          <div onClick={onClose} style={{ cursor: "pointer", padding: "11px 18px", borderRadius: 12, fontSize: 14, fontWeight: 800, border: "1.5px solid oklch(0.9 0.01 160)" }}>Không huỷ</div>
+          <div onClick={submit} style={{ cursor: "pointer", padding: "11px 18px", borderRadius: 12, fontSize: 14, fontWeight: 800, background: "oklch(0.55 0.19 28)", color: "white" }}>Xác nhận huỷ đơn</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Đổi chữ "phòng" trong nhãn theo loại dịch vụ của đơn ("Giữ phòng" → "Giữ xe" / "Giữ chỗ"). */
+const W = (s: string, unit = "phòng") => (unit === "phòng" ? s : s.replace(/phòng/g, unit).replace(/Phòng/g, unit[0].toUpperCase() + unit.slice(1)));
 
 const ST: Record<POStatus, { label: string; bg: string; fg: string; dot: string }> = {
   new: { label: "Mới", bg: "oklch(0.95 0.06 70)", fg: "oklch(0.5 0.15 50)", dot: "oklch(0.68 0.18 45)" },
@@ -89,20 +279,32 @@ export function ProviderOrders({
   scopeLabel,
   todayText,
   todayKey,
+  initialOpenId = null,
 }: {
   orders: ProviderOrderVM[];
   scopeLabel: string;
   todayText: string;
   todayKey: string;
+  /** Mở sẵn chi tiết đơn này (từ link "Đơn gần đây" ở trang tổng quan). */
+  initialOpenId?: string | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const [tab, setTab] = useState("all");
   const [src, setSrc] = useState<"all" | "web" | "ctv">("all");
   const [range, setRange] = useState<"all" | "week" | "month">("all");
+  // Lọc theo khoảng ngày nhận (yyyy-mm-dd) + chế độ xem: danh sách / lịch tháng.
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [view, setView] = useState<"list" | "month">("list");
+  const [calYM, setCalYM] = useState(todayKey.slice(0, 7)); // tháng đang xem "yyyy-mm"
+  const [selDay, setSelDay] = useState<string | null>(null); // ngày đang chọn trên lịch
   const [sort, setSort] = useState<"date" | "new" | "due">("date");
   const [q, setQ] = useState("");
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(initialOpenId);
+  const [cancelFor, setCancelFor] = useState<ProviderOrderVM | null>(null); // đơn đang mở popup huỷ
+  const units = [...new Set(orders.map((o) => o.unit ?? "phòng"))];
+  const scopeUnit = units.length === 1 ? units[0] : units.length === 0 ? "phòng" : "chỗ";
   const [amt, setAmt] = useState("");
   const [method, setMethod] = useState("Chuyển khoản");
   const [payErr, setPayErr] = useState("");
@@ -136,16 +338,45 @@ export function ProviderOrders({
     const qq = q.trim().toLowerCase();
     return orders.filter((o) => {
       if (src !== "all" && o.src !== src) return false;
-      if (range !== "all") {
-        const diff = (Date.parse(o.ciKey) - Date.parse(todayKey)) / 864e5;
-        if (range === "week" ? !(diff >= 0 && diff < 7) : !(diff >= 0 && diff < 31)) return false;
+      if (view === "month") {
+        // Lịch tháng: chỉ đơn có ngày nhận trong tháng đang xem (và đúng ngày đang chọn, nếu có).
+        if (!o.ciKey.startsWith(calYM)) return false;
+        if (selDay && o.ciKey !== selDay) return false;
+      } else {
+        if (range !== "all") {
+          const diff = (Date.parse(o.ciKey) - Date.parse(todayKey)) / 864e5;
+          if (range === "week" ? !(diff >= 0 && diff < 7) : !(diff >= 0 && diff < 31)) return false;
+        }
+        if (dateFrom && o.ciKey < dateFrom) return false;
+        if (dateTo && o.ciKey > dateTo) return false;
       }
       if (qq && !(o.code + o.name + o.phone).toLowerCase().includes(qq)) return false;
       return true;
     });
-  }, [orders, src, range, q, todayKey]);
+  }, [orders, src, range, q, todayKey, view, calYM, selDay, dateFrom, dateTo]);
 
   const tabDef = TAB_DEFS.find((t) => t.k === tab) ?? TAB_DEFS[0];
+  const byDay = useMemo(() => {
+    const m = new Map<string, ProviderOrderVM[]>();
+    if (view !== "month") return m;
+    const qq = q.trim().toLowerCase();
+    for (const o of orders) {
+      if (!o.ciKey.startsWith(calYM)) continue;
+      if (src !== "all" && o.src !== src) continue;
+      if (qq && !(o.code + o.name + o.phone).toLowerCase().includes(qq)) continue;
+      if (!tabDef.f(o)) continue;
+      const arr = m.get(o.ciKey);
+      if (arr) arr.push(o);
+      else m.set(o.ciKey, [o]);
+    }
+    return m;
+  }, [orders, view, calYM, src, q, tabDef]);
+  const shiftMonth = (d: number) => {
+    const [yy, mm] = calYM.split("-").map(Number);
+    const t = new Date(Date.UTC(yy, mm - 1 + d, 1));
+    setCalYM(t.toISOString().slice(0, 7));
+    setSelDay(null);
+  };
   const list = useMemo(() => {
     const l = base.filter(tabDef.f);
     l.sort((a, b) =>
@@ -178,8 +409,9 @@ export function ProviderOrders({
 
   // Nút bước kế tiếp hợp lệ theo quyền: 'held' cần quyền đổi trạng thái, 'pay' cần quyền thu tiền.
   function nextOf(o: ProviderOrderVM): [string, "held" | "pay" | "complete", string] | undefined {
-    const n = NEXT[o.st];
-    if (!n) return undefined;
+    const n0 = NEXT[o.st];
+    if (!n0) return undefined;
+    const n: [string, "held" | "pay" | "complete", string] = [W(n0[0], o.unit), n0[1], n0[2]];
     if (n[1] === "held" || n[1] === "complete") return o.canStatus ? n : undefined;
     return o.canPay ? n : undefined;
   }
@@ -187,7 +419,7 @@ export function ProviderOrders({
   function doNext(o: ProviderOrderVM) {
     const n = nextOf(o);
     if (!n) return;
-    if (n[1] === "held") run(advanceBookingStatus, { id: o.id, status: "CONFIRMED" }, "Đã xác nhận giữ phòng " + o.code);
+    if (n[1] === "held") run(advanceBookingStatus, { id: o.id, status: "CONFIRMED" }, W("Đã xác nhận giữ phòng ", o.unit) + o.code);
     else if (n[1] === "complete") run(advanceBookingStatus, { id: o.id, status: "COMPLETED" }, "Đã hoàn thành " + o.code);
     else openOrder(o, true);
   }
@@ -216,22 +448,37 @@ export function ProviderOrders({
   ];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 18, maxWidth: 1280, color: "oklch(0.22 0.03 160)", opacity: pending ? 0.75 : 1, transition: "opacity .15s" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 18, width: "100%", color: "oklch(0.22 0.03 160)", opacity: pending ? 0.75 : 1, transition: "opacity .15s" }}>
       {/* Tiêu đề + khoảng ngày */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, flexWrap: "wrap" }}>
         <div>
           <h1 style={{ margin: 0, fontSize: "clamp(24px,3vw,30px)", fontWeight: 800, letterSpacing: "-.02em" }}>Đơn &amp; xác nhận</h1>
           <div style={{ fontSize: 14, color: "oklch(0.48 0.02 160)", marginTop: 4 }}>{scopeLabel} · {todayText}</div>
         </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
         <div style={{ display: "inline-flex", gap: 4, padding: 4, borderRadius: 12, background: "oklch(0.93 0.01 160)" }}>
-          {([["week", "7 ngày tới"], ["month", "30 ngày tới"], ["all", "Tất cả"]] as const).map(([k, name]) => {
-            const on = range === k;
+          {([["list", "Danh sách"], ["month", "Theo tháng"]] as const).map(([k, name]) => {
+            const on = view === k;
             return (
-              <div key={k} onClick={() => setRange(k)} style={{ cursor: "pointer", fontSize: 13, fontWeight: 700, padding: "7px 12px", borderRadius: 9, whiteSpace: "nowrap", background: on ? "white" : "transparent", color: on ? G : "oklch(0.42 0.02 160)", boxShadow: on ? "0 1px 3px oklch(0.2 0.03 160 / .15)" : "none" }}>{name}</div>
+              <div key={k} onClick={() => { setView(k); setSelDay(null); }} style={{ cursor: "pointer", fontSize: 13, fontWeight: 700, padding: "7px 12px", borderRadius: 9, whiteSpace: "nowrap", background: on ? G : "transparent", color: on ? "white" : "oklch(0.42 0.02 160)" }}>{name}</div>
             );
           })}
         </div>
+        <div style={{ display: view === "list" ? "inline-flex" : "none", gap: 4, padding: 4, borderRadius: 12, background: "oklch(0.93 0.01 160)" }}>
+          {([["week", "7 ngày tới"], ["month", "30 ngày tới"], ["all", "Tất cả"]] as const).map(([k, name]) => {
+            const on = range === k && !dateFrom && !dateTo;
+            return (
+              <div key={k} onClick={() => { setRange(k); setDateFrom(""); setDateTo(""); }} style={{ cursor: "pointer", fontSize: 13, fontWeight: 700, padding: "7px 12px", borderRadius: 9, whiteSpace: "nowrap", background: on ? "white" : "transparent", color: on ? G : "oklch(0.42 0.02 160)", boxShadow: on ? "0 1px 3px oklch(0.2 0.03 160 / .15)" : "none" }}>{name}</div>
+            );
+          })}
+        </div>
+        </div>
       </div>
+
+      {/* Lịch tháng: mỗi ô = số đơn nhận trong ngày; bấm ngày để lọc danh sách bên dưới. */}
+      {view === "month" && (
+        <MonthGrid ym={calYM} todayKey={todayKey} byDay={byDay} selDay={selDay} onPick={(k) => setSelDay((cur) => (cur === k ? null : k))} onShift={shiftMonth} onToday={() => { setCalYM(todayKey.slice(0, 7)); setSelDay(todayKey); }} unit={scopeUnit} />
+      )}
 
       {/* KPI */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,200px),1fr))", gap: 12 }}>
@@ -257,7 +504,7 @@ export function ProviderOrders({
             return (
               <div key={t.k} onClick={() => setTab(t.k)} style={{ cursor: "pointer", flex: "none", display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 14, background: on ? G : "white", color: on ? "white" : "oklch(0.3 0.03 160)", border: `1.5px solid ${on ? G : "oklch(0.9 0.01 160)"}`, fontSize: 14, fontWeight: 700, whiteSpace: "nowrap" }}>
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: dot }} />
-                {t.name}
+                {W(t.name, scopeUnit)}
                 <span style={{ minWidth: 22, padding: "1px 7px", borderRadius: 999, background: on ? "oklch(1 0 0 / .2)" : "oklch(0.95 0.005 160)", fontSize: 12, fontWeight: 800, textAlign: "center" }}>{n}</span>
               </div>
             );
@@ -270,6 +517,20 @@ export function ProviderOrders({
               <div key={k} onClick={() => setSrc(k)} style={{ cursor: "pointer", fontSize: 13, fontWeight: 700, padding: "6px 12px", borderRadius: 999, whiteSpace: "nowrap", background: on ? "oklch(0.95 0.025 155)" : "white", color: on ? G : "oklch(0.42 0.02 160)", border: "1px solid oklch(0.9 0.01 160)" }}>{name}</div>
             );
           })}
+          {view === "list" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", fontSize: 13, fontWeight: 700, color: "oklch(0.42 0.02 160)" }}>
+              <span>{W("Ngày nhận phòng", scopeUnit)} từ</span>
+              <input type="date" value={dateFrom} max={dateTo || undefined} onChange={(e) => { setDateFrom(e.target.value); setRange("all"); }} aria-label="Từ ngày" style={{ fontSize: 13, fontWeight: 600, padding: "6px 8px", borderRadius: 10, border: "1px solid oklch(0.88 0.015 160)", background: "white" }} />
+              <span>đến</span>
+              <input type="date" value={dateTo} min={dateFrom || undefined} onChange={(e) => { setDateTo(e.target.value); setRange("all"); }} aria-label="Đến ngày" style={{ fontSize: 13, fontWeight: 600, padding: "6px 8px", borderRadius: 10, border: "1px solid oklch(0.88 0.015 160)", background: "white" }} />
+              {(dateFrom || dateTo) && (
+                <span onClick={() => { setDateFrom(""); setDateTo(""); }} style={{ cursor: "pointer", padding: "6px 10px", borderRadius: 999, background: "oklch(0.95 0.005 160)", whiteSpace: "nowrap" }}>✕ Bỏ lọc ngày</span>
+              )}
+            </div>
+          )}
+          {view === "month" && selDay && (
+            <span onClick={() => setSelDay(null)} style={{ cursor: "pointer", fontSize: 13, fontWeight: 700, padding: "6px 12px", borderRadius: 999, background: "oklch(0.95 0.025 155)", color: G, whiteSpace: "nowrap" }}>Đang xem ngày {selDay.slice(8, 10)}/{selDay.slice(5, 7)}/{selDay.slice(0, 4)} · ✕ xem cả tháng</span>
+          )}
           <span style={{ flex: 1 }} />
           <input
             value={q}
@@ -278,7 +539,7 @@ export function ProviderOrders({
             style={{ fontSize: 13, fontWeight: 600, padding: "7px 12px", borderRadius: 10, border: "1px solid oklch(0.88 0.015 160)", background: "white", minWidth: 180, outline: "none" }}
           />
           <select value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} style={{ fontSize: 13, fontWeight: 700, padding: "7px 10px", borderRadius: 10, border: "1px solid oklch(0.88 0.015 160)", background: "white" }}>
-            <option value="date">Ngày nhận phòng gần nhất</option>
+            <option value="date">{W("Ngày nhận phòng gần nhất", scopeUnit)}</option>
             <option value="new">Mới đặt nhất</option>
             <option value="due">Còn phải thu nhiều nhất</option>
           </select>
@@ -310,7 +571,7 @@ export function ProviderOrders({
                   <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                       <span onClick={() => openOrder(o)} style={{ cursor: "pointer", fontSize: 15, fontWeight: 800, color: "oklch(0.35 0.08 160)", letterSpacing: ".02em" }}>{o.code}</span>
-                      <Badge bg={st.bg} fg={st.fg}>{st.label}</Badge>
+                      <Badge bg={st.bg} fg={st.fg}>{W(st.label, o.unit)}</Badge>
                       <Badge bg={srcBg} fg={srcFg}>{o.src === "ctv" ? "Từ CTV" : "Khách đặt web"}</Badge>
                       {o.combo && <Badge bg="oklch(0.95 0.04 300)" fg="oklch(0.45 0.13 300)">Combo</Badge>}
                     </div>
@@ -334,7 +595,10 @@ export function ProviderOrders({
                 <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 13 }}>
                     <span style={{ color: "oklch(0.5 0.02 160)" }}>{o.moneyLabel}</span>
-                    <b style={{ fontSize: 16 }}>{K(o.net)}</b>
+                    <span style={{ textAlign: "right" }}>
+                      {o.strike != null && <span style={{ display: "block", fontSize: 12, fontWeight: 600, color: "oklch(0.62 0.01 160)", textDecoration: "line-through" }}>{K(o.strike)}</span>}
+                      <b style={{ fontSize: 16 }}>{K(o.net)}</b>
+                    </span>
                   </div>
                   <div style={{ height: 8, borderRadius: 999, background: "oklch(0.93 0.01 160)", overflow: "hidden" }}>
                     <div style={{ height: "100%", width: pct + "%", borderRadius: 999, background: barC, transition: "width .5s" }} />
@@ -358,11 +622,11 @@ export function ProviderOrders({
                   )}
                   <div style={{ display: "flex", gap: 6 }}>
                     <div onClick={() => openOrder(o)} style={{ flex: 1, cursor: "pointer", textAlign: "center", fontSize: 13, fontWeight: 700, padding: "8px 12px", borderRadius: 12, border: "1.5px solid oklch(0.9 0.01 160)", whiteSpace: "nowrap" }}>Chi tiết</div>
-                    {o.canCancel && o.st === "cancel" && (
+                    {o.canRestore && o.st === "cancel" && (
                       <div onClick={() => run(advanceBookingStatus, { id: o.id, status: "NEW" }, "Đã khôi phục " + o.code)} style={{ cursor: "pointer", textAlign: "center", fontSize: 13, fontWeight: 700, padding: "8px 12px", borderRadius: 12, border: "1.5px solid oklch(0.9 0.01 160)", whiteSpace: "nowrap" }}>Khôi phục</div>
                     )}
                     {o.canCancel && o.st !== "cancel" && (
-                      <div onClick={() => { if (confirm("Huỷ đơn " + o.code + "? (khách huỷ / không tới)")) run(advanceBookingStatus, { id: o.id, status: "CANCELLED" }, "Đã huỷ " + o.code); }} style={{ cursor: "pointer", textAlign: "center", fontSize: 13, fontWeight: 700, padding: "8px 12px", borderRadius: 12, border: "1.5px solid oklch(0.9 0.04 28)", color: "oklch(0.5 0.18 28)", whiteSpace: "nowrap" }}>Huỷ</div>
+                      <div onClick={() => setCancelFor(o)} style={{ cursor: "pointer", textAlign: "center", fontSize: 13, fontWeight: 700, padding: "8px 12px", borderRadius: 12, border: "1.5px solid oklch(0.9 0.04 28)", color: "oklch(0.5 0.18 28)", whiteSpace: "nowrap" }}>Huỷ</div>
                     )}
                   </div>
                 </div>
@@ -381,7 +645,8 @@ export function ProviderOrders({
         )}
       </div>
 
-      {od && <Drawer o={od} onClose={() => setOpenId(null)} amt={amt} setAmt={(v) => { setAmt(v.replace(/\D/g, "")); setPayErr(""); }} method={method} setMethod={setMethod} payErr={payErr} addPay={addPay} run={run} openOrder={openOrder} />}
+      {cancelFor && <CancelDialog o={cancelFor} onClose={() => setCancelFor(null)} run={run} />}
+      {od && <Drawer askCancel={setCancelFor} o={od} onClose={() => setOpenId(null)} amt={amt} setAmt={(v) => { setAmt(v.replace(/\D/g, "")); setPayErr(""); }} method={method} setMethod={setMethod} payErr={payErr} addPay={addPay} run={run} openOrder={openOrder} />}
 
       {toast && (
         <div style={{ position: "fixed", left: "50%", bottom: 24, transform: "translateX(-50%)", zIndex: 60, background: "oklch(0.25 0.04 160)", color: "white", fontSize: 14, fontWeight: 700, padding: "12px 18px", borderRadius: 999, whiteSpace: "nowrap" }}>{toast}</div>
@@ -407,6 +672,7 @@ function Drawer({
   addPay,
   run,
   openOrder,
+  askCancel,
 }: {
   o: ProviderOrderVM;
   onClose: () => void;
@@ -418,7 +684,9 @@ function Drawer({
   addPay: () => void;
   run: (a: (fd: FormData) => Promise<void | { error?: string }>, f: Record<string, string>, m?: string) => void;
   openOrder: (o: ProviderOrderVM, pay?: boolean) => void;
+  askCancel: (o: ProviderOrderVM) => void;
 }) {
+  const router = useRouter(); // làm tươi dữ liệu sau khi lưu tiền thu thêm
   const st = ST[o.st];
   const rem = Math.max(0, o.net - o.collected);
   const pct = o.net > 0 ? Math.min(100, Math.round((o.collected / o.net) * 100)) : 0;
@@ -429,7 +697,7 @@ function Drawer({
   const srcFg = o.src === "ctv" ? "oklch(0.48 0.12 60)" : "oklch(0.42 0.03 160)";
   const order: POStatus[] = ["new", "held", "dep", "paid"];
   const idx = o.st === "done" ? 3 : order.indexOf(o.st);
-  const steps = ["Đặt phòng", "Giữ phòng", "Đã cọc", "Thanh toán đủ"].map((name, i) => ({
+  const steps = ["Đặt phòng", "Giữ phòng", "Đã cọc", "Thanh toán đủ"].map((x) => W(x, o.unit)).map((name, i) => ({
     name,
     c: o.st === "cancel" ? "oklch(0.88 0 0)" : i <= idx ? st.dot : "oklch(0.9 0.01 160)",
     fw: i === idx ? 800 : 600,
@@ -439,7 +707,7 @@ function Drawer({
     ? ([["Cọc 30%", Math.round((o.net * 0.3) / 10000) * 10000], ["Cọc 50%", Math.round((o.net * 0.5) / 10000) * 10000], ["Thu đủ " + K(rem), rem]] as [string, number][]).filter((x) => x[1] > 0 && x[1] <= rem)
     : [];
   const canCancel = o.st !== "cancel" && o.canCancel;
-  const drawerNext = o.st === "new" && o.canStatus ? "Xác nhận giữ phòng" : o.st === "cancel" && o.canCancel ? "Khôi phục đơn" : "";
+  const drawerNext = o.st === "new" && o.canStatus ? W("Xác nhận giữ phòng", o.unit) : o.st === "cancel" && o.canRestore ? "Khôi phục đơn" : "";
   const drawerComplete = o.st === "paid" && o.canStatus;
 
   return (
@@ -450,7 +718,7 @@ function Drawer({
           <div>
             <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
               <span style={{ fontSize: 18, fontWeight: 800, color: "oklch(0.35 0.08 160)" }}>{o.code}</span>
-              <Badge bg={st.bg} fg={st.fg}>{st.label}</Badge>
+              <Badge bg={st.bg} fg={st.fg}>{W(st.label, o.unit)}</Badge>
               <Badge bg={srcBg} fg={srcFg}>{o.src === "ctv" ? "Từ CTV" : "Khách đặt web"}</Badge>
               {o.combo && <Badge bg="oklch(0.95 0.04 300)" fg="oklch(0.45 0.13 300)">Combo</Badge>}
             </div>
@@ -499,26 +767,55 @@ function Drawer({
               <ItemRow tag="XE" ibg="oklch(0.95 0.03 250)" ifg="oklch(0.42 0.12 250)" title="Xe cabin (trong combo)" sub={o.busLabel} price={K(o.busPrice)} who="Nhà xe thu" op={0.6} />
             )}
             <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 10, borderTop: "1px dashed oklch(0.88 0.015 160)", fontSize: 14 }}>
-              <span>Phần tiền của bạn</span>
-              <b style={{ fontSize: 17 }}>{K(o.net)}</b>
+              <span style={{ color: "oklch(0.42 0.02 160)" }}>Tiền thu của khách</span>
+              <span style={{ textAlign: "right", flex: "none" }}>
+                {o.strike != null && o.strike > o.gross && <span style={{ fontSize: 13, fontWeight: 600, color: "oklch(0.62 0.01 160)", textDecoration: "line-through", marginRight: 8 }}>{K(o.strike)}</span>}
+                <b>{K(o.gross)}</b>
+              </span>
             </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14 }}>
+              <span style={{ color: "oklch(0.42 0.02 160)" }}>Tiền chiết khấu cho sàn</span>
+              <b style={{ color: "oklch(0.52 0.15 40)" }}>{o.discount > 0 ? "− " + K(o.discount) : K(0)}</b>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 10, borderTop: "2px solid oklch(0.3 0.03 160)", fontSize: 15, fontWeight: 800 }}>
+              <span>Tiền thực nhận</span>
+              <b style={{ fontSize: 20, color: "oklch(0.38 0.1 155)" }}>{K(o.net)}</b>
+            </div>
+            {o.st === "cancel" && o.cancelReason && (
+              <div style={{ fontSize: 13, fontWeight: 600, padding: "8px 10px", borderRadius: 10, background: "oklch(0.96 0.03 28)", color: "oklch(0.45 0.15 28)" }}>Lý do huỷ: {o.cancelReason}</div>
+            )}
           </div>
           {/* sàn thanh toán cho chủ dịch vụ */}
           {o.st !== "cancel" && (
             <div style={{ padding: "14px 16px", borderRadius: 16, background: "white", border: "1px solid oklch(0.92 0.01 160)", display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: ".04em", textTransform: "uppercase", color: "oklch(0.5 0.02 160)" }}>Tà Xùa Booking thanh toán cho bạn</div>
-                <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: "nowrap", color: o.payoutOwed > 0 ? "oklch(0.55 0.15 50)" : o.payoutReceived > 0 ? "oklch(0.4 0.1 155)" : "oklch(0.5 0.02 160)" }}>
-                  {o.payoutOwed > 0 ? "Còn thiếu " + K(o.payoutOwed) : o.payoutReceived > 0 ? "Đã nhận đủ" : "Chưa đến kỳ"}
+                <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: ".04em", textTransform: "uppercase", color: "oklch(0.5 0.02 160)" }}>Đối soát với Tà Xùa Booking</div>
+                <span style={{ fontSize: 13, fontWeight: 800, whiteSpace: "nowrap", color: (o.providerOwes ?? 0) > 0 || o.payoutOwed > 0 ? "oklch(0.55 0.15 50)" : o.payoutReceived > 0 ? "oklch(0.4 0.1 155)" : "oklch(0.5 0.02 160)" }}>
+                  {(o.providerOwes ?? 0) > 0 ? "Bạn chuyển lại sàn " + K(o.providerOwes ?? 0) : o.payoutOwed > 0 ? "Sàn còn chuyển " + K(o.payoutOwed) : o.payoutReceived > 0 ? "Đã nhận đủ" : "Chưa đến kỳ"}
                 </span>
               </div>
-              {([["Phần của bạn trong đơn", K(o.payoutDue)], ["Đã nhận", K(o.payoutReceived)], ["Còn thiếu", K(o.payoutOwed)]] as const).map(([k, v]) => (
+              <div style={{ fontSize: 12, fontWeight: 700, padding: "7px 10px", borderRadius: 10, background: o.selfCollect ? "oklch(0.96 0.04 80)" : "oklch(0.96 0.02 250)", color: o.selfCollect ? "oklch(0.45 0.12 60)" : "oklch(0.42 0.1 250)" }}>
+                {o.selfCollect ? "Đơn này BẠN thu tiền của khách — sau đó chuyển lại Tà Xùa Booking phần chiết khấu." : "Đơn này TÀ XÙA BOOKING thu tiền của khách — sàn chuyển cho bạn phần thực nhận."}
+              </div>
+              {([
+                ["Phần của bạn trong đơn", K(o.payoutDue)],
+                ...((o.extra ?? 0) > 0 ? ([["Trong đó bạn thu thêm của khách", K(o.extra ?? 0)]] as [string, string][]) : []),
+                ...(o.selfCollect
+                  ? ([["Chiết khấu bạn chuyển lại sàn", K(o.providerOwes ?? 0)]] as [string, string][])
+                  : ([["Sàn đã chuyển", K(o.payoutReceived)], [(o.providerOwes ?? 0) > 0 ? "Bạn chuyển lại sàn" : "Sàn còn chuyển", K((o.providerOwes ?? 0) > 0 ? (o.providerOwes ?? 0) : o.payoutOwed)]] as [string, string][])),
+              ] as [string, string][]).map(([k, v]) => (
                 <div key={k} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
                   <span style={{ color: "oklch(0.5 0.02 160)" }}>{k}</span>
                   <b>{v}</b>
                 </div>
               ))}
-              <div style={{ fontSize: 11, color: "oklch(0.5 0.02 160)" }}>Số “đã nhận” do sàn ghi nhận khi chuyển tiền cho bạn; “còn thiếu” tính khi đơn đã xác nhận / hoàn thành.</div>
+              {o.canExtra && (
+                <div style={{ paddingTop: 8, borderTop: "1px dashed oklch(0.9 0.01 160)", display: "flex", flexDirection: "column", gap: 6 }}>
+                  <ProviderExtraForm key={`${o.id}-${o.extra ?? 0}`} id={o.id} extra={o.extra ?? 0} onDone={() => router.refresh()} />
+                  <div style={{ fontSize: 11, color: "oklch(0.5 0.02 160)" }}>Khách trả thêm cho bạn ngoài đơn (vd trả xe quá giờ) thì nhập tại đây để đối soát. Khoản này được cộng vào giá đơn và tính chiết khấu cùng mức với đơn. Nhập 0 để xoá.</div>
+                </div>
+              )}
+              <div style={{ fontSize: 11, color: "oklch(0.5 0.02 160)" }}>Số “sàn đã chuyển” do sàn ghi nhận khi chuyển tiền cho bạn; các số đối soát tính khi đơn đã xác nhận / hoàn thành.</div>
             </div>
           )}
           {/* thanh toán */}
@@ -579,10 +876,10 @@ function Drawer({
         {(canCancel || drawerNext || drawerComplete) && (
           <div style={{ padding: "12px 20px", background: "white", borderTop: "1px solid oklch(0.93 0.01 160)", display: "flex", gap: 8 }}>
             {canCancel && (
-              <div onClick={() => { if (confirm("Huỷ đơn " + o.code + "?")) run(advanceBookingStatus, { id: o.id, status: "CANCELLED" }, "Đã huỷ " + o.code); }} style={{ cursor: "pointer", fontSize: 14, fontWeight: 800, padding: "12px 16px", borderRadius: 12, color: "oklch(0.5 0.18 28)", border: "1.5px solid oklch(0.9 0.04 28)", whiteSpace: "nowrap" }}>Huỷ đơn</div>
+              <div onClick={() => askCancel(o)} style={{ cursor: "pointer", fontSize: 14, fontWeight: 800, padding: "12px 16px", borderRadius: 12, color: "oklch(0.5 0.18 28)", border: "1.5px solid oklch(0.9 0.04 28)", whiteSpace: "nowrap" }}>Huỷ đơn</div>
             )}
             {drawerNext && (
-              <div onClick={() => run(advanceBookingStatus, { id: o.id, status: o.st === "new" ? "CONFIRMED" : "NEW" }, o.st === "new" ? "Đã xác nhận giữ phòng" : "Đã khôi phục đơn")} style={{ cursor: "pointer", flex: 1, textAlign: "center", fontSize: 15, fontWeight: 800, padding: "12px 16px", borderRadius: 12, background: o.st === "new" ? "oklch(0.68 0.18 45)" : G, color: "white" }}>{drawerNext}</div>
+              <div onClick={() => run(advanceBookingStatus, { id: o.id, status: o.st === "new" ? "CONFIRMED" : "NEW" }, o.st === "new" ? W("Đã xác nhận giữ phòng", o.unit) : "Đã khôi phục đơn")} style={{ cursor: "pointer", flex: 1, textAlign: "center", fontSize: 15, fontWeight: 800, padding: "12px 16px", borderRadius: 12, background: o.st === "new" ? "oklch(0.68 0.18 45)" : G, color: "white" }}>{drawerNext}</div>
             )}
             {drawerComplete && (
               <div onClick={() => run(advanceBookingStatus, { id: o.id, status: "COMPLETED" }, "Đã hoàn thành " + o.code)} style={{ cursor: "pointer", flex: 1, textAlign: "center", fontSize: 15, fontWeight: 800, padding: "12px 16px", borderRadius: 12, background: "oklch(0.45 0.1 155)", color: "white" }}>Hoàn thành đơn</div>

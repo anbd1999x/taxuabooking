@@ -15,7 +15,7 @@ import { canRoleAct, type BookingRole } from "@/lib/booking-flow";
 import { enumerateNights, isValidDateKey, parseDateOnly, toDateKey } from "@/lib/dates";
 import { parseSurcharges, type BookingSurcharge } from "@/lib/surcharges";
 import { AUTO_CANCEL_HOURS_KEY, MAX_AUTO_CANCEL_HOURS } from "@/lib/auto-cancel-config";
-import { supplierPayouts } from "@/lib/supplier-payout";
+import { supplierPayouts, collectorOf, PROVIDER_EXTRA_ID, PROVIDER_EXTRA_LABEL } from "@/lib/supplier-payout";
 import { bookingMessagesById, type BookingMessages } from "@/lib/booking-messages";
 import { sendConfirmEmailIfDue } from "@/lib/booking-email";
 import { resolveBusCommissions, resolveRoomCommissions } from "@/lib/provider-commission";
@@ -140,7 +140,7 @@ async function advanceTx(id: string, role: BookingRole, newStatus: BookingStatus
     if (booking.status === newStatus) return;
     // Gate theo vai trò: chủ dịch vụ không xác nhận/hủy; chỉ hoàn thành đơn đã thu đủ.
     // (Trước đây trả về im lặng ⇒ giao diện báo thành công dù không đổi gì.)
-    if (!canRoleAct(role, booking.status, booking.paymentStatus, "status", newStatus)) {
+    if (!canRoleAct(role, booking.status, booking.paymentStatus, "status", newStatus, booking.category === "COMBO")) {
       throw new Error("Bạn không có quyền chuyển đơn sang trạng thái này.");
     }
     const shouldHold = statusHoldsInventory(newStatus);
@@ -250,7 +250,7 @@ export async function bulkUpdateBookingStatus(
         const booking = await tx.bookingRequest.findUnique({ where: { id } });
         if (!booking || booking.status === status) return;
         // Chủ dịch vụ: chỉ được hoàn thành đơn đã thu đủ (không xác nhận/hủy hàng loạt).
-        if (!canRoleAct(role, booking.status, booking.paymentStatus, "status", status)) return;
+        if (!canRoleAct(role, booking.status, booking.paymentStatus, "status", status, booking.category === "COMBO")) return;
 
         const shouldHold = statusHoldsInventory(status);
         let inventoryApplied = booking.inventoryApplied;
@@ -335,7 +335,7 @@ export async function saveBookingStage(
       const booking = await tx.bookingRequest.findUnique({ where: { id } });
       if (!booking) throw new Error("Không tìm thấy yêu cầu.");
       if (booking.status === status && status !== "CANCELLED") return;
-      if (!canRoleAct(role, booking.status, booking.paymentStatus, "status", status)) {
+      if (!canRoleAct(role, booking.status, booking.paymentStatus, "status", status, booking.category === "COMBO")) {
         throw new Error("Chủ dịch vụ không có quyền chuyển sang trạng thái này.");
       }
 
@@ -405,10 +405,12 @@ export async function recordBookingPayment(
 
   const b = await prisma.bookingRequest.findUnique({
     where: { id },
-    select: { referencePrice: true, amountCollected: true, status: true, paymentStatus: true, updatedAt: true },
+    select: { referencePrice: true, amountCollected: true, status: true, paymentStatus: true, updatedAt: true, collector: true, category: true },
   });
   if (!b) return { error: "Không tìm thấy yêu cầu." };
-  if (!canRoleAct(role, b.status, b.paymentStatus, "pay")) {
+  // Đơn admin giao CHỦ DỊCH VỤ THU: chủ dịch vụ được ghi nhận thu ngay khi đơn đã xác nhận (không cần sàn cọc trước).
+  const selfCollect = role === "PROVIDER" && collectorOf(b) === "PROVIDER" && b.status === "CONFIRMED";
+  if (!selfCollect && !canRoleAct(role, b.status, b.paymentStatus, "pay")) {
     return { error: "Chủ dịch vụ chỉ ghi nhận thu tiền sau khi đơn đã xác nhận & có cọc." };
   }
   const price = toNumber(b.referencePrice);
@@ -1014,4 +1016,70 @@ export async function saveAutoCancelHours(
 export async function getBookingMessages(id: string): Promise<BookingMessages | null> {
   await requireAdmin();
   return bookingMessagesById(id);
+}
+
+/**
+ * Chọn AI THU TIỀN KHÁCH của một đơn: "PLATFORM" (sàn thu) | "PROVIDER" (chủ dịch vụ thu). Chỉ ADMIN,
+ * không áp cho đơn combo (combo do sàn điều phối & thu).
+ */
+export async function setBookingCollector(_prev: BookingActionState, formData: FormData): Promise<BookingActionState> {
+  await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  const collector = formData.get("collector") === "PROVIDER" ? "PROVIDER" : "PLATFORM";
+  const b = await prisma.bookingRequest.findUnique({ where: { id }, select: { category: true, collector: true } });
+  if (!b) return { error: "Không tìm thấy yêu cầu." };
+  if (b.category === "COMBO") return { error: "Đơn combo do sàn thu — không đổi được." };
+  if (b.collector === collector) return { ok: true, message: "Không có thay đổi." };
+  await prisma.bookingRequest.update({ where: { id }, data: { collector } });
+  await log(prisma, id, "PAYMENT", "Đổi bên thu tiền khách", collector === "PROVIDER" ? "Chủ dịch vụ thu của khách, chuyển lại sàn phần chiết khấu" : "Sàn thu của khách, chuyển chủ dịch vụ phần thực nhận", await sessionName());
+  revalidateDetail(id);
+  return { ok: true, message: collector === "PROVIDER" ? "Đã đặt: chủ dịch vụ thu tiền khách" : "Đã đặt: sàn thu tiền khách" };
+}
+
+/**
+ * CHỦ DỊCH VỤ (hoặc admin) nhập TIỀN THU THÊM của khách ở một đơn (vd khách trả xe quá giờ). Lưu thành một
+ * khoản phụ thu cố định (id PROVIDER_EXTRA_ID): cộng vào giá đơn và vào số đã thu (chủ dịch vụ đã cầm tiền),
+ * chịu chiết khấu cùng tỉ lệ với đơn. Nhập 0 = xoá. Chỉ đơn đã xác nhận / hoàn thành, không phải combo.
+ */
+export async function saveProviderExtra(_prev: BookingActionState, formData: FormData): Promise<BookingActionState> {
+  const id = String(formData.get("id") ?? "");
+  const amount = money(formData.get("amount")) ?? 0;
+  if (!id) return { error: "Thiếu mã đơn." };
+  const role = await canManage(id);
+  if (!role) return { error: "Không có quyền thao tác đơn này." };
+  if (amount > 50_000_000) return { error: "Số tiền quá lớn." };
+  const b = await prisma.bookingRequest.findUnique({
+    where: { id },
+    select: { category: true, status: true, referencePrice: true, amountCollected: true, paymentStatus: true, surcharges: true, updatedAt: true },
+  });
+  if (!b) return { error: "Không tìm thấy yêu cầu." };
+  if (b.category === "COMBO") return { error: "Đơn combo do sàn điều phối — không nhập thu thêm ở đây." };
+  if (b.status !== "CONFIRMED" && b.status !== "COMPLETED") return { error: "Chỉ nhập thu thêm khi đơn đã xác nhận." };
+
+  const list = parseSurcharges(b.surcharges);
+  const old = list.find((s) => s.id === PROVIDER_EXTRA_ID)?.amount ?? 0;
+  const delta = amount - old;
+  if (delta === 0) return { ok: true, message: "Không có thay đổi." };
+  const next: BookingSurcharge[] = [
+    ...list.filter((s) => s.id !== PROVIDER_EXTRA_ID),
+    ...(amount > 0 ? [{ id: PROVIDER_EXTRA_ID, label: PROVIDER_EXTRA_LABEL, amount }] : []),
+  ];
+  const price = Math.max(0, (toNumber(b.referencePrice) ?? 0) + delta);
+  const collected = Math.max(0, (toNumber(b.amountCollected) ?? 0) + delta); // chủ dịch vụ đã cầm khoản này
+  const full = price > 0 && collected >= price;
+  const r = await prisma.bookingRequest.updateMany({
+    where: { id, updatedAt: b.updatedAt },
+    data: {
+      surcharges: next as unknown as Prisma.InputJsonValue,
+      referencePrice: price,
+      amountCollected: collected,
+      paymentStatus: collected <= 0 ? "UNPAID" : full ? "PAID" : "DEPOSITED",
+      paidAt: full ? new Date() : null,
+    },
+  });
+  if (r.count === 0) return { error: "Đơn vừa được cập nhật ở nơi khác — tải lại trang rồi thử lại." };
+  await log(prisma, id, "PAYMENT", "Chủ dịch vụ thu thêm của khách", amount > 0 ? `${formatPrice(amount)}${old > 0 ? ` (trước đó ${formatPrice(old)})` : ""}` : `Xoá khoản thu thêm ${formatPrice(old)}`, await sessionName());
+  revalidateDetail(id);
+  for (const p of REVALIDATE) revalidatePath(p);
+  return { ok: true, message: amount > 0 ? `Đã ghi thu thêm ${formatPrice(amount)}` : "Đã xoá khoản thu thêm" };
 }

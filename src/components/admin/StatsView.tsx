@@ -35,7 +35,8 @@ export function StatsView({
         <Stat
           label={t.discount > 0 ? "Thực nhận (sau chiết khấu)" : "Doanh thu (đã chốt)"}
           value={formatPrice(t.revenue)}
-          sub={t.discount > 0 ? `đã trừ chiết khấu ${formatPrice(t.discount)}` : undefined}
+          strike={t.discount > 0 && t.listTotal > t.revenue ? formatPrice(t.listTotal) : undefined}
+          sub={t.discount > 0 ? `giá bán ${formatPrice(t.revenue + t.discount)} − chiết khấu ${formatPrice(t.discount)}` : undefined}
         />
         <Stat label="Đã thu" value={formatPrice(t.collected)} tone="ok" />
         <Stat label="Còn thiếu" value={formatPrice(t.outstanding)} tone="warn" sub={`${t.awaiting} đơn chờ TT`} />
@@ -159,9 +160,11 @@ function ServicePayTable({ rows }: { rows: ServicePayRow[] }) {
   );
 }
 
-function Stat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: "ok" | "warn" }) {
+/** `strike` = tiền gốc (trước chiết khấu), hiện gạch ngang phía trên số chính. */
+function Stat({ label, value, sub, tone, strike }: { label: string; value: string; sub?: string; tone?: "ok" | "warn"; strike?: string }) {
   return (
     <div className={`rounded-2xl p-4 shadow-sm ring-1 ${tone === "ok" ? "bg-forest-50 ring-forest-200" : tone === "warn" ? "bg-amber-50 ring-amber-200" : "bg-white ring-black/5"}`}>
+      {strike && <p className="text-sm font-semibold leading-none text-gray-400 line-through">{strike}</p>}
       <p className="text-xl font-extrabold text-ink">{value}</p>
       <p className="mt-1 text-xs text-gray-500">{label}</p>
       {sub && <p className="mt-0.5 text-[11px] text-gray-400">{sub}</p>}

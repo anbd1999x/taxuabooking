@@ -30,6 +30,7 @@ const emailField = z.preprocess(
   (v) => (typeof v === "string" && v.trim() === "" ? null : v),
   z.string().trim().toLowerCase().max(160).email("Email không hợp lệ.").optional().nullable(),
 );
+const timeRegex = /^([01]\d|2[0-3]):[0-5]\d$/;
 const dateKeyRegex = /^\d{4}-\d{2}-\d{2}$/;
 /** yyyy-mm-dd phải là NGÀY CÓ THẬT (regex không chặn 2026-02-31 → Date tự tràn sang 03/03, đơn lưu sai ngày). */
 const realDate = (v: string) => isValidDateKey(v);
@@ -50,6 +51,11 @@ export const bookingInputSchema = z
     roomIds: z.array(z.string().min(1)).max(20).optional().nullable(),
     cabinTripId: z.string().optional().nullable(),
     rentalVehicleId: z.string().optional().nullable(),
+    // Thuê xe máy: giờ nhận / giờ trả ("HH:mm"). Có đủ cả hai ⇒ tính tiền theo số ngày quy đổi (rental-days.ts).
+    pickupTime: z.string().regex(timeRegex, "Giờ nhận xe không hợp lệ.").optional().nullable(),
+    returnTime: z.string().regex(timeRegex, "Giờ trả xe không hợp lệ.").optional().nullable(),
+    // Thuê xe máy: màu xe khách chọn (phải thuộc danh sách màu admin cấu hình cho loại xe đó).
+    rentalColor: z.string().trim().max(30).optional().nullable(),
     customerName: z
       .string()
       .trim()
@@ -116,6 +122,9 @@ export const comboBookingSchema = z
     motorbikes: z.coerce.number().int().min(0).max(30).default(0),
     // Loại xe máy thuê kèm (wave | pg1); client cũ không gửi ⇒ Honda Wave.
     motorbikeType: z.enum(COMBO_BIKE_KEYS).optional().nullable(),
+    // Giờ nhận / giờ trả xe máy ("HH:mm") — để quy đổi số ngày thuê; trống ⇒ tính theo số đêm.
+    motorbikePickup: z.string().regex(timeRegex).optional().nullable(),
+    motorbikeReturn: z.string().regex(timeRegex).optional().nullable(),
     customerName: z.string().trim().min(2, "Vui lòng nhập họ tên.").max(120),
     phone: phoneField,
     email: emailField,
@@ -185,7 +194,9 @@ export const availabilityBulkSchema = z.object({
 export type AvailabilityBulkInput = z.infer<typeof availabilityBulkSchema>;
 
 export const loginSchema = z.object({
-  username: z.string().trim().min(1, "Nhập tên đăng nhập."),
+  // Tên đăng nhập luôn LƯU chữ thường (xem admin/accounts/actions.ts) ⇒ khi đăng nhập cũng đổi về chữ thường,
+  // để gõ "G-Bike" vẫn vào được tài khoản "g-bike".
+  username: z.string().trim().toLowerCase().min(1, "Nhập tên đăng nhập."),
   password: z.string().min(1, "Nhập mật khẩu."),
 });
 

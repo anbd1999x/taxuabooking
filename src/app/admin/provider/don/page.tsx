@@ -9,6 +9,7 @@ import { supplierPayouts } from "@/lib/supplier-payout";
 import { providerUnlocked } from "@/lib/booking-flow";
 import { ProviderOrders, type ProviderOrderVM, type POStatus } from "@/components/admin/ProviderOrders";
 import { durationLabel, bookingCountLabel } from "@/lib/occupancy";
+import { rentalOriginalTotal } from "@/lib/rental-days";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,10 @@ function mapStatus(status: string, pay: string): POStatus {
   return "new";
 }
 
-export default async function ProviderOrdersPage() {
+export default async function ProviderOrdersPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  // ?open=<id đơn>: mở sẵn chi tiết đơn (bấm từ "Đơn gần đây" ở trang tổng quan).
+  const sp = await searchParams;
+  const openId = typeof sp.open === "string" ? sp.open : null;
   const session = await getSession();
   const sub = session!.sub;
   const isAdmin = session!.role === "ADMIN";
@@ -44,7 +48,7 @@ export default async function ProviderOrdersPage() {
         : { service: { ownerId: sub } },
       orderBy: { createdAt: "desc" },
       take: 300,
-      include: { service: { select: { title: true, ownerId: true } }, ctv: { select: { name: true } } },
+      include: { service: { select: { title: true, ownerId: true, originalPrice: true } }, ctv: { select: { name: true } } },
     }),
     prisma.service.findMany({ where: { ownerId: sub }, select: { title: true } }),
   ]);
@@ -62,8 +66,11 @@ export default async function ProviderOrdersPage() {
     const ci = b.useDate;
     const co = b.endDate;
     const c = cal(ci);
+    // (1) Thuê xe có giờ nhận/trả ⇒ hiện kèm giờ: "06:00 22/11/2026 → 12:00 24/11/2026".
+    const tIn = b.pickupTime ? `${b.pickupTime} ` : "";
+    const tOut = b.returnTime ? `${b.returnTime} ` : "";
     const stay =
-      (co ? `${dmy(ci)} → ${dmy(co)}` : dmy(ci)) +
+      (co ? `${tIn}${dmy(ci)} → ${tOut}${dmy(co)}` : `${tIn}${dmy(ci)}${tOut ? ` → ${tOut.trim()} cùng ngày` : ""}`) +
       (durationLabel(b) ? ` · ${durationLabel(b)}` : "") +
       ` · ${bookingCountLabel(b)}`;
 
@@ -91,8 +98,9 @@ export default async function ProviderOrdersPage() {
       const info = infoMap.get(b.id);
       gross = isCombo ? toNumber(b.roomAmount) ?? 0 : toNumber(b.referencePrice) ?? 0;
       // Đơn vé cabin: trừ chiết khấu NHÀ XE; còn lại (homestay/combo phía home): chiết khấu từng căn.
-      discount = b.category === "CABIN" ? busDiscMap.get(b.id) ?? 0 : info?.discount ?? 0;
-      mainTag = "PH";
+      // Xe máy & dịch vụ khác không có phòng: chiết khấu lấy từ roomDiscMap (snapshot / tính bù theo mức đ/xe/ngày).
+      discount = b.category === "CABIN" ? busDiscMap.get(b.id) ?? 0 : info?.discount ?? roomDiscMap.get(b.id) ?? 0;
+      mainTag = b.category === "MOTORBIKE" || b.category === "CABIN" || b.category === "TAXI" || b.category === "XEOM" ? "XE" : "PH"; // biểu tượng dòng dịch vụ
       // Tên phòng thực (vd "Phòng đôi (P201) + Phòng đôi (P202)"); fallback nhãn lựa chọn / tên dịch vụ.
       room = info?.label || b.selectionLabel || b.service?.title || b.serviceTitle;
       moneyLabel = isCombo ? "Tiền phòng của bạn" : "Tiền của bạn";
@@ -101,7 +109,8 @@ export default async function ProviderOrdersPage() {
       // Khi đó: thu nốt (không combo — sàn thu combo) → hoàn thành. Huỷ: chỉ sàn.
       canStatus = isAdmin ? true : unlocked;
       canPay = !isCombo && (isAdmin ? true : unlocked);
-      canCancel = isAdmin;
+      // Chủ dịch vụ được huỷ đơn của mình (kèm lý do) khi chưa hoàn thành; combo thì chỉ sàn huỷ.
+      canCancel = isAdmin || (!isCombo && b.status !== "COMPLETED" && b.status !== "CANCELLED");
       busLabel = isCombo ? b.selectionLabel ?? "Xe cabin trong combo" : "";
       busPrice = isCombo ? toNumber(b.busAmount) ?? 0 : 0;
       const net0 = Math.max(0, gross - discount);
@@ -112,18 +121,23 @@ export default async function ProviderOrdersPage() {
     // Sàn thanh toán cho bên mình: cùng công thức với trang chi tiết đơn của admin.
     const mySide = (isCombo ? !homeSide : b.category === "CABIN") ? "bus" : "room";
     const po = supplierPayouts(b, roomDiscMap.get(b.id) ?? 0, busDiscMap.get(b.id) ?? 0).find((s) => s.side === mySide);
-    // Admin đã sửa tay số phải trả ⇒ tiền thực nhận hiển thị theo đúng số đó.
-    if (po?.overridden) {
+    // Chiết khấu hiệu lực lấy theo đúng công thức đối soát (gồm chiết khấu phần chủ dịch vụ thu thêm;
+    // admin sửa tay số phải trả ⇒ theo số đó).
+    if (po) {
       discount = po.discount;
       collected = Math.min(collected, po.payable);
     }
+    // Chủ dịch vụ tự thu tiền khách ở đơn này ⇒ được ghi nhận thu ngay khi đơn đã xác nhận.
+    const selfCollect = !isCombo && po?.collector === "PROVIDER";
+    if (selfCollect && b.status === "CONFIRMED") canPay = true;
     const net = Math.max(0, gross - discount);
     const chot = b.status === "CONFIRMED" || b.status === "COMPLETED";
 
-    // Chủ dịch vụ chỉ thấy SĐT khách sau khi đơn Đã cọc / Đã thanh toán đủ / Hoàn thành.
+    // Chủ dịch vụ thấy SĐT khách ngay khi SÀN đã XÁC NHẬN đơn (kể cả chưa cọc) — và các bước sau đó
+    // (đã cọc / thanh toán đủ / hoàn thành). Đơn mới chưa xác nhận hoặc đã huỷ thì ẩn.
     // Admin (sàn) luôn thấy. Ẩn ngay từ server để không lộ SĐT xuống client.
     const st = mapStatus(b.status, b.paymentStatus);
-    const phoneLocked = !isAdmin && !(st === "dep" || st === "paid" || st === "done");
+    const phoneLocked = !isAdmin && !(b.status === "CONFIRMED" || b.status === "COMPLETED");
 
     return {
       id: b.id,
@@ -136,6 +150,8 @@ export default async function ProviderOrdersPage() {
       canStatus,
       canPay,
       canCancel,
+      canRestore: isAdmin, // khôi phục đơn đã huỷ: chỉ sàn
+      cancelReason: b.status === "CANCELLED" ? b.cancelReason ?? "" : "",
       name: b.customerName,
       phone: phoneLocked ? "" : b.phone,
       phoneLocked,
@@ -145,8 +161,12 @@ export default async function ProviderOrdersPage() {
       calDow: c.dow,
       room,
       stay,
+      // Đơn vị giữ chỗ để ghi chữ đúng: thuê xe máy = "xe", vé cabin / phía nhà xe = "chỗ", còn lại = "phòng".
+      unit: b.category === "MOTORBIKE" ? "xe" : mainTag === "XE" || b.category === "CABIN" || b.category === "TAXI" || b.category === "XEOM" ? "chỗ" : "phòng",
       gross,
       discount,
+      // Số gạch ngang: giá gốc cấu hình ở admin (xe máy) — không có thì giá bán khi đơn có chiết khấu.
+      strike: rentalOriginalTotal(b, b.service?.originalPrice) ?? (discount > 0 ? gross : null),
       net,
       collected,
       moneyLabel,
@@ -162,6 +182,11 @@ export default async function ProviderOrdersPage() {
       payoutDue: po?.payable ?? 0,
       payoutReceived: po?.paid ?? 0,
       payoutOwed: chot ? (po?.remaining ?? 0) : 0,
+      // Ai thu tiền khách + tiền chủ dịch vụ thu thêm + số chủ dịch vụ phải chuyển lại sàn.
+      selfCollect,
+      extra: po?.extra ?? 0,
+      providerOwes: chot ? (po?.providerOwes ?? 0) : 0,
+      canExtra: !isCombo && chot && mySide === (b.category === "CABIN" ? "bus" : "room"),
     };
   });
 
@@ -169,5 +194,5 @@ export default async function ProviderOrdersPage() {
   const now = new Date();
   const todayText = `Hôm nay ${vnDateTime(now).split(" ")[1]}`;
 
-  return <ProviderOrders orders={orders} scopeLabel={scopeLabel} todayText={todayText} todayKey={toDateKey(today())} />;
+  return <ProviderOrders orders={orders} scopeLabel={scopeLabel} todayText={todayText} todayKey={toDateKey(today())} initialOpenId={openId && orders.some((o) => o.id === openId) ? openId : null} />;
 }

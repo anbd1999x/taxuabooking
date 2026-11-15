@@ -1,3 +1,4 @@
+import { isRentalTime, rentalChargeDaysBySpan } from "./rental-days";
 /**
  * Tính tiền xe cabin trong COMBO — thuần tuý (không import server) để dùng chung ở
  * server (combo.ts: tìm + đặt) lẫn client (ComboResults: giá thẻ + mặc định chỗ nằm),
@@ -69,14 +70,20 @@ export const COMBO_BIKE_KEYS = COMBO_MOTORBIKES.map((b) => b.key) as [ComboBikeK
 export function comboMotorbike(key?: string | null): (typeof COMBO_MOTORBIKES)[number] {
   return COMBO_MOTORBIKES.find((b) => b.key === key) ?? COMBO_MOTORBIKES[0];
 }
-/** Số ngày thuê xe máy trong combo = số đêm ở Tà Xùa (tối thiểu 1 ngày). */
-export function comboMotorbikeDays(nights: number): number {
-  return Math.max(1, Math.floor(nights) || 0);
+/**
+ * Số ngày thuê xe máy trong combo (nhận xe ngày check-in, trả ngày check-out — cách nhau `nights` ngày).
+ * Có giờ nhận + giờ trả ⇒ quy đổi theo mốc 24 giờ như thuê xe lẻ (1 / 1,5 / 2…, xem rental-days.ts);
+ * không có (đơn từ client cũ) ⇒ bằng số đêm. Tối thiểu 1 ngày.
+ */
+export function comboMotorbikeDays(nights: number, pickup?: string | null, ret?: string | null): number {
+  const n = Math.max(1, Math.floor(nights) || 0);
+  if (isRentalTime(pickup) && isRentalTime(ret)) return rentalChargeDaysBySpan(n, pickup, ret) ?? n;
+  return n;
 }
 /** Tiền thuê xe máy kèm combo = số xe × số ngày × giá/ngày của loại xe đã chọn. Dịch vụ TÍNH RIÊNG: không cộng vào
  *  bill combo, khách thanh toán khi giao xe (chỉ ghi chú trong đơn). */
-export function comboMotorbikeCost(bikes: number, nights: number, key?: string | null): number {
-  return Math.max(0, Math.floor(bikes) || 0) * comboMotorbikeDays(nights) * comboMotorbike(key).perDay;
+export function comboMotorbikeCost(bikes: number, nights: number, key?: string | null, pickup?: string | null, ret?: string | null): number {
+  return Math.round(Math.max(0, Math.floor(bikes) || 0) * comboMotorbikeDays(nights, pickup, ret) * comboMotorbike(key).perDay);
 }
 
 /**

@@ -3,6 +3,7 @@ import { prisma } from "./prisma";
 import { enumerateNights, addDays } from "./dates";
 import { roomCommissionForNights } from "./availability";
 import { toNumber } from "./format";
+import { bookingRentalDays } from "./rental-days";
 
 /**
  * Chiết khấu từng căn hiệu lực của mỗi đơn, trả map id → số tiền (đồng).
@@ -21,10 +22,16 @@ export async function resolveRoomCommissions(
     category: string;
     useDate: Date;
     endDate: Date | null;
+    // Thuê xe máy: để tính bù chiết khấu (đ/xe/ngày) cho đơn chưa có snapshot.
+    serviceId?: string | null;
+    quantity?: number;
+    nights?: number | null;
+    rentalDays?: unknown;
   }[],
 ): Promise<Map<string, number>> {
   const map = new Map<string, number>();
   const need: typeof bookings = [];
+  const moto: typeof bookings = [];
   const allRoomIds = new Set<string>();
 
   for (const b of bookings) {
@@ -41,7 +48,24 @@ export async function resolveRoomCommissions(
         continue;
       }
     }
+    if (b.category === "MOTORBIKE" && b.serviceId) {
+      moto.push(b);
+      continue;
+    }
     map.set(b.id, 0);
+  }
+
+  // Xe máy (đơn chưa có snapshot): mức HIỆN TẠI của cửa hàng × số xe × số ngày tính tiền.
+  if (moto.length) {
+    const svcs = await prisma.service.findMany({
+      where: { id: { in: [...new Set(moto.map((b) => b.serviceId!))] } },
+      select: { id: true, roomCommission: true },
+    });
+    const rate = new Map(svcs.map((x) => [x.id, toNumber(x.roomCommission) ?? 0]));
+    for (const b of moto) {
+      const days = bookingRentalDays({ rentalDays: b.rentalDays, nights: b.nights ?? null });
+      map.set(b.id, Math.round((rate.get(b.serviceId!) ?? 0) * (b.quantity ?? 1) * days));
+    }
   }
 
   if (allRoomIds.size) {

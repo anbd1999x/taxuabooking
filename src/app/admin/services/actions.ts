@@ -1118,6 +1118,15 @@ export async function upsertVehicle(_prev: ActionState, formData: FormData): Pro
     totalUnits: num(formData.get("totalUnits")) ?? 1,
     deliveryFee: num(formData.get("deliveryFee")) ?? null,
     imageUrl: s(formData.get("imageUrl")) ?? null,
+    // Màu xe: nhập cách nhau bằng dấu phẩy (hoặc xuống dòng / chấm phẩy); bỏ trùng, tối đa 12 màu.
+    colors: [
+      ...new Set(
+        String(formData.get("colors") ?? "")
+          .split(/[,;\n]/)
+          .map((c) => c.trim().slice(0, 30))
+          .filter(Boolean),
+      ),
+    ].slice(0, 12),
   };
   try {
     if (id) await prisma.rentalVehicle.update({ where: { id }, data });

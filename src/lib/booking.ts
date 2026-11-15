@@ -1,3 +1,4 @@
+import { isRentalTime, rentalChargeDays, rentalDaysLabel } from "./rental-days";
 import "server-only";
 import { ensureServiceSheetFresh } from "./sheet-sync";
 import type { ServiceCategory } from "@prisma/client";
@@ -35,6 +36,7 @@ export interface StayOption {
   availableUnits: number;
   pricePerUnit: number | null; // tổng giá 1 phòng/xe cho cả kỳ
   count: number; // số đêm/ngày
+  colors?: string[]; // thuê xe máy: các màu có sẵn để khách chọn
   commission?: number; // tổng chiết khấu CTV cho phòng này cả kỳ (homestay)
 }
 
@@ -73,6 +75,8 @@ export async function computeAvailability(
   fromKey: string,
   toKey: string | null,
   requested: number,
+  /** Thuê xe máy: giờ nhận / giờ trả — có đủ cả hai thì tính tiền theo số ngày quy đổi. */
+  times?: { pickup?: string | null; ret?: string | null },
 ): Promise<ComputedAvailability | null> {
   const service = await prisma.service.findFirst({
     where: { id: serviceId, published: true },
@@ -170,9 +174,25 @@ export async function computeAvailability(
         priceOverride: toNumber(a.priceOverride),
       });
     }
+    // Có giờ nhận + giờ trả ⇒ số ngày TÍNH TIỀN quy đổi theo mốc 24 giờ (1 / 1,5 / 2…); không có ⇒ đếm ngày lịch như cũ.
+    const timed = isRentalTime(times?.pickup) && isRentalTime(times?.ret);
+    const charge = timed ? rentalChargeDays(fromKey, toKey, times!.pickup, times!.ret) : null;
+    if (timed && charge == null) throw new Error("Giờ trả xe phải sau giờ nhận xe.");
     const stayOptions: StayOption[] = vehicles.map((v) => {
       const records = byV.get(v.id) ?? new Map();
       const price = toNumber(v.pricePerDay)!;
+      const dayPrice = (d: Date) => {
+        const o = records.get(toDateKey(d))?.priceOverride;
+        return o != null && o > 0 ? o : price;
+      };
+      // Giá theo số ngày quy đổi: lấy giá từng ngày lịch theo thứ tự; nửa ngày cuối = 50% giá ngày kế tiếp.
+      const timedPrice = (n: number) => {
+        const whole = Math.floor(n);
+        let sum = 0;
+        for (let i = 0; i < whole; i++) sum += dayPrice(days[Math.min(i, days.length - 1)]);
+        if (n > whole) sum += 0.5 * dayPrice(days[Math.min(whole, days.length - 1)]);
+        return Math.round(sum);
+      };
       const r = aggregateStay({
         days,
         requestedUnits: qty,
@@ -189,14 +209,14 @@ export async function computeAvailability(
         // Xe máy luôn có giá/ngày niêm yết: ngày chưa nhập lịch vẫn tính được tiền thuê
         // (tình trạng thì vẫn "chờ xác nhận") — trước đây đơn bị để trống giá.
         pricePerUnit:
-          r.totalPricePerUnit ??
-          (price > 0
-            ? days.reduce((sum, d) => {
-                const o = records.get(toDateKey(d))?.priceOverride;
-                return sum + (o != null && o > 0 ? o : price);
-              }, 0)
-            : null),
-        count: r.count,
+          charge != null
+            ? price > 0 ? timedPrice(charge) : null
+            : r.totalPricePerUnit ??
+              (price > 0
+                ? days.reduce((sum, d) => sum + dayPrice(d), 0)
+                : null),
+        count: charge ?? r.count,
+        colors: v.colors,
       };
     });
     return { kind: "rental", nights: days.length, stayOptions };
@@ -301,7 +321,10 @@ export async function createBooking(
     input.useDate,
     input.endDate ?? null,
     qty,
+    { pickup: input.pickupTime, ret: input.returnTime },
   );
+  // Thuê xe máy có giờ nhận/trả: lưu số ngày tính tiền quy đổi + giờ đã chọn.
+  let rentalDays: number | null = null;
 
   // Chặn đặt cuối tuần lẻ nếu homestay có chính sách bán theo cụm.
   if (computed?.policyNote) throw new Error(computed.policyNote);
@@ -366,8 +389,16 @@ export async function createBooking(
     if (!opt && computed.stayOptions.length > 0) throw new Error("Loại xe đã chọn không hợp lệ — vui lòng chọn lại.");
     if (opt) {
       rentalVehicleId = opt.id;
-      selectionLabel = opt.name;
-      nights = opt.count;
+      const timed = isRentalTime(input.pickupTime) && isRentalTime(input.returnTime);
+      // Màu chỉ nhận khi thuộc danh sách màu của loại xe (không tin chuỗi tự do từ client).
+      const color = input.rentalColor && opt.colors?.includes(input.rentalColor) ? input.rentalColor : null;
+      if (input.rentalColor && !color) throw new Error("Màu xe đã chọn không còn trong danh sách — vui lòng chọn lại.");
+      const named = `${opt.name}${color ? ` · màu ${color}` : ""}`;
+      selectionLabel = timed
+        ? `${named} · nhận ${input.pickupTime} – trả ${input.returnTime} · tính ${rentalDaysLabel(opt.count)}`
+        : named;
+      nights = Math.ceil(opt.count); // cột số nguyên (đơn cũ / thống kê); số ngày chính xác ở rentalDays
+      if (timed) rentalDays = opt.count;
       referencePrice = opt.pricePerUnit != null ? opt.pricePerUnit * qty : null;
       needsConfirmation = !opt.bookable;
     }
@@ -399,7 +430,13 @@ export async function createBooking(
     : 0;
   // Chiết khấu từng căn (snapshot cho MỌI đơn homestay, kể cả khách tự đặt) → dùng để
   // tính tiền chủ dịch vụ thực nhận = tiền phòng bán ra − chiết khấu.
-  const roomCommission = roomId ? stayCommission : null;
+  // Thuê xe máy: chiết khấu cho sàn = mức (đ/xe/ngày) của cửa hàng × số xe × số ngày tính tiền.
+  const rentalRate = rentalVehicleId ? toNumber(service.roomCommission) : null;
+  const roomCommission = roomId
+    ? stayCommission
+    : rentalRate != null && rentalRate > 0
+      ? Math.round(rentalRate * bookingQty * (rentalDays ?? nights ?? 1))
+      : null;
 
   // Mã yêu cầu không trùng.
   let code = generateBookingCode();
@@ -421,6 +458,9 @@ export async function createBooking(
       useDate: parseDateOnly(input.useDate),
       endDate: input.endDate ? parseDateOnly(input.endDate) : null,
       nights,
+      rentalDays,
+      pickupTime: rentalDays != null ? input.pickupTime : null,
+      returnTime: rentalDays != null ? input.returnTime : null,
       quantity: bookingQty,
       adults: bAdults,
       childrenAges: bChildrenAges,

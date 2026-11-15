@@ -261,7 +261,9 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
   const heroH = w < 640 ? 520 : 600;
   const ship = mode === "ship";
   const dateErr = ci && co && co < ci ? "Ngày trả xe phải sau hoặc trùng ngày nhận." : "";
-  const days = ci ? (co && co > ci ? Math.round((+new Date(co) - +new Date(ci)) / 864e5) + 1 : 1) : 0;
+  // Số ngày tạm tính trên thẻ: theo mốc 24 giờ với giờ nhận = giờ trả (vd nhận 01/12, trả 02/12 = 1 ngày).
+  // Giờ nhận/trả cụ thể chọn ở trang đặt xe — khi đó tiền thuê tính lại chính xác (1 / 1,5 / 2 ngày…).
+  const days = ci ? (co && co > ci ? Math.max(1, Math.round((+new Date(co) - +new Date(ci)) / 864e5)) : 1) : 0;
 
   function search() {
     if (dateErr) return;

@@ -11,6 +11,7 @@ import type { ComboBookingInput } from "./validation";
 import { cabinAllocation, busCostPerPerson, cabinSeatTotal } from "./combo-pricing";
 import { busCommissionFor } from "./provider-commission";
 import { comboMotorbike, comboMotorbikeCost, comboMotorbikeDays } from "./combo-pricing";
+import { isRentalTime, rentalDaysLabel } from "./rental-days";
 import { ensureServiceSheetFresh } from "./sheet-sync";
 import { tripsOnDate, peekTrip, materializeTrip, OPEN_SEATS, type TripView } from "./cabin-trips";
 export { cabinAllocation, busCostPerPerson } from "./combo-pricing";
@@ -1118,9 +1119,10 @@ export async function createComboBooking(
   // Là DỊCH VỤ ĐI KÈM TÍNH RIÊNG: KHÔNG cộng vào bill combo (referencePrice/cọc/đối soát),
   // khách trả tiền xe trực tiếp khi giao xe. Chỉ ghi chú rõ trong selectionLabel của đơn.
   const bikes = Math.min(Math.max(0, input.motorbikes ?? 0), people);
-  const bikeDays = comboMotorbikeDays(nights.length);
+  const bikeDays = comboMotorbikeDays(nights.length, input.motorbikePickup, input.motorbikeReturn);
+  const bikeTimed = isRentalTime(input.motorbikePickup) && isRentalTime(input.motorbikeReturn);
   const bike = comboMotorbike(input.motorbikeType); // giá/ngày lấy theo loại xe ở server, không tin client
-  const bikeCost = comboMotorbikeCost(bikes, nights.length, bike.key);
+  const bikeCost = comboMotorbikeCost(bikes, nights.length, bike.key, input.motorbikePickup, input.motorbikeReturn);
   // Tách tiền từng bên: bill về homestay = tiền phòng, bill về nhà xe = tiền vé.
   // (referencePrice = TỔNG khách trả, đã trừ giảm giá combo cho phòng thường.)
   const roomAmount = roomCost; // đã là tổng tiền phòng cả đoàn
@@ -1150,7 +1152,7 @@ export async function createComboBooking(
     (freeKids > 0 ? ` (${freeKids} trẻ miễn phí, ở cùng)` : "") +
     ` · xe nằm: ${[nDouble ? `${nDouble} khách nằm ghép (cabin đôi)` : null, nSingle ? `${nSingle} khách nằm riêng (cabin đơn)` : null].filter(Boolean).join(" + ")}` +
     (bikes > 0
-      ? ` · DỊCH VỤ KÈM (tính riêng, KHÔNG gồm trong bill): thuê xe máy ${bike.name}: ${bikes} xe × ${bikeDays} ngày × ${bike.perDay.toLocaleString("vi-VN")}đ = ${bikeCost.toLocaleString("vi-VN")}đ — khách thanh toán khi giao xe`
+      ? ` · DỊCH VỤ KÈM (tính riêng, KHÔNG gồm trong bill): thuê xe máy ${bike.name}: ${bikes} xe × ${rentalDaysLabel(bikeDays)}${bikeTimed ? ` (nhận ${input.motorbikePickup}, trả ${input.motorbikeReturn})` : ""} × ${bike.perDay.toLocaleString("vi-VN")}đ = ${bikeCost.toLocaleString("vi-VN")}đ (GIÁ THAM KHẢO, chưa phải giá cuối — giá chính thức tính theo giờ sử dụng xe thực tế) — khách thanh toán khi giao xe`
       : "");
 
   let code = generateBookingCode();

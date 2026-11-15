@@ -1048,6 +1048,7 @@ export default async function EditServicePage({
                 <L label="Giá/ngày"><MoneyInput name="pricePerDay" defaultValue={toNumber(v.pricePerDay) ?? 0} className={inp} /></L>
                 <L label="Số xe"><input name="totalUnits" type="number" defaultValue={v.totalUnits} className={inp} /></L>
                 <L label="Phí giao"><MoneyInput name="deliveryFee" defaultValue={toNumber(v.deliveryFee) ?? ""} className={inp} /></L>
+                <L label="Màu xe (cách nhau bằng dấu phẩy)" cls="col-span-2 sm:col-span-5"><input name="colors" defaultValue={v.colors.join(", ")} placeholder="Đỏ, Đen, Trắng, Xanh" className={inp} /></L>
                 <input type="hidden" name="imageUrl" defaultValue={v.imageUrl ?? ""} />
                 <div className="flex gap-1">
                   <button className="rounded-lg bg-forest-600 px-3 py-2 text-sm text-white">Lưu</button>
@@ -1061,6 +1062,7 @@ export default async function EditServicePage({
               <L label="Giá/ngày"><MoneyInput name="pricePerDay" defaultValue={0} className={inp} /></L>
               <L label="Số xe"><input name="totalUnits" type="number" defaultValue={1} className={inp} /></L>
               <L label="Phí giao"><MoneyInput name="deliveryFee" placeholder="0" className={inp} /></L>
+              <L label="Màu xe (cách nhau bằng dấu phẩy)" cls="col-span-2 sm:col-span-5"><input name="colors" placeholder="Đỏ, Đen, Trắng, Xanh" className={inp} /></L>
               <button className="rounded-lg bg-forest-100 px-3 py-2 text-sm font-medium text-forest-700">+ Thêm</button>
             </ActionForm>
           </div>

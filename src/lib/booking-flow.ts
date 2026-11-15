@@ -10,7 +10,8 @@ import type { BookingStatus, PaymentStatus } from "@prisma/client";
  * - SÀN (ADMIN): toàn quyền. Sở hữu Mới/Đang liên hệ/Đã xác nhận và việc GHI NHẬN CỌC.
  * - CHỦ DỊCH VỤ (PROVIDER): ở Mới/Đang liên hệ KHÔNG thao tác được. Chỉ mở khóa sau khi
  *   đơn đã CONFIRMED và đã có cọc (DEPOSITED): được ghi nhận "đã thu đủ" (→PAID),
- *   đánh dấu đã giữ phòng, rồi "hoàn thành" (→COMPLETED). KHÔNG tự xác nhận, KHÔNG hủy.
+ *   đánh dấu đã giữ phòng, rồi "hoàn thành" (→COMPLETED). KHÔNG tự xác nhận.
+ *   Được HUỶ đơn của mình (kèm lý do) khi đơn chưa hoàn thành — TRỪ đơn combo (sàn điều phối). Không khôi phục.
  * - CTV: không thao tác trạng thái/thanh toán.
  */
 
@@ -23,14 +24,17 @@ export function providerUnlocked(status: BookingStatus, payment: PaymentStatus):
 
 /**
  * Chủ dịch vụ có được chuyển TRẠNG THÁI sang `to` không.
- * Chỉ được HOÀN THÀNH đơn đã xác nhận & đã thu đủ. Không xác nhận, không hủy/khôi phục.
+ * Được HOÀN THÀNH đơn đã xác nhận & đã thu đủ, và HUỶ đơn chưa hoàn thành (không phải combo).
+ * Không xác nhận, không khôi phục.
  */
 export function providerCanSetStatus(
   from: BookingStatus,
   to: BookingStatus,
   payment: PaymentStatus,
+  isCombo = false,
 ): boolean {
   if (from === "CONFIRMED" && to === "COMPLETED") return payment === "PAID";
+  if (to === "CANCELLED") return !isCombo && from !== "COMPLETED" && from !== "CANCELLED";
   return false;
 }
 
@@ -59,10 +63,12 @@ export function canRoleAct(
   payment: PaymentStatus,
   intent: "status" | "pay" | "held",
   toStatus?: BookingStatus,
+  /** Đơn combo (sàn điều phối): chủ dịch vụ không được huỷ. */
+  isCombo = false,
 ): boolean {
   if (role === "ADMIN") return true;
   if (role !== "PROVIDER") return false;
-  if (intent === "status") return !!toStatus && providerCanSetStatus(status, toStatus, payment);
+  if (intent === "status") return !!toStatus && providerCanSetStatus(status, toStatus, payment, isCombo);
   if (intent === "pay") return providerCanPay(status, payment);
   if (intent === "held") return providerCanToggleHeld(status, payment);
   return false;

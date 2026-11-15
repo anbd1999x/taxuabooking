@@ -12,6 +12,7 @@ import { supplierPayouts, type SidePayout } from "@/lib/supplier-payout";
 import { CATEGORIES } from "@/lib/constants";
 import { resolveBusCommissions, resolveRoomCommissions } from "@/lib/provider-commission";
 import { isRentalCategory, durationLabel } from "@/lib/occupancy";
+import { bookingRentalDays, rentalDaysLabel } from "@/lib/rental-days";
 import { bookingCabinBerths, cabinBerthsLabel } from "@/lib/combo-pricing";
 import { parseSurcharges } from "@/lib/surcharges";
 
@@ -125,9 +126,10 @@ export async function buildBookingMessages(
     : null;
   const isRental = isRentalCategory(b.category);
   const isStay = !isRental && b.nights != null && b.endDate != null;
+  const rentDaysText = `${rentalDaysLabel(bookingRentalDays(b))} thuê`;
   const rentLines = [
-    `Nhận xe: ${formatDate(b.useDate)}`,
-    `Trả xe: ${formatDate(b.endDate ?? b.useDate)} (${b.nights ?? 1} ngày thuê)`,
+    `Nhận xe: ${b.pickupTime ? `${b.pickupTime} · ` : ""}${formatDate(b.useDate)}`,
+    `Trả xe: ${b.returnTime ? `${b.returnTime} · ` : ""}${formatDate(b.endDate ?? b.useDate)} (${rentDaysText})`,
   ];
   const countKey = isRental ? "Số xe" : "Số khách";
 
@@ -371,6 +373,8 @@ export async function buildBookingMessages(
 
   // ----- Dữ liệu có cấu trúc cho email gửi khách -----
   const isCombo = b.category === "COMBO";
+  const rentalParts = (b.selectionLabel ?? "").split(" · ").map((x) => x.trim()).filter(Boolean);
+  const rentalColor = rentalParts.find((x) => x.startsWith("màu "))?.slice(4) ?? null;
   const sections: BookingFacts["sections"] = [];
   if (outTrip) {
     sections.push({
@@ -408,8 +412,12 @@ export async function buildBookingMessages(
       amount: null,
       rows: isRental
         ? [
-            ["Nhận xe", formatDate(b.useDate)],
-            ["Trả xe", `${formatDate(b.endDate ?? b.useDate)} (${b.nights ?? 1} ngày thuê)`],
+            // selectionLabel: "Honda PG1 · màu Đỏ · nhận 06:00 – trả 12:00 · tính 1,5 ngày" ⇒ lấy loại xe + màu.
+            ...(rentalParts[0] ? ([["Loại xe", `${rentalParts[0]} × ${b.quantity} xe`]] as [string, string][]) : []),
+            ...(rentalColor ? ([["Màu xe", rentalColor]] as [string, string][]) : []),
+            ["Nhận xe", `${b.pickupTime ? `${b.pickupTime} · ` : ""}${formatDate(b.useDate)}`],
+            ["Trả xe", `${b.returnTime ? `${b.returnTime} · ` : ""}${formatDate(b.endDate ?? b.useDate)}`],
+            ["Thời gian tính tiền", rentDaysText],
           ]
         : [
             ["Ngày", `${formatDate(b.useDate)}${b.endDate ? ` → ${formatDate(b.endDate)}` : ""}${durationLabel(b) ? ` (${durationLabel(b)})` : ""}`],
@@ -420,7 +428,7 @@ export async function buildBookingMessages(
   // Combo có thuê xe máy kèm: lưu trong mô tả lựa chọn ("… · DỊCH VỤ KÈM (tính riêng…): thuê xe máy 2 xe × 2 ngày
   // = 300.000đ — khách thanh toán khi giao xe"; đơn cũ: "thuê xe máy: …") ⇒ thêm 1 khối riêng trong email.
   const label = b.selectionLabel ?? "";
-  const moto = /thuê xe máy (?:([^:·]+): )?(\d+) xe × (\d+) ngày(?: × [\d.]+đ)? = ([\d.]+)đ/.exec(label);
+  const moto = /thuê xe máy (?:([^:·]+): )?(\d+) xe × ([\d,]+) ngày(?: \(nhận ([\d:]+), trả ([\d:]+)\))?(?: × [\d.]+đ)? = ([\d.]+)đ/.exec(label);
   const motoOld = moto ? null : /(?:^| · )thuê xe máy: ([^·]+)/.exec(label);
   if (b.category === "COMBO" && (moto || motoOld)) {
     sections.push({
@@ -430,9 +438,11 @@ export async function buildBookingMessages(
       rows: moto
         ? [
             ["Số xe", `${moto[2]} xe`],
-            ["Thời gian thuê", `${moto[3]} ngày`],
+            ...(moto[4] && moto[5] ? ([["Giờ nhận – trả", `${moto[4]} – ${moto[5]}`]] as [string, string][]) : []),
+            ["Thời gian tính tiền", `${moto[3]} ngày`],
             ["Thanh toán", "Trả khi nhận xe"],
-            ["Tiền thuê xe (tính riêng)", `${moto[4]}đ`],
+            ["Lưu ý", "Giá tham khảo, chưa phải giá cuối — giá chính thức tính theo giờ sử dụng xe thực tế"],
+            ["Tiền thuê xe (tham khảo)", `${moto[6]}đ`],
           ]
         : [["Chi tiết", motoOld![1].trim()]],
     });

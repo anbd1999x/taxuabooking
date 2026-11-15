@@ -10,6 +10,9 @@ export async function GET(request: Request) {
   const from = searchParams.get("from");
   const to = searchParams.get("to");
   const quantity = Number(searchParams.get("quantity") ?? "1");
+  // Thuê xe máy: giờ nhận / giờ trả (HH:mm) để tính số ngày quy đổi.
+  const pickup = searchParams.get("pickup");
+  const ret = searchParams.get("ret");
 
   if (!serviceId || !from || !isValidDateKey(from)) {
     return NextResponse.json(
@@ -28,12 +31,19 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Kỳ đặt tối đa 60 ngày." }, { status: 400 });
   }
 
-  const result = await computeAvailability(
-    serviceId,
-    from,
-    to,
-    Number.isFinite(quantity) ? Math.min(50, Math.max(1, Math.floor(quantity))) : 1,
-  );
+  let result;
+  try {
+    result = await computeAvailability(
+      serviceId,
+      from,
+      to,
+      Number.isFinite(quantity) ? Math.min(50, Math.max(1, Math.floor(quantity))) : 1,
+      { pickup, ret },
+    );
+  } catch (err) {
+    // Lỗi nghiệp vụ có thông điệp rõ (vd giờ trả xe không sau giờ nhận).
+    return NextResponse.json({ error: err instanceof Error ? err.message : "Không kiểm tra được tình trạng." }, { status: 400 });
+  }
   if (!result) {
     return NextResponse.json({ error: "Không tìm thấy dịch vụ." }, { status: 404 });
   }

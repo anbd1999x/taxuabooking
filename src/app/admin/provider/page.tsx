@@ -6,6 +6,7 @@ import { comboSideCollected } from "@/lib/combo-pricing";
 import { resolveBusCommissions, resolveRoomCommissions } from "@/lib/provider-commission";
 import { effectiveDiscounts } from "@/lib/supplier-payout";
 import { OrdersTable } from "../ctv/page";
+import { rentalOriginalTotal } from "@/lib/rental-days";
 
 export const dynamic = "force-dynamic";
 
@@ -29,12 +30,12 @@ export default async function ProviderHome() {
       where: mine,
       orderBy: { createdAt: "desc" },
       take: 10,
-      include: { service: { select: { title: true, ownerId: true } } },
+      include: { service: { select: { title: true, ownerId: true, originalPrice: true } } },
     }),
     prisma.bookingRequest.findMany({
       // Doanh thu chỉ tính đơn đã chốt (xác nhận / hoàn thành).
       where: { AND: [mine, { status: { in: ["CONFIRMED", "COMPLETED"] } }] },
-      include: { service: { select: { ownerId: true } } },
+      include: { service: { select: { ownerId: true, originalPrice: true } } },
     }),
   ]);
   // Chiết khấu hiệu lực mỗi đơn (snapshot, hoặc tính bù cho đơn cũ chưa backfill).
@@ -66,7 +67,11 @@ export default async function ProviderHome() {
         : toNumber(b.amountCollected) ?? 0;
     return n + Math.min(raw, net); // tiền đã thu quy về thực nhận, không vượt quá
   }, 0);
-  const amounts = Object.fromEntries(recent.map((b) => [b.id, { net: netOf(b), discount: discOf(b) }]));
+  // Số gạch ngang: giá gốc cấu hình ở admin (xe máy); không có thì giá bán khi đơn có chiết khấu.
+  const strikeOf = (b: B) => rentalOriginalTotal(b, b.service?.originalPrice) ?? (discOf(b) > 0 ? grossOf(b) : null);
+  const amounts = Object.fromEntries(recent.map((b) => [b.id, { net: netOf(b), discount: discOf(b), strike: strikeOf(b) }]));
+  const gross = all.reduce((n, b) => n + grossOf(b), 0);
+  const strikeTotal = all.reduce((n, b) => n + (strikeOf(b) ?? netOf(b)), 0);
 
   return (
     <div>
@@ -77,7 +82,7 @@ export default async function ProviderHome() {
 
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Đơn đã chốt" value={String(all.length)} />
-        <Stat label={discount > 0 ? "Thực nhận (sau chiết khấu)" : "Doanh thu"} value={formatPrice(total)} sub={discount > 0 ? `đã trừ chiết khấu ${formatPrice(discount)}` : undefined} />
+        <Stat label={discount > 0 ? "Thực nhận (sau chiết khấu)" : "Doanh thu"} value={formatPrice(total)} strike={strikeTotal > total ? formatPrice(strikeTotal) : undefined} sub={discount > 0 ? `giá bán ${formatPrice(gross)} − chiết khấu ${formatPrice(discount)}` : undefined} />
         <Stat label="Đã thu" value={formatPrice(collected)} tone="ok" />
         <Stat label="Còn thiếu" value={formatPrice(Math.max(0, total - collected))} tone="warn" />
       </div>
@@ -93,14 +98,16 @@ export default async function ProviderHome() {
         bookings={recent.map((b) => (b.category === "COMBO" && busSide(b) ? { ...b, commissionAmount: null } : b))}
         amounts={amounts}
         amountLabel="Thực nhận"
+        detailHref="/admin/provider/don?open="
       />
     </div>
   );
 }
 
-function Stat({ label, value, tone, sub }: { label: string; value: string; tone?: "ok" | "warn"; sub?: string }) {
+function Stat({ label, value, tone, sub, strike }: { label: string; value: string; tone?: "ok" | "warn"; sub?: string; strike?: string }) {
   return (
     <div className={`rounded-2xl p-4 shadow-sm ring-1 ${tone === "ok" ? "bg-forest-50 ring-forest-200" : tone === "warn" ? "bg-amber-50 ring-amber-200" : "bg-white ring-black/5"}`}>
+      {strike && <p className="text-sm font-semibold leading-none text-gray-400 line-through">{strike}</p>}
       <p className="text-xl font-extrabold text-ink">{value}</p>
       <p className="mt-1 text-xs text-gray-500">{label}</p>
       {sub && <p className="mt-0.5 text-[11px] text-gray-400">{sub}</p>}

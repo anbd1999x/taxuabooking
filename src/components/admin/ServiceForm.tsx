@@ -238,6 +238,15 @@ export function ServiceForm({
         </label>
       )}
 
+      {/* Chiết khấu thuê xe máy cho sàn: dùng chung cột roomCommission, đơn vị đ / xe / ngày. */}
+      {cat === "MOTORBIKE" && (
+        <label className="block sm:max-w-sm">
+          <span className="text-sm font-medium text-gray-600">Chiết khấu cho sàn (đ / xe / ngày)</span>
+          <MoneyInput name="roomCommission" defaultValue={initial.roomCommission ?? ""} placeholder="VD: 30.000" className={inputCls} />
+          <span className="mt-1 block text-xs text-gray-400">Chủ xe chiết khấu cho sàn mỗi xe mỗi ngày thuê (1,5 ngày = 1,5 × mức này). Tiền chủ xe thực nhận = tiền thuê − chiết khấu. Để trống = không chiết khấu.</span>
+        </label>
+      )}
+
       {/* Chiết khấu chung cho homestay (áp cho mọi phòng khi phòng không khai riêng). */}
       {(cat === "HOMESTAY" || cat === "BUNGALOW") && (
         <label className="block sm:max-w-sm">
