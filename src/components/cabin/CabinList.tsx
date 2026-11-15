@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { DateField } from "@/components/DateField";
 import { useSearchNav } from "@/components/useSearchNav";
 import { useT } from "@/components/i18n/I18nProvider";
+import { TripFlag } from "@/components/TripFlag";
 import type { TFunc } from "@/lib/i18n/config";
 
 interface TripAvail {
@@ -368,6 +369,7 @@ export function CabinList({
             <div data-leg="1" className="absolute left-[5px] top-[27px] h-[17px] w-1 rounded-sm" style={{ background: "oklch(0.28 0.03 260)", transformOrigin: "top center" }} />
             <div data-leg="2" className="absolute left-[11px] top-[27px] h-[17px] w-1 rounded-sm" style={{ background: "oklch(0.28 0.03 260)", transformOrigin: "top center" }} />
             <div className="absolute left-1 top-2.5 h-[18px] w-3" style={{ borderRadius: "5px 5px 2px 2px", background: idx === 0 ? "oklch(0.6 0.13 250)" : "oklch(0.62 0.15 15)" }} />
+            {idx === 0 && <TripFlag x={14} y={-22} h={46} />}
           </div>
         ))}
         <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-[90px]" style={{ background: `linear-gradient(180deg, transparent, ${TH.page})` }} />

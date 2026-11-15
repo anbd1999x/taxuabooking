@@ -85,8 +85,18 @@ body {
   animation: fade-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Lá cờ "Đi Tà Xùa thôii" phấp phới (TripFlag) */
+@keyframes tx-flag-wave {
+  0%, 100% { transform: skewY(0deg) scaleX(1); }
+  50% { transform: skewY(-5deg) scaleX(0.93); }
+}
+.tx-flag {
+  animation: tx-flag-wave 1.1s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .animate-fade-up {
+  .animate-fade-up,
+  .tx-flag {
     animation: none;
   }
   html {

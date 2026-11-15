@@ -3,6 +3,7 @@
 import { We } from "@/components/SiteContact";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/components/i18n/I18nProvider";
+import { TripFlag } from "@/components/TripFlag";
 
 const TH = {
   sky: "linear-gradient(180deg, oklch(0.34 0.045 240) 0%, oklch(0.55 0.04 220) 36%, oklch(0.8 0.05 120) 66%, oklch(0.9 0.06 95) 86%, oklch(0.95 0.03 95) 100%)",
@@ -176,7 +177,7 @@ export function ComboHero() {
   const heroH = w < 640 ? 500 : 560;
 
   // Figure: head + hat + body + 2 legs + 1 arm.
-  const Person = ({ innerRef, body, hat }: { innerRef: React.RefObject<HTMLDivElement | null>; body: string; hat: string }) => (
+  const Person = ({ innerRef, body, hat, flag }: { innerRef: React.RefObject<HTMLDivElement | null>; body: string; hat: string; flag?: boolean }) => (
     <div ref={innerRef} className="pointer-events-none absolute bottom-[17%] left-0 z-[3] h-[46px] w-[22px] will-change-transform" style={{ transformOrigin: "50% 100%", opacity: 0 }}>
       <div data-leg="1" className="absolute left-[6px] top-[28px] h-[18px] w-1 rounded-sm" style={{ background: "oklch(0.25 0.03 260)", transformOrigin: "top center" }} />
       <div data-leg="2" className="absolute left-[12px] top-[28px] h-[18px] w-1 rounded-sm" style={{ background: "oklch(0.25 0.03 260)", transformOrigin: "top center" }} />
@@ -186,6 +187,7 @@ export function ComboHero() {
       <div data-arm="1" className="absolute left-3 top-3 h-[14px] w-1 rounded-sm" style={{ background: body, transformOrigin: "2px 2px" }}>
         <div className="absolute bottom-[-3px] left-0 h-1 w-1 rounded-full" style={{ background: "oklch(0.76 0.07 55)" }} />
       </div>
+      {flag && <TripFlag x={15} y={-22} h={48} />}
     </div>
   );
 
@@ -249,7 +251,7 @@ export function ComboHero() {
       {/* người: chủ nhà + khách (bố, mẹ, bé) */}
       <Person innerRef={hostRef} body="oklch(0.33 0.08 270)" hat="oklch(0.3 0.07 270)" />
       <Person innerRef={dadRef} body="oklch(0.55 0.12 155)" hat="oklch(0.68 0.18 45)" />
-      <Person innerRef={momRef} body="oklch(0.62 0.15 15)" hat="oklch(0.9 0.02 90)" />
+      <Person innerRef={momRef} body="oklch(0.62 0.15 15)" hat="oklch(0.9 0.02 90)" flag />
       <Person innerRef={kidRef} body="oklch(0.6 0.13 250)" hat="oklch(0.68 0.18 45)" />
 
       <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-[90px]" style={{ background: `linear-gradient(180deg, transparent, ${TH.page})` }} />

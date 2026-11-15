@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { DateField } from "@/components/DateField";
 import { useSearchNav } from "@/components/useSearchNav";
 import { useT } from "@/components/i18n/I18nProvider";
+import { TripFlag } from "@/components/TripFlag";
 import type { TFunc } from "@/lib/i18n/config";
 
 export interface RentalBike {
@@ -180,6 +181,7 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
           const pose = (el: HTMLDivElement | null, x: number, y: number, flip: number, mode: string, ph: number) => {
             if (!el) return;
             el.style.transform = `translate(${x}px, ${y + lift}px) scaleX(${flip})`;
+            el.style.setProperty("--f", String(flip));
             const l = el.querySelectorAll<HTMLElement>("[data-leg]");
             const sw = mode === "walk" ? Math.sin(t * 13 + ph) * 26 : 0;
             const sit = mode === "sit" ? -78 : 0;
@@ -366,6 +368,7 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
           <div data-arm="1" className="absolute left-3 top-3 h-[14px] w-1 rounded-[2px]" style={{ background: "oklch(0.62 0.13 250)", transformOrigin: "2px 2px" }}>
             <div className="absolute left-0 h-1 w-1 rounded-full" style={{ bottom: "-3px", background: "oklch(0.74 0.07 55)" }} />
           </div>
+          <TripFlag x={15} y={-22} h={48} />
         </div>
         <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-[90px]" style={{ background: `linear-gradient(180deg, transparent, ${TH.page})` }} />
 

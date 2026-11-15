@@ -44,7 +44,7 @@ export async function CabinPriceTable({
   const comboPrice = Number(settings.cabinComboPrice || "700000");
   const comboNote = t(settings.cabinComboNote || "Giá từ Hà Nội · đã gồm vé xe & home view kính trung tâm");
   const homeFrom = Number(settings.cabinHomeFrom || "500000");
-  const bikeFrom = Number(settings.cabinBikeFrom || "150000");
+  const bikeFrom = Number(settings.cabinBikeFrom || "180000");
   const footnote = t(settings.cabinFareFootnote || "Giá có thể thay đổi theo thời điểm. Vui lòng liên hệ trước để giữ chỗ.");
   const tagline = t(settings.cabinTagline || "Đi xa không chỉ là khoảng cách, mà là những trải nghiệm đáng nhớ!");
   const phone = settings.contactPhone || "0357452952";

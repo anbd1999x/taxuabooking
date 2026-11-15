@@ -5,6 +5,7 @@ import Link from "@/components/Link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/components/i18n/I18nProvider";
+import { TripFlag } from "@/components/TripFlag";
 import { TransportSearchPanel, useTransportSearch, withQuote } from "@/components/transport/TransportSearch";
 import type { TransportPointDTO, TransportPricing } from "@/lib/transport-legs";
 
@@ -162,6 +163,7 @@ export function TaxiList({ routes, points = [] }: { routes: TaxiRouteCard[]; poi
           const pose = (el: HTMLDivElement | null, x: number, flip: number, mode: string, sc: number, ph: number) => {
             if (!el) return;
             el.style.transform = `translate(${x}px, ${lift}px) scaleX(${flip}) scale(${sc})`;
+            el.style.setProperty("--f", String(flip));
             const l = el.querySelectorAll<HTMLElement>("[data-leg]");
             const sw = mode === "walk" ? Math.sin(t * 13 + ph) * 24 : 0;
             if (l[0]) l[0].style.transform = `rotate(${sw}deg)`;
@@ -381,6 +383,7 @@ export function TaxiList({ routes, points = [] }: { routes: TaxiRouteCard[]; poi
           <div className="absolute left-[6px] top-[8px] h-[5px] w-[15px]" style={{ borderRadius: "6px 6px 1px 1px", background: "oklch(0.68 0.18 45)" }} />
           <div className="absolute left-[19px] top-[10px] h-[2px] w-[6px] rounded-[1px]" style={{ background: "oklch(0.68 0.18 45)" }} />
           <div data-arm="1" className="absolute left-[18px] top-[22px] h-[14px] w-1 rounded-[2px]" style={{ background: "oklch(0.62 0.13 250)", transformOrigin: "top center" }} />
+          <TripFlag x={21} y={-14} h={50} big />
         </div>
         <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-[90px]" style={{ background: `linear-gradient(180deg, transparent, ${TH.page})` }} />
 

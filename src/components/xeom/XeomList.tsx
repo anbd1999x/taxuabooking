@@ -5,6 +5,7 @@ import Link from "@/components/Link";
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/components/i18n/I18nProvider";
+import { TripFlag } from "@/components/TripFlag";
 import { TransportSearchPanel, useTransportSearch, withQuote } from "@/components/transport/TransportSearch";
 import type { TransportPointDTO, TransportPricing } from "@/lib/transport-legs";
 
@@ -181,6 +182,7 @@ export function XeomList({ routes, points = [] }: { routes: XeomRouteCard[]; poi
               const arm = cust.querySelector<HTMLElement>("[data-arm]");
               if (arm) arm.style.transform = `rotate(${mode === "sit" ? -60 : Math.sin(t * 1.5 + off) * 5}deg)`;
               cust.style.transform = `translate(${x}px, ${y + lift}px) scaleX(${flip})`;
+              cust.style.setProperty("--f", String(flip));
             }
           };
           const C1 = Math.max(200, W * 0.46);
@@ -277,6 +279,7 @@ export function XeomList({ routes, points = [] }: { routes: XeomRouteCard[]; poi
         {/* 2 khách đứng chờ */}
         <div ref={custRef} className="pointer-events-none absolute bottom-[16%] left-0 z-[3] h-[60px] w-7 will-change-transform" style={{ transformOrigin: "center bottom" }}>
           <WaitPerson jacket="oklch(0.62 0.13 250)" cap="oklch(0.68 0.18 45)" />
+          <TripFlag x={21} y={-14} h={50} big />
         </div>
         <div ref={cust2Ref} className="pointer-events-none absolute bottom-[16%] left-0 z-[3] h-[60px] w-7 will-change-transform" style={{ transformOrigin: "center bottom" }}>
           <WaitPerson jacket="oklch(0.5 0.14 20)" cap="oklch(0.55 0.13 150)" />

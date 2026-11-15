@@ -8,6 +8,7 @@ import { DateField } from "@/components/DateField";
 import { useSearchNav } from "@/components/useSearchNav";
 import { AREA_OPTIONS, areaZone } from "@/lib/constants";
 import { useT } from "@/components/i18n/I18nProvider";
+import { TripFlag } from "@/components/TripFlag";
 import type { TFunc } from "@/lib/i18n/config";
 
 /**
@@ -571,6 +572,7 @@ export function HomestayList({
           <div data-arm="1" className="absolute left-3 top-3 h-[14px] w-1 rounded-[2px]" style={{ background: "oklch(0.68 0.13 10)", transformOrigin: "2px 2px" }}>
             <div className="absolute left-0 h-1 w-1 rounded-full" style={{ bottom: "-3px", background: "oklch(0.76 0.07 55)" }} />
           </div>
+          <TripFlag x={15} y={-22} h={48} />
         </div>
         {/* Bé */}
         <div ref={kidRef} className="pointer-events-none absolute bottom-[17%] left-0 z-[3] h-[46px] w-[22px] will-change-transform" style={{ transformOrigin: "50% 100%" }}>

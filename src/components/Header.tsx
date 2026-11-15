@@ -1,18 +1,75 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import Link from "@/components/Link";
 import { CATEGORY_LIST } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useT } from "@/components/i18n/I18nProvider";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
+import { useSitePhone } from "@/components/SiteContact";
+
+/** Dòng phụ dưới mỗi dịch vụ trong menu mobile (thiết kế "Trang chủ v5"). */
+const MENU_SUB: Record<string, string> = {
+  COMBO: "Xe + phòng",
+  CABIN: "21:00 mỗi tối",
+  HOMESTAY: "View biển mây",
+  MOTORBIKE: "Giao tận nơi",
+  XEOM: "Tài xế bản địa",
+  TAXI: "4–7 chỗ",
+};
+
+/** Trang chủ (kể cả /en, /zh, /ko): header trong suốt nằm đè lên ảnh hero, cuộn xuống mới hiện nền. */
+const isHomePath = (p: string) => /^\/(en|zh|ko)?\/?$/.test(p);
 
 /** `showCommitment` = công tắc "Hiện menu & link cam kết" ở /admin/popup (tách riêng với công tắc popup). */
 export function Header({ customerName = null, showCommitment = true }: { customerName?: string | null; showCommitment?: boolean }) {
   const t = useT();
+  const pathname = usePathname() || "/";
+  const home = isHomePath(pathname);
+  const phone = useSitePhone();
   const [open, setOpen] = useState(false);
   const [dd, setDd] = useState(false); // dropdown "Cẩm nang" (desktop)
+  const [scrolled, setScrolled] = useState(false);
+  const progRef = useRef<HTMLDivElement>(null);
   const firstName = customerName ? customerName.trim().split(/\s+/).slice(-1)[0] : "";
+  const initials = customerName
+    ? customerName.trim().split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("")
+    : "TX";
+
+  // Thanh tiến độ đọc + đổi nền header khi cuộn qua hero.
+  useEffect(() => {
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const sy = window.scrollY || 0;
+      const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      if (progRef.current) progRef.current.style.width = `${Math.min(1, sy / max) * 100}%`;
+      setScrolled(sy > window.innerHeight * 0.5);
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, [pathname]);
+
+  // Mở menu ⇒ khoá cuộn trang (link trong menu tự đóng menu khi bấm).
+  useEffect(() => {
+    document.documentElement.style.overflow = open ? "hidden" : "";
+    return () => {
+      document.documentElement.style.overflow = "";
+    };
+  }, [open]);
+
+  const solid = !home || scrolled;
+  const onDark = !solid;
 
   const GUIDE_LINKS = [
     { href: "/lich-trinh", label: t("Lịch trình Tà Xùa") },
@@ -25,141 +82,257 @@ export function Header({ customerName = null, showCommitment = true }: { custome
     { href: "/gop-y", label: t("Góp ý") },
   ];
 
+  const navItem = cn(
+    "whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold transition",
+    onDark ? "text-white hover:bg-white/10" : "text-gray-700 hover:bg-forest-50 hover:text-forest-700",
+  );
+  const zaloNum = phone.replace(/\D/g, "");
+
   return (
     <>
-    <header className="sticky top-0 z-40 border-b border-black/5 bg-white/95 backdrop-blur">
-      <div className="container-page flex h-11 items-center justify-between gap-4 sm:h-16">
-        <Link href="/" className="flex items-center gap-2" onClick={() => setOpen(false)}>
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-forest-600 text-[10px] font-bold text-white sm:h-9 sm:w-9 sm:text-base">TX</span>
-          <span className="whitespace-nowrap text-[15px] font-extrabold tracking-tight text-forest-800 sm:text-lg">
-            {t("Tà Xùa")}{" "}<span className="text-sunset-500">Booking</span>
-          </span>
-        </Link>
+      <header
+        className={cn(
+          "z-40 transition-[background,box-shadow,color] duration-300",
+          home ? "fixed inset-x-0 top-0" : "sticky top-0",
+          solid
+            ? "bg-[oklch(0.99_0.004_150/.94)] text-ink shadow-[0_1px_0_oklch(0.9_0.01_160)] backdrop-blur-md"
+            : "bg-transparent text-white",
+        )}
+      >
+        <div
+          ref={progRef}
+          aria-hidden
+          className="pointer-events-none absolute bottom-0 left-0 h-0.5 w-0"
+          style={{ background: "linear-gradient(90deg, oklch(0.8 0.14 75), oklch(0.68 0.18 45))" }}
+        />
+        <div className="container-page flex h-14 items-center justify-between gap-4 lg:h-[70px]">
+          <Link href="/" className="flex items-center gap-2.5 whitespace-nowrap text-[17px] font-extrabold sm:text-lg">
+            <span
+              className={cn(
+                "flex h-[34px] w-[34px] flex-none items-center justify-center rounded-full border-2 text-[13px] text-white",
+                onDark ? "border-white/70" : "border-white",
+              )}
+              style={{ background: "oklch(0.35 0.08 158)" }}
+            >
+              TX
+            </span>
+            <span className={onDark ? "text-white" : "text-forest-800"} style={onDark ? { textShadow: "0 1px 10px oklch(0.15 0.03 180 / .5)" } : undefined}>
+              {t("Tà Xùa")} <span style={{ color: "oklch(0.72 0.17 50)" }}>Booking</span>
+            </span>
+          </Link>
 
-        <nav className="hidden items-center gap-0.5 lg:flex">
-          {CATEGORY_LIST.map((c) => (
-            <Link
-              key={c.slug}
-              href={`/${c.slug}`}
-              className="whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700"
-            >
-              {t(c.shortLabel)}
-            </Link>
-          ))}
-          {showCommitment && (
-            <Link
-              href="/cam-ket"
-              className="whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-semibold text-forest-700 transition hover:bg-forest-50 hover:text-forest-800"
-            >
-              {t("Cam kết")}
-            </Link>
-          )}
-          {/* Menu cấp 2: hover hoặc click mới xổ ra */}
-          <div className="group relative" onMouseLeave={() => setDd(false)}>
-            <button
-              type="button"
-              onClick={() => setDd((o) => !o)}
-              className="flex items-center gap-1 whitespace-nowrap rounded-lg px-2.5 py-2 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700"
-            >
-              {t("Cẩm nang")}
-              <span className="text-[10px] transition group-hover:rotate-180">▼</span>
-            </button>
-            {/* pt-1 làm cầu nối hover giữa nút và panel (không bị tắt khi rê chuột qua khe) */}
-            <div className={cn("absolute left-0 top-full z-50 pt-1", dd ? "block" : "hidden group-hover:block")}>
-              <div className="w-56 rounded-xl bg-white p-1.5 shadow-lg ring-1 ring-black/5">
-                {GUIDE_LINKS.map((l) => (
-                  <Link
-                    key={l.href}
-                    href={l.href}
-                    onClick={() => setDd(false)}
-                    className="block rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700"
-                  >
-                    {t(l.label)}
-                  </Link>
-                ))}
+          <nav className="hidden items-center gap-1 lg:flex" style={onDark ? { textShadow: "0 1px 10px oklch(0.15 0.03 180 / .45)" } : undefined}>
+            {CATEGORY_LIST.map((c) => (
+              <Link key={c.slug} href={`/${c.slug}`} className={navItem}>
+                {t(c.shortLabel)}
+              </Link>
+            ))}
+            {showCommitment && (
+              <Link href="/cam-ket" className={navItem}>
+                {t("Cam kết")}
+              </Link>
+            )}
+            {/* Menu cấp 2: hover hoặc click mới xổ ra */}
+            <div className="group relative" onMouseLeave={() => setDd(false)}>
+              <button type="button" onClick={() => setDd((o) => !o)} className={cn(navItem, "flex items-center gap-1")}>
+                {t("Cẩm nang")}
+                <span className="text-[10px] transition group-hover:rotate-180">▼</span>
+              </button>
+              {/* pt-1 làm cầu nối hover giữa nút và panel (không bị tắt khi rê chuột qua khe) */}
+              <div className={cn("absolute left-0 top-full z-50 pt-1", dd ? "block" : "hidden group-hover:block")}>
+                <div className="w-56 rounded-2xl bg-white p-1.5 text-ink shadow-lg ring-1 ring-black/5" style={{ textShadow: "none" }}>
+                  {GUIDE_LINKS.map((l) => (
+                    <Link
+                      key={l.href}
+                      href={l.href}
+                      onClick={() => setDd(false)}
+                      className="block rounded-xl px-3 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700"
+                    >
+                      {l.label}
+                    </Link>
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-        </nav>
+          </nav>
 
-        <div className="flex flex-none items-center gap-1.5">
-          <LanguageSwitcher />
-          <Link
-            href="/tai-khoan"
-            className="hidden whitespace-nowrap rounded-xl px-2.5 py-2 text-sm font-semibold text-forest-700 transition hover:bg-forest-50 lg:inline-flex"
-          >
-            {customerName ? t(firstName) : t("Đăng nhập")}
-          </Link>
-          <button
-            type="button"
-            aria-label={t("Mở menu")}
-            className="rounded-lg p-1 text-forest-700 hover:bg-forest-50 sm:p-2 lg:hidden"
-            onClick={() => setOpen((o) => !o)}
-          >
-            <svg className="h-[18px] w-[18px] sm:h-6 sm:w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              {open ? <path d="M18 6 6 18M6 6l12 12" /> : <path d="M3 12h18M3 6h18M3 18h18" />}
-            </svg>
-          </button>
+          <div className="flex flex-none items-center gap-2 lg:gap-3.5">
+            <div className="hidden lg:block">
+              <LanguageSwitcher onDark={onDark} />
+            </div>
+            <Link
+              href="/tai-khoan"
+              className={cn(
+                "hidden whitespace-nowrap rounded-full px-3 py-2 text-sm font-bold transition lg:inline-flex",
+                onDark ? "text-white hover:bg-white/10" : "text-forest-700 hover:bg-forest-50",
+              )}
+            >
+              {customerName ? firstName : t("Đăng nhập")}
+            </Link>
+            <div className="lg:hidden">
+              <LanguageSwitcher variant="pill" onDark={onDark} />
+            </div>
+            <button
+              type="button"
+              aria-label={t("Mở menu")}
+              onClick={() => setOpen(true)}
+              className="flex h-10 w-10 flex-none flex-col items-center justify-center gap-1 rounded-full lg:hidden"
+              style={{ background: "oklch(0.68 0.17 45)", boxShadow: "0 6px 16px -6px oklch(0.4 0.12 45 / .6)" }}
+            >
+              <span className="h-0.5 w-4 rounded-sm bg-white" />
+              <span className="ml-1.5 h-0.5 w-2.5 rounded-sm bg-white" />
+            </button>
+          </div>
         </div>
-      </div>
       </header>
 
-      {/* Menu mobile: ĐẶT NGOÀI <header>. backdrop-blur của header tạo containing
-          block khiến position:fixed bám theo header (~44px) thay vì viewport,
-          làm drawer bị co lại thành dải mỏng ở trên. */}
-      <div className={cn("fixed inset-0 z-50 lg:hidden", open ? "" : "pointer-events-none")}>
+      {/* Menu mobile: ĐẶT NGOÀI <header> (backdrop-blur của header tạo containing block cho position:fixed). */}
+      <div className={cn("fixed inset-0 z-[60] lg:hidden", !open && "pointer-events-none")} aria-hidden={!open}>
         <div
           onClick={() => setOpen(false)}
-          className={cn("absolute inset-0 bg-black/40 transition-opacity duration-300", open ? "opacity-100" : "opacity-0")}
+          className={cn("absolute inset-0 backdrop-blur-[3px] transition-opacity duration-500", open ? "opacity-100" : "opacity-0")}
+          style={{ background: "oklch(0.15 0.03 165 / .5)" }}
         />
         <div
           className={cn(
-            "absolute right-0 top-0 flex h-full w-[76%] max-w-[300px] flex-col bg-white shadow-2xl transition-transform duration-300 will-change-transform",
-            open ? "translate-x-0" : "translate-x-full",
+            "absolute bottom-0 right-0 top-0 flex w-[min(420px,100vw)] flex-col transition-transform duration-[600ms] ease-[cubic-bezier(.22,.9,.24,1)]",
+            open ? "translate-x-0" : "translate-x-[105%]",
           )}
+          style={{
+            background: "linear-gradient(180deg, oklch(0.27 0.045 160) 0%, oklch(0.21 0.035 165) 100%)",
+            color: "oklch(0.96 0.015 90)",
+            boxShadow: "-30px 0 60px -20px oklch(0.1 0.03 165 / .6)",
+          }}
         >
-          <div className="flex items-center justify-between border-b border-black/5 px-4 py-3">
-            <span className="text-[15px] font-extrabold tracking-tight text-forest-800">
-              {t("Tà Xùa")}{" "}<span className="text-sunset-500">Booking</span>
+          {/* dải hoa văn thổ cẩm */}
+          <div
+            className="h-1.5 flex-none"
+            style={{
+              background:
+                "repeating-linear-gradient(90deg, oklch(0.55 0.15 30) 0 14px, oklch(0.82 0.11 78) 14px 20px, oklch(0.35 0.08 250) 20px 34px, oklch(0.82 0.11 78) 34px 40px)",
+            }}
+          />
+          <div className="flex flex-none items-center justify-between px-[18px] py-3.5">
+            <span className="flex items-center gap-2.5 text-lg font-extrabold">
+              <span
+                className="flex h-[34px] w-[34px] items-center justify-center rounded-full border-[1.5px] border-white/50 text-[13px]"
+                style={{ background: "oklch(0.35 0.07 158)" }}
+              >
+                TX
+              </span>
+              {t("Tà Xùa")} <span style={{ color: "oklch(0.68 0.17 45)" }}>Booking</span>
             </span>
             <button
               type="button"
               aria-label={t("Đóng menu")}
               onClick={() => setOpen(false)}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-xl text-gray-400 hover:bg-gray-100"
+              className="relative h-10 w-10 rounded-full border border-white/15 bg-white/10"
             >
-              ×
+              <span className="absolute left-[13px] top-[19px] h-0.5 w-3.5 rotate-45 rounded-sm bg-current" />
+              <span className="absolute left-[13px] top-[19px] h-0.5 w-3.5 -rotate-45 rounded-sm bg-current" />
             </button>
           </div>
-          <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
-            {CATEGORY_LIST.map((c) => (
-              <Link
-                key={c.slug}
-                href={`/${c.slug}`}
-                onClick={() => setOpen(false)}
-                className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700"
-              >
-                {t(c.shortLabel)}
-              </Link>
-            ))}
-            {showCommitment && (
-              <Link
-                href="/cam-ket"
-                onClick={() => setOpen(false)}
-                className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-forest-700 hover:bg-forest-50 hover:text-forest-800"
-              >
-                {t("Cam kết uy tín")}
-              </Link>
-            )}
-            <LanguageSwitcher variant="menu" />
-            <div className="my-1 border-t border-black/5" />
-            {GUIDE_LINKS.map((l) => (
-              <Link key={l.href} href={l.href} onClick={() => setOpen(false)} className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700">{t(l.label)}</Link>
-            ))}
-            <Link href="/tai-khoan" onClick={() => setOpen(false)} className="rounded-xl px-3.5 py-3 text-[15px] font-semibold text-gray-700 hover:bg-forest-50 hover:text-forest-700">{customerName ? t(customerName) : t("Đăng nhập / Đăng ký")}</Link>
-          </nav>
+
+          <div className="flex flex-1 flex-col gap-[22px] overflow-y-auto overscroll-contain px-[18px] pb-[22px] pt-1">
+            <div className="flex flex-col gap-2.5">
+              <MenuTitle>{t("Đặt dịch vụ")}</MenuTitle>
+              <div className="grid grid-cols-2 gap-2">
+                {CATEGORY_LIST.map((c, i) => (
+                  <Link
+                    key={c.slug}
+                    href={`/${c.slug}`}
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      "flex flex-col gap-0.5 rounded-2xl border px-3.5 py-[13px] text-white transition-[opacity,transform,background] duration-500",
+                      i === 0 ? "border-transparent" : "border-white/10 bg-white/[.06] hover:bg-white/[.12]",
+                      open ? "translate-x-0 opacity-100" : "translate-x-[30px] opacity-0",
+                    )}
+                    style={{ ...(i === 0 ? { background: "oklch(0.68 0.17 45)" } : {}), transitionDelay: open ? `${0.12 + i * 0.04}s` : "0s" }}
+                  >
+                    <span className="text-base font-extrabold tracking-tight">{t(c.shortLabel)}</span>
+                    {MENU_SUB[c.key] && <span className="text-xs opacity-70">{t(MENU_SUB[c.key])}</span>}
+                  </Link>
+                ))}
+              </div>
+              {showCommitment && (
+                <Link
+                  href="/cam-ket"
+                  onClick={() => setOpen(false)}
+                  className={cn("flex items-center justify-between gap-2.5 rounded-2xl border px-4 py-[13px] transition-opacity duration-500", open ? "opacity-100" : "opacity-0")}
+                  style={{
+                    background: "oklch(0.82 0.11 78 / .12)",
+                    borderColor: "oklch(0.82 0.11 78 / .35)",
+                    color: "oklch(0.82 0.11 78)",
+                    transitionDelay: open ? ".4s" : "0s",
+                  }}
+                >
+                  <span className="text-[15px] font-extrabold">{t("Cam kết uy tín")}</span>
+                  <span className="text-xs font-bold opacity-85">{t("Đền tới 100tr →")}</span>
+                </Link>
+              )}
+            </div>
+
+            <div
+              className={cn("flex flex-col gap-1 transition-[opacity,transform] duration-700", open ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0")}
+              style={{ transitionDelay: open ? ".45s" : "0s" }}
+            >
+              <MenuTitle className="mb-1">{t("Cẩm nang Tà Xùa")}</MenuTitle>
+              {GUIDE_LINKS.map((l) => (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  onClick={() => setOpen(false)}
+                  className="flex items-center justify-between gap-2.5 border-b border-white/[.08] px-0.5 py-3 text-[15px] font-semibold"
+                  style={{ color: "oklch(0.94 0.015 90)" }}
+                >
+                  <span>{l.label}</span>
+                  <span className="text-sm opacity-45">›</span>
+                </Link>
+              ))}
+            </div>
+
+            <div className={cn("flex flex-col gap-2.5 transition-opacity duration-500", open ? "opacity-100" : "opacity-0")} style={{ transitionDelay: open ? ".55s" : "0s" }}>
+              <MenuTitle>{t("Ngôn ngữ")}</MenuTitle>
+              <LanguageSwitcher variant="segment" />
+            </div>
+          </div>
+
+          <div
+            className="flex flex-none items-center gap-3 border-t border-white/[.08] px-[18px] pt-3"
+            style={{ background: "oklch(0.19 0.03 165)", paddingBottom: "calc(14px + env(safe-area-inset-bottom))" }}
+          >
+            <Link href="/tai-khoan" onClick={() => setOpen(false)} className="flex min-w-0 flex-1 items-center gap-3">
+              <span className="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-full text-[13px] font-extrabold text-white" style={{ background: "oklch(0.68 0.17 45)" }}>
+                {initials}
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-[15px] font-extrabold">{customerName ?? t("Đăng nhập / Đăng ký")}</span>
+                <span className="block text-xs opacity-65">{customerName ? t("Tài khoản của bạn") : t("Theo dõi đơn đã đặt")}</span>
+              </span>
+            </Link>
+            <a href={`tel:${zaloNum}`} className="rounded-full border border-white/25 px-3.5 py-2 text-[13px] font-extrabold text-white">
+              {t("Gọi")}
+            </a>
+            <a
+              href={`https://zalo.me/${zaloNum}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full px-3.5 py-2 text-[13px] font-extrabold text-white"
+              style={{ background: "oklch(0.68 0.17 45)" }}
+            >
+              Zalo
+            </a>
+          </div>
         </div>
       </div>
     </>
+  );
+}
+
+function MenuTitle({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={cn("text-[11px] font-extrabold uppercase tracking-[.2em]", className)} style={{ color: "oklch(0.82 0.11 78)" }}>
+      {children}
+    </div>
   );
 }

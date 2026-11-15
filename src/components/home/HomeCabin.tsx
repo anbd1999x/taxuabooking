@@ -12,14 +12,13 @@ function vnd(n: number | null): string {
   if (n >= 1_000_000) return (n / 1_000_000).toFixed(n % 1_000_000 ? 1 : 0) + "tr";
   return Math.round(n / 1000) + "k";
 }
-function full(n: number | null): string {
-  if (n == null) return "Liên hệ";
-  return new Intl.NumberFormat("vi-VN").format(n) + "đ";
-}
 
-const GREEN = "oklch(0.27 0.05 160)";
-const GREEN_DEEP = "oklch(0.23 0.045 160)";
+const ORANGE = "oklch(0.68 0.18 45)";
+const GOLD = "oklch(0.8 0.14 70)";
+const STARS = Array.from({ length: 24 }, (_, i) => ({ x: ((i * 37 + 7) % 97) + "%", y: ((i * 17 + 3) % 30) + "%", s: 1 + (i % 3), d: 2 + (i % 5) * 0.7 }));
+const BAND = [[-5, 0, 34, 60], [18, 10, 30, 55], [40, -4, 34, 66], [62, 8, 30, 58], [82, -2, 32, 64], [8, 36, 22, 40], [50, 40, 22, 38]];
 
+/** Khối "Cabin Tà Xùa" trang chủ — thiết kế v5 (trời đêm có sao, lộ trình sáng dần + xe chạy theo tiến độ cuộn). */
 export function HomeCabin({
   fares,
   combo,
@@ -45,165 +44,214 @@ export function HomeCabin({
 }) {
   const t = useT();
   const [dir, setDir] = useState<"di" | "ve">("di");
-  const carRef = useRef<HTMLDivElement>(null);
-  const laneRef = useRef<HTMLDivElement>(null);
+  const legsRef = useRef<HTMLDivElement>(null);
+  const busRef = useRef<HTMLDivElement>(null);
+  const comboRef = useRef<HTMLSpanElement>(null);
+  const comboStartRef = useRef<number | null>(null); // mốc bắt đầu đếm số (giữ qua lần đổi chiều)
   const stops = dir === "ve" ? routes.ve : routes.di;
   const hasRoute = routes.di.length > 0 || routes.ve.length > 0;
 
+  // Lộ trình: điểm dừng sáng dần + xe chạy theo tiến độ cuộn; số giá combo đếm lên khi cuộn tới.
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const R = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    const cl = (v: number) => Math.max(0, Math.min(1, v));
+    const eo = (v: number) => 1 - Math.pow(1 - v, 3);
     const t0 = performance.now();
     let raf = 0;
-    const loop = (now: number) => {
-      const car = carRef.current, lane = laneRef.current;
-      if (car && car.parentElement) {
-        const W = car.parentElement.offsetWidth, D = 9000;
-        const f = ((now - t0) % D) / D;
-        const back = dir === "ve";
-        const x = back ? W - f * (W + 80) : -80 + f * (W + 80);
-        const bob = Math.sin(now / 80) * 0.8;
-        car.style.transform = `translate(${x}px,${bob}px) scaleX(${back ? -1 : 1})`;
-        if (lane) lane.style.backgroundPosition = `${(back ? 1 : -1) * (((now - t0) / 25) % 36)}px 0`;
+    const tick = (now: number) => {
+      raf = requestAnimationFrame(tick);
+      const sec = (now - t0) / 1000;
+      const vh = window.innerHeight;
+      const lg = legsRef.current;
+      if (lg) {
+        const r = lg.getBoundingClientRect();
+        if (r.bottom > -100 && r.top < vh + 100) {
+          const f = R ? 1 : cl((vh * 0.9 - r.top) / (vh * 0.55));
+          const dots = lg.querySelectorAll<HTMLElement>("[data-stop]");
+          const n = dots.length;
+          dots.forEach((d, i) => {
+            const on = f >= (n > 1 ? i / (n - 1) : 0) - 0.02;
+            const last = i === n - 1;
+            d.style.background = on ? (last ? ORANGE : "oklch(0.86 0.12 78)") : "transparent";
+            d.style.boxShadow = on ? "0 0 0 5px oklch(0.8 0.14 70 / .22), 0 0 14px oklch(0.86 0.12 78 / .7)" : "none";
+            d.style.transform = on ? "scale(1.15)" : "scale(1)";
+          });
+          const bus = busRef.current;
+          if (bus?.parentElement) {
+            const W = bus.parentElement.offsetWidth;
+            const x = f * (W - 70) + (R ? 0 : Math.sin(sec * 2) * 3);
+            bus.style.transform = `translate3d(${dir === "ve" ? W - 70 - x : x}px, ${R ? 0 : Math.sin(sec * 9) * 0.6}px, 0) scaleX(${dir === "ve" ? -1 : 1})`;
+          }
+        }
       }
-      raf = requestAnimationFrame(loop);
+      const cn = comboRef.current;
+      if (cn && combo?.price) {
+        const r = cn.getBoundingClientRect();
+        if (comboStartRef.current == null && r.top < vh * 0.92) comboStartRef.current = now / 1000;
+        if (comboStartRef.current != null) {
+          const k = R ? 1 : eo(cl((now / 1000 - comboStartRef.current) / 1.6));
+          cn.textContent = t(vnd(Math.round((combo.price * k) / 1000) * 1000));
+        }
+      }
     };
-    raf = requestAnimationFrame(loop);
+    raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [dir]);
-
-  const tabOn = { background: "white", color: GREEN };
-  const tabOff = { background: "transparent", color: "oklch(0.9 0.02 160)" };
+  }, [dir, combo, t]);
 
   return (
-    <section className="container-page">
-      <div className="flex flex-col gap-9 overflow-hidden rounded-[28px] p-6 text-white sm:p-10" style={{ background: GREEN }}>
-        {/* Header */}
-        <div className="flex flex-wrap items-end justify-between gap-6">
-          <div className="flex max-w-2xl flex-col gap-3">
-            <div className="text-[13px] font-bold uppercase tracking-[0.1em]" style={{ color: "oklch(0.82 0.13 60)" }}>{t("Xe cabin giường nằm · khứ hồi")}</div>
-            <h2 className="text-4xl font-extrabold leading-none tracking-tight sm:text-6xl">{t("Cabin Tà Xùa")}</h2>
-            <div className="text-lg font-medium italic" style={{ color: "oklch(0.88 0.03 160)" }}>{t("Đồng hành cùng bạn trên mọi nẻo đường.")}</div>
+    <section className="mx-auto max-w-[1240px] px-[clamp(16px,4vw,40px)] pt-[clamp(40px,6vw,64px)]">
+      <div
+        data-rv
+        className="relative flex flex-col gap-[clamp(18px,2.4vw,26px)] overflow-hidden rounded-[28px] p-[clamp(20px,3vw,32px)] text-white"
+        style={{ background: "linear-gradient(180deg, oklch(0.22 0.05 240) 0%, oklch(0.25 0.05 162) 45%)" }}
+      >
+        {/* trời đêm: sao, trăng, dải mây */}
+        {STARS.map((s, i) => (
+          <span
+            key={i}
+            data-tw
+            aria-hidden
+            className="pointer-events-none absolute rounded-full bg-white"
+            style={{ left: s.x, top: s.y, width: s.s, height: s.s, boxShadow: "0 0 6px white", ["--tw" as string]: `${s.d}s`, animationDelay: `${-i * 0.37}s` }}
+          />
+        ))}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute right-[6%] top-[4%] h-[70px] w-[70px] rounded-full opacity-85 min-[900px]:right-[42%] min-[900px]:top-[3%]"
+          style={{ background: "radial-gradient(circle at 38% 38%, oklch(0.98 0.03 90), oklch(0.9 0.05 85) 60%)", boxShadow: "0 0 60px 18px oklch(0.95 0.06 85 / .25)" }}
+        />
+        <div data-px="-0.08" aria-hidden className="pointer-events-none absolute -left-[10%] -right-[10%] -top-[20%] h-[60%] opacity-[.12] will-change-transform">
+          {BAND.map(([x, y, w, h], i) => (
+            <div key={i} className="absolute rounded-full blur-[16px]" style={{ left: `${x}%`, bottom: `${y}%`, width: `${w}%`, height: `${h}%`, background: "radial-gradient(ellipse, white 30%, transparent 70%)" }} />
+          ))}
+        </div>
+
+        {/* Tiêu đề */}
+        <div className="relative flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div className="text-xs font-extrabold uppercase tracking-[.16em]" style={{ color: GOLD }}>{t("Xe cabin giường nằm · khứ hồi")}</div>
+            <h2 className="mt-2 text-[clamp(32px,4.4vw,48px)] font-extrabold leading-none tracking-[-.03em]">{t("Cabin Tà Xùa")}</h2>
+            <div className="mt-2 text-[15px] italic" style={{ color: "oklch(0.85 0.02 160)" }}>{t("Đồng hành cùng bạn trên mọi nẻo đường.")}</div>
           </div>
-          <div className="flex flex-wrap gap-2.5">
-            <Chip label={t("Xuất phát")} value={startInfo} />
-            <Chip label={t("Điểm đón Hà Nội")} value={pickupInfo} />
+          <div className="flex flex-wrap gap-2">
+            <Fact label={t("Xuất phát")} value={t(startInfo)} />
+            <Fact label={t("Điểm đón Hà Nội")} value={t(pickupInfo)} />
           </div>
         </div>
 
-        {/* Giá + combo */}
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          <div className="rounded-[22px] p-6 text-ink sm:p-8" style={{ background: "oklch(0.975 0.012 95)" }}>
-            <div className="flex flex-wrap items-baseline justify-between gap-3">
-              <div className="text-2xl font-extrabold tracking-tight">{t("Bảng giá vé theo nơi đón")}</div>
-              <div className="text-[13px] font-semibold text-gray-500">{t("Giá khứ hồi / khách")}</div>
+        {/* Bảng giá + combo */}
+        <div className="relative grid items-stretch gap-3 min-[900px]:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
+          <div className="flex flex-col gap-3 rounded-[20px] p-[clamp(16px,2vw,24px)]" style={{ background: "oklch(0.97 0.012 85)", color: "oklch(0.22 0.03 160)" }}>
+            <div className="flex flex-wrap items-baseline justify-between gap-2.5">
+              <span className="text-lg font-extrabold">{t("Bảng giá vé theo nơi đón")}</span>
+              <span className="text-[11px] font-semibold" style={{ color: "oklch(0.5 0.02 160)" }}>{t("Giá khứ hồi / khách")}</span>
             </div>
-            <div className="mt-4 grid gap-x-8 sm:grid-cols-2">
+            <div className="grid gap-x-7 min-[560px]:grid-cols-2">
               {fares.map((f, i) => (
-                <div key={i} className="flex items-baseline gap-2.5 border-b border-gray-200 py-3">
-                  <span className="text-base font-medium">{t(f.pickupPoint)}</span>
-                  <span className="flex-1" />
-                  <span className="text-xl font-extrabold tracking-tight" style={{ color: i === 0 ? "oklch(0.6 0.18 45)" : "oklch(0.22 0.03 160)" }}>{t(vnd(f.price))}</span>
+                <div key={i} className="flex items-center justify-between gap-2.5 border-b py-2.5 text-sm" style={{ borderColor: "oklch(0.92 0.015 85)" }}>
+                  <span>{t(f.pickupPoint)}</span>
+                  <b className="text-[15px]" style={{ color: i === 0 ? ORANGE : "oklch(0.22 0.03 160)" }}>{t(vnd(f.price))}</b>
                 </div>
               ))}
             </div>
-            <div className="mt-4 text-[13px] text-gray-500">{t(footnote)}</div>
+            <div className="text-xs" style={{ color: "oklch(0.5 0.02 160)" }}>{t(footnote)}</div>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2.5">
             {combo && (
-              <div className="flex flex-1 flex-col gap-2 rounded-[22px] p-6" style={{ background: "oklch(0.68 0.18 45)" }}>
-                <span className="self-start rounded-full bg-white/20 px-2.5 py-1.5 text-xs font-bold uppercase tracking-wider">{t(combo.sub)}</span>
-                <div className="mt-1.5 text-xl font-extrabold leading-snug">{t(combo.title)}</div>
-                <div className="flex-1" />
-                <div className="text-6xl font-extrabold leading-none tracking-tight sm:text-7xl">{t(vnd(combo.price))}</div>
-                <div className="text-sm">{t("Giá từ Hà Nội, gồm vé xe và phòng")}</div>
-                <Link href="/combo" className="mt-2 self-start rounded-full bg-white px-4 py-2.5 text-[15px] font-bold" style={{ color: "oklch(0.45 0.15 45)" }}>{t("Đặt combo")}</Link>
+              <div className="relative flex flex-1 flex-col gap-1.5 overflow-hidden rounded-[20px] p-[18px]" style={{ background: "oklch(0.66 0.18 45)" }}>
+                <span className="self-start rounded-full bg-white/[.22] px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[.12em]">{t(combo.sub)}</span>
+                <span className="mt-1 text-base font-extrabold leading-snug">{t(combo.title)}</span>
+                <span className="flex-1" />
+                <span ref={comboRef} className="text-[clamp(48px,5vw,60px)] font-extrabold leading-none tracking-[-.04em]">{t(vnd(combo.price))}</span>
+                <span className="text-xs" style={{ color: "oklch(0.97 0.03 70)" }}>{t("Giá từ Hà Nội, gồm vé xe và phòng")}</span>
+                <Link href="/combo" className="mt-2 self-start rounded-full bg-white px-4 py-2 text-[13px] font-extrabold" style={{ color: "oklch(0.45 0.15 45)" }}>{t("Đặt combo")}</Link>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-3">
-              <MiniCard label={t("Home lẻ view kính")} value={vnd(homeFrom)} unit={t("/đêm")} prefix={t("từ ")} href="/homestay" />
-              <MiniCard label={t("Thuê xe máy")} value={vnd(bikeFrom)} unit={t("/ngày")} href="/thue-xe-may" />
+            <div className="grid grid-cols-2 gap-2.5">
+              <Mini label={t("Home lẻ view kính")} prefix={t("từ ")} value={t(vnd(homeFrom))} unit={t("/đêm")} href="/homestay" />
+              <Mini label={t("Thuê xe máy")} value={t(vnd(bikeFrom))} unit={t("/ngày")} href="/thue-xe-may" />
             </div>
           </div>
         </div>
 
-        {/* Lộ trình + xe chạy */}
+        {/* Lộ trình */}
         {hasRoute && (
-          <div className="flex flex-col gap-7 overflow-hidden rounded-[22px] p-6 sm:p-8" style={{ background: GREEN_DEEP, border: "1px solid oklch(1 0 0 / .1)" }}>
-            <div className="flex flex-wrap items-center justify-between gap-4">
+          <div ref={legsRef} className="relative overflow-hidden rounded-[20px] px-[clamp(16px,2vw,24px)] pt-[clamp(16px,2vw,24px)]" style={{ background: "oklch(0.2 0.045 162)" }}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <div className="text-2xl font-extrabold tracking-tight">{dir === "ve" ? t("Ăn trưa trên núi, tối đã về phố.") : t("Ngủ một giấc, mở mắt là tới mây.")}</div>
-                <div className="mt-1 text-[15px]" style={{ color: "oklch(0.82 0.03 160)" }}>{dir === "ve" ? t("Chiều về · Tà Xùa → Hà Nội · khoảng 7 tiếng") : t("Chiều đi · Hà Nội → Tà Xùa · khoảng 8 tiếng")}</div>
+                <div className="text-[clamp(17px,1.8vw,20px)] font-extrabold">{dir === "ve" ? t("Ăn trưa trên núi, tối đã về phố.") : t("Ngủ một giấc, mở mắt là tới mây.")}</div>
+                <div className="mt-1 text-xs" style={{ color: "oklch(0.78 0.02 160)" }}>
+                  {dir === "ve" ? t("Chiều về · Tà Xùa → Hà Nội · khoảng 7 tiếng") : t("Chiều đi · Hà Nội → Tà Xùa · khoảng 8 tiếng")}
+                </div>
               </div>
-              <div className="inline-flex gap-1 rounded-full p-1" style={{ background: "oklch(1 0 0 / .08)" }}>
-                <button type="button" onClick={() => setDir("di")} className="rounded-full px-4 py-2 text-sm font-bold transition" style={dir === "di" ? tabOn : tabOff}>{t("Chiều đi")}</button>
-                <button type="button" onClick={() => setDir("ve")} className="rounded-full px-4 py-2 text-sm font-bold transition" style={dir === "ve" ? tabOn : tabOff}>{t("Chiều về")}</button>
+              <div className="inline-flex gap-[3px] rounded-full bg-white/[.08] p-[3px]">
+                {(["di", "ve"] as const).map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => setDir(k)}
+                    className="whitespace-nowrap rounded-full px-3.5 py-[7px] text-xs font-extrabold transition"
+                    style={dir === k ? { background: "white", color: "oklch(0.25 0.05 162)" } : { color: "oklch(0.88 0.02 160)" }}
+                  >
+                    {k === "di" ? t("Chiều đi") : t("Chiều về")}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Mobile: timeline DỌC — giống trang lộ trình đặt xe (CabinRoutes) */}
-            <div className="flex flex-col sm:hidden">
+            <div className="mt-5 grid pb-[26px] min-[720px]:[grid-template-columns:repeat(var(--n),minmax(0,1fr))]" style={{ ["--n" as string]: stops.length }}>
               {stops.map((s, i) => {
                 const last = i === stops.length - 1;
                 return (
-                  <div key={i} className="grid" style={{ gridTemplateColumns: "62px 22px minmax(0,1fr)", columnGap: 14 }}>
-                    <div className="text-[21px] font-extrabold leading-[22px] tracking-tight" style={{ color: last ? "oklch(0.85 0.13 65)" : "white" }}>{t(s.time)}</div>
-                    <div className="flex flex-col items-center">
-                      <span className="mt-0.5 h-[18px] w-[18px] flex-none rounded-full" style={{ background: last ? "oklch(0.72 0.17 50)" : "oklch(0.97 0.01 160)", boxShadow: `0 0 0 5px ${last ? "oklch(0.72 0.17 50 / .3)" : "oklch(1 0 0 / .12)"}` }} />
-                      {!last && <span className="my-2 min-h-[24px] w-0.5 flex-1" style={{ background: "oklch(1 0 0 / .4)" }} />}
+                  <div key={`${dir}-${i}`} className="flex min-w-0 gap-3.5 min-[720px]:flex-col min-[720px]:gap-3">
+                    <div className="flex flex-none flex-col items-center gap-1.5 min-[720px]:flex-row">
+                      <span
+                        data-stop
+                        className="h-3 w-3 flex-none rounded-full border-2 transition-all duration-400"
+                        style={{ borderColor: last ? "oklch(0.8 0.14 60)" : "oklch(1 0 0 / .5)" }}
+                      />
+                      <span
+                        className="min-h-[18px] w-0.5 flex-1 min-[720px]:mr-2.5 min-[720px]:h-0.5 min-[720px]:min-h-0 min-[720px]:w-auto"
+                        style={{ background: last ? "transparent" : "oklch(1 0 0 / .25)" }}
+                      />
                     </div>
-                    <div className="pb-5">
-                      <div className="text-[16px] font-bold leading-[22px]">{t(s.place)}</div>
-                      {s.note && <div className="mt-0.5 text-[13px] leading-normal" style={{ color: "oklch(0.85 0.02 160)" }}>{t(s.note)}</div>}
-                      {!last && s.gap && <div className="mt-1 text-xs font-semibold" style={{ color: "oklch(0.78 0.03 160)" }}>⏱ {t(s.gap)}</div>}
+                    <div className="pb-3.5 min-[720px]:pb-0 min-[720px]:pr-3">
+                      <div className="text-[clamp(22px,2.6vw,28px)] font-extrabold tracking-[-.02em]" style={{ color: last ? "oklch(0.8 0.15 65)" : "white" }}>{t(s.time)}</div>
+                      <div className="mt-0.5 text-[13px] font-bold" style={{ color: "oklch(0.88 0.02 160)" }}>{t(s.place)}</div>
+                      {s.note && <div className="mt-0.5 text-xs leading-snug" style={{ color: "oklch(0.75 0.02 160)" }}>{t(s.note)}</div>}
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            {/* Tablet/desktop: lưới ngang như cũ */}
-            <div className="hidden gap-0 sm:grid sm:grid-cols-2 lg:grid-cols-4">
-              {stops.map((s, i) => {
-                const last = i === stops.length - 1;
-                return (
-                  <div key={i} className="flex min-w-0 flex-col gap-2.5 pb-2 pr-5">
-                    <div className="flex items-center gap-2.5">
-                      <span className="h-3.5 w-3.5 flex-none rounded-full" style={{ background: last ? "oklch(0.72 0.17 50)" : "oklch(0.97 0.01 160)", boxShadow: `0 0 0 5px ${last ? "oklch(0.72 0.17 50 / .3)" : "oklch(1 0 0 / .12)"}` }} />
-                      {!last && <span className="h-0.5 flex-1" style={{ background: "oklch(1 0 0 / .22)" }} />}
-                      {!last && s.gap && <span className="whitespace-nowrap text-xs font-semibold" style={{ color: "oklch(0.8 0.03 160)" }}>{t(s.gap)}</span>}
-                    </div>
-                    <div className="mt-1.5 text-4xl font-extrabold leading-none tracking-tight" style={{ color: last ? "oklch(0.85 0.13 65)" : "white" }}>{t(s.time)}</div>
-                    <div className="text-[17px] font-bold">{t(s.place)}</div>
-                    {s.note && <div className="text-sm leading-normal" style={{ color: "oklch(0.82 0.02 160)" }}>{t(s.note)}</div>}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Lane + car */}
-            <div className="relative -mx-6 -mb-6 h-14 overflow-hidden sm:-mx-8 sm:-mb-8">
-              <div className="absolute inset-x-0 bottom-0 h-7" style={{ background: "oklch(0.2 0.035 160)" }} />
-              <div ref={laneRef} className="absolute inset-x-0 bottom-3 h-0.5" style={{ backgroundImage: "repeating-linear-gradient(90deg,oklch(1 0 0 / .28) 0 18px,transparent 18px 36px)" }} />
-              <div ref={carRef} className="absolute bottom-3.5 left-0 h-[30px] w-16 will-change-transform">
-                <div className="absolute left-0 top-0 h-[22px] w-16" style={{ borderRadius: "8px 14px 5px 5px", background: "oklch(0.7 0.18 48)", boxShadow: "0 6px 14px oklch(0.1 0.02 160 / .45)" }} />
-                <div className="absolute" style={{ left: 8, top: 5, width: 30, height: 7, borderRadius: 2, background: "oklch(0.92 0.03 230)" }} />
-                <div className="absolute" style={{ left: 43, top: 4, width: 15, height: 8, borderRadius: "2px 7px 2px 2px", background: "oklch(0.92 0.03 230)" }} />
-                <div className="absolute" style={{ right: -3, top: 13, width: 5, height: 5, borderRadius: "50%", background: "oklch(0.97 0.1 95)", boxShadow: "0 0 14px 6px oklch(0.95 0.12 95 / .5)" }} />
-                <div className="absolute" style={{ left: 9, top: 17, width: 13, height: 13, borderRadius: "50%", background: "oklch(0.16 0.01 160)", border: "3px solid oklch(0.82 0.01 160)" }} />
-                <div className="absolute" style={{ left: 42, top: 17, width: 13, height: 13, borderRadius: "50%", background: "oklch(0.16 0.01 160)", border: "3px solid oklch(0.82 0.01 160)" }} />
+            {/* đường + xe */}
+            <div className="absolute inset-x-0 bottom-0 h-[22px]" style={{ background: "oklch(0.17 0.04 162)" }} aria-hidden>
+              <div className="absolute inset-x-0 top-2.5 h-0.5" style={{ background: "repeating-linear-gradient(90deg, oklch(1 0 0 / .3) 0 14px, transparent 14px 26px)" }} />
+              <div ref={busRef} className="absolute bottom-1.5 left-0 h-5 w-[58px] origin-center will-change-transform">
+                <div className="absolute left-[52px] top-1.5 h-2.5 w-[70px]" style={{ background: "linear-gradient(90deg, oklch(0.97 0.1 90 / .5), transparent)", clipPath: "polygon(0 30%, 100% 0, 100% 100%, 0 70%)" }} />
+                <div className="absolute left-0 top-0 h-[15px] w-[58px]" style={{ borderRadius: "5px 10px 4px 4px", background: "oklch(0.68 0.17 50)" }} />
+                <div className="absolute left-[5px] top-[3px] h-[5px] w-[38px] rounded-[1px]" style={{ background: "repeating-linear-gradient(90deg, oklch(0.93 0.04 90) 0 7px, oklch(0.5 0.08 50) 7px 9px)" }} />
+                <div className="absolute left-2 top-3 h-[9px] w-[9px] rounded-full border-2" style={{ background: "oklch(0.15 0.01 160)", borderColor: "oklch(0.75 0.01 160)" }} />
+                <div className="absolute left-10 top-3 h-[9px] w-[9px] rounded-full border-2" style={{ background: "oklch(0.15 0.01 160)", borderColor: "oklch(0.75 0.01 160)" }} />
               </div>
             </div>
           </div>
         )}
 
-        {/* Footer row */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="text-[13px] font-bold uppercase tracking-[0.14em]" style={{ color: "oklch(0.82 0.13 60)" }}>{t("An toàn · Tiện lợi · Đúng giờ")}</div>
-          <div className="flex flex-wrap gap-2.5">
-            <a href={`tel:${phone.replace(/\s/g, "")}`} className="rounded-full bg-white px-5 py-3 text-[15px] font-bold" style={{ color: GREEN }}>{t("Gọi {0}", [t(phone)])}</a>
-            {zalo && <a href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="rounded-full px-5 py-3 text-[15px] font-bold text-white" style={{ background: "oklch(0.68 0.18 45)" }}>{t("Đặt vé qua Zalo")}</a>}
+        {/* Hàng cuối */}
+        <div className="relative flex flex-wrap items-center justify-between gap-3">
+          <span className="text-xs font-extrabold uppercase tracking-[.16em]" style={{ color: GOLD }}>{t("An toàn · Tiện lợi · Đúng giờ")}</span>
+          <div className="flex flex-wrap gap-2">
+            <a href={`tel:${phone.replace(/\s/g, "")}`} className="whitespace-nowrap rounded-full bg-white px-[18px] py-[11px] text-sm font-extrabold" style={{ color: "oklch(0.25 0.05 162)" }}>
+              {t("Gọi {0}", [t(phone)])}
+            </a>
+            {zalo && (
+              <a href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="whitespace-nowrap rounded-full px-[18px] py-[11px] text-sm font-extrabold text-white" style={{ background: ORANGE }}>
+                {t("Đặt vé qua Zalo")}
+              </a>
+            )}
           </div>
         </div>
       </div>
@@ -211,22 +259,24 @@ export function HomeCabin({
   );
 }
 
-function Chip({ label, value }: { label: string; value: string }) {
-  const t = useT();
+function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl px-4 py-3" style={{ background: "oklch(1 0 0 / .08)", border: "1px solid oklch(1 0 0 / .12)" }}>
-      <div className="text-xs opacity-70">{t(label)}</div>
-      <div className="mt-0.5 text-xl font-extrabold">{t(value)}</div>
+    <div className="rounded-[14px] border border-white/[.14] bg-white/[.07] px-3.5 py-2.5">
+      <div className="text-[11px]" style={{ color: "oklch(0.8 0.02 160)" }}>{label}</div>
+      <div className="mt-0.5 whitespace-nowrap text-base font-extrabold">{value}</div>
     </div>
   );
 }
 
-function MiniCard({ label, value, unit, prefix, href }: { label: string; value: string; unit: string; prefix?: string; href: string }) {
-  const t = useT();
+function Mini({ label, value, unit, prefix = "", href }: { label: string; value: string; unit: string; prefix?: string; href: string }) {
   return (
-    <Link href={href} className="rounded-[18px] p-4" style={{ background: "oklch(1 0 0 / .08)", border: "1px solid oklch(1 0 0 / .12)" }}>
-      <div className="text-[13px] opacity-75">{t(label)}</div>
-      <div className="mt-1 text-sm">{t(prefix)}<span className="text-2xl font-extrabold" style={{ color: "oklch(0.85 0.13 65)" }}>{t(value)}</span>{t(unit)}</div>
+    <Link href={href} className="rounded-[14px] border border-white/[.14] bg-white/[.06] p-3 text-white">
+      <div className="text-[11px]" style={{ color: "oklch(0.8 0.02 160)" }}>{label}</div>
+      <div className="mt-1 text-xs">
+        {prefix}
+        <b className="text-[19px]" style={{ color: "oklch(0.8 0.15 65)" }}>{value}</b>
+        {unit}
+      </div>
     </Link>
   );
 }
