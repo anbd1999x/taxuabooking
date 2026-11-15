@@ -115,11 +115,22 @@ export function HomeCabin({
             style={{ left: s.x, top: s.y, width: s.s, height: s.s, boxShadow: "0 0 6px white", ["--tw" as string]: `${s.d}s`, animationDelay: `${-i * 0.37}s` }}
           />
         ))}
+        {/* trăng lưỡi liềm: hình tròn bị khoét một hình tròn lệch (mask); quầng sáng dùng drop-shadow để ôm theo hình liềm */}
         <div
           aria-hidden
-          className="pointer-events-none absolute right-[6%] top-[4%] h-[70px] w-[70px] rounded-full opacity-85 min-[900px]:right-[42%] min-[900px]:top-[3%]"
-          style={{ background: "radial-gradient(circle at 38% 38%, oklch(0.98 0.03 90), oklch(0.9 0.05 85) 60%)", boxShadow: "0 0 60px 18px oklch(0.95 0.06 85 / .25)" }}
-        />
+          className="pointer-events-none absolute right-[6%] top-[4%] h-[70px] w-[70px] opacity-90 min-[900px]:right-[42%] min-[900px]:top-[3%]"
+          style={{ filter: "drop-shadow(0 0 10px oklch(0.95 0.06 85 / .55)) drop-shadow(0 0 28px oklch(0.95 0.06 85 / .3))" }}
+        >
+          <div
+            className="h-full w-full rounded-full"
+            style={{
+              background: "radial-gradient(circle at 30% 45%, oklch(0.99 0.03 90), oklch(0.9 0.06 85) 70%)",
+              WebkitMaskImage: "radial-gradient(circle at 70% 36%, transparent 0 27px, #000 28px)",
+              maskImage: "radial-gradient(circle at 70% 36%, transparent 0 27px, #000 28px)",
+              transform: "rotate(-12deg)",
+            }}
+          />
+        </div>
         <div data-px="-0.08" aria-hidden className="pointer-events-none absolute -left-[10%] -right-[10%] -top-[20%] h-[60%] opacity-[.12] will-change-transform">
           {BAND.map(([x, y, w, h], i) => (
             <div key={i} className="absolute rounded-full blur-[16px]" style={{ left: `${x}%`, bottom: `${y}%`, width: `${w}%`, height: `${h}%`, background: "radial-gradient(ellipse, white 30%, transparent 70%)" }} />

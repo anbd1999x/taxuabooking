@@ -772,15 +772,10 @@ export function HomestayList({
             >
               <div className="relative aspect-[16/10] overflow-hidden bg-gray-100 sm:aspect-[4/3]">
                 {s.cover ? <Image src={s.cover} alt={tr(s.name)} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" /> : <div className="flex h-full items-center justify-center text-4xl">🏠</div>}
-                <div className="pointer-events-none absolute left-3 right-3 top-3 flex justify-between gap-1.5">
-                  <div className="flex gap-1.5">
-                    <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[oklch(0.3_0.04_160)]">{tr(s.cat)}</span>
-                    {(s.roomFeatured || s.featured) && (
-                      <span className="rounded-full bg-sunset-500 px-2.5 py-1 text-xs font-bold text-white">{s.roomFeatured ? tr("⭐ Nổi bật") : tr("Nổi bật")}</span>
-                    )}
-                  </div>
-                  <span className="whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: STATUS[s.status].bg, color: STATUS[s.status].fg }}>{tr(STATUS[s.status].text(s.freeRooms, tr))}</span>
-                </div>
+                {/* Trên ảnh chỉ hiện badge HOT khi được tick Nổi bật (nhiều chip dễ chồng nhau trên mobile). */}
+                {(s.roomFeatured || s.featured) && (
+                  <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-sunset-500 px-2 py-0.5 text-[11px] font-extrabold tracking-wide text-white shadow-sm sm:left-3 sm:top-3 sm:px-2.5 sm:py-1 sm:text-xs">🔥 HOT</span>
+                )}
               </div>
               <div className="flex flex-1 flex-col gap-1 p-3 sm:gap-2 sm:p-5 sm:pt-[18px]">
                 <div className="line-clamp-1 text-[11px] font-semibold text-gray-500 sm:text-[13px]">
@@ -788,7 +783,10 @@ export function HomestayList({
                   {s.distanceKm != null && (s.distanceKm === 0 ? tr(" · ngay trung tâm") : tr(" · cách trung tâm {0}km", [s.distanceKm.toLocaleString("vi-VN")]))}
                 </div>
                 <div className="line-clamp-1 text-[15px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink sm:line-clamp-none sm:text-[19px]">{tr(s.name)}</div>
-                <div className="text-[11px] font-semibold text-gray-500 sm:text-[12px]">{tr("Tối đa")}{" "}{s.capacity}{" "}{tr("khách")}{s.count > 1 ? tr(" · {0} phòng loại này", [s.count]) : ""}</div>
+                <div className="text-[11px] font-semibold text-gray-500 sm:text-[12px]">
+                  {tr("Tối đa")}{" "}{s.capacity}{" "}{tr("khách")}{s.count > 1 ? tr(" · {0} phòng loại này", [s.count]) : ""}
+                  {s.status !== "none" && <span className="ml-1.5 inline-block whitespace-nowrap rounded-full px-1.5 py-px text-[10px] font-bold sm:text-[11px]" style={{ background: STATUS[s.status].bg, color: STATUS[s.status].fg }}>{tr(STATUS[s.status].text(s.freeRooms, tr))}</span>}
+                </div>
                 {(() => {
                   const tags = AMENITIES.filter((a) => s.amen?.[a.key]);
                   if (tags.length === 0) return null;
