@@ -10,7 +10,7 @@ import { payingChildren, partyLabel, DEFAULT_CHILD_FREE_UNDER } from "./occupanc
 import type { ComboBookingInput } from "./validation";
 import { cabinAllocation, busCostPerPerson, cabinSeatTotal } from "./combo-pricing";
 import { busCommissionFor } from "./provider-commission";
-import { comboMotorbikeCost, comboMotorbikeDays } from "./combo-pricing";
+import { comboMotorbike, comboMotorbikeCost, comboMotorbikeDays } from "./combo-pricing";
 import { ensureServiceSheetFresh } from "./sheet-sync";
 import { tripsOnDate, peekTrip, materializeTrip, OPEN_SEATS, type TripView } from "./cabin-trips";
 export { cabinAllocation, busCostPerPerson } from "./combo-pricing";
@@ -1119,7 +1119,8 @@ export async function createComboBooking(
   // khách trả tiền xe trực tiếp khi giao xe. Chỉ ghi chú rõ trong selectionLabel của đơn.
   const bikes = Math.min(Math.max(0, input.motorbikes ?? 0), people);
   const bikeDays = comboMotorbikeDays(nights.length);
-  const bikeCost = comboMotorbikeCost(bikes, nights.length);
+  const bike = comboMotorbike(input.motorbikeType); // giá/ngày lấy theo loại xe ở server, không tin client
+  const bikeCost = comboMotorbikeCost(bikes, nights.length, bike.key);
   // Tách tiền từng bên: bill về homestay = tiền phòng, bill về nhà xe = tiền vé.
   // (referencePrice = TỔNG khách trả, đã trừ giảm giá combo cho phòng thường.)
   const roomAmount = roomCost; // đã là tổng tiền phòng cả đoàn
@@ -1149,7 +1150,7 @@ export async function createComboBooking(
     (freeKids > 0 ? ` (${freeKids} trẻ miễn phí, ở cùng)` : "") +
     ` · xe nằm: ${[nDouble ? `${nDouble} khách nằm ghép (cabin đôi)` : null, nSingle ? `${nSingle} khách nằm riêng (cabin đơn)` : null].filter(Boolean).join(" + ")}` +
     (bikes > 0
-      ? ` · DỊCH VỤ KÈM (tính riêng, KHÔNG gồm trong bill): thuê xe máy ${bikes} xe × ${bikeDays} ngày = ${bikeCost.toLocaleString("vi-VN")}đ — khách thanh toán khi giao xe`
+      ? ` · DỊCH VỤ KÈM (tính riêng, KHÔNG gồm trong bill): thuê xe máy ${bike.name}: ${bikes} xe × ${bikeDays} ngày × ${bike.perDay.toLocaleString("vi-VN")}đ = ${bikeCost.toLocaleString("vi-VN")}đ — khách thanh toán khi giao xe`
       : "");
 
   let code = generateBookingCode();

@@ -17,7 +17,7 @@ import type {
   ComboSearchResult,
 } from "@/lib/combo";
 import { ensureSheetFresh } from "@/components/ensureSheet";
-import { cabinAllocation, busCostPerPerson, cabinSeatTotal, COMBO_MOTORBIKE_PER_DAY, comboMotorbikeCost, comboMotorbikeDays } from "@/lib/combo-pricing";
+import { cabinAllocation, busCostPerPerson, cabinSeatTotal, COMBO_MOTORBIKES, comboMotorbike, comboMotorbikeCost, comboMotorbikeDays, type ComboBikeKey } from "@/lib/combo-pricing";
 import { vnPhoneError } from "@/lib/phone";
 import { BookingEmailField, emailLooksValid } from "@/components/BookingEmailField";
 import { showGlobalLoading } from "@/components/useSearchNav";
@@ -349,12 +349,14 @@ function ComboPlanCard({
     setPreview({ gi, roomId: first });
   }
 
-  // Tuỳ chọn thêm xe máy 170k/xe/ngày — MẶC ĐỊNH KHÔNG TICK. Số ngày thuê = số đêm.
+  // Tuỳ chọn thêm xe máy (chọn loại: Wave 170k / PG1 270k mỗi xe mỗi ngày) — MẶC ĐỊNH KHÔNG TICK. Số ngày thuê = số đêm.
   const [withBike, setWithBike] = useState(false);
+  const [bikeType, setBikeType] = useState<ComboBikeKey>(COMBO_MOTORBIKES[0].key);
+  const bike = comboMotorbike(bikeType);
   const [bikeQty, setBikeQty] = useState(Math.max(1, Math.ceil(people / 2)));
   const bikes = withBike ? Math.min(bikeQty, people) : 0;
   const bikeDays = comboMotorbikeDays(nights);
-  const bikeCost = comboMotorbikeCost(bikes, nights);
+  const bikeCost = comboMotorbikeCost(bikes, nights, bikeType);
 
   const [openForm, setOpenForm] = useState(false);
   const [name, setName] = useState("");
@@ -412,6 +414,7 @@ function ComboPlanCard({
           cabinSingle: cbSingle,
           cabinDouble: cbDouble,
           motorbikes: bikes,
+          motorbikeType: bikes > 0 ? bikeType : null,
           customerName: name.trim(),
           phone: phone.trim(),
           email: email.trim() || null,
@@ -654,7 +657,7 @@ function ComboPlanCard({
                 </div>
                 {bikes > 0 && (
                   <div className="rounded-xl border border-dashed border-sunset-300 bg-sunset-50 p-3.5 text-[13px] leading-relaxed text-gray-700">
-                    🏍️ <b className="text-ink">Thuê xe máy: {bikes} xe × {bikeDays} ngày = {vnd(bikeCost)}</b> — dịch vụ đi kèm, <b>tính riêng, không nằm trong bill combo</b>. Thanh toán trực tiếp khi giao xe.
+                    🏍️ <b className="text-ink">Thuê xe máy {bike.name}: {bikes} xe × {bikeDays} ngày = {vnd(bikeCost)}</b> — dịch vụ đi kèm, <b>tính riêng, không nằm trong bill combo</b>. Thanh toán trực tiếp khi giao xe.
                   </div>
                 )}
                 <SupportHoursNote />
@@ -701,7 +704,7 @@ function ComboPlanCard({
                       <span className="min-w-0 font-bold text-ink">🏍️ Thuê xe máy <span className="block font-semibold text-gray-500 sm:inline">(dịch vụ kèm · tính riêng)</span></span>
                       <span className="flex-none text-right font-extrabold text-ink">{vnd(bikeCost)}</span>
                     </div>
-                    <div className="text-xs text-gray-600">{bikes} xe × {bikeDays} ngày × {vnd(COMBO_MOTORBIKE_PER_DAY)}</div>
+                    <div className="text-xs text-gray-600">{bike.name} · {bikes} xe × {bikeDays} ngày × {vnd(bike.perDay)}</div>
                     <div className="text-xs font-semibold leading-relaxed text-sunset-700">Không tính vào bill combo ở trên — thanh toán trực tiếp khi giao xe.</div>
                   </div>
                 )}
@@ -737,15 +740,37 @@ function ComboPlanCard({
                     <input type="checkbox" checked={withBike} onChange={(e) => setWithBike(e.target.checked)} className="mt-0.5 h-[18px] w-[18px] flex-none accent-forest-600" />
                     <span className="min-w-0">
                       <span className="block text-sm font-bold text-ink">🏍️ Thêm thuê xe máy</span>
-                      <span className="block text-xs text-gray-500"><b className="text-forest-700">{vnd(COMBO_MOTORBIKE_PER_DAY)}/xe/ngày</b> · nhận xe tại Tà Xùa, tự đi săn mây & các điểm check-in</span>
+                      <span className="block text-xs text-gray-500"><b className="text-forest-700">{COMBO_MOTORBIKES.map((b) => `${b.name} ${vnd(b.perDay)}`).join(" · ")}</b> /xe/ngày · nhận xe tại Tà Xùa, tự đi săn mây & các điểm check-in</span>
                       <span className="mt-0.5 block text-xs font-semibold text-sunset-700">Dịch vụ đi kèm, tính riêng — không cộng vào bill combo, thanh toán khi giao xe.</span>
                     </span>
                   </label>
                   {withBike && (
+                    <div className="flex flex-col gap-2 border-t border-dashed border-gray-200 pt-2.5">
+                      <div className="text-sm font-bold text-ink">Chọn loại xe</div>
+                      <div className="grid grid-cols-2 gap-2">
+                        {COMBO_MOTORBIKES.map((b) => {
+                          const on = bikeType === b.key;
+                          return (
+                            <button
+                              key={b.key}
+                              type="button"
+                              onClick={() => setBikeType(b.key)}
+                              aria-pressed={on}
+                              className={`flex flex-col items-start rounded-xl border-[1.5px] px-3 py-2 text-left transition ${on ? "border-forest-600 bg-forest-50" : "border-gray-200 bg-white hover:border-forest-300"}`}
+                            >
+                              <span className="text-sm font-bold text-ink">{b.name}</span>
+                              <span className={`text-xs font-semibold ${on ? "text-forest-700" : "text-gray-500"}`}>{vnd(b.perDay)}/ngày</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {withBike && (
                     <div className="flex items-center justify-between gap-3 border-t border-dashed border-gray-200 pt-2.5">
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-bold text-ink">Số xe</div>
-                        <div className="text-xs text-gray-500">{bikes} xe × {bikeDays} ngày = <b className="text-sunset-600">{vnd(bikeCost)}</b></div>
+                        <div className="text-xs text-gray-500">{bikes} xe × {bikeDays} ngày × {vnd(bike.perDay)} = <b className="whitespace-nowrap text-sunset-600">{vnd(bikeCost)}</b></div>
                       </div>
                       <div className="flex flex-none items-center gap-2.5">
                         <button type="button" onClick={() => setBikeQty((q) => Math.max(1, Math.min(q, people) - 1))} disabled={bikes <= 1} className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-lg font-bold text-ink disabled:opacity-40">−</button>

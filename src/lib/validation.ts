@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { normalizeVnPhone, vnPhoneError } from "./phone";
 import { isValidDateKey } from "./dates";
+import { COMBO_BIKE_KEYS } from "./combo-pricing";
 
 // BUNGALOW đã gỡ khỏi danh mục chọn được (gộp vào HOMESTAY) — dữ liệu cũ đã migrate.
 const SERVICE_CATEGORIES = [
@@ -113,6 +114,8 @@ export const comboBookingSchema = z
     cabinDouble: z.coerce.number().int().min(0).max(30).default(0),
     // Tuỳ chọn thêm: số xe máy thuê kèm combo (0 = không thuê). Giá/ngày & số ngày do server tính.
     motorbikes: z.coerce.number().int().min(0).max(30).default(0),
+    // Loại xe máy thuê kèm (wave | pg1); client cũ không gửi ⇒ Honda Wave.
+    motorbikeType: z.enum(COMBO_BIKE_KEYS).optional().nullable(),
     customerName: z.string().trim().min(2, "Vui lòng nhập họ tên.").max(120),
     phone: phoneField,
     email: emailField,

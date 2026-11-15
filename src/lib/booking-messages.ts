@@ -420,19 +420,19 @@ export async function buildBookingMessages(
   // Combo có thuê xe máy kèm: lưu trong mô tả lựa chọn ("… · DỊCH VỤ KÈM (tính riêng…): thuê xe máy 2 xe × 2 ngày
   // = 300.000đ — khách thanh toán khi giao xe"; đơn cũ: "thuê xe máy: …") ⇒ thêm 1 khối riêng trong email.
   const label = b.selectionLabel ?? "";
-  const moto = /thuê xe máy (d+) xe × (d+) ngày = ([d.]+)đ/.exec(label);
+  const moto = /thuê xe máy (?:([^:·]+): )?(\d+) xe × (\d+) ngày(?: × [\d.]+đ)? = ([\d.]+)đ/.exec(label);
   const motoOld = moto ? null : /(?:^| · )thuê xe máy: ([^·]+)/.exec(label);
   if (b.category === "COMBO" && (moto || motoOld)) {
     sections.push({
       tag: "Thuê xe máy",
-      name: "Xe máy thuê kèm",
+      name: moto?.[1]?.trim() || "Xe máy thuê kèm",
       amount: null,
       rows: moto
         ? [
-            ["Số xe", `${moto[1]} xe`],
-            ["Thời gian thuê", `${moto[2]} ngày`],
+            ["Số xe", `${moto[2]} xe`],
+            ["Thời gian thuê", `${moto[3]} ngày`],
             ["Thanh toán", "Trả khi nhận xe"],
-            ["Tiền thuê xe (tính riêng)", `${moto[3]}đ`],
+            ["Tiền thuê xe (tính riêng)", `${moto[4]}đ`],
           ]
         : [["Chi tiết", motoOld![1].trim()]],
     });

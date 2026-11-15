@@ -784,12 +784,19 @@ export interface RentalBikeCard {
   name: string;
   image: string | null;
   pricePerDay: number;
+  /** Giá gốc gạch ngang (Service.originalPrice) — chỉ khi cao hơn giá thuê của xe này. */
+  originalPrice: number | null;
   totalUnits: number;
   deliveryFee: number | null;
   kind: "Xe số" | "Xe côn tay" | "Xe địa hình";
   featured: boolean;
   available: number | null; // theo ngày đã chọn; null = chưa chọn hoặc chưa cập nhật
   state: "ok" | "low" | "full" | "unk";
+}
+
+/** Giá gạch hợp lệ cho một thẻ: có giá bán, có giá gốc, giá gốc CAO HƠN giá bán (và thẻ được phép gạch). */
+function strikeFor(price: number | null, original: number | null, allowed = true): number | null {
+  return allowed && price != null && price > 0 && original != null && original > price ? original : null;
 }
 
 /** Phân loại xe theo tên (best-effort) để lọc & gắn nhãn. */
@@ -865,6 +872,13 @@ export async function getRentalBikes(from: string | null, to: string | null): Pr
         name: v.vehicleType,
         image: v.imageUrl ?? s.images[0]?.url ?? null,
         pricePerDay: toNumber(v.pricePerDay) ?? 0,
+        // Giá gạch cấu hình ở cấp CỬA HÀNG: cửa hàng nhiều loại xe thì chỉ gạch ở xe có giá = giá "từ" của
+        // cửa hàng (tránh gạch 300k lên một xe vốn chỉ 180k); cửa hàng 1 loại xe thì gạch luôn.
+        originalPrice: strikeFor(
+          toNumber(v.pricePerDay),
+          toNumber(s.originalPrice),
+          s.rentalVehicles.length === 1 || toNumber(v.pricePerDay) === toNumber(s.basePrice),
+        ),
         totalUnits: v.totalUnits,
         deliveryFee: toNumber(v.deliveryFee),
         kind: bikeKind(v.vehicleType),
@@ -886,6 +900,7 @@ export interface XeomRoute {
   desc: string;
   vehicleType: string | null;
   price: number | null; // giá cố định 1 chiều/người; null = liên hệ
+  originalPrice: number | null; // giá gốc gạch ngang (chỉ khi cao hơn giá bán)
   priceNote: string | null;
   kind: "Điểm săn mây" | "Tour nửa ngày" | "Đưa đón bến xe";
   image: string | null;
@@ -922,6 +937,7 @@ export async function getXeomRoutes(): Promise<XeomRoute[]> {
       desc: s.summary,
       vehicleType: t?.vehicleType ?? null,
       price: toNumber(t?.fixedPrice),
+      originalPrice: strikeFor(toNumber(t?.fixedPrice), toNumber(s.originalPrice)),
       priceNote: t?.priceNote ?? null,
       kind: xeomKind(`${s.title} ${to}`),
       image: s.images[0]?.url ?? null,
@@ -942,6 +958,7 @@ export interface TaxiRoute {
   desc: string;
   vehicleType: string | null;
   price: number | null; // giá cố định theo NGÀY (cả xe); null = liên hệ
+  originalPrice: number | null; // giá gốc gạch ngang (chỉ khi cao hơn giá bán)
   priceNote: string | null;
   kind: "Đưa đón Bắc Yên" | "Đường dài" | "Tham quan";
   image: string | null;
@@ -978,6 +995,7 @@ export async function getTaxiRoutes(): Promise<TaxiRoute[]> {
       desc: s.summary,
       vehicleType: t?.vehicleType ?? null,
       price: toNumber(t?.fixedPrice),
+      originalPrice: strikeFor(toNumber(t?.fixedPrice), toNumber(s.originalPrice)),
       priceNote: t?.priceNote ?? null,
       kind: taxiKind(`${s.title} ${to} ${from}`),
       image: s.images[0]?.url ?? null,

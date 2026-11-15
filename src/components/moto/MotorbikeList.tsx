@@ -15,6 +15,7 @@ export interface RentalBike {
   name: string;
   image: string | null;
   pricePerDay: number;
+  originalPrice?: number | null; // giá gốc gạch ngang
   totalUnits: number;
   deliveryFee: number | null;
   kind: "Xe số" | "Xe côn tay" | "Xe địa hình";
@@ -496,6 +497,8 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
                     <div className="flex flex-col gap-2 border-t border-[oklch(0.94_0.01_200)] pt-2 sm:flex-row sm:items-end sm:justify-between sm:gap-2.5 sm:pt-3">
                       <div className="min-w-0">
                         <div className="text-[11px] text-gray-500 sm:text-xs">{days ? `${days} ngày × ${qty} xe` : "Giá thuê"}</div>
+                        {/* Giá gạch chỉ hiện khi chưa chọn ngày (lúc đó số to là giá/ngày, so sánh cùng đơn vị). */}
+                        {!days && b.originalPrice != null && <div className="text-[12px] font-semibold leading-none text-gray-400 line-through sm:text-[13px]">{vnd(b.originalPrice)}</div>}
                         <div>
                           <span className="whitespace-nowrap text-[18px] font-extrabold tracking-[-0.02em] sm:text-[22px]" style={{ color: "oklch(0.34 0.07 160)" }}>{days ? vnd(total) : vnd(b.pricePerDay)}</span>
                           {!days && <span className="text-[12px] text-gray-500 sm:text-[13px]">/ngày</span>}

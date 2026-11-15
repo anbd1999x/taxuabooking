@@ -15,6 +15,7 @@ export interface XeomRouteCard {
   desc: string;
   vehicleType: string | null;
   price: number | null;
+  originalPrice?: number | null; // giá gốc gạch ngang
   priceNote: string | null;
   kind: "Điểm săn mây" | "Tour nửa ngày" | "Đưa đón bến xe";
   image: string | null;
@@ -427,6 +428,7 @@ export function XeomList({ routes }: { routes: XeomRouteCard[] }) {
                     <div className="flex flex-col gap-2 border-t border-[oklch(0.94_0.01_200)] pt-2.5 sm:flex-row sm:items-end sm:justify-between sm:gap-2.5 sm:pt-3">
                       <div className="min-w-0">
                         <div className="text-xs text-gray-500">{noPrice ? "Giá" : "Một chiều / người"}</div>
+                        {!noPrice && r.originalPrice != null && <div className="text-[12px] font-semibold leading-none text-gray-400 line-through sm:text-[13px]">{vnd(r.originalPrice)}</div>}
                         <div className={`font-extrabold tracking-[-0.02em] ${noPrice ? "text-[14px] leading-snug sm:text-[16px]" : "whitespace-nowrap text-[18px] sm:text-[22px]"}`} style={{ color: noPrice ? "oklch(0.42 0.1 250)" : "oklch(0.6 0.18 45)" }}>{noPrice ? "Liên hệ xác nhận giá" : vnd(r.price!)}</div>
                         <div className="text-[11px] font-semibold leading-snug text-gray-500 sm:text-xs">{note}</div>
                       </div>

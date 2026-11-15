@@ -58,16 +58,25 @@ export function busCostPerPerson(
 /** Tỉ lệ cọc combo: cọc = 50% tiền xe + 50% tiền phòng (mỗi bên nhận 50% phần của mình). */
 export const COMBO_DEPOSIT_RATE = 0.5;
 
-/** Tuỳ chọn THÊM XE MÁY khi đặt combo (mặc định không chọn): giá thuê mỗi xe mỗi ngày. */
-export const COMBO_MOTORBIKE_PER_DAY = 170_000;
+/** Tuỳ chọn THÊM XE MÁY khi đặt combo (mặc định không chọn): các loại xe cho khách chọn + giá thuê mỗi xe mỗi ngày. */
+export const COMBO_MOTORBIKES = [
+  { key: "wave", name: "Honda Wave", perDay: 170_000 },
+  { key: "pg1", name: "Honda PG1", perDay: 270_000 },
+] as const;
+export type ComboBikeKey = (typeof COMBO_MOTORBIKES)[number]["key"];
+export const COMBO_BIKE_KEYS = COMBO_MOTORBIKES.map((b) => b.key) as [ComboBikeKey, ...ComboBikeKey[]];
+/** Loại xe theo khoá; khoá lạ / đơn từ client cũ (không gửi loại) ⇒ Honda Wave. */
+export function comboMotorbike(key?: string | null): (typeof COMBO_MOTORBIKES)[number] {
+  return COMBO_MOTORBIKES.find((b) => b.key === key) ?? COMBO_MOTORBIKES[0];
+}
 /** Số ngày thuê xe máy trong combo = số đêm ở Tà Xùa (tối thiểu 1 ngày). */
 export function comboMotorbikeDays(nights: number): number {
   return Math.max(1, Math.floor(nights) || 0);
 }
-/** Tiền thuê xe máy kèm combo = số xe × số ngày × 170k. Dịch vụ TÍNH RIÊNG: không cộng vào
+/** Tiền thuê xe máy kèm combo = số xe × số ngày × giá/ngày của loại xe đã chọn. Dịch vụ TÍNH RIÊNG: không cộng vào
  *  bill combo, khách thanh toán khi giao xe (chỉ ghi chú trong đơn). */
-export function comboMotorbikeCost(bikes: number, nights: number): number {
-  return Math.max(0, Math.floor(bikes) || 0) * comboMotorbikeDays(nights) * COMBO_MOTORBIKE_PER_DAY;
+export function comboMotorbikeCost(bikes: number, nights: number, key?: string | null): number {
+  return Math.max(0, Math.floor(bikes) || 0) * comboMotorbikeDays(nights) * comboMotorbike(key).perDay;
 }
 
 /**
