@@ -919,10 +919,16 @@ function ComboPlanCard({
               </div>
             )}
             <div className="grid grid-cols-3 gap-2">
-              {[[tr("Tiêu chuẩn"), tr("{0} người/{1}", [room.capacity, plan.communal ? tr("giường") : tr("phòng")])], [tr("Giá cả kỳ"), vnd(g.unitCost)], [tr("Thời gian"), tr("{0} đêm · {1}→{2}", [nights, fmtDayKey(checkIn), fmtDayKey(checkOut)])]].map(([k, v]) => (
-                <div key={k} className="rounded-xl bg-[oklch(0.97_0.008_160)] p-2.5">
-                  <div className="text-[11px] font-semibold text-gray-500">{tr(k)}</div>
-                  <div className="mt-0.5 text-sm font-extrabold text-ink">{tr(v)}</div>
+              {([
+                [tr("Tiêu chuẩn"), tr("{0} người/{1}", [room.capacity, plan.communal ? tr("giường") : tr("phòng")])],
+                [tr("Giá cả kỳ"), tr(vnd(g.unitCost))],
+                // Số đêm + ngày tách 2 dòng: ô chỉ rộng 1/3 trên mobile, "1 đêm · 17/11→18/11" liền một khối sẽ tràn
+                [tr("Thời gian"), tr("{0} đêm", [nights]), `${fmtDayKey(checkIn)} → ${fmtDayKey(checkOut)}`],
+              ] as [string, string, string?][]).map(([k, v, sub]) => (
+                <div key={k} className="min-w-0 rounded-xl bg-[oklch(0.97_0.008_160)] p-2.5">
+                  <div className="text-[11px] font-semibold text-gray-500">{k}</div>
+                  <div className="mt-0.5 break-words text-sm font-extrabold text-ink">{v}</div>
+                  {sub && <div className="mt-0.5 break-words text-[12px] font-semibold text-gray-600">{sub}</div>}
                 </div>
               ))}
             </div>
