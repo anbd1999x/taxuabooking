@@ -68,6 +68,22 @@ export function Header({ customerName = null, showCommitment = true }: { custome
     };
   }, [open]);
 
+  // Menu mobile: báo còn mục bên dưới (mép mờ + nút "Vuốt xem thêm" nhún) cho tới khi cuộn gần hết.
+  const menuScrollRef = useRef<HTMLDivElement>(null);
+  const [moreBelow, setMoreBelow] = useState(false);
+  const checkMore = () => {
+    const el = menuScrollRef.current;
+    if (el) setMoreBelow(el.scrollHeight - el.scrollTop - el.clientHeight > 24);
+  };
+  useEffect(() => {
+    const el = menuScrollRef.current;
+    if (!open || !el) return;
+    el.scrollTop = 0;
+    checkMore();
+    window.addEventListener("resize", checkMore);
+    return () => window.removeEventListener("resize", checkMore);
+  }, [open]);
+
   const solid = !home || scrolled;
   const onDark = !solid;
 
@@ -233,7 +249,12 @@ export function Header({ customerName = null, showCommitment = true }: { custome
             </button>
           </div>
 
-          <div className="flex flex-1 flex-col gap-[22px] overflow-y-auto overscroll-contain px-[18px] pb-[22px] pt-1">
+          <div className="relative flex min-h-0 flex-1 flex-col">
+          <div
+            ref={menuScrollRef}
+            onScroll={checkMore}
+            className="flex flex-1 flex-col gap-[22px] overflow-y-auto overscroll-contain px-[18px] pb-[22px] pt-1"
+          >
             <div className="flex flex-col gap-2.5">
               <MenuTitle>{t("Đặt dịch vụ")}</MenuTitle>
               <div className="grid grid-cols-2 gap-2">
@@ -295,6 +316,29 @@ export function Header({ customerName = null, showCommitment = true }: { custome
               <MenuTitle>{t("Ngôn ngữ")}</MenuTitle>
               <LanguageSwitcher variant="segment" />
             </div>
+          </div>
+
+            {/* Gợi ý còn chức năng bên dưới: mép mờ dần + nút nhún, bấm để cuộn xuống; tự ẩn khi đã cuộn gần cuối. */}
+            <div
+              aria-hidden
+              className={cn("pointer-events-none absolute inset-x-0 bottom-0 h-24 transition-opacity duration-300", moreBelow ? "opacity-100" : "opacity-0")}
+              style={{ background: "linear-gradient(180deg, transparent, oklch(0.21 0.035 165) 85%)" }}
+            />
+            <button
+              type="button"
+              tabIndex={moreBelow ? 0 : -1}
+              onClick={() => menuScrollRef.current?.scrollBy({ top: menuScrollRef.current.clientHeight * 0.7, behavior: "smooth" })}
+              className={cn(
+                "absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-bold transition-opacity duration-300",
+                moreBelow && open ? "opacity-100" : "pointer-events-none opacity-0",
+              )}
+              style={{ background: "oklch(0.3 0.05 160 / .92)", borderColor: "oklch(0.82 0.11 78 / .4)", color: "oklch(0.86 0.1 78)" }}
+            >
+              {t("Vuốt xem thêm")}
+              <svg width="12" height="12" viewBox="0 0 12 12" className="animate-bounce" aria-hidden>
+                <path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
           </div>
 
           <div

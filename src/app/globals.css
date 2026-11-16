@@ -94,9 +94,27 @@ body {
   animation: tx-flag-wave 1.1s ease-in-out infinite;
 }
 
+/* Mây lửng lơ phần dưới banner trang chủ (HomeHero): trôi ngang qua khung + nhấp nhô nhẹ */
+@keyframes tx-cloud-drift {
+  from { transform: translate3d(-45vw, 0, 0); }
+  to { transform: translate3d(115vw, 0, 0); }
+}
+@keyframes tx-cloud-bob {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(0, -10px, 0) scale(1.04); }
+}
+.tx-cloud-drift {
+  animation: tx-cloud-drift var(--dur, 70s) linear infinite;
+}
+.tx-cloud-bob {
+  animation: tx-cloud-bob var(--bob, 7s) ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
-  .tx-flag {
+  .tx-flag,
+  .tx-cloud-drift,
+  .tx-cloud-bob {
     animation: none;
   }
   html {

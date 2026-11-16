@@ -7,6 +7,7 @@ import { ItineraryLink } from "@/components/itinerary/ItineraryLink";
 import { We } from "@/components/SiteContact";
 import Link from "@/components/Link";
 import Image from "next/image";
+import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type {
   ComboBusOption,
@@ -407,6 +408,7 @@ function ComboPlanCard({
     }
     setPanelIn(false);
   }, [openForm]);
+  useBodyScrollLock(openForm);
 
   async function tryOpenForm() {
     if (missing) { openRoomFirstMissing(); return; }
@@ -669,7 +671,8 @@ function ComboPlanCard({
       </div>
 
       {/* Panel đặt combo (trượt phải desktop / full mobile) */}
-      {openForm && (
+      {/* Portal ra body: wrapper trang combo có `relative z-[5]` (stacking context) khiến header z-40 đè lên panel → mất nút đóng trên mobile */}
+      {openForm && typeof document !== "undefined" && createPortal(
         <div
           onClick={() => !submitting && setOpenForm(false)}
           className="fixed inset-0 z-[60] flex justify-end bg-black/50 transition-opacity duration-300"
@@ -677,12 +680,12 @@ function ComboPlanCard({
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="flex h-full w-full max-w-[440px] flex-col overflow-y-auto bg-white shadow-2xl transition-transform duration-300 will-change-transform"
+            className="flex h-full w-full max-w-[440px] flex-col overflow-y-auto overscroll-contain bg-white shadow-2xl transition-transform duration-300 will-change-transform"
             style={{ transform: panelIn ? "translateX(0)" : "translateX(100%)" }}
           >
             <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-gray-100 bg-white px-5 py-4">
               <div className="text-lg font-extrabold text-ink">{done ? tr("Đã gửi yêu cầu combo") : tr("Đặt combo này")}</div>
-              <button type="button" onClick={() => setOpenForm(false)} className="flex h-8 w-8 items-center justify-center rounded-full text-xl text-gray-400 hover:bg-gray-100">×</button>
+              <button type="button" onClick={() => setOpenForm(false)} aria-label={tr("Đóng")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[oklch(0.95_0.005_160)] text-2xl leading-none text-gray-600 hover:bg-gray-200">×</button>
             </div>
 
             {done ? (
@@ -867,7 +870,8 @@ function ComboPlanCard({
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
 
       {/* Modal xem ảnh PHÒNG — theo đúng CĂN đang chọn (chuyển căn để xem ảnh/mô tả căn khác) */}
@@ -1019,6 +1023,16 @@ function dayKeysBetween(from: string, to: string): string[] {
   return out.length ? out : [from];
 }
 
+/** Khoá cuộn trang nền khi mở modal/panel — tránh vuốt xuyên làm thanh địa chỉ mobile co giãn, đẩy mép trên (nút ×) ra khỏi màn hình. */
+function useBodyScrollLock(active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    const { overflow } = document.body.style;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = overflow; };
+  }, [active]);
+}
+
 /** Modal ảnh + nội dung: bottom sheet mobile, hộp giữa desktop (theo thiết kế Combo Kết quả). */
 function RoomPreview({ title, home, images, onClose, children }: { title: string; home: string; images: string[]; onClose: () => void; children: ReactNode }) {
   const tr = useT();
@@ -1027,27 +1041,30 @@ function RoomPreview({ title, home, images, onClose, children }: { title: string
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-  return (
+  useBodyScrollLock(true);
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/55 backdrop-blur-[2px] sm:items-center sm:p-6" onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-[22px] bg-white shadow-2xl sm:max-w-[760px] sm:rounded-[22px]"
+        className="flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-[22px] bg-white shadow-2xl sm:max-w-[760px] sm:rounded-[22px]"
       >
-        <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-3.5">
+        <div className="flex flex-none items-center justify-between gap-3 border-b border-gray-100 px-5 py-3.5">
           <div className="min-w-0">
             {home && <div className="text-[12px] font-semibold text-gray-500">{tr(home)}</div>}
             <div className="truncate text-[17px] font-extrabold text-ink">{tr(title)}</div>
           </div>
-          <button type="button" onClick={onClose} aria-label={tr("Đóng")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[oklch(0.95_0.005_160)] text-xl text-gray-500 hover:bg-gray-200">×</button>
+          <button type="button" onClick={onClose} aria-label={tr("Đóng")} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[oklch(0.95_0.005_160)] text-2xl leading-none text-gray-600 hover:bg-gray-200">×</button>
         </div>
-        <div className="overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <div className="p-4 pb-0">
             <Gallery images={images} alt={tr(title)} />
           </div>
           <div className="flex flex-col gap-3 p-5">{children}</div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

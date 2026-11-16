@@ -51,13 +51,16 @@ export function HomeCabin({
   const stops = dir === "ve" ? routes.ve : routes.di;
   const hasRoute = routes.di.length > 0 || routes.ve.length > 0;
 
-  // Lộ trình: điểm dừng sáng dần + xe chạy theo tiến độ cuộn; số giá combo đếm lên khi cuộn tới.
+  // Lộ trình: cuộn tới vùng lộ trình thì xe TỰ chạy dần theo thời gian (không bám theo vuốt), điểm dừng sáng dần theo xe;
+  // đổi chiều Đi/Về thì chạy lại từ đầu. Số giá combo đếm lên khi cuộn tới.
   useEffect(() => {
     const R = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     const cl = (v: number) => Math.max(0, Math.min(1, v));
     const eo = (v: number) => 1 - Math.pow(1 - v, 3);
     const t0 = performance.now();
     let raf = 0;
+    let legStart: number | null = null; // mốc (giây) xe bắt đầu chạy
+    const RUN = 3.2; // thời gian xe chạy hết lộ trình (giây)
     const tick = (now: number) => {
       raf = requestAnimationFrame(tick);
       const sec = (now - t0) / 1000;
@@ -66,7 +69,10 @@ export function HomeCabin({
       if (lg) {
         const r = lg.getBoundingClientRect();
         if (r.bottom > -100 && r.top < vh + 100) {
-          const f = R ? 1 : cl((vh * 0.9 - r.top) / (vh * 0.55));
+          if (legStart == null && r.top < vh * 0.8) legStart = sec;
+          const p = legStart == null ? 0 : cl((sec - legStart) / RUN);
+          // ease-in-out: xe lăn bánh từ từ rồi chậm lại khi tới nơi
+          const f = R ? 1 : p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
           const dots = lg.querySelectorAll<HTMLElement>("[data-stop]");
           const n = dots.length;
           dots.forEach((d, i) => {

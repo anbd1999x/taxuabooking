@@ -13,6 +13,16 @@ const SEA = blob([[-8, 6, 30, 70], [14, 20, 28, 60], [34, 0, 32, 80], [56, 16, 2
 const CURTAIN_L = blob([[10, 0, 70, 40], [30, 25, 75, 45], [0, 45, 80, 45], [35, 65, 70, 45], [55, 10, 50, 35], [60, 45, 45, 35], [15, 80, 70, 30]]);
 const CURTAIN_R = blob([[20, 0, 70, 40], [-5, 25, 75, 45], [20, 45, 80, 45], [-5, 65, 70, 45], [-5, 10, 50, 35], [-5, 45, 45, 35], [15, 80, 70, 30]]);
 const MISTS = [["38%", "22%", 0.35], ["54%", "20%", 0.45], ["70%", "24%", 0.55]] as const;
+/** Mây lửng lơ phần dưới banner: [top %, rộng px, thời gian trôi s, lệch pha s, độ đậm]. Lệch pha âm ⇒ vào trang đã có mây rải khắp khung. */
+const FLOATS = [
+  [56, 220, 78, -10, 0.75],
+  [63, 150, 62, -38, 0.6],
+  [70, 260, 95, -62, 0.85],
+  [60, 120, 54, -24, 0.5],
+  [74, 190, 84, -5, 0.8],
+  [67, 170, 70, -50, 0.65],
+] as const;
+const PUFF = "radial-gradient(closest-side, oklch(1 0 0 / .95), oklch(0.98 0.01 210 / .75) 55%, oklch(0.97 0.01 210 / 0))";
 const CURTAIN_BG = "radial-gradient(ellipse at 50% 45%, oklch(1 0 0) 34%, oklch(0.97 0.01 200 / .9) 58%, oklch(0.96 0.01 200 / 0) 72%)";
 
 export function HomeHero({
@@ -43,6 +53,12 @@ export function HomeHero({
   const cloudR = useRef<HTMLDivElement>(null);
   const cloudC = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(false);
+  // Chữ tiêu đề trồi lên xong ⇒ bỏ overflow-hidden của từng dòng (giữ lại sẽ cắt bóng chữ thành mảng tối hình chữ nhật).
+  const [titleDone, setTitleDone] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => setTitleDone(true), 3200);
+    return () => clearTimeout(id);
+  }, []);
 
   useEffect(() => {
     const hero = heroRef.current;
@@ -53,7 +69,6 @@ export function HomeHero({
     const io = (v: number) => (v < 0.5 ? 4 * v * v * v : 1 - Math.pow(-2 * v + 2, 3) / 2);
     const mists = hero.querySelectorAll<HTMLElement>("[data-mist]");
     const seas = hero.querySelectorAll<HTMLElement>("[data-sea]");
-    const cbs = hero.querySelectorAll<HTMLElement>("[data-cb]");
     const glare = hero.querySelector<HTMLElement>("[data-glare]");
     const cueEl = hero.querySelector<HTMLElement>("[data-cue]");
     const t0 = performance.now();
@@ -68,17 +83,19 @@ export function HomeHero({
       const intro = R ? 1 : io(cl((t - 0.15) / 3.2));
       const p = cl(sy / (hh * 0.85));
       if (cloudC.current) cloudC.current.style.opacity = String(R ? 0 : 1 - io(cl((t - 0.05) / 1.8)));
-      const open = intro * 0.82 + p * 0.4;
-      const cFade = 1 - intro * 0.35;
-      const sc = 1.08 - intro * 0.08 + p * 0.25;
-      if (cloudL.current) {
-        cloudL.current.style.transform = `translate3d(${-open * 80}%, ${-p * 10}%, 0) scale(${sc})`;
-        cloudL.current.style.opacity = String(cFade * (1 - p * 0.6));
-      }
-      if (cloudR.current) {
-        cloudR.current.style.transform = `translate3d(${open * 80}%, ${-p * 10}%, 0) scale(${sc})`;
-        cloudR.current.style.opacity = String(cFade * (1 - p * 0.6));
-      }
+      // Màn mây: từ giữa tách ra 2 bên, trôi hẳn khỏi khung và mờ hết — không đọng lại ở mép.
+      const open = intro * 1.2;
+      const cOp = 1 - cl((intro - 0.35) / 0.65);
+      const sc = 1.08 + intro * 0.12;
+      [cloudL.current, cloudR.current].forEach((el, i) => {
+        if (!el) return;
+        if (cOp <= 0) {
+          el.style.display = "none";
+          return;
+        }
+        el.style.transform = `translate3d(${(i ? 1 : -1) * open * 80}%, 0, 0) scale(${sc})`;
+        el.style.opacity = String(cOp);
+      });
       const kb = R ? 0 : 0.5 + 0.5 * Math.sin(t * 0.09);
       if (bgRef.current)
         bgRef.current.style.transform = `translate3d(${R ? 0 : Math.sin(t * 0.05) * 1.6}%, ${sy * 0.4}px, 0) scale(${1.08 - intro * 0.08 + p * 0.06 + kb * 0.04})`;
@@ -96,10 +113,6 @@ export function HomeHero({
         seas.forEach((c, i) => {
           c.style.transform = `translate3d(${Math.sin(t * 0.18 + i * 1.3) * 30}px, ${Math.sin(t * 0.3 + i) * 5 - sy * 0.1}px, 0)`;
         });
-        if (intro >= 1 && sy < hh)
-          cbs.forEach((c, i) => {
-            c.style.transform = `translate3d(${Math.sin(t * 0.25 + i) * 10}px, ${Math.cos(t * 0.2 + i * 0.7) * 6}px, 0)`;
-          });
       }
     };
     raf = requestAnimationFrame(tick);
@@ -150,8 +163,9 @@ export function HomeHero({
       {/* vệt nắng */}
       <div
         data-glare
-        className="pointer-events-none absolute -right-[10%] -top-[20%] h-[70%] w-[70%] rounded-full mix-blend-screen"
-        style={{ background: "radial-gradient(circle, oklch(0.97 0.08 85 / .55), oklch(0.95 0.1 75 / 0) 65%)" }}
+        className="pointer-events-none absolute -right-[10%] -top-[20%] h-[70%] w-[70%] mix-blend-screen"
+        // closest-side: mờ hết TRƯỚC mép khung (khung cao trên mobile từng lộ mép trái thành sọc thẳng ~40% chiều ngang)
+        style={{ background: "radial-gradient(closest-side, oklch(0.97 0.08 85 / .55), oklch(0.95 0.1 75 / 0) 100%)" }}
       />
       {/* sương trôi ngang */}
       {MISTS.map(([top, h, a], i) => (
@@ -180,6 +194,24 @@ export function HomeHero({
         ))}
       </div>
 
+      {/* mây lửng lơ trôi ngang phần dưới banner (CSS animation, nhẹ máy) */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
+        {FLOATS.map(([top, w, dur, delay, a], i) => (
+          <div
+            key={i}
+            className="tx-cloud-drift absolute left-0"
+            style={{ top: `${top}%`, width: w, height: w * 0.42, ["--dur" as string]: `${dur}s`, animationDelay: `${delay}s` }}
+          >
+            <div className="tx-cloud-bob relative h-full w-full blur-[5px]" style={{ ["--bob" as string]: `${6 + (i % 3) * 1.5}s`, animationDelay: `${-i * 1.3}s`, opacity: a }}>
+              <span className="absolute bottom-0 left-0 h-[55%] w-full" style={{ background: PUFF }} />
+              <span className="absolute bottom-[22%] left-[12%] h-[62%] w-[34%]" style={{ background: PUFF }} />
+              <span className="absolute bottom-[25%] left-[34%] h-[78%] w-[40%]" style={{ background: PUFF }} />
+              <span className="absolute bottom-[18%] left-[60%] h-[55%] w-[30%]" style={{ background: PUFF }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
       {/* Chữ */}
       <div ref={textRef} className="pointer-events-none absolute inset-0 will-change-transform">
         <div className="mx-auto flex h-full max-w-[1240px] flex-col justify-end px-[clamp(16px,4vw,40px)] pb-[150px] pt-[110px] text-white min-[760px]:pb-[120px] min-[1080px]:justify-center">
@@ -195,7 +227,7 @@ export function HomeHero({
             style={{ textShadow: "0 4px 30px oklch(0.15 0.03 180 / .45)" }}
           >
             {lines.map((l, i) => (
-              <span key={i} className="-mb-[.1em] block overflow-hidden pb-[.1em]">
+              <span key={i} className={`-mb-[.1em] block pb-[.1em] ${titleDone ? "overflow-visible" : "overflow-hidden"}`}>
                 <span
                   className="block origin-[0_100%] text-balance"
                   style={{
