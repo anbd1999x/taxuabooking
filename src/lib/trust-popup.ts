@@ -32,7 +32,7 @@ export interface TrustPopupConfig {
 }
 
 /** Website chính thức duy nhất (ngoài các địa chỉ này đều là giả mạo). */
-export const OFFICIAL_SITES = ["taxuabooking.com", "taxuabooking.vn"];
+export const OFFICIAL_SITES = ["taxuabooking.com"];
 
 /** Mặc định "Cam kết 5 Không" — khớp bản thiết kế. */
 export const DEFAULT_FIVE_RULES = [

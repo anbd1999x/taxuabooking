@@ -1,0 +1,11 @@
+import { PrismaClient } from "@prisma/client";
+const p = new PrismaClient();
+const qn = await p.service.findUnique({ where: { slug: "nha-xe-quang-nghia-2" }, include: { images: true, cabinTrips: { orderBy: { departureDate: "desc" }, take: 6 } } });
+console.log("QN imgs", qn.images.map(i => i.url + " [" + (i.alt||"") + "]").join("\n"));
+for (const t of qn.cabinTrips) console.log("QN TRIP", t.direction, t.departureDate.toISOString().slice(0,10), t.departureTime, t.price, t.priceDouble, t.seatsTotal, t.seatsDoubleTotal, t.pickupPoint, "->", t.dropoffPoint, t.note);
+const tt = await p.service.findUnique({ where: { slug: "nha-xe-tien-thanh" }, include: { images: true, cabinTrips: { orderBy: { departureDate: "desc" }, take: 4 } } });
+console.log("TT imgs", tt.images.map(i => i.url).join(" "));
+for (const t of tt.cabinTrips) console.log("TT TRIP", t.direction, t.departureDate.toISOString().slice(0,10), t.departureTime, t.price, t.priceDouble, t.pickupPoint, "->", t.dropoffPoint);
+const a = await p.article.findUnique({ where: { slug: "nha-xe-di-ta-xua" } });
+const c = a.content; const i = c.indexOf("Quang Nghĩa", 2000); console.log("\n=== NHAXE article excerpt\n", c.slice(1500, 10240));
+await p.$disconnect();

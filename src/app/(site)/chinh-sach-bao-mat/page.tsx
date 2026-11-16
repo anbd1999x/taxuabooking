@@ -41,7 +41,7 @@ export default async function PrivacyPage() {
           <h1 className="text-2xl font-bold text-ink sm:text-3xl">{t("Chính sách bảo mật")}</h1>
           <p className="mt-1 text-sm text-gray-500">{t("Cập nhật lần cuối: {0}", [t(updated)])}</p>
           <p className="mt-3 text-[15px] leading-relaxed text-gray-700">
-            {t("Tà Xùa Booking (“chúng tôi”) tôn trọng quyền riêng tư của bạn. Chính sách này giải thích chúng tôi thu thập, sử dụng và bảo vệ thông tin cá nhân như thế nào khi bạn sử dụng website taxuabooking.vn / taxuabooking.com.")}
+            {t("Tà Xùa Booking (“chúng tôi”) tôn trọng quyền riêng tư của bạn. Chính sách này giải thích chúng tôi thu thập, sử dụng và bảo vệ thông tin cá nhân như thế nào khi bạn sử dụng website taxuabooking.com.")}
           </p>
         </header>
 
@@ -100,7 +100,7 @@ export default async function PrivacyPage() {
           <ul className="list-none space-y-1">
             <li>{t("📞 Điện thoại/Zalo:")}{" "}<a href={`tel:${phone.replace(/\s/g, "")}`} className="font-semibold text-forest-700">{t(phone)}</a></li>
             {email && <li>✉️ Email: <a href={`mailto:${email}`} className="font-semibold text-forest-700">{t(email)}</a></li>}
-            <li>🌐 Website: taxuabooking.vn · taxuabooking.com</li>
+            <li>🌐 Website: taxuabooking.com</li>
           </ul>
         </Section>
 

@@ -26,6 +26,7 @@ const ADMIN_NAV: NavGroup[] = [
     title: "Dịch vụ & nội dung",
     items: [
       { href: "/admin/services", label: "Quản lý dịch vụ" },
+      { href: "/admin/provider/xe", label: "Quản lý xe máy" },
       { href: "/admin/places", label: "Nhà hàng, Cafe & Check-in" },
       { href: "/admin/itinerary", label: "Lịch trình mẫu" },
       { href: "/admin/articles", label: "Bài viết (SEO)" },
@@ -67,6 +68,7 @@ const PROVIDER_NAV: NavGroup[] = [
     items: [
       { href: "/admin/provider", label: "Tổng quan", exact: true },
       { href: "/admin/availability", label: "Lịch giá & tình trạng" },
+      { href: "/admin/provider/xe", label: "Quản lý xe máy" },
       { href: "/admin/provider/don", label: "Đơn & xác nhận" },
       { href: "/admin/provider/thong-ke", label: "Thống kê" },
       { href: "/admin/provider/ctv", label: "CTV của tôi" },

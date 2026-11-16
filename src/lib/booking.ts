@@ -2,6 +2,7 @@ import { quoteTransport, OTHER_POINT, type TransportLegDTO, type TransportPointD
 import { isRentalTime, rentalChargeDays, rentalDaysLabel } from "./rental-days";
 import "server-only";
 import { ensureServiceSheetFresh } from "./sheet-sync";
+import { autoAssignFleetForBooking } from "./fleet";
 import type { ServiceCategory } from "@prisma/client";
 import { prisma } from "./prisma";
 import { CATEGORIES } from "./constants";
@@ -488,7 +489,7 @@ export async function createBooking(
     code = generateBookingCode(service.category);
   }
 
-  await prisma.bookingRequest.create({
+  const created = await prisma.bookingRequest.create({
     data: {
       code,
       category: service.category as ServiceCategory,
@@ -520,6 +521,9 @@ export async function createBooking(
       roomCommission,
     },
   });
+
+  // Thuê xe máy: tự xếp xe trống trong đội xe của chủ dịch vụ (lỗi không ảnh hưởng đơn).
+  if (service.category === "MOTORBIKE") await autoAssignFleetForBooking(created.id).catch(() => {});
 
   return { code, needsConfirmation };
 }

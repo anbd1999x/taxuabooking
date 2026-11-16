@@ -170,6 +170,8 @@ model Service {
   transport      TransportInfo?
   transportRoutes TransportRoute[] // taxi / xe ôm: nhiều tuyến, mỗi tuyến một giá
   bookings       BookingRequest[]
+  fleetVehicles  FleetVehicle[] // đội xe thật (quản lý xe cho thuê của chủ dịch vụ)
+  fleetConfig    FleetConfig? // cấu hình đội xe (giá lễ/cuối tuần, phí phát sinh, DS đen...)
   cabinPriceRows CabinPriceRow[]
   cabinRoutes    CabinRoute[]
   reviews        Review[]
@@ -596,6 +598,7 @@ model BookingRequest {
   updatedAt       DateTime      @updatedAt
 
   logs BookingLog[]
+  fleetRentals FleetRental[]
 
   @@index([clientIp])
   @@index([status])
@@ -959,4 +962,113 @@ model Translation {
 
   @@unique([entity, entityId, field, locale])
   @@index([locale, sourceHash])
+}
+
+// ============================ ĐỘI XE CHO THUÊ (chủ dịch vụ xe máy) ============================
+
+/// Một chiếc xe thật trong đội xe của dịch vụ thuê xe máy (biển số riêng).
+model FleetVehicle {
+  id              String   @id @default(cuid())
+  serviceId       String
+  service         Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  // Loại xe bán trên web (RentalVehicle) mà xe này thuộc về — đơn web chọn loại đó sẽ tự xếp vào xe này.
+  rentalVehicleId String?
+  name            String // VD: Honda Vision
+  plate           String // biển số, VD 26B1-520.33
+  kind            String   @default("ga") // so (xe số) | ga (xe ga) | con (côn tay / cào cào)
+  color           String?
+  year            Int?
+  odo             Int      @default(0) // số km
+  pricePerDay     Decimal  @db.Decimal(12, 0)
+  condition       String   @default("good") // good | ok | service (cần bảo dưỡng)
+  mode            String   @default("ready") // ready (sẵn sàng) | maint (bảo dưỡng) | off (ngừng cho thuê)
+  note            String?
+  imageUrl        String? // ảnh bìa (= ảnh đầu tiên trong media)
+  media           String[] @default([]) // ảnh + video của xe (/uploads/...), phần tử đầu là bìa
+  oilEvery        Int      @default(2000) // chu kỳ thay nhớt (km)
+  lastOilOdo      Int? // ODO lần thay nhớt gần nhất (null = lấy ODO lúc thêm xe)
+  insuranceExp    DateTime? @db.Date // hạn bảo hiểm TNDS
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  rentals FleetRental[]
+  serviceLogs FleetServiceLog[]
+
+  @@unique([serviceId, plate])
+  @@index([serviceId])
+}
+
+/// Một lượt thuê của MỘT xe (đơn nhiều xe = nhiều lượt). Khoảng ngày tính trọn ngày [startDate, endDate].
+model FleetRental {
+  id           String          @id @default(cuid())
+  code         String          @unique // XM-XXXXX
+  vehicleId    String
+  vehicle      FleetVehicle    @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  bookingId    String? // đơn web (BookingRequest) đã sinh ra lượt thuê này — tự xếp xe
+  booking      BookingRequest? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  customerName String
+  phone        String
+  cccd         String?
+  startDate    DateTime        @db.Date
+  endDate      DateTime        @db.Date
+  startTime    String          @default("08:00")
+  endTime      String          @default("17:00")
+  total        Decimal         @db.Decimal(12, 0)
+  deposit      Decimal         @default(0) @db.Decimal(12, 0) // đã thu (cọc / thu đủ)
+  place        String? // Nhận tại cửa hàng / Giao tận homestay ...
+  source       String          @default("Web") // Web | CTV | Zalo | Khách quen
+  note         String?
+  // Trạng thái chốt tay: null = tự suy theo ngày + cọc (giữ chỗ / đã cọc / đang thuê / đã trả);
+  // "renting" = đã giao xe, "done" = đã nhận lại, "cancel" = đã huỷ.
+  state        String?
+  webPending   Boolean         @default(false) // đơn web tự xếp, chờ chủ xe duyệt
+  ctvName      String? // CTV giới thiệu (nhập tay)
+  hand         Json? // biên bản giao xe { odo, fuel, acc[], doc, photos[], at, by }
+  ret          Json? // nhận lại xe { odo, fuel, at, by }
+  fees         Json            @default("[]") // phát sinh [{ k, amt }]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  payments FleetPayment[]
+
+  @@index([vehicleId, startDate])
+  @@index([bookingId])
+}
+
+/// Một khoản thu / hoàn của lượt thuê (sổ thu chi). amount âm = hoàn tiền cho khách.
+model FleetPayment {
+  id       String      @id @default(cuid())
+  rentalId String
+  rental   FleetRental @relation(fields: [rentalId], references: [id], onDelete: Cascade)
+  at       DateTime    @default(now())
+  amount   Decimal     @db.Decimal(12, 0)
+  method   String // Tiền mặt | Chuyển khoản
+  kind     String // Cọc | Thu thêm | Thu khi trả | Hoàn cọc
+  by       String?
+
+  @@index([rentalId])
+  @@index([at])
+}
+
+/// Lịch sử bảo dưỡng / sửa chữa / bảo hiểm của một xe.
+model FleetServiceLog {
+  id        String       @id @default(cuid())
+  vehicleId String
+  vehicle   FleetVehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  date      DateTime     @db.Date
+  what      String
+  cost      Decimal      @default(0) @db.Decimal(12, 0)
+  odo       Int?
+  createdAt DateTime     @default(now())
+
+  @@index([vehicleId])
+}
+
+/// Cấu hình đội xe của một dịch vụ xe máy (JSON: giá theo ngày, giá giờ, phí phát sinh, ngày lễ, DS đen, nhân viên...).
+model FleetConfig {
+  serviceId String   @id
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  data      Json     @default("{}")
+  updatedAt DateTime @updatedAt
 }

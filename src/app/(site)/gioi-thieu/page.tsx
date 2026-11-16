@@ -44,7 +44,7 @@ export default async function AboutPage() {
       : []),
     ["Email", <a key="e" href={`mailto:${email}`} className="break-all font-semibold text-forest-700">{t(email)}</a>],
     [t("Giờ hoạt động"), t("{0} hằng ngày", [SITE.supportHours])],
-    ["Website", "taxuabooking.vn · taxuabooking.com"],
+    ["Website", "taxuabooking.com"],
   ];
 
   return (
