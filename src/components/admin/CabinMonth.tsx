@@ -190,8 +190,10 @@ export function CabinMonth({
 
       {/* Direction toggle + legend */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-        <div style={{ display: "inline-flex", gap: 4, padding: 4, borderRadius: 12, background: "oklch(0.93 0.008 150)" }}>
-          {([["both", "Cả hai chiều"], ["di", "Chiều đi 21:00"], ["ve", "Chiều về 12:00"]] as const).map(([k, name]) => (
+        {/* maxWidth + cuộn ngang: 3 tab ("Chiều về 12:00") không vừa màn 360px ⇒ tab cuối bị đẩy ra ngoài. */}
+        <div style={{ display: "inline-flex", gap: 4, padding: 4, borderRadius: 12, background: "oklch(0.93 0.008 150)", maxWidth: "100%", overflowX: "auto" }}>
+          {/* Không ghi giờ cố định ở tab: mỗi nhà xe giờ chạy khác nhau (giờ thật hiện trong panel ngày). */}
+          {([["both", "Cả hai chiều"], ["di", "Chiều đi"], ["ve", "Chiều về"]] as const).map(([k, name]) => (
             <div key={k} onClick={() => { setDir(k); setAdding(null); }} style={{ cursor: "pointer", fontSize: 14, fontWeight: 700, padding: "8px 14px", borderRadius: 9, whiteSpace: "nowrap", background: dir === k ? "white" : "transparent", color: dir === k ? G : "oklch(0.42 0.02 160)", boxShadow: dir === k ? "0 1px 3px oklch(0.2 0.03 160 / .15)" : "none" }}>{name}</div>
           ))}
         </div>

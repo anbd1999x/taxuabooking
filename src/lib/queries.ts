@@ -22,6 +22,7 @@ import {
   aggregateStay,
   roomTypePricing,
   roomPricing,
+  roomFromPrice,
   stayStrike,
   type AvailabilityRecord,
   type StayAvailabilityResult,
@@ -413,7 +414,7 @@ async function getHomestayCardsImpl(fromKey?: string | null, toKey?: string | nu
     orderBy: [{ featured: "desc" }, { priorityOrder: "desc" }, { title: "asc" }],
     include: {
       images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 1 },
-      roomTypes: { select: { rooms: { select: { id: true, listPrice: true, salePrice: true } } } },
+      roomTypes: { select: { rooms: { select: { id: true, listPrice: true, salePrice: true, priceMon: true, priceTue: true, priceWed: true, priceThu: true, priceFri: true, priceSat: true, priceSun: true, listPriceMon: true, listPriceTue: true, listPriceWed: true, listPriceThu: true, listPriceFri: true, listPriceSat: true, listPriceSun: true } } } },
     },
   });
 
@@ -434,18 +435,14 @@ async function getHomestayCardsImpl(fromKey?: string | null, toKey?: string | nu
   return list.map((s) => {
     const rooms = s.roomTypes.flatMap((rt) => rt.rooms);
     // Giá hiệu lực mỗi phòng + giá niêm yết (để gạch ngang khi phòng rẻ nhất đang giảm giá).
-    const priced = rooms
-      .map((r) => {
-        const list = toNumber(r.listPrice) ?? 0;
-        const sale = toNumber(r.salePrice);
-        return { eff: sale ?? list, list, onSale: sale != null && list > sale };
-      })
-      .filter((p) => p.eff > 0);
-    const cheapest = priced.length ? priced.reduce((a, b) => (b.eff < a.eff ? b : a)) : null;
+    // Giá "từ" mỗi phòng = đêm rẻ nhất trong tuần (giá-theo-thứ ?? salePrice ?? listPrice) —
+    // nhiều home chỉ nhập giá theo thứ (listPrice = 0), không được coi là "không công khai giá".
+    const priced = rooms.map((r) => roomFromPrice(r)).filter((p) => p.price > 0);
+    const cheapest = priced.length ? priced.reduce((a, b) => (b.price < a.price ? b : a)) : null;
     // Có phòng nhưng không phòng nào công khai giá -> 0 để thẻ hiện "IB để biết giá"
     // (không rơi về basePrice cũ). Không có phòng nào thì mới dùng basePrice.
-    const from = cheapest ? cheapest.eff : rooms.length ? 0 : toNumber(s.basePrice) ?? 0;
-    const fromOld = cheapest?.onSale ? cheapest.list : null;
+    const from = cheapest ? cheapest.price : rooms.length ? 0 : toNumber(s.basePrice) ?? 0;
+    const fromOld = cheapest?.strike ?? null;
     const cat = /bungalow/i.test(`${s.title} ${s.area ?? ""}`) ? "Bungalow" : "Homestay";
 
     let status: HomestayCardStatus = "none";
@@ -454,9 +451,11 @@ async function getHomestayCardsImpl(fromKey?: string | null, toKey?: string | nu
       // Kỳ vi phạm chính sách bán cuối tuần (vd chỉ ở đêm T7 khi home không bán lẻ T7)
       // → coi như không còn phòng nào cho kỳ này (trước đây vẫn hiện "còn phòng").
       const policyBlocked = !s.contactOnly && checkWeekendPolicy(s.weekendPolicy, nights) != null;
-      // Homestay "chỉ liên hệ" (không quản lý lịch) → luôn hiện còn chỗ khi tìm kiếm,
-      // TRỪ khi kỳ trùng "ngày hết phòng" admin đã khai (soldOutDates).
-      freeRooms = policyBlocked || isSoldOut(s, nights) ? 0 : s.contactOnly ? rooms.length : rooms.filter((r) => !occupied.has(r.id)).length;
+      // Homestay "chỉ liên hệ" KHÔNG nối sheet lịch (không quản lý lịch) → luôn hiện còn chỗ khi tìm kiếm,
+      // TRỪ khi kỳ trùng "ngày hết phòng" admin đã khai (soldOutDates). Có sheet lịch (đồng bộ định kỳ
+      // vẫn chạy) ⇒ tôn trọng tình trạng phòng như homestay thường (vd Sunset Clouds full vẫn hiện).
+      const noCalendar = s.contactOnly && !s.sheetUrl;
+      freeRooms = policyBlocked || isSoldOut(s, nights) ? 0 : noCalendar ? rooms.length : rooms.filter((r) => !occupied.has(r.id)).length;
       status = freeRooms === 0 ? "full" : freeRooms <= 2 ? "low" : "ok";
     }
 
@@ -535,12 +534,8 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
       const raw = rt.rooms.map((r) => {
         // Giá "từ" = giá đêm rẻ nhất trong tuần: giá-theo-thứ ?? salePrice ?? listPrice
         // (nhiều phòng chỉ nhập giá theo thứ, listPrice = 0 — không được loại bỏ).
-        const pricing = roomPricing(r);
-        const effs = Array.from({ length: 7 }, (_, d) => pricing.daysOfWeek?.[d] ?? pricing.weekdayPrice).filter((v) => v != null && v > 0) as number[];
-        const price = effs.length ? Math.min(...effs) : 0; // 0 = chưa nhập giá → hiện "Liên hệ"
-        const listP = toNumber(r.listPrice) ?? 0;
-        const sale = toNumber(r.salePrice);
-        const onSale = sale != null && sale > 0 && sale < listP;
+        // Giá gạch = giá-gạch-theo-thứ của chính đêm rẻ nhất ?? listPrice khi đang giảm.
+        const { price, strike } = roomFromPrice(r); // price 0 = chưa nhập giá → hiện "Liên hệ"
         // Khi có ngày: tổng cả kỳ (giá bán & giá gạch) theo giá-theo-thứ của phòng.
         const stay = hasDates && nights.length ? stayStrike(nights, r) : null;
         return {
@@ -549,13 +544,14 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
           desc: r.description || s.summary,
           capacity: r.capacity,
           price,
-          priceOld: onSale && price === sale ? listP : null,
+          priceOld: strike,
           stayTotal: stay ? stay.total : null,
           stayOld: stay ? stay.strikeTotal : null,
           cover: firstImageUrl(r.images) ?? firstImageUrl(rt.images) ?? (rt.imageUrl && !VIDEO_URL_RE.test(rt.imageUrl) ? rt.imageUrl : null) ?? s.images[0]?.url ?? null,
           // Homestay "chỉ liên hệ" không quản lý lịch → coi như luôn trống khi tìm kiếm.
           // ...trừ khi kỳ trùng "ngày hết phòng" đã khai → ẩn khỏi kết quả.
-          free: !policyBlocked && !soldOut && (s.contactOnly || !occupied.has(r.id)),
+          // "Chỉ liên hệ" có nối sheet lịch ⇒ vẫn xét phòng đã kín (chỉ home không có lịch mới coi luôn trống).
+          free: !policyBlocked && !soldOut && ((s.contactOnly && !s.sheetUrl) || !occupied.has(r.id)),
           featured: r.featured, // phòng nổi bật → lên đầu trang tìm
         };
       });
@@ -578,6 +574,9 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
           id: first.roomId, // phòng đại diện của nhóm
           slug: s.slug,
           name: g.length > 1 ? rt.name : `${rt.name} · ${first.roomName}`,
+          // Tách riêng để trang khách dịch TỪNG phần (tr() chuỗi ghép "hạng · phòng" không khớp khoá dịch).
+          typeName: rt.name,
+          roomName: g.length > 1 ? null : first.roomName,
           homeName: s.title,
           area: s.area ?? "Tà Xùa",
           distanceKm: s.distanceKm ?? null,

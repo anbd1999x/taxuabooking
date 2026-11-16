@@ -348,7 +348,8 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
                             {s.travel && (
                               <div className="flex items-center gap-2 pb-1 pl-3 pt-0.5 text-xs font-bold text-[oklch(0.5_0.02_160)]">
                                 <span className="flex h-[22px] items-center justify-center whitespace-nowrap rounded-full px-[9px]" style={{ background: s.travel.bg, color: s.travel.fg }}>{tr(s.travel.mode)}</span>
-                                {s.travel.text && <span className="whitespace-nowrap">{tr(s.travel.text)}</span>}
+                                {/* min-w-0 + cho xuống dòng: chữ dài ("To the bus pick-up point") trước đây nowrap ⇒ tràn khỏi thẻ trên mobile. */}
+                                {s.travel.text && <span className="min-w-0 leading-snug">{tr(s.travel.text)}</span>}
                                 <span className="h-0 min-w-5 flex-1 border-t-2 border-dashed border-[oklch(0.88_0.015_160)]" />
                               </div>
                             )}
@@ -451,7 +452,7 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
                       </div>
                     )}
                     <div className="pointer-events-none absolute inset-x-2.5 top-2.5 flex justify-between gap-1.5">
-                      <span className="whitespace-nowrap rounded-full bg-white px-2.5 py-[5px] text-xs font-extrabold text-ink">{tr(p.badge)}</span>
+                      <span className="max-w-full rounded-full bg-white px-2.5 py-[5px] text-xs font-extrabold text-ink">{tr(p.badge)}</span>
                       {daysIn && (
                         <span className="whitespace-nowrap rounded-full bg-[oklch(0.68_0.18_45)] px-2.5 py-[5px] text-xs font-extrabold text-white">
                           {tr("Ngày {0} · {1}", [daysIn.join(", "), tr(plan.name)])}
@@ -470,7 +471,7 @@ export function ItineraryView({ plans, places, prep, initialPlan }: { plans: Vie
                     {p.facts.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
                         {p.facts.map((f) => (
-                          <span key={f} className="whitespace-nowrap rounded-full bg-[oklch(0.95_0.025_155)] px-[9px] py-1 text-xs font-bold text-[oklch(0.36_0.08_155)]">{tr(f)}</span>
+                          <span key={f} className="max-w-full rounded-full bg-[oklch(0.95_0.025_155)] px-[9px] py-1 text-xs font-bold text-[oklch(0.36_0.08_155)]">{tr(f)}</span>
                         ))}
                       </div>
                     )}

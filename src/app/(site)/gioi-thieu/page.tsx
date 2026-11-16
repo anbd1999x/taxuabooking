@@ -42,7 +42,7 @@ export default async function AboutPage() {
           <a key="z" href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-forest-700">{formatPhone(zalo)}</a>,
         ]] as [string, React.ReactNode][])
       : []),
-    ["Email", <a key="e" href={`mailto:${email}`} className="font-semibold text-forest-700">{t(email)}</a>],
+    ["Email", <a key="e" href={`mailto:${email}`} className="break-all font-semibold text-forest-700">{t(email)}</a>],
     [t("Giờ hoạt động"), t("{0} hằng ngày", [SITE.supportHours])],
     ["Website", "taxuabooking.vn · taxuabooking.com"],
   ];

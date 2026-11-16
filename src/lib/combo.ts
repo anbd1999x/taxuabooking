@@ -452,7 +452,7 @@ function mergeEquivalentPlans(serviceId: string, plans: ComboStayPlan[], people:
     }
     let groups = [...gm.values()];
     let keys = [...gm.keys()];
-    let safe = groups.every((g) => g.roomIds.length === g.count) && (!ghep || fits(groups));
+    const safe = groups.every((g) => g.roomIds.length === g.count) && (!ghep || fits(groups));
     if (!safe) { groups = p.groups; keys = p.groups.map((g) => gsig(g, ghep)); }
     const sig = safe
       ? `${keys.map((k, i) => `${k}×${groups[i].count}`).sort().join("+")}#${p.extraGuests}#${p.extraCost}#${p.roomCost}#${p.roomCostOld ?? ""}`
@@ -1110,11 +1110,12 @@ export async function createComboBooking(
   let nDouble = input.cabinDouble ?? 0;
   let nSingle = input.cabinSingle ?? 0;
   if (nSingle + nDouble !== people) ({ nSingle, nDouble } = cabinAllocation(people, seatsAvail)!);
-  const roomShare = Math.round(roomCost / people);
   const busAmount = cabinSeatTotal(fare, nDouble, nSingle);
   // Không giảm combo: giường cộng đồng hoặc có phòng tick "không giảm 25k khi đặt combo".
   const noDiscount = communal || roomList.some((r) => r.noComboDiscount);
-  const total = Math.max(0, roomShare * people + busAmount - (noDiscount ? 0 : COMBO_DISCOUNT * people));
+  // Cộng TỔNG tiền phòng thật (không phải roomShare đã làm tròn × người — VD 7.400.000 ÷ 12 làm tròn
+  // rồi nhân lại ra 7.400.004đ, lệch với roomAmount + busAmount khi đối soát).
+  const total = Math.max(0, roomCost + busAmount - (noDiscount ? 0 : COMBO_DISCOUNT * people));
   // Tuỳ chọn THÊM XE MÁY (mặc định không chọn): số xe × số ngày (= số đêm) × 170k — tính lại ở server.
   // Là DỊCH VỤ ĐI KÈM TÍNH RIÊNG: KHÔNG cộng vào bill combo (referencePrice/cọc/đối soát),
   // khách trả tiền xe trực tiếp khi giao xe. Chỉ ghi chú rõ trong selectionLabel của đơn.

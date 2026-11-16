@@ -33,8 +33,8 @@ export default async function ContactPage() {
         <p><span className="text-gray-500">{t("📞 Điện thoại:")}{" "}</span><a href={`tel:${phone.replace(/\s/g, "")}`} className="font-semibold text-forest-700">{t(phone)}</a></p>
         <p><span className="text-gray-500">{t("🕗 Giờ hoạt động:")}{" "}</span><span className="font-semibold text-ink">{t("{0} hằng ngày", [t(SITE.supportHours)])}</span> <span className="text-gray-500">{t("(đơn gửi ngoài giờ được xác nhận từ 8:00 hôm sau)")}</span></p>
         {zalo && <p><span className="text-gray-500">💬 Zalo: </span><a href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="font-semibold text-forest-700">{t(zalo)}</a></p>}
-        {email && <p><span className="text-gray-500">✉️ Email: </span><a href={`mailto:${email}`} className="font-semibold text-forest-700">{t(email)}</a></p>}
-        {facebook && <p><span className="text-gray-500">📘 Facebook: </span><a href={facebook} target="_blank" rel="noopener noreferrer" className="font-semibold text-forest-700">{t(facebook)}</a></p>}
+        {email && <p><span className="text-gray-500">✉️ Email: </span><a href={`mailto:${email}`} className="break-all font-semibold text-forest-700">{t(email)}</a></p>}
+        {facebook && <p><span className="text-gray-500">📘 Facebook: </span><a href={facebook} target="_blank" rel="noopener noreferrer" className="break-all font-semibold text-forest-700">{t(facebook)}</a></p>}
         <p><span className="text-gray-500">{t("📍 Khu vực hoạt động:")}{" "}</span>{t(address)}</p>
         <p><span className="text-gray-500">{t("🏢 Đơn vị kinh doanh:")}{" "}</span>{t(s.legalName) || t(SITE.legalName)}</p>
         <p><span className="text-gray-500">{t("🧾 Mã số thuế:")}{" "}</span>{t(s.taxCode) || t(SITE.taxCode)}</p>

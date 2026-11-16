@@ -11,6 +11,7 @@ import { billableOccupants, multiRoomExtraCost } from "@/lib/occupancy";
 import { CommitmentLink } from "@/components/trust/parts";
 import { vnPhoneError } from "@/lib/phone";
 import { BookingEmailField, emailLooksValid } from "@/components/BookingEmailField";
+import { PriceLine } from "@/components/WebPromo";
 import { useT } from "@/components/i18n/I18nProvider";
 import Link from "@/components/Link";
 
@@ -429,6 +430,8 @@ export function HomestayBooking({
   const extraGuests = hasSel ? ec.extraGuests : 0;
   const extraCost = hasSel ? ec.cost : 0;
   const roomsSum = sels.reduce((n, v) => n + (v.stayPrice ?? 0), 0);
+  // Khuyến mãi khi đặt trên website = tổng (giá bán niêm yết − giá đặt web) các phòng đã chọn.
+  const webPromo = anyIb ? 0 : sels.reduce((n, v) => n + (v.stayStrike != null && v.stayPrice != null ? v.stayStrike - v.stayPrice : 0), 0);
   // Kỳ có đêm không công khai giá → không có tạm tính (hiển thị "IB để biết giá").
   const total: number | null = hasSel ? (anyIb ? null : roomsSum + extraCost) : 0;
   const over = hasSel ? ec.overCapacity : false;
@@ -635,7 +638,7 @@ export function HomestayBooking({
                   key={v.r.id}
                   className={`overflow-hidden rounded-2xl bg-white transition ${isSel ? "ring-2 ring-forest-600" : "ring-1 ring-black/5"}`}
                 >
-                  <div className="grid sm:grid-cols-[220px_minmax(0,1fr)]">
+                  <div className="grid grid-cols-1 sm:grid-cols-[220px_minmax(0,1fr)]">
                     <div className="relative flex gap-0.5 bg-gray-100 sm:min-h-[180px]">
                       {(v.r.media.length ? v.r.media.slice(0, 2) : [null, null]).map((m, k) => (
                         <button
@@ -711,13 +714,21 @@ export function HomestayBooking({
                       <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-3">
                         <div>
                           <div className="text-xs text-gray-500">{v.r.por || v.ib ? tr("Giá phòng") : nN ? tr("{0} đêm", [nN]) : tr("Mỗi đêm từ")}</div>
-                          <div className={`font-extrabold text-ink ${v.r.por || v.ib ? "text-base text-forest-700" : "text-xl"}`}>
+                          <div className={`flex flex-wrap items-baseline gap-x-1.5 font-extrabold text-ink ${v.r.por || v.ib ? "text-base text-forest-700" : "text-xl"}`}>
                             {!(v.r.por || v.ib) && (() => {
                               const strike = nN ? v.stayStrike : fromStrike(v.r);
-                              return strike != null ? <span className="mr-1.5 align-middle text-sm font-semibold text-gray-400 line-through">{tr(fmt(strike))}</span> : null;
+                              return strike != null ? <span className="whitespace-nowrap text-sm font-semibold text-gray-400 line-through">{tr(fmt(strike))}</span> : null;
                             })()}
-                            {v.r.por || v.ib ? tr(IB) : nN ? tr(fmt(v.stayPrice)) : tr(fmt(fromPrice(v.r)))}
+                            <span className="whitespace-nowrap">{v.r.por || v.ib ? tr(IB) : nN ? tr(fmt(v.stayPrice)) : tr(fmt(fromPrice(v.r)))}</span>
                           </div>
+                          {!(v.r.por || v.ib) && (() => {
+                            // Dòng khuyến mãi khi đặt trên web: giá bán niêm yết − giá đặt web.
+                            const strike = nN ? v.stayStrike : fromStrike(v.r);
+                            const sale = nN ? v.stayPrice : fromPrice(v.r);
+                            return strike != null && sale != null && strike > sale ? (
+                              <div className="text-xs font-semibold text-forest-700">{tr("🎁 Đặt trên website giảm {0}", [tr(fmt(strike - sale))])}</div>
+                            ) : null;
+                          })()}
                         </div>
                         {chatOnly ? (
                           <a
@@ -982,7 +993,7 @@ export function HomestayBooking({
                     <div key={v.r.id} className="flex items-start justify-between gap-2 text-[13px]">
                       <span className="min-w-0 text-gray-600">{tr(v.r.typeName)} · {tr(v.r.name)}{sels.length > 1 ? "" : tr(" · {0} đêm", [nN])}</span>
                       <span className="flex flex-none items-center gap-1.5">
-                        <span className="whitespace-nowrap font-bold text-ink">{v.ib ? tr(IB) : tr(fmt(v.stayPrice))}</span>
+                        <span className="whitespace-nowrap font-bold text-ink">{v.ib ? tr(IB) : tr(fmt(v.stayStrike ?? v.stayPrice))}</span>
                         {sels.length > 1 && (
                           <button
                             type="button"
@@ -1002,6 +1013,7 @@ export function HomestayBooking({
                       <span className="whitespace-nowrap font-bold text-ink">{tr(fmt(extraCost))}</span>
                     </div>
                   )}
+                  {webPromo > 0 && <PriceLine promo label={tr("🎁 Khuyến mãi khi đặt trên website")} amount={webPromo} />}
                 </div>
               ) : (
                 <div className="rounded-xl border border-dashed border-gray-300 p-3.5 text-[13px] leading-relaxed text-gray-500">
@@ -1096,7 +1108,11 @@ export function HomestayBooking({
         <div className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-between gap-3 border-t border-gray-200 bg-white px-4 py-3 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.2)] lg:hidden">
           <div className="min-w-0">
             <div className="truncate text-xs text-gray-500">{nN ? tr("{0} đêm{1}", [nN, hasSel ? tr(" · {0} phòng", [sels.length]) : ""]) : tr("Chọn ngày ở")}</div>
-            <div className="text-lg font-extrabold text-ink">{anyIb ? tr(IB) : tr(fmt(total, tr("0đ")))}</div>
+            {/* flex-wrap: tổng 8 chữ số + giá gạch không đủ chỗ cạnh nút "Đặt phòng" → giá gạch tự xuống dòng. */}
+            <div className="flex flex-wrap items-baseline gap-x-1.5 text-lg font-extrabold text-ink">
+              {webPromo > 0 && total != null && <span className="whitespace-nowrap text-xs font-semibold text-gray-400 line-through">{tr(fmt(total + webPromo))}</span>}
+              <span className="whitespace-nowrap">{anyIb ? tr(IB) : tr(fmt(total, tr("0đ")))}</span>
+            </div>
           </div>
           <button
             type="button"

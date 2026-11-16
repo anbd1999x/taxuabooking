@@ -77,7 +77,7 @@ export function HeroSearch({
       </div>
 
       {/* Trường nhập */}
-      <div className="grid gap-1.5 sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
+      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
         {isTrip && (
           <label className={cell}>
             <span className="block text-xs font-medium text-gray-500">{t("Điểm đón")}</span>

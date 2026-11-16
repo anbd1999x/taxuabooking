@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "@/components/Link";
 import { useT } from "@/components/i18n/I18nProvider";
 
 /** Email hợp lệ ở mức cơ bản (server kiểm tra lại bằng zod). Trống = hợp lệ vì không bắt buộc. */
@@ -40,6 +41,13 @@ export function BookingEmailField({
       {(bad || error) && <span className="text-xs text-red-600">{t(error) || t("Email không hợp lệ.")}</span>}
       <span className="text-[11.5px] leading-snug text-gray-500">
         {t("Có điền email: thông tin đơn sẽ được gửi qua email. Không điền: chúng tôi báo qua Zalo.")}
+      </span>
+      {/* Thông báo quyền riêng tư ngay tại form (yêu cầu của Google Ads về thu thập thông tin người dùng). */}
+      <span className="text-[11.5px] leading-snug text-gray-500">
+        {t("🔒 Tên, số điện thoại và email chỉ dùng để Tà Xùa Booking liên hệ xác nhận đơn, chỉ chia sẻ với cơ sở bạn đặt để giữ chỗ. Không thu mật khẩu hay thông tin thẻ.")}{" "}
+        <Link href="/chinh-sach-bao-mat" target="_blank" className="font-semibold text-forest-700 underline">
+          {t("Chính sách bảo mật")}
+        </Link>
       </span>
     </div>
   );

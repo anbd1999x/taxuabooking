@@ -1889,5 +1889,13 @@
  "Theo dõi đơn đã đặt": "查看已预订订单",
  "Gọi": "致电",
  "Chưa có dịch vụ nổi bật trong mục này.": "此类别暂无精选服务。",
- "Đặt combo →": "预订套餐 →"
+ "Đặt combo →": "预订套餐 →",
+ "🔒 Tên, số điện thoại và email chỉ dùng để Tà Xùa Booking liên hệ xác nhận đơn, chỉ chia sẻ với cơ sở bạn đặt để giữ chỗ. Không thu mật khẩu hay thông tin thẻ.": "🔒 姓名、电话和邮箱仅用于 Tà Xùa Booking 联系您确认订单，只会提供给您预订的商家用于保留位置。我们不收集密码或银行卡信息。",
+ "Giá bán": "原价",
+ "🎁 Khuyến mãi khi đặt trên website": "🎁 网站预订优惠",
+ "Tổng": "合计",
+ "🎁 Khuyến mãi combo khi đặt trên website": "🎁 网站预订套餐优惠",
+ "Giá bán ({0} người)": "原价（{0} 人）",
+ "🎁 Đặt trên website giảm {0}": "🎁 网站预订立减 {0}",
+ "{0} chặng · chọn điểm đón & điểm đến để xem giá": "{0} 条线路 · 选择上车点和目的地查看价格"
 }

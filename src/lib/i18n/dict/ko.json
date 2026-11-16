@@ -1889,5 +1889,13 @@
  "Theo dõi đơn đã đặt": "예약 내역 확인",
  "Gọi": "전화",
  "Chưa có dịch vụ nổi bật trong mục này.": "이 카테고리에는 아직 추천 서비스가 없습니다.",
- "Đặt combo →": "콤보 예약 →"
+ "Đặt combo →": "콤보 예약 →",
+ "🔒 Tên, số điện thoại và email chỉ dùng để Tà Xùa Booking liên hệ xác nhận đơn, chỉ chia sẻ với cơ sở bạn đặt để giữ chỗ. Không thu mật khẩu hay thông tin thẻ.": "🔒 이름, 전화번호, 이메일은 Tà Xùa Booking이 예약 확인 연락을 위해서만 사용하며, 자리 확보를 위해 예약하신 업체에만 공유됩니다. 비밀번호나 카드 정보는 받지 않습니다.",
+ "Giá bán": "정가",
+ "🎁 Khuyến mãi khi đặt trên website": "🎁 웹사이트 예약 할인",
+ "Tổng": "합계",
+ "🎁 Khuyến mãi combo khi đặt trên website": "🎁 웹사이트 콤보 예약 할인",
+ "Giá bán ({0} người)": "정가 ({0}명)",
+ "🎁 Đặt trên website giảm {0}": "🎁 웹사이트 예약 시 {0} 할인",
+ "{0} chặng · chọn điểm đón & điểm đến để xem giá": "{0}개 구간 · 출발지와 도착지를 선택해 요금 확인"
 }

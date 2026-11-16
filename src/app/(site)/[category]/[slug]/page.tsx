@@ -132,8 +132,9 @@ export default async function ServiceDetailPage({
     const windowEnd = addDays(start, NUM_DAYS - 1);
     const roomIds = stayRooms.map((x) => x.r.id);
     // Ngày bị chiếm (không bán) của từng phòng trong cửa sổ hiển thị.
-    // Homestay "chỉ liên hệ" không quản lý lịch → bỏ qua, mọi phòng coi như trống.
-    const statuses = service.contactOnly
+    // Homestay "chỉ liên hệ" KHÔNG nối sheet lịch → bỏ qua, mọi phòng coi như trống.
+    // Có sheet lịch (đồng bộ định kỳ vẫn chạy) ⇒ hiện đúng phòng đã kín.
+    const statuses = service.contactOnly && !service.sheetUrl
       ? []
       : await prisma.roomDayStatus.findMany({
           where: { roomId: { in: roomIds }, date: { gte: start, lte: windowEnd }, status: { not: "AVAILABLE" } },
@@ -206,7 +207,13 @@ export default async function ServiceDetailPage({
           description: service.summary,
           url: pageUrl,
           image: service.images.slice(0, 5).map((i) => `${SITE.url}${i.url}`),
-          telephone: phone.replace(/\s/g, ""),
+          // KHÔNG gắn số điện thoại của Tà Xùa Booking vào cơ sở lưu trú (Google coi là mạo danh chủ homestay).
+          // Đại lý đặt chỗ khai riêng ở `potentialAction.provider`.
+          potentialAction: {
+            "@type": "ReserveAction",
+            target: pageUrl,
+            provider: { "@type": "TravelAgency", name: SITE.name, url: SITE.url, telephone: phone.replace(/\s/g, "") },
+          },
           address: {
             "@type": "PostalAddress",
             addressLocality: service.area ?? tr("Tà Xùa, Bắc Yên"),
@@ -345,7 +352,7 @@ export default async function ServiceDetailPage({
       </nav>
       <AgentNote name={service.title} />
 
-      <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1.6fr_1fr]">
         {/* Nội dung */}
         <div className="min-w-0">
           <Gallery
@@ -576,27 +583,28 @@ export default async function ServiceDetailPage({
             <section className="mt-8">
               <h2 className="text-lg font-semibold text-ink">{tr("Giá vé theo chặng")}</h2>
               {service.area && <p className="mt-1 text-sm text-gray-500">{tr("Lộ trình: {0}", [tr(service.area)])}</p>}
-              <div className="mt-3 overflow-hidden rounded-xl ring-1 ring-black/5">
+              {/* Mobile: 4 cột không vừa 340px → thu padding, giá không xuống dòng, bảng cuộn ngang thay vì cắt mất cột giá. */}
+              <div className="mt-3 overflow-x-auto rounded-xl ring-1 ring-black/5">
                 <table className="w-full text-sm">
                   <thead className="bg-forest-50 text-left text-xs uppercase text-gray-500">
                     <tr>
-                      <th className="px-4 py-2">{tr("Loại vé")}</th>
-                      <th className="px-4 py-2">{tr("Điểm đón")}</th>
-                      <th className="px-4 py-2">{tr("Điểm đến")}</th>
-                      <th className="px-4 py-2 text-right">{tr("Giá vé")}</th>
+                      <th className="px-2.5 py-2 sm:px-4">{tr("Loại vé")}</th>
+                      <th className="px-2.5 py-2 sm:px-4">{tr("Điểm đón")}</th>
+                      <th className="px-2.5 py-2 sm:px-4">{tr("Điểm đến")}</th>
+                      <th className="whitespace-nowrap px-2.5 py-2 text-right sm:px-4">{tr("Giá vé")}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 bg-white">
                     {service.cabinPriceRows.map((row) => (
                       <tr key={row.id}>
-                        <td className="px-4 py-2">
-                          <span className="rounded-full bg-forest-100 px-2 py-0.5 text-xs font-medium text-forest-700">
+                        <td className="px-2.5 py-2 sm:px-4">
+                          <span className="whitespace-nowrap rounded-full bg-forest-100 px-2 py-0.5 text-xs font-medium text-forest-700">
                             {row.ticketType === "OUTBOUND" ? tr("Chiều đi") : row.ticketType === "RETURN" ? tr("Chiều về") : tr("Khứ hồi")}
                           </span>
                         </td>
-                        <td className="px-4 py-2 font-medium text-ink">{tr(row.pickupPoint)}</td>
-                        <td className="px-4 py-2 text-gray-600">{tr(row.destination)}</td>
-                        <td className="px-4 py-2 text-right font-bold text-forest-700">{tr(formatPrice(row.price))}</td>
+                        <td className="px-2.5 py-2 font-medium text-ink sm:px-4">{tr(row.pickupPoint)}</td>
+                        <td className="px-2.5 py-2 text-gray-600 sm:px-4">{tr(row.destination)}</td>
+                        <td className="whitespace-nowrap px-2.5 py-2 text-right font-bold text-forest-700 sm:px-4">{tr(formatPrice(row.price))}</td>
                       </tr>
                     ))}
                   </tbody>

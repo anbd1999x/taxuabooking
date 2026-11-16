@@ -28,7 +28,10 @@ for (const k of ["itinerary", "trustPopup"]) { try { walk(JSON.parse(settings[k]
 // bỏ chuỗi đã có trong từ điển giao diện
 const dict = JSON.parse(fs.readFileSync("src/lib/i18n/dict/en.json", "utf8"));
 const done = new Set((await prisma.translation.findMany({ where: { locale: "en" }, select: { source: true } })).map((r) => r.source));
-const todo = [...out].filter((s) => !(s in dict) && !done.has(s));
+// So khớp sau khi bỏ CR như lúc lưu/tra bản dịch (normSource) — trước đây chuỗi có CR luôn bị báo "cần dịch".
+const norm = (s) => s.replace(/\r\n?/g, "\n").trim();
+const doneN = new Set([...done].map(norm));
+const todo = [...out].filter((s) => !(s in dict) && !doneN.has(norm(s)));
 const file = process.argv[2] ?? "scripts/i18n/out/db-strings.json";
 fs.mkdirSync("scripts/i18n/out", { recursive: true });
 fs.writeFileSync(file, JSON.stringify(todo, null, 1));

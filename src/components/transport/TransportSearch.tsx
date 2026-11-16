@@ -154,3 +154,12 @@ export function TransportSearchPanel({
     </>
   );
 }
+
+/**
+ * Dịch ghi chú giá của thẻ xe ôm/taxi. Ghi chú "N chặng · …" do server ghép sẵn số (queries.ts)
+ * nên tách số ra để khớp khoá dịch; ghi chú admin nhập thì tra qua bảng dịch nội dung.
+ */
+export function trPriceNote(note: string, tr: (s: string, p?: (string | number)[]) => string): string {
+  const m = note.match(/^(\d+) chặng · chọn điểm đón & điểm đến để xem giá$/);
+  return m ? tr("{0} chặng · chọn điểm đón & điểm đến để xem giá", [m[1]]) : tr(note);
+}

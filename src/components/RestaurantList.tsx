@@ -392,7 +392,7 @@ export function RestaurantList({ items: all, initialArea = "" }: { items: Restau
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 px-1 py-0.5">
             <div className="flex flex-wrap gap-1.5">
-              {([["", tr("Tất cả ({0})", [all.length])]] as [string, string][]).concat(areas.map(([a, n]) => [a, `${a} (${n})`] as [string, string])).map(([k, n]) => (
+              {([["", tr("Tất cả ({0})", [all.length])]] as [string, string][]).concat(areas.map(([a, n]) => [a, `${tr(a)} (${n})`] as [string, string])).map(([k, n]) => (
                 <button key={k} type="button" onClick={() => setArea(k)} className="whitespace-nowrap rounded-full px-3.5 py-2 text-sm font-bold transition" style={{ background: area === k ? TH.G : "oklch(0.95 0.01 200)", color: area === k ? "white" : "oklch(0.35 0.02 160)" }}>{tr(n)}</button>
               ))}
             </div>

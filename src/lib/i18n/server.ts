@@ -11,6 +11,7 @@ import {
   isLocale,
   localePath,
   makeT,
+  normSource,
   type Dict,
   type Locale,
   type TFunc,
@@ -54,7 +55,8 @@ const contentMapCached = unstable_cache(
     const rows = await prisma.translation.findMany({ where: { locale }, select: { source: true, value: true } });
     const out: Dict = {};
     for (const r of rows) {
-      if (r.source.length <= SHORT_TEXT_MAX && r.value.trim()) out[r.source] = r.value;
+      const key = normSource(r.source); // khớp cách makeT chuẩn hoá khoá khi tra
+      if (key.length <= SHORT_TEXT_MAX && r.value.trim()) out[key] = r.value;
     }
     return out;
   },
@@ -95,6 +97,8 @@ export async function tLong<T extends string | null | undefined>(text: T): Promi
   if (!text) return text;
   const locale = await getLocale();
   if (locale === DEFAULT_LOCALE) return text;
-  if (text.trim().length <= SHORT_TEXT_MAX) return (await getT())(text) as T;
-  return ((await longLookup(locale, hashSource(text.trim()))) ?? text) as T;
+  // Chuẩn hoá xuống dòng Windows (CR LF) như lúc lưu bản dịch — hash tính trên chuỗi đã bỏ CR, xem normSource.
+  const norm = normSource(text);
+  if (norm.length <= SHORT_TEXT_MAX) return (await getT())(text) as T;
+  return ((await longLookup(locale, hashSource(norm))) ?? text) as T;
 }

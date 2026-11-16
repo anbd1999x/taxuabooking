@@ -18,6 +18,23 @@ function rnd(i: number, k: number) {
   const x = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453;
   return x - Math.floor(x);
 }
+// Làm tròn 2 chữ số cho giá trị CSS — số thập phân dài bị CSSOM rút gọn ⇒ hydration mismatch (như HomestayList).
+const r2 = (v: number) => Math.round(v * 100) / 100;
+
+// Figure: head + hat + body + 2 legs + 1 arm. Khai ngoài component: khai trong render thì mỗi lần đổi `w` React coi là component mới ⇒ remount mất trạng thái animation.
+const Person = ({ innerRef, body, hat, flag }: { innerRef: React.RefObject<HTMLDivElement | null>; body: string; hat: string; flag?: boolean }) => (
+  <div ref={innerRef} className="pointer-events-none absolute bottom-[17%] left-0 z-[3] h-[46px] w-[22px] will-change-transform" style={{ transformOrigin: "50% 100%", opacity: 0 }}>
+    <div data-leg="1" className="absolute left-[6px] top-[28px] h-[18px] w-1 rounded-sm" style={{ background: "oklch(0.25 0.03 260)", transformOrigin: "top center" }} />
+    <div data-leg="2" className="absolute left-[12px] top-[28px] h-[18px] w-1 rounded-sm" style={{ background: "oklch(0.25 0.03 260)", transformOrigin: "top center" }} />
+    <div className="absolute left-[5px] top-[11px] h-[19px] w-3" style={{ borderRadius: "5px 5px 2px 2px", background: body }} />
+    <div className="absolute left-[6px] top-[1px] h-2.5 w-2.5 rounded-full" style={{ background: "oklch(0.76 0.07 55)" }} />
+    <div className="absolute left-[5px] top-[-1px] h-[5px] w-3" style={{ borderRadius: "6px 6px 1px 1px", background: hat }} />
+    <div data-arm="1" className="absolute left-3 top-3 h-[14px] w-1 rounded-sm" style={{ background: body, transformOrigin: "2px 2px" }}>
+      <div className="absolute bottom-[-3px] left-0 h-1 w-1 rounded-full" style={{ background: "oklch(0.76 0.07 55)" }} />
+    </div>
+    {flag && <TripFlag x={15} y={-22} h={48} />}
+  </div>
+);
 
 /** Hero "biển mây" + hoạt ảnh combo: xe cabin phanh đón khách → khách vào homestay, chủ nhà ra đón. */
 export function ComboHero() {
@@ -169,27 +186,12 @@ export function ComboHero() {
     ];
     return LAY.map((L, li) => {
       const half = Array.from({ length: L.n }, (_, i) => ({ x: (i / L.n) * 50 + rnd(i, li) * 3, y: rnd(i, li + 5) * 30, w: L.wMin + rnd(i, li + 9) * (L.wMax - L.wMin), h: L.hh[0] + rnd(i, li + 13) * (L.hh[1] - L.hh[0]) }));
-      const clouds = half.concat(half.map((c) => ({ ...c, x: c.x + 50 }))).map((c) => ({ x: `${c.x - 6}%`, y: `${c.y}%`, w: `${c.w / 2}%`, h: `${c.h}px`, bg: L.bg, blur: L.blur }));
+      const clouds = half.concat(half.map((c) => ({ ...c, x: c.x + 50 }))).map((c) => ({ x: `${r2(c.x - 6)}%`, y: `${r2(c.y)}%`, w: `${r2(c.w / 2)}%`, h: `${Math.round(c.h)}px`, bg: L.bg, blur: L.blur }));
       return { bottom: L.bottom, h: L.h, op: L.op, clouds };
     });
   }, []);
-  const stars = useMemo(() => Array.from({ length: 14 }, (_, i) => ({ x: `${rnd(i, 21) * 100}%`, y: `${rnd(i, 22) * 34}%`, s: `${1.5 + rnd(i, 23) * 2}px` })), []);
+  const stars = useMemo(() => Array.from({ length: 14 }, (_, i) => ({ x: `${r2(rnd(i, 21) * 100)}%`, y: `${r2(rnd(i, 22) * 34)}%`, s: `${r2(1.5 + rnd(i, 23) * 2)}px` })), []);
   const heroH = w < 640 ? 500 : 560;
-
-  // Figure: head + hat + body + 2 legs + 1 arm.
-  const Person = ({ innerRef, body, hat, flag }: { innerRef: React.RefObject<HTMLDivElement | null>; body: string; hat: string; flag?: boolean }) => (
-    <div ref={innerRef} className="pointer-events-none absolute bottom-[17%] left-0 z-[3] h-[46px] w-[22px] will-change-transform" style={{ transformOrigin: "50% 100%", opacity: 0 }}>
-      <div data-leg="1" className="absolute left-[6px] top-[28px] h-[18px] w-1 rounded-sm" style={{ background: "oklch(0.25 0.03 260)", transformOrigin: "top center" }} />
-      <div data-leg="2" className="absolute left-[12px] top-[28px] h-[18px] w-1 rounded-sm" style={{ background: "oklch(0.25 0.03 260)", transformOrigin: "top center" }} />
-      <div className="absolute left-[5px] top-[11px] h-[19px] w-3" style={{ borderRadius: "5px 5px 2px 2px", background: body }} />
-      <div className="absolute left-[6px] top-[1px] h-2.5 w-2.5 rounded-full" style={{ background: "oklch(0.76 0.07 55)" }} />
-      <div className="absolute left-[5px] top-[-1px] h-[5px] w-3" style={{ borderRadius: "6px 6px 1px 1px", background: hat }} />
-      <div data-arm="1" className="absolute left-3 top-3 h-[14px] w-1 rounded-sm" style={{ background: body, transformOrigin: "2px 2px" }}>
-        <div className="absolute bottom-[-3px] left-0 h-1 w-1 rounded-full" style={{ background: "oklch(0.76 0.07 55)" }} />
-      </div>
-      {flag && <TripFlag x={15} y={-22} h={48} />}
-    </div>
-  );
 
   return (
     <section className="relative overflow-hidden" style={{ height: heroH, background: TH.sky }}>

@@ -212,6 +212,8 @@ function classifyCell(raw: string): { status: RoomStatus; known: boolean } {
   if (/check ?in/.test(t) || /(^| )in$/.test(t)) return ok("BOOKED");
   // Đánh dấu "x" / "X tên khách" = đã đặt (Chung Chinh) — trước đây vẫn khoá nhưng bị báo "ô không nhận ra".
   if (/^x( |$)/.test(t)) return ok("BOOKED");
+  // "CK" / "TM" = khách đã trả chuyển khoản / tiền mặt → đã đặt (Dê Homestay).
+  if (/^(ck|tm)( |$)/.test(t)) return ok("BOOKED");
   // "Checkout" = khách trả phòng buổi sáng → đêm đó phòng trống (chủ sheet cũng
   // không tính vào tỉ lệ đặt).
   if (/check ?out/.test(t) || t === "out") return ok("AVAILABLE");

@@ -471,7 +471,7 @@ export function CafeList({ cafes }: { cafes: CafeCard[] }) {
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2 px-1 py-0.5">
             <div className="flex flex-wrap gap-1.5">
-              {([["all", tr("Tất cả ({0})", [cafes.length])], ...areaList.map(([a, n]) => [a, `${a} (${n})`] as [string, string])] as [string, string][]).map(([k, label]) => (
+              {([["all", tr("Tất cả ({0})", [cafes.length])], ...areaList.map(([a, n]) => [a, `${tr(a)} (${n})`] as [string, string])] as [string, string][]).map(([k, label]) => (
                 <button key={k} type="button" onClick={() => setArea(k)} className="cursor-pointer whitespace-nowrap rounded-full px-3.5 py-2 text-sm font-bold transition" style={{ background: area === k ? TH.G : "oklch(0.95 0.01 200)", color: area === k ? "white" : "oklch(0.35 0.02 160)" }}>{tr(label)}</button>
               ))}
             </div>

@@ -86,6 +86,7 @@ export default async function InventoryPage() {
                     Sửa chuyến →
                   </Link>
                 </div>
+                <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 text-left text-xs uppercase text-gray-500">
                     <tr>
@@ -114,6 +115,7 @@ export default async function InventoryPage() {
                     })}
                   </tbody>
                 </table>
+                </div>
               </div>
             ))}
           </div>

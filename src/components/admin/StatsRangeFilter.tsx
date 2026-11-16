@@ -45,7 +45,8 @@ export function StatsRangeFilter({ action, fromKey, toKey }: { action: string; f
 
   return (
     <div className="mt-4 flex flex-wrap items-end gap-3">
-      <div className="inline-flex gap-1 rounded-[14px] bg-gray-200/70 p-1">
+      {/* max-w-full + cuộn ngang: 3 tab không vừa 360px ⇒ tab "Theo năm" bị cắt. */}
+      <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-[14px] bg-gray-200/70 p-1">
         {tabs.map(([k, name]) => (
           <button
             key={k}

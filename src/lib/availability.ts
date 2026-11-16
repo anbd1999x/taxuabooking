@@ -229,6 +229,28 @@ export function strikeForDay(date: Date, r: RoomListPriceFields, effective: numb
 }
 
 /**
+ * Giá "từ" của một phòng khi CHƯA chọn ngày: đêm rẻ nhất trong tuần
+ * (giá-theo-thứ ?? salePrice ?? listPrice) + giá gạch của CHÍNH đêm đó
+ * (giá-gạch-theo-thứ ?? listPrice khi đang giảm; null nếu không cao hơn).
+ * price = 0 ⇒ chưa nhập giá.
+ */
+export function roomFromPrice(r: RoomPriceFields & RoomListPriceFields): { price: number; strike: number | null } {
+  const pricing = roomPricing(r);
+  const listDays = roomListDaysOfWeek(r);
+  const common = roomListPrice(r);
+  let best: { price: number; strike: number | null } | null = null;
+  for (let d = 0; d < 7; d++) {
+    const eff = pricing.daysOfWeek?.[d] ?? pricing.weekdayPrice;
+    if (eff == null || eff <= 0) continue;
+    const cand = listDays[d] ?? common;
+    const strike = cand != null && cand > eff ? cand : null;
+    // Rẻ hơn thì lấy; bằng giá thì ưu tiên đêm có giá gạch.
+    if (!best || eff < best.price || (eff === best.price && best.strike == null && strike != null)) best = { price: eff, strike };
+  }
+  return best ?? { price: 0, strike: null };
+}
+
+/**
  * Tổng giá bán + tổng giá gạch cho một kỳ (nhiều đêm) của một phòng — dùng cho
  * thẻ tìm kiếm / combo. strikeTotal = null nếu cả kỳ không có đêm nào giảm.
  * Đêm không giảm được tính bằng chính giá bán vào cả hai tổng (để tổng gạch vẫn

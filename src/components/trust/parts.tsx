@@ -202,7 +202,8 @@ export function PeopleColumn({
         >
           {tr("Website chính thức duy nhất")}
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, width: "100%" }}>
+        {/* auto-fit: màn 320px không đủ 2 cột cho "taxuabooking.com" (nowrap) ⇒ tự xếp 1 cột thay vì tràn ra ngoài thẻ. */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 6, width: "100%" }}>
           {OFFICIAL_SITES.map((name) => (
             <a
               key={name}

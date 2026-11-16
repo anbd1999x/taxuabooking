@@ -33,7 +33,7 @@ export default async function CommitmentPage() {
       <div className="container-page py-8 sm:py-12">
         {/* Thẻ chính: 2 cột như popup */}
         <div
-          className="grid overflow-hidden rounded-3xl bg-white shadow-xl md:grid-cols-[360px_minmax(0,1fr)]"
+          className="grid grid-cols-1 overflow-hidden rounded-3xl bg-white shadow-xl md:grid-cols-[360px_minmax(0,1fr)]"
           style={{ boxShadow: "0 40px 80px -40px oklch(0.15 0.04 160 / .4)" }}
         >
           <PeopleColumn people={people} wide />

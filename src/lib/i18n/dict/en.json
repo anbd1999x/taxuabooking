@@ -1889,5 +1889,13 @@
  "Theo dõi đơn đã đặt": "Track your bookings",
  "Gọi": "Call",
  "Chưa có dịch vụ nổi bật trong mục này.": "No featured services in this category yet.",
- "Đặt combo →": "Book combo →"
+ "Đặt combo →": "Book combo →",
+ "🔒 Tên, số điện thoại và email chỉ dùng để Tà Xùa Booking liên hệ xác nhận đơn, chỉ chia sẻ với cơ sở bạn đặt để giữ chỗ. Không thu mật khẩu hay thông tin thẻ.": "🔒 Your name, phone number and email are only used by Tà Xùa Booking to contact you and confirm the booking, and are shared only with the place you book to hold your spot. We never ask for passwords or card details.",
+ "Giá bán": "Regular price",
+ "🎁 Khuyến mãi khi đặt trên website": "🎁 Discount for booking on our website",
+ "Tổng": "Total",
+ "🎁 Khuyến mãi combo khi đặt trên website": "🎁 Combo discount for booking on our website",
+ "Giá bán ({0} người)": "Regular price ({0} people)",
+ "🎁 Đặt trên website giảm {0}": "🎁 Book on our website and save {0}",
+ "{0} chặng · chọn điểm đón & điểm đến để xem giá": "{0} routes · pick a pick-up point & destination to see the price"
 }

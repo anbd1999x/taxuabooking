@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/components/i18n/I18nProvider";
 import { TripFlag } from "@/components/TripFlag";
-import { TransportSearchPanel, useTransportSearch, withQuote } from "@/components/transport/TransportSearch";
+import { TransportSearchPanel, useTransportSearch, withQuote, trPriceNote } from "@/components/transport/TransportSearch";
 import type { TransportPointDTO, TransportPricing } from "@/lib/transport-legs";
 
 export interface TaxiRouteCard {
@@ -47,6 +47,8 @@ function rnd(i: number, kk: number) {
   const x = Math.sin(i * 12.9898 + kk * 78.233) * 43758.5453;
   return x - Math.floor(x);
 }
+// Làm tròn 2 chữ số cho giá trị CSS — số thập phân dài bị CSSOM rút gọn ⇒ hydration mismatch (như HomestayList).
+const r2 = (v: number) => Math.round(v * 100) / 100;
 
 export function TaxiList({ routes, points = [] }: { routes: TaxiRouteCard[]; points?: TransportPointDTO[] }) {
   const tr = useT();
@@ -256,12 +258,12 @@ export function TaxiList({ routes, points = [] }: { routes: TaxiRouteCard[]; poi
         h: L.hh[0] + rnd(i, li + 13) * (L.hh[1] - L.hh[0]),
       }));
       const clouds = half.concat(half.map((c) => ({ ...c, x: c.x + 50 }))).map((c) => ({
-        x: `${c.x - 6}%`, y: `${c.y}%`, w: `${c.w / 2}%`, h: `${c.h}px`, bg: L.bg, blur: L.blur,
+        x: `${r2(c.x - 6)}%`, y: `${r2(c.y)}%`, w: `${r2(c.w / 2)}%`, h: `${Math.round(c.h)}px`, bg: L.bg, blur: L.blur,
       }));
       return { bottom: L.bottom, h: L.h, op: L.op, clouds };
     });
   }, []);
-  const stars = useMemo(() => Array.from({ length: 14 }, (_, i) => ({ x: `${rnd(i, 21) * 100}%`, y: `${rnd(i, 22) * 34}%`, s: `${1.5 + rnd(i, 23) * 2}px` })), []);
+  const stars = useMemo(() => Array.from({ length: 14 }, (_, i) => ({ x: `${r2(rnd(i, 21) * 100)}%`, y: `${r2(rnd(i, 22) * 34)}%`, s: `${r2(1.5 + rnd(i, 23) * 2)}px` })), []);
 
   const wide = w >= 980;
   const heroH = w < 640 ? 520 : 600;
@@ -437,7 +439,7 @@ export function TaxiList({ routes, points = [] }: { routes: TaxiRouteCard[]; poi
               const noPrice = r.price == null;
               // Đang xem theo ngày (mặc định, hoặc khách chọn "Thuê nguyên ngày") ⇒ giá /ngày; chọn chặng ⇒ giá 1 chiều.
               const dayView = !(ts.active && ts.mode === "LEG") && (ts.active || (r.pricing?.dayPrice ?? 0) > 0);
-              const note = r.priceNote || (noPrice ? tr("Nhắn tin để được báo giá") : tr("Giá cả xe, không tính theo người"));
+              const note = r.priceNote ? trPriceNote(r.priceNote, tr) : noPrice ? tr("Nhắn tin để được báo giá") : tr("Giá cả xe, không tính theo người");
               return (
                 <Link
                   key={r.id}

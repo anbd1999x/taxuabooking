@@ -555,7 +555,7 @@ export default function BookingsListClient({
           return (
             <div
               key={r.id}
-              className={`grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-3 border-b border-gray-50 py-3 pl-3 pr-4 transition hover:bg-forest-50/40 lg:px-4 ${gridCols} border-l-[3px] ${
+              className={`grid grid-cols-[28px_minmax(0,1fr)] items-center gap-x-3 gap-y-2 border-b border-gray-50 py-3 pl-3 pr-4 transition hover:bg-forest-50/40 lg:px-4 ${gridCols} border-l-[3px] ${
                 urg ? "border-l-sunset-500" : "border-l-transparent"
               } ${sel[r.id] ? "bg-forest-50/70" : "bg-white"}`}
               suppressHydrationWarning
@@ -584,8 +584,9 @@ export default function BookingsListClient({
                     </span>
                   )}
                 </span>
-                <span className="mt-0.5 block truncate text-[13px] font-semibold text-ink">
-                  {r.name} · <span className="font-medium text-gray-500">{r.phone}</span>
+                {/* Không truncate: tên dài từng đẩy mất số điện thoại trên mobile. SĐT giữ nguyên một khối. */}
+                <span className="mt-0.5 block text-[13px] font-semibold text-ink [overflow-wrap:anywhere]">
+                  {r.name} · <span className="whitespace-nowrap font-medium text-gray-500">{r.phone}</span>
                 </span>
                 <span className={`mt-0.5 block whitespace-nowrap text-[11px] ${r.status === "NEW" && m > 30 ? "font-semibold text-sunset-600" : "text-gray-400"}`} suppressHydrationWarning>
                   Gửi {agoText(m)}
@@ -654,7 +655,8 @@ export default function BookingsListClient({
                   <option key={k} value={k}>{ST[k].name}</option>
                 ))}
               </select>
-              <div className="flex flex-wrap justify-end gap-1">
+              {/* Mobile: nhóm nút xuống hàng riêng dưới thông tin (trước đây chiếm cột phải, ép cột thông tin còn ~70px ⇒ cắt giá/tên). */}
+              <div className="col-start-2 flex flex-wrap justify-start gap-1 lg:col-start-auto lg:justify-end">
                 <a
                   href={`tel:${phoneDigits}`}
                   title="Gọi khách"

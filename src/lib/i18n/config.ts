@@ -91,11 +91,21 @@ function lookup(s: string, dict: Dict, content: Dict | undefined, depth = 0): st
   return undefined;
 }
 
+/**
+ * Chuẩn hoá chuỗi gốc để TRA bản dịch: bỏ `\r` (xuống dòng kiểu Windows khi admin dán từ Word/Excel) + trim.
+ * Nơi LƯU bản dịch (admin /admin/translations, scripts/i18n/import-content.mjs) đã đổi `\r\n` → `\n`;
+ * trước đây nơi TRA không đổi ⇒ nội dung có `\r` không bao giờ khớp, trang hiện tiếng Việt dù đã dịch.
+ */
+export function normSource(s: string): string {
+  return s.replace(/\r\n?/g, "\n").trim();
+}
+
 export function makeT(dict: Dict, content?: Dict): TFunc {
   return ((key: string | null | undefined, vars?: TVars) => {
     if (!key) return key;
     const core = key.trim();
-    let hit = lookup(core, dict, content);
+    const norm = core.includes("\r") ? normSource(core) : core;
+    let hit = lookup(norm, dict, content);
     // giữ khoảng trắng đầu/cuối của chuỗi gốc quanh bản dịch
     if (hit !== undefined && core !== key) hit = key.slice(0, key.indexOf(core)) + hit + key.slice(key.indexOf(core) + core.length);
     return interpolate(hit ?? key, vars);

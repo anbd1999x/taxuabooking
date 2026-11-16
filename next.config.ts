@@ -6,7 +6,8 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["sharp"], // sharp là native, không bundle
   // Không tái dùng client router cache cho trang động: điều hướng mềm (router.push)
   // sang cùng đường dẫn với tham số tìm khác nhau luôn lấy dữ liệu mới (không reload).
-  experimental: { staleTimes: { dynamic: 0, static: 0 } },
+  // `static` tối thiểu 30 (Next báo invalid config nếu nhỏ hơn và bỏ qua cả khối).
+  experimental: { staleTimes: { dynamic: 0, static: 30 } },
   images: {
     // Không tối ưu ảnh phía server: ảnh /uploads do nginx phục vụ tĩnh, còn ảnh
     // Unsplash tải thẳng từ trình duyệt (container không có DNS ra ngoài cho bộ

@@ -17,6 +17,7 @@ import {
   aggregateStay,
   roomPricing,
   priceForDay,
+  stayStrike,
   roomCommissionForNights,
   type AvailabilityRecord,
   type StayAvailabilityResult,
@@ -36,6 +37,7 @@ export interface StayOption {
   bookable: boolean;
   availableUnits: number;
   pricePerUnit: number | null; // tổng giá 1 phòng/xe cho cả kỳ
+  strikePerUnit?: number | null; // homestay: tổng giá gạch (giá bán niêm yết) cả kỳ, null = không giảm
   count: number; // số đêm/ngày
   colors?: string[]; // thuê xe máy: các màu có sẵn để khách chọn
   commission?: number; // tổng chiết khấu CTV cho phòng này cả kỳ (homestay)
@@ -149,6 +151,7 @@ export async function computeAvailability(
         bookable: free,
         availableUnits: free ? 1 : 0,
         pricePerUnit: nights.length > 0 && !hasIbNight ? total : null,
+        strikePerUnit: nights.length > 0 && !hasIbNight ? stayStrike(nights, room).strikeTotal : null,
         count: nights.length,
         commission: roomCommissionForNights(room, nights, toNumber(service.roomCommission)),
       };

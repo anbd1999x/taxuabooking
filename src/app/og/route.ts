@@ -19,7 +19,9 @@ async function render(u: string): Promise<Buffer | null> {
   const abs = resolvePublic(u);
   if (!abs) return null;
   try {
-    return await sharp(await readFile(abs), { failOn: "none" })
+    // turbopackIgnore: đường dẫn động khiến Turbopack trace CẢ dự án (kể cả public/uploads) vào bản standalone.
+    // public/ đã được Dockerfile copy riêng + uploads là volume nên không cần trace.
+    return await sharp(await readFile(/*turbopackIgnore: true*/ abs), { failOn: "none" })
       .rotate()
       .resize(OG_WIDTH, OG_HEIGHT, { fit: "cover", position: "attention" })
       .flatten({ background: "#ffffff" })

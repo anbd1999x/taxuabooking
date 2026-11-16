@@ -162,7 +162,7 @@ export default async function EditServicePage({
           </div>
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
           <ServiceTabNav tabs={tabs} />
 
           <div className="min-w-0 space-y-4">
@@ -415,7 +415,7 @@ export default async function EditServicePage({
           </div>
         </div>
 
-        <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
           <ServiceTabNav tabs={tabs} />
 
           <div className="min-w-0 space-y-4">

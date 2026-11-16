@@ -20,6 +20,8 @@ export interface HomestayCard {
   id: string;
   slug: string;
   name: string; // tên phòng (hạng · phòng; nhóm nhiều phòng = tên hạng)
+  typeName?: string; // tên hạng phòng (để dịch riêng)
+  roomName?: string | null; // tên phòng khi nhóm chỉ có 1 phòng
   homeName: string; // tên homestay
   area: string;
   distanceKm: number | null; // cách trung tâm Tà Xùa (km); null = chưa nhập
@@ -771,7 +773,7 @@ export function HomestayList({
               style={{ transform: "translateY(24px)", transitionProperty: "opacity, transform, box-shadow", transitionDuration: ".6s", transitionDelay: `${(i % 3) * 0.08}s` }}
             >
               <div className="relative aspect-[16/10] overflow-hidden bg-gray-100 sm:aspect-[4/3]">
-                {s.cover ? <Image src={s.cover} alt={tr(s.name)} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" /> : <div className="flex h-full items-center justify-center text-4xl">🏠</div>}
+                {s.cover ? <Image src={s.cover} alt={s.typeName ? `${tr(s.typeName)}${s.roomName ? ` · ${tr(s.roomName)}` : ""}` : tr(s.name)} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" /> : <div className="flex h-full items-center justify-center text-4xl">🏠</div>}
                 {/* Trên ảnh chỉ hiện badge HOT khi được tick Nổi bật (nhiều chip dễ chồng nhau trên mobile). */}
                 {(s.roomFeatured || s.featured) && (
                   <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-sunset-500 px-2 py-0.5 text-[11px] font-extrabold tracking-wide text-white shadow-sm sm:left-3 sm:top-3 sm:px-2.5 sm:py-1 sm:text-xs">🔥 HOT</span>
@@ -782,7 +784,7 @@ export function HomestayList({
                   {tr(s.homeName)} · {tr(s.area)}
                   {s.distanceKm != null && (s.distanceKm === 0 ? tr(" · ngay trung tâm") : tr(" · cách trung tâm {0}km", [s.distanceKm.toLocaleString("vi-VN")]))}
                 </div>
-                <div className="line-clamp-1 text-[15px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink sm:line-clamp-none sm:text-[19px]">{tr(s.name)}</div>
+                <div className="line-clamp-1 text-[15px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink sm:line-clamp-none sm:text-[19px]">{s.typeName ? `${tr(s.typeName)}${s.roomName ? ` · ${tr(s.roomName)}` : ""}` : tr(s.name)}</div>
                 <div className="text-[11px] font-semibold text-gray-500 sm:text-[12px]">
                   {tr("Tối đa")}{" "}{s.capacity}{" "}{tr("khách")}{s.count > 1 ? tr(" · {0} phòng loại này", [s.count]) : ""}
                   {s.status !== "none" && <span className="ml-1.5 inline-block whitespace-nowrap rounded-full px-1.5 py-px text-[10px] font-bold sm:text-[11px]" style={{ background: STATUS[s.status].bg, color: STATUS[s.status].fg }}>{tr(STATUS[s.status].text(s.freeRooms, tr))}</span>}
@@ -804,7 +806,8 @@ export function HomestayList({
                 <div className="mt-1 flex flex-wrap items-end justify-between gap-x-2 gap-y-2 border-t border-[oklch(0.94_0.01_230)] pt-2 sm:mt-1.5 sm:pt-3">
                   <div className="min-w-0">
                     <div className="text-[11px] text-gray-500 sm:text-xs">{s.price > 0 ? (hasDates ? tr("{0} đêm từ", [nights]) : tr("Giá từ")) : tr("Giá phòng")}</div>
-                    <div>
+                    {/* flex-wrap: thẻ 2 cột trên mobile rất hẹp → giá gạch tự xuống dòng thay vì đẩy giá bán tràn khỏi thẻ. */}
+                    <div className="flex flex-wrap items-baseline gap-x-1.5">
                       {s.price > 0 ? (() => {
                         // Có ngày: dùng TỔNG cả kỳ (giá bán & giá gạch theo thứ) nếu tính được;
                         // chưa có thì nhân cứng per-night × số đêm như cũ.
@@ -813,9 +816,11 @@ export function HomestayList({
                         return (
                         <>
                           {old != null && old > shown && (
-                            <span className="mr-1.5 text-[12px] text-gray-400 line-through sm:text-[14px]">{tr(vnd(old))}</span>
+                            <span className="whitespace-nowrap text-[12px] text-gray-400 line-through sm:text-[14px]">{tr(vnd(old))}</span>
                           )}
-                          <span className="text-[17px] font-extrabold tracking-[-0.02em] sm:text-[21px]" style={{ color: TH.G }}>{tr(vnd(shown))}</span>{!hasDates && <span className="text-[12px] text-gray-500 sm:text-[13px]">{tr("/đêm")}</span>}
+                          <span className="whitespace-nowrap">
+                            <span className="text-[15px] font-extrabold tracking-[-0.02em] min-[400px]:text-[17px] sm:text-[21px]" style={{ color: TH.G }}>{tr(vnd(shown))}</span>{!hasDates && <span className="text-[11px] text-gray-500 min-[400px]:text-[12px] sm:text-[13px]">{tr("/đêm")}</span>}
+                          </span>
                         </>
                         );
                       })() : (

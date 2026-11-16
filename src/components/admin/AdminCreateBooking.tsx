@@ -366,7 +366,7 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
   const tripQuote = isCombo ? busQuote : quote;
 
   return (
-    <form action={formAction} className="grid gap-4 lg:grid-cols-[1fr_340px]">
+    <form action={formAction} className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_340px]">
       {edit && <input type="hidden" name="bookingId" value={edit.bookingId} />}
       {edit && onSaved && <input type="hidden" name="stay" value="1" />}
       <div className="flex min-w-0 flex-col gap-4">

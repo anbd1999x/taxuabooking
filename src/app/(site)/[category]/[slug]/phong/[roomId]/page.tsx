@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { getRoomDetail, getSettings } from "@/lib/queries";
 import { CATEGORIES } from "@/lib/constants";
 import { formatPrice } from "@/lib/format";
-import { roomListPrice, isRoomPriceOnRequest } from "@/lib/availability";
+import { roomFromPrice, isRoomPriceOnRequest } from "@/lib/availability";
 import { SITE } from "@/lib/site";
 import { Gallery } from "@/components/Gallery";
 import { BookingPanel } from "@/components/BookingPanel";
@@ -57,7 +57,8 @@ export default async function RoomDetailPage({
   const phone = settings.contactPhone || SITE.defaultPhone;
   const zalo = settings.contactZalo || SITE.defaultZalo;
 
-  const listStrike = roomListPrice(room);
+  // Giá "từ" = đêm rẻ nhất trong tuần (có giá theo thứ) + giá gạch của đêm đó.
+  const { price: fromPrice, strike: listStrike } = roomFromPrice(room);
   const priceOnRequest = isRoomPriceOnRequest(room);
   const amenities = (room.amenities ?? "")
     .split(",")
@@ -91,7 +92,7 @@ export default async function RoomDetailPage({
       </nav>
       <AgentNote name={svc.title} />
 
-      <div className="grid gap-8 lg:grid-cols-[1.6fr_1fr]">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1.6fr_1fr]">
         <div>
           <Gallery images={galleryImages} title={t(room.name)} />
 
@@ -122,7 +123,8 @@ export default async function RoomDetailPage({
               ) : (
                 <>
                   <p className="text-2xl font-bold text-forest-700">
-                    {t(formatPrice(room.salePrice ?? room.listPrice))}<span className="text-xs font-normal text-gray-500">{t("/đêm")}</span>
+                    {fromPrice > 0 && <span className="mr-1 text-sm font-medium text-gray-500">{t("từ")}</span>}
+                    {t(formatPrice(fromPrice))}<span className="text-xs font-normal text-gray-500">{t("/đêm")}</span>
                   </p>
                   {listStrike != null && (
                     <p className="text-sm text-gray-400 line-through">{t(formatPrice(listStrike))}</p>

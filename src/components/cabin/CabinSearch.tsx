@@ -34,7 +34,7 @@ export function CabinSearch({
 
   return (
     <div className="rounded-[22px] bg-white p-2.5 shadow-[0_20px_50px_-24px_rgba(30,70,45,0.4)] ring-1 ring-black/[0.05]">
-      <div className="grid gap-1.5 sm:grid-cols-[1fr_1fr_auto]">
+      <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-[1fr_1fr_auto]">
         <label className={cell}>
           <span className="text-xs font-medium text-gray-500">{t("Ngày đi")}</span>
           <DateField

@@ -22,6 +22,7 @@ import { cabinAllocation, busCostPerPerson, cabinSeatTotal, COMBO_MOTORBIKES, co
 import { vnPhoneError } from "@/lib/phone";
 import { RENTAL_HOURS, RENTAL_DEFAULT_HOUR, rentalDaysLabel } from "@/lib/rental-days";
 import { BookingEmailField, emailLooksValid } from "@/components/BookingEmailField";
+import { PriceLine } from "@/components/WebPromo";
 import { showGlobalLoading } from "@/components/useSearchNav";
 import { CommitmentLink } from "@/components/trust/parts";
 import { useT } from "@/components/i18n/I18nProvider";
@@ -147,7 +148,7 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
         </div>
         <ItineraryLink nights={nights} className="mt-1.5 inline-flex items-center gap-1.5 text-sm font-bold text-forest-700 hover:text-sunset-500" />
         <div className="mt-1 text-sm text-gray-500">
-          {buses.length}{" "}{tr("nhà xe ·")}{" "}{adults}{" "}{tr("người lớn")}{childrenAges.length > 0 ? tr(" · {0} trẻ em ({1} tuổi)", [childrenAges.length, childrenAges.join(", ")]) : ""} · {nights}{" "}{tr("đêm (")}{tr(checkIn)} → {tr(checkOut)})
+          {buses.length}{" "}{tr("nhà xe ·")}{" "}{adults}{" "}{tr("người lớn")}{childrenAges.length > 0 ? tr(" · {0} trẻ em ({1} tuổi)", [childrenAges.length, childrenAges.join(", ")]) : ""} · {nights}{" "}{tr("đêm (")}{fmtDayKey(checkIn)} → {fmtDayKey(checkOut)})
           {origin && <>{" "}{tr("· đón tại")}{" "}<span className="font-bold text-ink">{tr(origin)}</span></>}
           {priceMax != null ? (
             <>{" "}{tr("· mức giá")}{" "}<span className="font-semibold text-forest-700">{tr("dưới {0}", [tr(vnd(priceMax))])}</span>{tr("/khách")}</>
@@ -179,7 +180,7 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
             <select value={zone} onChange={(e) => setZone(e.target.value)} className={SEL} style={{ color: "oklch(0.52 0.12 50)" }}>
               <option value="all">{tr("Mọi khu vực")}</option>
               {zones.map((z) => (
-                <option key={z} value={z}>{z.replace(/^Trung tâm Tà Xùa$/i, "Trung tâm")}</option>
+                <option key={z} value={z}>{tr(z.replace(/^Trung tâm Tà Xùa$/i, "Trung tâm"))}</option>
               ))}
             </select>
           </label>
@@ -319,7 +320,8 @@ function ComboPlanCard({
   const missing = plan.groups.some((g, i) => g.options.length > g.count && pickedFor(i, g).length !== g.count);
 
   // Tiêu đề = gộp theo hạng ("2× Phòng đôi + 1× Phòng đơn"); cover = ảnh phòng đại diện.
-  const title = plan.groups.map((g) => `${g.count}× ${g.room.typeName}`).join(" + ");
+  // Dịch TỪNG tên hạng phòng trước khi ghép (tr() cả chuỗi ghép không khớp khoá nào ⇒ trước đây luôn hiện tiếng Việt).
+  const title = plan.groups.map((g) => `${g.count}× ${tr(g.room.typeName)}`).join(" + ");
   const cover = plan.groups[0]?.room.cover ?? home.cover;
   const totalPics = plan.groups.reduce((n, g) => n + (g.room.images.length || (g.room.cover ? 1 : 0)), 0);
 
@@ -335,16 +337,23 @@ function ComboPlanCard({
   const roomShare = Math.round(plan.roomCost / people);
   const fare = bus?.farePerPerson ?? 0;
   const cabinCost = cabinSeatTotal(fare, cbDouble, cbSingle); // ghép = fare/người, riêng = 2×fare/người
-  const total = Math.max(0, roomShare * people + cabinCost - (plan.noDiscount ? 0 : COMBO_DISCOUNT * people));
+  // Tổng = tiền phòng thật cả đoàn (khớp server createComboBooking), không nhân lại roomShare đã làm tròn.
+  const total = Math.max(0, plan.roomCost + cabinCost - (plan.noDiscount ? 0 : COMBO_DISCOUNT * people));
   const pricePerPerson = people > 0 ? Math.round(total / people) : 0;
   const diff = budget != null ? pricePerPerson - budget : null;
   // Giá gạch (niêm yết) trọn gói khi phòng có giảm theo ngày — chỉ phần phòng đổi.
   const totalOld =
     plan.roomCostOld != null
-      ? Math.max(0, Math.round(plan.roomCostOld / people) * people + cabinCost - (plan.noDiscount ? 0 : COMBO_DISCOUNT * people))
+      ? Math.max(0, plan.roomCostOld + cabinCost - (plan.noDiscount ? 0 : COMBO_DISCOUNT * people))
       : null;
   const ppOld = totalOld != null && people > 0 ? Math.round(totalOld / people) : null;
   const hasStrike = ppOld != null && ppOld > pricePerPerson;
+  // Bảng giá rõ ràng: giá bán (phòng theo giá niêm yết + vé) → KM đặt web (phần phòng) → KM combo → trọn gói.
+  const roomShareOld = plan.roomCostOld != null && plan.roomCostOld > plan.roomCost ? Math.round(plan.roomCostOld / people) : roomShare;
+  const webPromoPP = roomShareOld - roomShare; // / khách
+  const comboPromoPP = plan.noDiscount ? 0 : COMBO_DISCOUNT; // / khách
+  const webPromoTotal = plan.roomCostOld != null && plan.roomCostOld > plan.roomCost ? plan.roomCostOld - plan.roomCost : 0; // cả đoàn, không làm tròn
+  const grossTotal = total + webPromoTotal + comboPromoPP * people; // giá bán cả đoàn (trước khuyến mãi)
 
   // Modal xem ảnh: giữ NHÓM đang mở + CĂN đang xem (ảnh/mô tả theo đúng căn đó).
   const [preview, setPreview] = useState<{ gi: number; roomId: string } | "bus" | null>(null);
@@ -477,7 +486,7 @@ function ComboPlanCard({
           {budget != null ? tr("Khớp giá nhất với mong muốn của bạn") : tr("Phương án tối ưu nhất (giá · tiện ích · vị trí)")}
         </div>
       )}
-      <div className="grid gap-0 lg:grid-cols-[260px_minmax(0,1fr)_280px]">
+      <div className="grid grid-cols-1 gap-0 lg:grid-cols-[260px_minmax(0,1fr)_280px]">
         {/* Ảnh — bấm mở gallery nhóm đầu */}
         <button type="button" onClick={() => openRoom(0)} className="group relative block min-h-[200px] cursor-zoom-in text-left">
           {cover ? (
@@ -631,21 +640,20 @@ function ComboPlanCard({
           )}
           <div>
             <div className="text-xs text-gray-500">{tr("Trọn gói / khách")}</div>
-            <div className="flex items-baseline gap-2">
-              {hasStrike && <span className="text-base font-semibold text-gray-400 line-through">{tr(vnd(ppOld!))}</span>}
-              <span className="text-[30px] font-extrabold leading-tight tracking-[-0.03em] text-sunset-600">{tr(vnd(pricePerPerson))}</span>
+            <div className="flex flex-wrap items-baseline gap-x-2">
+              {hasStrike && <span className="whitespace-nowrap text-base font-semibold text-gray-400 line-through">{tr(vnd(ppOld!))}</span>}
+              <span className="whitespace-nowrap text-[26px] min-[380px]:text-[30px] font-extrabold leading-tight tracking-[-0.03em] text-sunset-600">{tr(vnd(pricePerPerson))}</span>
             </div>
             <div className="mt-0.5 text-[13px] font-semibold text-gray-500">≈ {tr(vnd(total))} cho {people}{" "}{tr("người")}{freeChildren > 0 ? tr(" (+{0} trẻ miễn phí)", [freeChildren]) : ""}</div>
           </div>
           <div className="flex flex-col gap-1.5 border-t border-dashed border-[oklch(0.88_0.02_70)] pt-2.5 text-xs leading-relaxed text-gray-500">
             <div className="flex justify-between gap-2">
               <span>{plan.communal ? tr("Giường cộng đồng / khách") : tr("Tiền phòng ÷ {0} khách", [people])}</span>
-              <span className="font-bold text-ink">{tr(vnd(roomShare))}</span>
+              <span className="font-bold text-ink">{tr(vnd(roomShareOld))}</span>
             </div>
             <div className="flex justify-between gap-2"><span>{tr("Vé khứ hồi")}{bus?.fareOrigin ? tr(" từ {0}", [tr(bus.fareOrigin)]) : ""}{" "}{tr("/ khách")}</span><span className="font-bold text-ink">{tr(vnd(bus?.farePerPerson ?? 0))}</span></div>
-            {!plan.noDiscount && (
-              <div className="flex justify-between gap-2"><span>{tr("Khuyến mãi combo")}</span><span className="font-bold text-forest-700">− {tr(vnd(COMBO_DISCOUNT))}</span></div>
-            )}
+            <PriceLine className="text-xs" promo label={tr("🎁 Khuyến mãi khi đặt trên website")} amount={webPromoPP} />
+            <PriceLine className="text-xs" promo label={tr("🎁 Khuyến mãi combo khi đặt trên website")} amount={comboPromoPP} />
           </div>
           <div className="flex-1" />
           {missing && <div className="text-xs font-bold text-sunset-600">{tr("Chọn đủ căn phòng để đặt")}</div>}
@@ -726,13 +734,18 @@ function ComboPlanCard({
                   {origin && (
                     <div className="flex justify-between gap-2"><span className="text-gray-500">{tr("Điểm đón")}</span><span className="font-bold text-ink">{tr(origin)}</span></div>
                   )}
-                  <div className="flex justify-between gap-2"><span className="text-gray-500">{tr("Ngày")}</span><span className="font-bold text-ink">{tr("{0} → {1} · {2} đêm", [tr(checkIn), tr(checkOut), nights])}</span></div>
+                  <div className="flex justify-between gap-2"><span className="text-gray-500">{tr("Ngày")}</span><span className="font-bold text-ink">{tr("{0} → {1} · {2} đêm", [fmtDayKey(checkIn), fmtDayKey(checkOut), nights])}</span></div>
                   <div className="flex justify-between gap-2">
                     <span className="text-gray-500">{tr("Khách")}</span>
                     <span className="text-right font-bold text-ink">
                       {adults}{" "}{tr("người lớn")}{childrenAges.length > 0 ? tr(" · {0} trẻ ({1} tuổi)", [childrenAges.length, childrenAges.join(", ")]) : ""}
                       {freeChildren > 0 && <span className="font-bold text-forest-700">{" "}{tr("· {0} miễn phí", [freeChildren])}</span>}
                     </span>
+                  </div>
+                  <div className="mt-1 flex flex-col gap-1 border-t border-gray-200 pt-1.5">
+                    <PriceLine className="text-[13px]" label={tr("Giá bán ({0} người)", [people])} amount={grossTotal} />
+                    <PriceLine className="text-[13px]" promo label={tr("🎁 Khuyến mãi khi đặt trên website")} amount={webPromoTotal} />
+                    <PriceLine className="text-[13px]" promo label={tr("🎁 Khuyến mãi combo khi đặt trên website")} amount={comboPromoPP * people} />
                   </div>
                   <div className="mt-1 flex justify-between gap-2 border-t border-gray-200 pt-1.5"><span className="text-gray-500">{tr("Trọn gói")}</span><span className="text-right font-extrabold text-sunset-600">{hasStrike && <span className="mr-1.5 text-xs font-semibold text-gray-400 line-through">{tr(vnd(ppOld!))}</span>}{tr(vnd(pricePerPerson))}{tr("/khách ·")}{" "}{tr(vnd(total))} / {people}{" "}{tr("người")}</span></div>
                 </div>
