@@ -4,6 +4,7 @@
  *
  * Hỗ trợ:  ## Tiêu đề mục   ### Tiêu đề nhỏ   - gạch đầu dòng   > trích dẫn
  *          **đậm**  *nghiêng*  [chữ](https://link)  ![mô tả ảnh](/uploads/x.jpg)
+ *          | bảng | so sánh |  (dòng 2 là | --- | --- | ⇒ hàng tiêu đề)
  * Dòng trống tách đoạn. Văn bản thường thành <p>.
  */
 
@@ -27,6 +28,7 @@ export function renderMarkdown(src: string): string {
   const out: string[] = [];
   let para: string[] = [];
   let list: string[] = [];
+  let table: string[][] = [];
 
   const flushPara = () => {
     if (para.length) {
@@ -41,9 +43,29 @@ export function renderMarkdown(src: string): string {
     }
   };
 
+  // Bảng: "| a | b |", dòng 2 "| --- | --- |" ⇒ hàng tiêu đề. Bọc .md-table để cuộn ngang trên mobile.
+  const cells = (row: string) => row.replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
+  const flushTable = () => {
+    if (!table.length) return;
+    const isSep = (r: string[]) => r.every((c) => /^:?-{2,}:?$/.test(c));
+    const head = table.length > 1 && isSep(table[1]) ? table[0] : null;
+    const body = head ? table.slice(2) : table;
+    const th = head ? `<thead><tr>${head.map((c) => `<th>${inline(c)}</th>`).join("")}</tr></thead>` : "";
+    const tb = body.map((r) => `<tr>${r.map((c) => `<td>${inline(c)}</td>`).join("")}</tr>`).join("");
+    out.push(`<div class="md-table"><table>${th}<tbody>${tb}</tbody></table></div>`);
+    table = [];
+  };
+
   for (const raw of lines) {
     const line = raw.trimEnd();
     const t = line.trim();
+    if (t.length > 2 && t.startsWith("|") && t.endsWith("|")) {
+      flushPara();
+      flushList();
+      table.push(cells(t));
+      continue;
+    }
+    flushTable();
     if (!t) {
       flushPara();
       flushList();
@@ -62,6 +84,7 @@ export function renderMarkdown(src: string): string {
     flushList();
     para.push(t);
   }
+  flushTable();
   flushPara();
   flushList();
   return out.join("\n");

@@ -776,7 +776,9 @@ export async function getArticles(limit?: number) {
 }
 
 export async function getArticle(slug: string) {
-  return prisma.article.findFirst({ where: { slug, published: true } });
+  // Dev (localhost) xem được cả bài đang ẩn để duyệt trước khi bật; production chỉ bài đã xuất bản.
+  const published = process.env.NODE_ENV === "development" ? undefined : true;
+  return prisma.article.findFirst({ where: { slug, published } });
 }
 
 export interface RentalBikeCard {

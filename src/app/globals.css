@@ -135,3 +135,12 @@ body {
     padding-inline: 1.5rem;
   }
 }
+
+/* Bảng trong nội dung markdown (bài viết, mô tả dịch vụ) — cuộn ngang trên mobile. */
+.md-table { margin: 1.25rem 0; overflow-x: auto; border-radius: 1rem; border: 1px solid oklch(0.9 0.01 160); -webkit-overflow-scrolling: touch; }
+.md-table table { width: 100%; min-width: 560px; border-collapse: collapse; font-size: 0.875rem; line-height: 1.45; }
+.md-table th { background: oklch(0.96 0.02 160); color: oklch(0.3 0.06 160); font-weight: 700; text-align: left; white-space: nowrap; }
+.md-table th, .md-table td { padding: 0.6rem 0.75rem; border-bottom: 1px solid oklch(0.92 0.01 160); vertical-align: top; }
+.md-table td:first-child { font-weight: 600; color: oklch(0.25 0.03 160); }
+.md-table tr:last-child td { border-bottom: 0; }
+.md-table tbody tr:nth-child(even) td { background: oklch(0.985 0.005 160); }
