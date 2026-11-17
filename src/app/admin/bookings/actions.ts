@@ -18,7 +18,7 @@ import { AUTO_CANCEL_HOURS_KEY, MAX_AUTO_CANCEL_HOURS } from "@/lib/auto-cancel-
 import { supplierPayouts, collectorOf, PROVIDER_EXTRA_ID, PROVIDER_EXTRA_LABEL } from "@/lib/supplier-payout";
 import { bookingMessagesById, type BookingMessages } from "@/lib/booking-messages";
 import { sendConfirmEmailIfDue } from "@/lib/booking-email";
-import { syncFleetForBooking } from "@/lib/fleet";
+import { assignComboBikeService, syncFleetForBooking } from "@/lib/fleet";
 import { resolveBusCommissions, resolveRoomCommissions } from "@/lib/provider-commission";
 
 export interface BookingActionState {
@@ -798,6 +798,23 @@ export async function updateBookingInfo(
   }
   revalidateDetail(id);
   return { ok: true, message: inventoryChanged ? "Đã lưu & giữ chỗ lại theo ngày mới" : "Đã lưu thông tin đơn" };
+}
+
+/** Admin PHÂN xe máy thuê kèm combo cho một nhà xe (khối "Xe máy thuê kèm" ở trang chi tiết đơn). */
+export async function assignComboBike(_prev: BookingActionState, formData: FormData): Promise<BookingActionState> {
+  const session = await getSession();
+  if (session?.role !== "ADMIN") return { error: "Chỉ admin được phân nhà xe." };
+  const id = String(formData.get("id") ?? "");
+  const serviceId = String(formData.get("bikeServiceId") ?? "");
+  if (!serviceId) return { error: "Chọn nhà xe để phân." };
+  const r = await assignComboBikeService(id, serviceId, await sessionName());
+  if ("error" in r) return { error: r.error };
+  revalidatePath("/admin/provider/xe");
+  revalidateDetail(id);
+  return {
+    ok: true,
+    message: r.assigned < r.need ? `Đã phân cho ${r.title}: mới xếp được ${r.assigned}/${r.need} xe` : `Đã phân ${r.assigned} xe cho ${r.title} · chờ nhà xe duyệt`,
+  };
 }
 
 /** Bật/tắt đánh dấu NHÀ CUNG CẤP ĐÃ GIỮ CHỖ (side: room = phòng/dịch vụ, bus = nhà xe). */

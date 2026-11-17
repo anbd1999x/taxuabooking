@@ -4,7 +4,8 @@ import type { BookingStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { CATEGORIES } from "@/lib/constants";
 import { formatPrice, formatDate, formatDateTime, toNumber } from "@/lib/format";
-import { addDays, today } from "@/lib/dates";
+import { addDays, toDateKey, today } from "@/lib/dates";
+import { comboBikeAssignInfo } from "@/lib/fleet";
 
 import { buildBookingMessages } from "@/lib/booking-messages";
 import { ActionForm } from "@/components/admin/ActionForm";
@@ -29,12 +30,13 @@ import {
   duplicateBooking,
   setBookingCommissionPaid,
   updateBookingInfo,
+  assignComboBike,
 } from "../actions";
 import { blockIp } from "../../ip-block/actions";
 import { geoForIps } from "@/lib/visits";
 import { regionLabel } from "@/lib/track-labels";
 import { bookingPax, isRentalCategory } from "@/lib/occupancy";
-import { bookingCabinBerths, cabinBerthsLabel, cabinBerthLines } from "@/lib/combo-pricing";
+import { bookingCabinBerths, cabinBerthsLabel, cabinBerthLines, comboBikeFacts } from "@/lib/combo-pricing";
 import { parseSurcharges } from "@/lib/surcharges";
 import { bookingRentalDays, rentalDaysLabel } from "@/lib/rental-days";
 
@@ -97,6 +99,10 @@ export default async function BookingDetailPage({
     prisma.bookingRequest.count(),
     prisma.bookingRequest.count({ where: { phone: b.phone, id: { not: b.id } } }),
   ]);
+
+  // Combo có xe máy thuê kèm ⇒ khối phân nhà xe (đơn huỷ / không có xe kèm ⇒ null).
+  const bikeFacts = comboBikeFacts(b);
+  const bikeAssign = bikeFacts ? await comboBikeAssignInfo(b.id).catch(() => null) : null;
 
   // Nguồn gửi đơn (chống spam): IP + khu vực nhà mạng + số đơn cùng IP + đã chặn chưa.
   const [ipGeo, ipOrders, ipBlocked] = b.clientIp
@@ -564,6 +570,57 @@ export default async function BookingDetailPage({
                 <span className="text-xs italic text-gray-400">Không có (đơn tạo trước khi bật ghi IP, hoặc do admin/CTV nhập)</span>
               )}
             </div>
+
+            {/* Xe máy thuê kèm combo: phân cho nhà xe nào */}
+            {bikeFacts && bikeAssign && (
+              <div className="rounded-xl border-[1.5px] border-amber-200 bg-amber-50/60 p-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                  <div className="text-sm font-extrabold text-ink">🛵 Xe máy thuê kèm</div>
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                      !bikeAssign.currentId ? "bg-red-100 text-red-700" : bikeAssign.pending ? "bg-amber-100 text-amber-800" : "bg-forest-100 text-forest-700"
+                    }`}
+                  >
+                    {!bikeAssign.currentId
+                      ? bikeAssign.rejected ? "Nhà xe đã từ chối · cần phân lại" : "Chưa phân nhà xe"
+                      : `${bikeAssign.options.find((o) => o.id === bikeAssign.currentId)?.title ?? "Nhà xe"} · ${bikeAssign.assigned}/${bikeAssign.need} xe${bikeAssign.pending ? " · chờ duyệt" : ""}`}
+                  </span>
+                </div>
+                <div className="mt-1 text-sm font-semibold text-gray-700">
+                  {bikeFacts.count} xe {bikeFacts.name}
+                  {bikeFacts.pickup ? ` · nhận ${bikeFacts.pickup} → trả ${bikeFacts.ret ?? ""}` : ""}
+                  {bikeFacts.amount != null ? ` · ${formatPrice(bikeFacts.amount)} (tính riêng)` : ""}
+                </div>
+                {bikeAssign.handed ? (
+                  <p className="mt-2 text-xs text-gray-600">Xe đã giao cho khách — không đổi nhà xe được.</p>
+                ) : bikeAssign.to < toDateKey(today()) ? (
+                  <p className="mt-2 text-xs text-gray-600">Lịch thuê xe đã qua.</p>
+                ) : bikeAssign.options.length === 0 ? (
+                  <p className="mt-2 text-xs font-semibold text-amber-800">Chưa có nhà xe nào có đội xe để phân.</p>
+                ) : (
+                  <ActionForm action={assignComboBike} className="mt-2 flex flex-wrap items-center gap-2">
+                    <input type="hidden" name="id" value={b.id} />
+                    <select
+                      name="bikeServiceId"
+                      defaultValue={bikeAssign.currentId}
+                      required
+                      className="min-w-0 flex-1 rounded-lg border-[1.5px] border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-ink"
+                    >
+                      {!bikeAssign.currentId && <option value="">— Chọn nhà xe —</option>}
+                      {bikeAssign.options.map((o) => (
+                        <option key={o.id} value={o.id} disabled={o.free === 0 && o.id !== bikeAssign.currentId}>
+                          {o.title} · {o.free === 0 ? "hết xe trống" : `còn ${o.free} xe trống`}
+                          {o.id === bikeAssign.currentId ? " (đang giữ)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                    <button className="rounded-full bg-forest-700 px-4 py-2 text-sm font-bold text-white hover:bg-forest-800">
+                      {bikeAssign.currentId ? "Đổi nhà xe" : "Phân xe"}
+                    </button>
+                  </ActionForm>
+                )}
+              </div>
+            )}
 
             {/* Sửa thông tin đơn (admin) */}
             <details className="group rounded-xl border-[1.5px] border-gray-200">
