@@ -56,7 +56,12 @@ export type Ctx = {
   afterCreate: (s: string) => void;
   /** Người xem đăng nhập bằng tài khoản nhân viên (không chỉ đang xem chế độ nhân viên). */
   viewerStaff: boolean;
+  /** Bản demo: không tải tệp lên máy chủ — ảnh chụp chỉ xem thử trên máy người dùng. */
+  demo?: boolean;
 };
+
+/** Bản demo: ảnh người dùng vừa chụp lúc giao xe (blob: trên máy họ), theo mã lượt thuê — chỉ sống trong phiên trình duyệt. */
+const demoShots = new Map<string, string[]>();
 
 type Act = { name: string; go: () => void; kind?: "pri" | "orange" | "danger" | "ghost"; flex?: number };
 
@@ -444,8 +449,14 @@ export function BookingDrawer({ ctx, id }: { ctx: Ctx; id: string }) {
   const black = P.black[b.phone];
   const newFees = st === "renting" || st === "late" ? returnFees(b, v, { fuel: rf.fuel, accBack: rf.accBack, dmg: digits(rf.dmg), dmgNote: rf.dmgNote }, P, T, NOW) : [];
   const fs = newFees.reduce((a, f) => a + f.amt, 0), oldFees = feeSum(b), finalDue = b.total + oldFees + fs - b.deposit;
-  const docBack = b.hand?.doc && b.hand.doc !== "Không giữ" ? "Nhớ trả lại " + b.hand.doc.toLowerCase() + " cho khách." : "";
+  const docBack = b.hand?.doc && b.hand.doc !== "Không giữ" ? "Nhớ trả lại " + b.hand.doc.replace(/^(B|C(?=ọc))/, (c) => c.toLowerCase()) + " cho khách." : "";
   const uploadPhoto = async (i: number, file: File) => {
+    // Bản demo không lưu tệp của khách lên máy chủ: xem thử ảnh ngay trên máy.
+    if (ctx.demo) {
+      const url = URL.createObjectURL(file);
+      setHFs((x) => ({ ...x, photos: x.photos.map((p, k) => (k === i ? url : p)) }));
+      return;
+    }
     setUp(i);
     try {
       const r = await uploadFleetFile(ctx.serviceId, file, true);
@@ -468,7 +479,18 @@ export function BookingDrawer({ ctx, id }: { ctx: Ctx; id: string }) {
     { k: "Thanh toán", v: py[0], c: py[1] },
   ];
   const ctvLine = b.ctv ? `Khách từ ${b.ctv} · hoa hồng ${P.ctv}% = ${money(Math.round((b.total * P.ctv) / 100000) * 1000)}` : "";
-  const handForm = !b.hand && ["due", "deposit", "hold"].includes(st);
+  // Chỉ hiện biên bản khi giao được xe (đơn "giữ chỗ · chưa cọc" phải ghi cọc trước).
+  const handForm = !b.hand && ["due", "deposit"].includes(st);
+  const doHandover = async () => {
+    const shots = hf.photos.filter(Boolean);
+    if (up >= 0) return say("Ảnh đang tải lên, chờ một chút rồi bấm lại");
+    if (!shots.length && !confirm("Chưa chụp ảnh xe lúc giao. Ảnh là bằng chứng khi có tranh chấp trầy xước — vẫn giao xe không kèm ảnh?")) return;
+    // Demo: máy chủ nhận ảnh mẫu của chiếc xe; ảnh khách vừa chụp giữ lại trên máy để xem trong biên bản.
+    const photos = ctx.demo ? shots.map(() => v.imageUrl ?? "").filter(Boolean) : shots;
+    const j = await call({ op: "handover", id: b.id, hand: { ...hf, odo: digits(hf.odo), photos } });
+    if (j && ctx.demo && shots.length) demoShots.set(b.id, shots);
+  };
+  const handPhotos = b.hand ? demoShots.get(b.id) ?? b.hand.photos : [];
   const retForm = st === "renting" || st === "late";
   const cancel = (msg: string, opName = "cancel") => () => {
     if (b.bookingId) {
@@ -485,7 +507,7 @@ export function BookingDrawer({ ctx, id }: { ctx: Ctx; id: string }) {
   const staffOnly = ctx.isStaff && ctx.viewerStaff;
   if (st === "web" && !staffOnly) A.push({ name: "Từ chối", kind: "danger", go: cancel("Từ chối đơn web này?", "webReject") }, { name: "Xác nhận đơn", kind: "pri", flex: 2, go: () => call({ op: "webConfirm", id: b.id }) });
   if (st === "hold") A.push(...(staffOnly ? [] : [{ name: "Huỷ · nhả xe", kind: "danger" as const, go: cancel("") }]), { name: "Ghi nhận cọc 30%", kind: "orange", flex: 2, go: () => call({ op: "deposit", id: b.id }) });
-  if (st === "deposit" || st === "due") A.push(...(staffOnly ? [] : [{ name: "Huỷ", kind: "danger" as const, go: cancel("Huỷ đơn đã cọc?") }]), { name: "Xác nhận giao xe", kind: "pri", flex: 2, go: () => call({ op: "handover", id: b.id, hand: { ...hf, odo: digits(hf.odo), photos: hf.photos.filter(Boolean) } }) });
+  if (st === "deposit" || st === "due") A.push(...(staffOnly ? [] : [{ name: "Huỷ", kind: "danger" as const, go: cancel("Huỷ đơn đã cọc?") }]), { name: "Xác nhận giao xe", kind: "pri", flex: 2, go: doHandover });
   if (st === "renting" || st === "late") A.push({ name: "Gia hạn +1 ngày", go: () => call({ op: "extend", id: b.id }) }, { name: "Nhận xe & quyết toán", kind: "pri", flex: 2, go: () => call({ op: "return", id: b.id, ret: { ...rf, odo: digits(rf.odo), dmg: digits(rf.dmg) } }) });
   if (st === "done" || st === "cancel") A.push({ name: "Đóng", kind: "pri", go: () => setDr(null) });
   const settle = [
@@ -530,15 +552,16 @@ export function BookingDrawer({ ctx, id }: { ctx: Ctx; id: string }) {
           <Group label="Mức xăng"><Chips list={FUEL_LEVELS} isOn={(n) => hf.fuel === n} pick={(n) => setHF({ fuel: n })} /></Group>
           <Group label="Phụ kiện giao kèm"><Chips list={FLEET_ACC} isOn={(n) => hf.acc.includes(n)} pick={(n) => setHF({ acc: hf.acc.includes(n) ? hf.acc.filter((a) => a !== n) : [...hf.acc, n] })} /></Group>
           <Group label="Giấy tờ giữ của khách"><Chips list={FLEET_DOCS} isOn={(n) => hf.doc === n} pick={(n) => setHF({ doc: n })} /></Group>
-          <span style={{ fontSize: 12, fontWeight: 700, color: MUTED }}>Ảnh 4 góc xe trước khi giao</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: MUTED }}>Ảnh 4 góc xe trước khi giao · bấm từng ô để chụp ({hf.photos.filter(Boolean).length}/4)</span>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 6 }}>
             {photoLabels.map((ph, i) => (
               <label key={ph} style={{ aspectRatio: "1", borderRadius: 10, overflow: "hidden", border: "1.5px dashed oklch(0.85 0.02 160)", cursor: "pointer", display: "block" }}>
-                <Thumb url={hf.photos[i] || null} label={up === i ? "…" : ph} />
+                <Thumb url={hf.photos[i] || null} label={up === i ? "Đang tải…" : "📷 " + ph} />
                 <input type="file" accept="image/*" capture="environment" hidden onChange={(e) => { const file = e.target.files?.[0]; if (file) uploadPhoto(i, file); e.target.value = ""; }} />
               </label>
             ))}
           </div>
+          {ctx.demo && <span style={{ fontSize: 12, color: MUTED }}>Bản demo: ảnh bạn chụp chỉ hiện trên máy bạn, không lưu lên máy chủ. Bản chính thức lưu ảnh kèm biên bản.</span>}
         </div>
       )}
       {b.hand && (
@@ -551,10 +574,13 @@ export function BookingDrawer({ ctx, id }: { ctx: Ctx; id: string }) {
             <SoftFact k="Giấy tờ giữ" v={b.hand.doc} />
             <SoftFact k="Phụ kiện kèm" v={b.hand.acc.join(", ") || "Không"} />
           </div>
-          {b.hand.photos.length > 0 && (
+          <span style={{ fontSize: 12, fontWeight: 700, color: MUTED }}>Ảnh chụp xe lúc giao{handPhotos.length ? ` (${handPhotos.length}) · bấm để xem lớn` : ""}</span>
+          {handPhotos.length > 0 ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4,minmax(0,1fr))", gap: 6 }}>
-              {b.hand.photos.map((u) => <a key={u} href={u} target="_blank" rel="noreferrer" style={{ aspectRatio: "1", borderRadius: 10, overflow: "hidden", display: "block" }}><Thumb url={u} /></a>)}
+              {handPhotos.map((u, i) => <a key={i} href={u} target="_blank" rel="noreferrer" style={{ aspectRatio: "1", borderRadius: 10, overflow: "hidden", display: "block" }}><Thumb url={u} /></a>)}
             </div>
+          ) : (
+            <span style={{ fontSize: 13, color: "oklch(0.5 0.13 60)" }}>Biên bản này không có ảnh chụp xe.</span>
           )}
         </div>
       )}

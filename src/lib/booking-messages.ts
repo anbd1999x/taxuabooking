@@ -475,7 +475,7 @@ export async function buildBookingMessages(
     startDate: formatDate(outTrip ? outTrip.departureDate : b.useDate),
     boardNote: (() => {
       if (!outTrip) return null;
-      const m = /^(d{1,2}):(d{2})/.exec(outTrip.departureTime ?? "");
+      const m = /^(\d{1,2}):(\d{2})/.exec(outTrip.departureTime ?? "");
       if (!m) return null;
       // Có mặt trước giờ xe chạy 15 phút.
       const t = Number(m[1]) * 60 + Number(m[2]) - 15;

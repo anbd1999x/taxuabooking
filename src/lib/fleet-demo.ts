@@ -136,7 +136,8 @@ async function seedDemo(tx: Tx) {
     });
     for (const [amt, kind, method, when, by] of p) pays.push({ id: randomUUID(), rentalId: id, amount: amt, kind, method, at: new Date(when), by: by ?? "Chủ xe" });
   };
-  const hand = (odo: number, k: string, hm = "08:05") => ({ odo, fuel: "Đầy", acc: ["2 mũ bảo hiểm", "Áo mưa"], doc: "CCCD gốc", photos: [], at: k + "T" + hm, by: "Tuấn giao xe" });
+  // Biên bản giao xe mẫu có kèm ảnh chụp xe lúc giao (ảnh của chính chiếc xe đó).
+  const hand = (vi: number, odo: number, k: string, hm = "08:05") => ({ odo, fuel: "Đầy", acc: ["2 mũ bảo hiểm", "Áo mưa"], doc: "CCCD gốc", photos: [V[vi][7]], at: k + "T" + hm, by: "Tuấn giao xe" });
 
   // Lịch sử ~4 tháng (đã trả xe) — mùa mây tháng 10–11 dày khách hơn.
   for (const [vi, v] of V.entries()) {
@@ -160,7 +161,7 @@ async function seedDemo(tx: Tx) {
       const km = 60 + Math.floor(r() * 90) * days;
       const method = r() < 0.55 ? "Chuyển khoản" : "Tiền mặt";
       add(
-        { vi, ci, s: cur, e, total, state: "done", source: src, ctvName: src === "CTV" ? pick(CTVS) : null, fees, place: r() < 0.3 ? "Giao tận homestay" : "Nhận tại cửa hàng", hand: hand(odo, cur), ret: { odo: odo + km, fuel: fees.some((f) => f.k.startsWith("Thiếu xăng")) ? "3/4" : "Đầy", at: e + "T16:40", by: "Tuấn giao xe" } },
+        { vi, ci, s: cur, e, total, state: "done", source: src, ctvName: src === "CTV" ? pick(CTVS) : null, fees, place: r() < 0.3 ? "Giao tận homestay" : "Nhận tại cửa hàng", hand: hand(vi, odo, cur), ret: { odo: odo + km, fuel: fees.some((f) => f.k.startsWith("Thiếu xăng")) ? "3/4" : "Đầy", at: e + "T16:40", by: "Tuấn giao xe" } },
         [[dep, "Cọc", "Chuyển khoản", at(cur, "20:15", -1).toISOString()], [total - dep + extra, "Thu khi trả", method, at(e, "16:45").toISOString(), "Tuấn giao xe"]],
       );
       odo += km;
@@ -170,15 +171,15 @@ async function seedDemo(tx: Tx) {
 
   // Hiện tại & sắp tới — đủ mọi trạng thái để demo.
   const Y = addDays(T, -1);
-  add({ vi: 0, ci: 0, s: Y, e: T, endTime: "17:00", total: 600000, source: "Zalo", state: "renting", hand: hand(8540, Y, "08:10") }, [[180000, "Cọc", "Chuyển khoản", at(Y, "21:00", -1).toISOString()]]);
+  add({ vi: 0, ci: 0, s: Y, e: T, endTime: "17:00", total: 600000, source: "Zalo", state: "renting", hand: hand(0, 8540, Y, "08:10") }, [[180000, "Cọc", "Chuyển khoản", at(Y, "21:00", -1).toISOString()]]);
   add({ vi: 0, ci: 1, s: addDays(T, 3), e: addDays(T, 5), total: 840000, source: "Web" }, [[250000, "Cọc", "Chuyển khoản", at(T, "08:30", -1).toISOString()]]);
   add({ vi: 1, ci: 2, s: T, e: addDays(T, 2), startTime: "14:00", endTime: "12:00", total: 840000, source: "Web", place: "Giao tận homestay" }, [[250000, "Cọc", "Chuyển khoản", at(T, "19:20", -2).toISOString()]]);
   add({ vi: 1, ci: 3, s: addDays(T, 6), e: addDays(T, 8), total: 840000, source: "Zalo", note: "Hẹn cọc tối nay", createdAt: new Date(Date.now() - 2 * 3600e3) });
-  add({ vi: 2, ci: 4, s: Y, e: addDays(T, 1), total: 840000, source: "Khách quen", state: "renting", hand: hand(15080, Y, "07:50") }, [[300000, "Cọc", "Tiền mặt", at(Y, "07:50").toISOString(), "Tuấn giao xe"]]);
+  add({ vi: 2, ci: 4, s: Y, e: addDays(T, 1), total: 840000, source: "Khách quen", state: "renting", hand: hand(2, 15080, Y, "07:50") }, [[300000, "Cọc", "Tiền mặt", at(Y, "07:50").toISOString(), "Tuấn giao xe"]]);
   add({ vi: 2, ci: 13, s: addDays(T, 4), e: addDays(T, 5), total: 560000, source: "Web", webPending: true, createdAt: new Date(Date.now() - 40 * 60e3) });
   add({ vi: 3, ci: 5, s: addDays(T, 2), e: addDays(T, 5), total: 1080000, source: "CTV", ctvName: CTVS[1] }, [[300000, "Cọc", "Chuyển khoản", at(T, "10:05", -1).toISOString()]]);
-  add({ vi: 4, ci: 6, s: addDays(T, -2), e: Y, total: 560000, source: "Zalo", state: "renting", hand: hand(18800, addDays(T, -2), "08:20"), note: "Khách báo kẹt sương mù, về muộn" }, [[200000, "Cọc", "Chuyển khoản", at(T, "21:30", -3).toISOString()]]);
-  add({ vi: 5, ci: 7, s: T, e: T, startTime: "07:00", endTime: "18:00", total: 180000, source: "Khách quen", state: "renting", hand: hand(21390, T, "07:05") }, [[180000, "Thu đủ", "Tiền mặt", at(T, "07:05").toISOString(), "Tuấn giao xe"]]);
+  add({ vi: 4, ci: 6, s: addDays(T, -2), e: Y, total: 560000, source: "Zalo", state: "renting", hand: hand(4, 18800, addDays(T, -2), "08:20"), note: "Khách báo kẹt sương mù, về muộn" }, [[200000, "Cọc", "Chuyển khoản", at(T, "21:30", -3).toISOString()]]);
+  add({ vi: 5, ci: 7, s: T, e: T, startTime: "07:00", endTime: "18:00", total: 180000, source: "Khách quen", state: "renting", hand: hand(5, 21390, T, "07:05") }, [[180000, "Thu đủ", "Tiền mặt", at(T, "07:05").toISOString(), "Tuấn giao xe"]]);
   add({ vi: 5, ci: 8, s: addDays(T, 1), e: addDays(T, 2), total: 360000, source: "Web", webPending: true, createdAt: new Date(Date.now() - 15 * 60e3) });
   add({ vi: 6, ci: 9, s: addDays(T, 1), e: addDays(T, 3), total: 510000, source: "CTV", ctvName: CTVS[0] }, [[150000, "Cọc", "Chuyển khoản", at(T, "09:40").toISOString()]]);
   add({ vi: 6, ci: 10, s: addDays(T, 5), e: addDays(T, 6), total: 360000, source: "Zalo", createdAt: new Date(Date.now() - 5 * 3600e3) });

@@ -115,7 +115,7 @@ export function FleetManager({
   }
 
   const ctx: Ctx = {
-    data, serviceId, webTypes, hotline, isStaff, busy, call, say, setDr, viewerStaff: viewerRole === "STAFF",
+    data, serviceId, webTypes, hotline, isStaff, busy, call, say, setDr, viewerStaff: viewerRole === "STAFF", demo,
     afterCreate: (s) => { setTab("overview"); setView("month"); setY(Number(s.slice(0, 4))); setM(Number(s.slice(5, 7)) - 1); },
   };
 

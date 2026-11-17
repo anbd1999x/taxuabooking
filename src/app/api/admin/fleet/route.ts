@@ -231,6 +231,9 @@ export async function POST(request: Request) {
         await prisma.$transaction(async (tx) => {
           await lockFleet(tx, serviceId);
           const rs = (await tx.fleetRental.findMany({ where: { vehicleId: v.id, endDate: { gte: parseDateOnly(addDaysKey(s, -60)) } } })).map((x) => rentalVM(x));
+          // Đơn đã đủ xe (kể cả vừa được người khác xếp) ⇒ không xếp thừa.
+          const have = await tx.fleetRental.count({ where: { bookingId: b.id, OR: [{ state: null }, { state: { notIn: ["cancel", "reject"] } }] } });
+          if (have >= qty) throw new Error(`Đơn ${b.code} đã đủ ${qty} xe.`);
           if (!isVehicleFree(v, s, e, rs, T, undefined, NOW, b.pickupTime ?? "08:00", b.returnTime ?? "17:00")) throw new Error(`${v.plate} không rảnh trong thời gian của đơn.`);
           await tx.fleetRental.create({
           data: {
@@ -274,6 +277,8 @@ export async function POST(request: Request) {
         }
         if (op === "webReject" || op === "cancel") {
           if (vm.ret) return bad("Đơn đã trả xe, không huỷ được.");
+          if (vm.hand) return bad("Xe đã giao cho khách — hãy “Nhận xe & quyết toán” để kết thúc đơn, không huỷ được.");
+          if (vm.cancelled) return bad("Đơn đã huỷ trước đó.");
           // Lượt thuê sinh từ đơn web: chủ xe huỷ/từ chối ⇒ "reject" (không tự xếp lại) + báo sàn qua nhật ký đơn.
           const fromWeb = !!r.bookingId;
           await prisma.fleetRental.update({ where: { id: r.id }, data: { state: fromWeb ? "reject" : "cancel", webPending: false } });
@@ -300,7 +305,10 @@ export async function POST(request: Request) {
           return done(`Đã đổi sang ${nv.plate}`);
         }
         if (op === "deposit") {
-          const amt = r10k(vm.total * 0.3);
+          if (stNow === "cancel" || stNow === "done") return bad("Đơn đã kết thúc, không ghi cọc được.");
+          if (stNow === "web") return bad("Hãy xác nhận đơn web trước khi ghi cọc.");
+          if (vm.deposit >= vm.total) return bad("Đơn đã thu đủ tiền thuê.");
+          const amt = Math.min(r10k(vm.total * 0.3) || vm.total, vm.total - vm.deposit);
           await prisma.$transaction(async (tx) => {
             await tx.fleetRental.update({ where: { id: r.id }, data: { deposit: vm.deposit + amt, payments: { create: { amount: amt, method: "Chuyển khoản", kind: "Cọc", by: who } } } });
             if (r.bookingId) await pushFleetPayments(tx, r.bookingId, who, { title: `Nhà xe ghi nhận cọc ${vnd(amt)}`, body: `Xe ${v.plate} · Chuyển khoản` });
@@ -310,6 +318,15 @@ export async function POST(request: Request) {
         if (op === "handover") {
           if (vm.hand) return bad("Xe đã được giao.");
           if (stNow === "web") return bad("Hãy xác nhận đơn web trước khi giao xe.");
+          if (stNow === "cancel") return bad("Đơn đã huỷ, không giao xe được.");
+          if (stNow === "done") return bad("Đơn đã quá ngày trả, không giao xe được — hãy tạo đơn mới.");
+          if (v.mode !== "ready") return bad(`${v.plate} đang ${v.mode === "maint" ? "bảo dưỡng" : "ngừng cho thuê"} — đổi xe khác hoặc đưa xe vào cho thuê trước khi giao.`);
+          // Giao sớm hơn lịch ⇒ lượt thuê bắt đầu từ bây giờ: xe phải rảnh suốt từ lúc giao tới giờ trả
+          // (khách trước chưa trả xe, hoặc còn đơn khác chen giữa ⇒ chặn, tránh giao trùng một xe).
+          const early = vm.s > T || (vm.s === T && vm.st > NOW);
+          const hs = early ? T : vm.s, hst = early ? NOW : vm.st;
+          const clash = (await vehicleRentals(v.id, hs)).find((x) => x.id !== r.id && !isVehicleFree(v, hs, vm.e, [x], T, r.id, NOW, hst, vm.et));
+          if (clash) return bad(clash.hand && !clash.ret ? `${v.plate} chưa được trả (đơn ${clash.code} · ${clash.name}) — nhận lại xe trước, hoặc đổi xe khác cho đơn này.` : `${v.plate} đang có đơn ${clash.code} (${clash.name}, ${dm(clash.s)} ${clash.st} → ${dm(clash.e)} ${clash.et}) trùng thời gian — đổi xe khác cho đơn này.`);
           const h = (body.hand ?? {}) as Record<string, unknown>;
           const odo = int(h.odo) || v.odo;
           const hand = {
@@ -317,12 +334,15 @@ export async function POST(request: Request) {
             fuel: fuelOk(h.fuel),
             acc: Array.isArray(h.acc) ? (h.acc as unknown[]).map(String).filter((a) => (FLEET_ACC as readonly string[]).includes(a)) : [],
             doc: (FLEET_DOCS as readonly string[]).includes(String(h.doc)) ? String(h.doc) : "Không giữ",
-            photos: Array.isArray(h.photos) ? (h.photos as unknown[]).map((x) => str(x, 300)).filter((x) => x.startsWith("/uploads/")).slice(0, 4) : [],
+            // Ảnh chụp xe lúc giao: chỉ nhận tệp đã tải lên; bản demo (không tải tệp được) dùng ảnh mẫu có sẵn.
+            photos: Array.isArray(h.photos)
+              ? (h.photos as unknown[]).map((x) => str(x, 300)).filter((x) => /^\/uploads\/[\w.-]+$/.test(x) || (session.role === "DEMO" && /^\/hop-tac\/[\w/-]+\.(jpg|png|webp)$/.test(x))).slice(0, 4)
+              : [],
             at: `${T} ${NOW}`,
             by: who,
           };
           await prisma.$transaction([
-            prisma.fleetRental.update({ where: { id: r.id }, data: { hand, ...(vm.s > T || (vm.s === T && vm.st > NOW) ? { startDate: parseDateOnly(T), startTime: NOW } : {}) } }),
+            prisma.fleetRental.update({ where: { id: r.id }, data: { hand, ...(early ? { startDate: parseDateOnly(T), startTime: NOW } : {}) } }),
             prisma.fleetVehicle.update({ where: { id: v.id }, data: { odo: Math.max(v.odo, odo) } }),
           ]);
           return done(`Đã giao ${v.plate} cho ${vm.name}`);
@@ -363,7 +383,7 @@ export async function POST(request: Request) {
               }, newFees, v.plate);
             }
           });
-          const docBack = vm.hand.doc && vm.hand.doc !== "Không giữ" ? ` · Nhớ trả lại ${vm.hand.doc.toLowerCase()} cho khách` : "";
+          const docBack = vm.hand.doc && vm.hand.doc !== "Không giữ" ? ` · Nhớ trả lại ${vm.hand.doc.replace(/^(B|C(?=ọc))/, (c) => c.toLowerCase())} cho khách` : "";
           return done((finalDue >= 0 ? "Đã thu " : "Đã hoàn ") + vnd(Math.abs(finalDue)) + docBack);
         }
         if (op === "extend") {
@@ -378,6 +398,7 @@ export async function POST(request: Request) {
         const a = int(body.amt);
         if (!a) return bad("Nhập số tiền.");
         const refund = body.kind === "Hoàn cọc";
+        if (refund && a > vm.deposit) return bad(`Chỉ hoàn được tối đa ${vnd(Math.max(0, vm.deposit))} (số đã thu của đơn).`);
         const amt = refund ? -a : a;
         const method = body.method === "Chuyển khoản" ? "Chuyển khoản" : "Tiền mặt";
         await prisma.$transaction(async (tx) => {
@@ -465,7 +486,7 @@ export async function POST(request: Request) {
         if (op === "staffCreate") {
           const name = str(body.name, 60);
           const username = str(body.username, 40).toLowerCase();
-          const phone = str(body.phone, 15).replace(/s/g, "");
+          const phone = str(body.phone, 15).replace(/\s/g, "");
           const password = typeof body.password === "string" ? body.password : "";
           if (name.length < 2) return bad("Nhập tên nhân viên.");
           if (!/^[a-z0-9._-]{3,40}$/.test(username)) return bad("Tên đăng nhập 3–40 ký tự: chữ thường, số, dấu . _ -");
