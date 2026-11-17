@@ -9,7 +9,9 @@ import {
   dowOf,
   effEnd,
   isVehicleFree,
+  rentalSpan,
   rentalStatus,
+  tmin,
   vehicleStatusOn,
   vnNow,
   type FleetKind,
@@ -39,14 +41,20 @@ export function FleetManager({
   services,
   webTypes,
   hotline,
+  viewerRole,
   initial,
+  demo = false,
 }: {
   serviceId: string;
   serviceTitle: string;
   services: { id: string; title: string }[];
   webTypes: { id: string; name: string }[];
   hotline: string;
+  /** STAFF (tài khoản nhân viên) ⇒ luôn ở chế độ nhân viên, không đổi được. */
+  viewerRole: "ADMIN" | "PROVIDER" | "STAFF";
   initial: FleetData;
+  /** Bản demo (nhà xe mẫu): hiện dải thông báo + nút làm mới dữ liệu mẫu. */
+  demo?: boolean;
 }) {
   const router = useRouter();
   const [raw, setRaw] = useState<FleetData>(initial);
@@ -61,7 +69,7 @@ export function FleetManager({
   const [dr, setDr] = useState<Drawer>(null);
   const [toast, setToast] = useState("");
   const [busy, setBusy] = useState(false);
-  const [role, setRole] = useState<"owner" | "staff">("owner");
+  const [role, setRole] = useState<"owner" | "staff">(viewerRole === "STAFF" ? "staff" : "owner");
   const [allAl, setAllAl] = useState(false);
   const [w, setW] = useState(1200);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -94,7 +102,7 @@ export function FleetManager({
       const res = await fetch("/api/admin/fleet", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ serviceId, ...payload }) });
       const j = await res.json().catch(() => ({}));
       if (!res.ok) { say(j.error ?? "Có lỗi xảy ra"); return null; }
-      setRaw({ vehicles: j.vehicles, rentals: j.rentals, pending: j.pending, config: j.config, today: j.today, now: j.now });
+      setRaw({ vehicles: j.vehicles, rentals: j.rentals, pending: j.pending, config: j.config, today: j.today, now: j.now, staff: j.staff, hasOwner: j.hasOwner });
       setClock({ today: j.today, now: j.now });
       if (j.message) say(j.message);
       return j as FleetData & { savedId?: string; message?: string };
@@ -107,7 +115,7 @@ export function FleetManager({
   }
 
   const ctx: Ctx = {
-    data, serviceId, webTypes, hotline, isStaff, busy, call, say, setDr,
+    data, serviceId, webTypes, hotline, isStaff, busy, call, say, setDr, viewerStaff: viewerRole === "STAFF",
     afterCreate: (s) => { setTab("overview"); setView("month"); setY(Number(s.slice(0, 4))); setM(Number(s.slice(5, 7)) - 1); },
   };
 
@@ -203,8 +211,8 @@ export function FleetManager({
   return (
     <div ref={rootRef} className="fleet-root -m-4 lg:-m-6" style={{ color: "oklch(0.22 0.03 160)", minHeight: "100%", background: "oklch(0.975 0.004 160)" }}>
       <style>{`@keyframes fleetSlide{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}@keyframes fleetUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}.fleet-root *{box-sizing:border-box}.fleet-tabs::-webkit-scrollbar{display:none}`}</style>
-      {/* top bar */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "12px clamp(14px,2.5vw,28px)", background: "white", borderBottom: "1px solid oklch(0.93 0.008 160)", position: "sticky", top: 0, zIndex: 20, flexWrap: "wrap" }}>
+      {/* top bar (không dính — thanh tab bên dưới mới dính khi cuộn) */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "12px clamp(14px,2.5vw,28px)", background: "white", borderBottom: "1px solid oklch(0.93 0.008 160)", flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
           {services.length > 1 ? (
             <select value={serviceId} onChange={(e) => router.push(`/admin/provider/xe?service=${e.target.value}`)} style={{ fontSize: 14, fontWeight: 800, padding: "6px 12px", borderRadius: 999, background: "oklch(0.95 0.025 155)", color: "oklch(0.35 0.08 158)", border: "none", maxWidth: "60vw", fontFamily: "inherit" }}>
@@ -215,29 +223,27 @@ export function FleetManager({
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <select value={role} onChange={(e) => { const r = e.target.value as "owner" | "staff"; setRole(r); if (r === "staff") { setDate(T); setDr(null); } say(r === "staff" ? "Đang xem với quyền nhân viên" : "Đang xem với quyền chủ cơ sở"); }} style={{ fontSize: 13, fontWeight: 700, padding: "8px 10px", borderRadius: 999, border: "1.5px solid oklch(0.9 0.01 160)", background: "white", maxWidth: 170, fontFamily: "inherit" }}>
+          {viewerRole !== "STAFF" && <select value={role} onChange={(e) => { const r = e.target.value as "owner" | "staff"; setRole(r); if (r === "staff") { setDate(T); setDr(null); } say(r === "staff" ? "Đang xem với quyền nhân viên" : "Đang xem với quyền chủ cơ sở"); }} style={{ fontSize: 13, fontWeight: 700, padding: "8px 10px", borderRadius: 999, border: "1.5px solid oklch(0.9 0.01 160)", background: "white", maxWidth: 170, fontFamily: "inherit" }}>
             <option value="owner">Chủ cơ sở</option>
             <option value="staff">Nhân viên giao xe</option>
-          </select>
+          </select>}
           {!mob && <span style={{ fontSize: 14, color: MUTED, whiteSpace: "nowrap" }}>{WDL[dowOf(T)] + ", " + dmy(T)}</span>}
           <div onClick={() => setDr({ kind: "order" })} style={{ cursor: "pointer", fontSize: 14, fontWeight: 800, padding: "10px 16px", borderRadius: 999, background: O, color: "white", whiteSpace: "nowrap" }}>+ Đơn thuê mới</div>
         </div>
       </div>
 
       <div style={{ padding: "clamp(14px,2.5vw,28px)", display: "flex", flexDirection: "column", gap: 16 }}>
+        {demo && (
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "12px 16px", borderRadius: 14, background: "oklch(0.96 0.05 75)", border: "1.5px solid oklch(0.85 0.1 75)", color: "oklch(0.36 0.08 60)", fontSize: 14, lineHeight: 1.5 }}>
+            <span><b>Bản demo</b> · dữ liệu mẫu, thử thoải mái mọi thao tác: tạo đơn, giao xe, nhận xe, đổi giá… Đổi ô “Chủ cơ sở” sang “Nhân viên giao xe” để xem màn hình của nhân viên.</span>
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- route handler đặt phiên demo, <Link> sẽ prefetch gọi nhầm */}
+            <a href="/hop-tac/xe-may/demo?reset=1" style={{ fontSize: 13, fontWeight: 800, padding: "8px 14px", borderRadius: 999, background: "white", border: "1.5px solid oklch(0.85 0.1 75)", color: "oklch(0.36 0.08 60)", whiteSpace: "nowrap" }}>Làm mới dữ liệu mẫu</a>
+          </div>
+        )}
         {isStaff && <div style={{ padding: "12px 16px", borderRadius: 14, background: "oklch(0.95 0.03 250)", color: "oklch(0.38 0.1 250)", fontSize: 14, lineHeight: 1.5 }}>Đang xem với quyền <b>Nhân viên giao xe</b>: chỉ thấy việc giao và nhận xe. Doanh thu, báo cáo và cài đặt được ẩn.</div>}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 14, flexWrap: "wrap" }}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: "clamp(24px,2.6vw,30px)", fontWeight: 800, letterSpacing: "-.02em" }}>Quản lý xe cho thuê</h1>
-            <div style={{ fontSize: 15, color: "oklch(0.48 0.02 160)", marginTop: 4 }}>Xem xe nào rảnh, ai đang thuê, ai đã cọc. Đơn mới sẽ tự xếp xe trống phù hợp.</div>
-          </div>
-          <div className="fleet-tabs" style={{ display: "flex", gap: 4, padding: 4, borderRadius: 14, background: "oklch(0.93 0.008 160)", overflowX: "auto", maxWidth: "100%", scrollbarWidth: "none" }}>
-            {tabs.map(([k2, name, badge]) => (
-              <div key={k2} onClick={() => setTab(k2)} style={{ cursor: "pointer", flex: "none", display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 800, padding: "9px 14px", borderRadius: 11, whiteSpace: "nowrap", background: curTab === k2 ? "white" : "transparent", color: curTab === k2 ? G : "oklch(0.42 0.02 160)", boxShadow: curTab === k2 ? "0 1px 4px oklch(0.2 0.03 160 / .15)" : "none" }}>
-                {name}{badge ? <span style={{ fontSize: 11, fontWeight: 800, padding: "2px 7px", borderRadius: 999, background: O, color: "white" }}>{badge}</span> : null}
-              </div>
-            ))}
-          </div>
+        <div>
+          <h1 style={{ margin: 0, fontSize: "clamp(24px,2.6vw,30px)", fontWeight: 800, letterSpacing: "-.02em" }}>Quản lý xe cho thuê</h1>
+          <div style={{ fontSize: 15, color: "oklch(0.48 0.02 160)", marginTop: 4 }}>Xem xe nào rảnh, ai đang thuê, ai đã cọc. Đơn mới sẽ tự xếp xe trống phù hợp.</div>
         </div>
 
         {!isStaff && (
@@ -245,6 +251,18 @@ export function FleetManager({
             {stats.map((s) => <StatCard key={s.k} k={s.k} v={s.v} sub={s.sub} c={s.c} onClick={s.pick} />)}
           </div>
         )}
+
+        {/* Thanh tab: nằm DƯỚI số liệu tổng quan, ngay trên nội dung, và DÍNH khi cuộn (mobile không phải cuộn ngược lên để đổi tab).
+            --fleet-sticky-top = chiều cao thanh đầu trang bên ngoài (AdminShell 64px; trang demo đặt riêng). */}
+        <div style={{ position: "sticky", top: "var(--fleet-sticky-top, 64px)", zIndex: 6, margin: "-6px 0", padding: "6px 0", background: "oklch(0.975 0.004 160)" }}>
+          <div className="fleet-tabs" style={{ display: "flex", gap: 4, padding: 4, borderRadius: 14, background: "oklch(0.93 0.008 160)", overflowX: "auto", maxWidth: "100%", width: "fit-content", scrollbarWidth: "none" }}>
+            {tabs.map(([k2, name, badge]) => (
+              <div key={k2} onClick={() => setTab(k2)} style={{ cursor: "pointer", flex: "none", display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 800, padding: "9px 14px", borderRadius: 11, whiteSpace: "nowrap", background: curTab === k2 ? "white" : "transparent", color: curTab === k2 ? G : "oklch(0.42 0.02 160)", boxShadow: curTab === k2 ? "0 1px 4px oklch(0.2 0.03 160 / .15)" : "none" }}>
+                {name}{badge ? <span style={{ fontSize: 11, fontWeight: 800, padding: "2px 7px", borderRadius: 999, background: O, color: "white" }}>{badge}</span> : null}
+              </div>
+            ))}
+          </div>
+        </div>
 
         {/* Đơn web chưa đủ xe */}
         {!isStaff && data.pending.length > 0 && (
@@ -433,12 +451,15 @@ export function FleetManager({
                             )}
                             {bs.map((b) => {
                               const st = bst(b), M = ST[st];
-                              const a = Math.max(0, diffDays(mStart, b.s)), z = Math.min(N - 1, diffDays(mStart, effEnd(b, T, NOW)));
-                              const wid = (z - a + 1) * DW;
-                              const label = wid < 60 ? lastName(b.name) : b.name.trim().split(/\s+/).slice(-2).join(" ") + " · " + dm(b.s) + "–" + dm(b.e);
+                              // Thanh vẽ theo GIỜ nhận/trả (2 lượt cùng ngày: trả sáng – nhận chiều nằm cạnh nhau).
+                              const [rs0, re0] = rentalSpan(b, T, NOW);
+                              const pos = (ts: string) => diffDays(mStart, ts.slice(0, 10)) + tmin(ts.slice(11, 16)) / 1440;
+                              const a = Math.max(0, pos(rs0)), z = Math.min(N, pos(re0));
+                              const wid = Math.max(10, (z - a) * DW);
+                              const label = wid < 60 ? lastName(b.name) : b.name.trim().split(/\s+/).slice(-2).join(" ") + " · " + dm(b.s) + " " + b.st + "–" + dm(b.e) + " " + b.et;
                               return (
                                 <div key={b.id} onClick={(e) => { e.stopPropagation(); openB(b.id); }} title={`${b.code} · ${b.name} · ${M[0]}`}
-                                  style={{ position: "absolute", top: 10, bottom: 10, left: a * DW + 2, width: wid - 4, borderRadius: 10, background: st === "hold" ? "oklch(0.97 0.02 280)" : M[1], color: M[2], border: `1.5px ${st === "hold" || st === "web" ? "dashed" : "solid"} ${M[3]}`, fontSize: 12, fontWeight: 800, padding: "0 8px", display: "flex", alignItems: "center", gap: 5, overflow: "hidden", whiteSpace: "nowrap", cursor: "pointer", boxShadow: "0 4px 10px -6px oklch(0.2 0.04 160 / .4)" }}>
+                                  style={{ position: "absolute", top: 10, bottom: 10, left: a * DW + 1, width: wid - 2, borderRadius: 10, background: st === "hold" ? "oklch(0.97 0.02 280)" : M[1], color: M[2], border: `1.5px ${st === "hold" || st === "web" ? "dashed" : "solid"} ${M[3]}`, fontSize: 12, fontWeight: 800, padding: "0 8px", display: "flex", alignItems: "center", gap: 5, overflow: "hidden", whiteSpace: "nowrap", cursor: "pointer", boxShadow: "0 4px 10px -6px oklch(0.2 0.04 160 / .4)" }}>
                                   <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
                                 </div>
                               );
@@ -515,8 +536,9 @@ export function FleetManager({
                 const info = x.r ? M[0] + ": " + x.r.name + " · tới " + dm(x.r.e) : x.key === "ready" ? (nx ? "Đơn kế: " + dm(nx.s) + " · " + nx.name : "Chưa có đơn sắp tới") : v.note || M[0];
                 return (
                   <div key={v.id} style={{ display: "flex", flexDirection: "column", background: "white", borderRadius: 20, overflow: "hidden", border: `1px solid ${BORDER}`, animation: "fleetUp .3s ease both" }}>
-                    <div onClick={() => openV(v.id)} style={{ position: "relative", aspectRatio: "16/10", cursor: "pointer" }}>
-                      <Thumb url={v.imageUrl} label={"Ảnh " + v.name} />
+                    {/* Khung ảnh cố định 16:10 — overflow:hidden + flex:none để ảnh dọc không kéo cao khung (ảnh tự cắt giữa). */}
+                    <div onClick={() => openV(v.id)} style={{ position: "relative", aspectRatio: "16/10", flex: "none", overflow: "hidden", cursor: "pointer", background: "oklch(0.96 0.006 160)" }}>
+                      <div style={{ position: "absolute", inset: 0 }}><Thumb url={v.imageUrl} label={"Ảnh " + v.name} /></div>
                       <span style={{ position: "absolute", top: 10, left: 10, fontSize: 12, fontWeight: 800, padding: "5px 10px", borderRadius: 999, background: M[1], color: M[2] }}>{M[0]}</span>
                       <span style={{ position: "absolute", top: 10, right: 10, fontFamily: "ui-monospace,monospace", fontSize: 12, fontWeight: 800, padding: "5px 9px", borderRadius: 8, background: "white", border: "1.5px solid oklch(0.3 0.03 160)" }}>{v.plate}</span>
                     </div>

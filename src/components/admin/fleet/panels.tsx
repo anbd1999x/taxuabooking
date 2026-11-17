@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { FLEET_ACC, FLEET_KINDS, diffDays, feeSum, isVehicleFree, rentalStatus, type FleetConfig, type FleetRentalVM } from "@/lib/fleet-core";
 import type { Ctx } from "./drawers";
-import { BORDER, G, MUTED, O, ST, Empty, MiniStat, Thumb, btn, dm, ini, money, pill, short } from "./ui";
+import { BORDER, G, MUTED, O, ST, Empty, MiniStat, Thumb, Toggle, btn, dm, ini, money, pill, short } from "./ui";
 
 const box = { background: "white", border: `1px solid ${BORDER}`, borderRadius: 20, padding: 16 } as const;
 
@@ -20,7 +20,7 @@ export function WebTab({ ctx }: { ctx: Ctx }) {
         {list.map((b) => {
           const v = V.find((x) => x.id === b.vid);
           if (!v) return null;
-          const alts = V.filter((x) => x.kind === v.kind && (x.id === v.id || isVehicleFree(x, b.s, b.e, Bk, T, b.id, NOW)));
+          const alts = V.filter((x) => x.kind === v.kind && (x.id === v.id || isVehicleFree(x, b.s, b.e, Bk, T, b.id, NOW, b.st, b.et)));
           const black = P.black[b.phone];
           return (
             <div key={b.id} style={{ ...box, display: "flex", flexDirection: "column", gap: 10, border: "1.5px solid oklch(0.88 0.06 300)" }}>
@@ -40,7 +40,7 @@ export function WebTab({ ctx }: { ctx: Ctx }) {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, paddingTop: 10, borderTop: "1px solid oklch(0.94 0.008 160)", flexWrap: "wrap" }}>
                 <b style={{ fontSize: 18, color: "oklch(0.55 0.16 45)" }}>{money(b.total)}</b>
                 <div style={{ display: "flex", gap: 6 }}>
-                  <button type="button" onClick={() => confirm("Từ chối đơn này?") && call({ op: "webReject", id: b.id })} style={btn("danger")}>Từ chối</button>
+                  <button type="button" onClick={() => { const reason = prompt("Từ chối đơn này? Lý do (gửi kèm cho sàn):", "Hết xe trong thời gian này"); if (reason !== null) call({ op: "webReject", id: b.id, reason }); }} style={btn("danger")}>Từ chối</button>
                   <button type="button" onClick={() => setDr({ kind: "book", id: b.id })} style={btn()}>Chi tiết</button>
                   <button type="button" onClick={() => call({ op: "webConfirm", id: b.id })} style={btn("pri")}>Xác nhận</button>
                 </div>
@@ -71,8 +71,9 @@ export function LedgerTab({ ctx, mob }: { ctx: Ctx; mob: boolean }) {
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,160px),1fr))", gap: 10 }}>
         <MiniStat k="Thu tiền mặt" v={short(sumW((y) => y.amt > 0 && y.method === "Tiền mặt"))} sub="Đối chiếu két cuối ngày" c="oklch(0.3 0.03 160)" />
-        <MiniStat k="Thu chuyển khoản" v={short(sumW((y) => y.amt > 0 && y.method !== "Tiền mặt"))} sub="Đối chiếu sao kê" c="oklch(0.3 0.03 160)" />
-        <MiniStat k="Đã hoàn cọc" v={short(-sumW((y) => y.amt < 0))} sub="Trả lại khách" c="oklch(0.52 0.16 28)" />
+        <MiniStat k="Thu chuyển khoản" v={short(sumW((y) => y.amt > 0 && y.method === "Chuyển khoản"))} sub="Đối chiếu sao kê" c="oklch(0.3 0.03 160)" />
+        <MiniStat k="Sàn thu hộ" v={short(sumW((y) => y.method === "Sàn thu hộ"))} sub="Khách trả qua sàn (đơn web)" c="oklch(0.42 0.12 250)" />
+        <MiniStat k="Đã hoàn cọc" v={short(-sumW((y) => y.amt < 0 && y.method !== "Sàn thu hộ"))} sub="Trả lại khách" c="oklch(0.52 0.16 28)" />
         <MiniStat k="Cọc đang giữ" v={short(holding)} sub="Của đơn chưa trả xe" c="oklch(0.5 0.13 60)" />
         <MiniStat k="Còn phải thu" v={short(owe)} sub="Khi giao hoặc nhận xe" c="oklch(0.55 0.16 45)" />
       </div>
@@ -304,7 +305,8 @@ export function ReportTab({ ctx, wide }: { ctx: Ctx; wide: boolean }) {
 export function SettingsTab({ ctx }: { ctx: Ctx }) {
   const { data, call, say } = ctx;
   const [P, setP] = useState<FleetConfig>(data.config);
-  const [ns, setNs] = useState({ name: "", phone: "" });
+  const [ns, setNs] = useState({ name: "", phone: "", username: "", password: "" });
+  const sIn = { fontSize: 14, padding: "9px 10px", borderRadius: 10, border: "1.5px solid oklch(0.9 0.01 160)", minWidth: 0, fontFamily: "inherit" } as const;
   // Chỉ phần giá/phí sửa theo "Lưu cài đặt"; ngày lễ & nhân viên lưu ngay.
   const nums = (c: FleetConfig) => ({ wk: c.wk, hol: c.hol, md3: c.md3, md5: c.md5, U: c.U, hourly: c.hourly, late: c.late, fuel: c.fuel, far: c.far, holdH: c.holdH, ctv: c.ctv, oilCost: c.oilCost, insCost: c.insCost, acc: c.acc });
   const dirty = JSON.stringify(nums(P)) !== JSON.stringify(nums(data.config));
@@ -332,12 +334,24 @@ export function SettingsTab({ ctx }: { ctx: Ctx }) {
         {dirty ? "Có thay đổi chưa lưu" : "Cài đặt áp dụng cho đơn tạo mới (giá) và lúc nhận lại xe (phí phát sinh)."}
         {dirty && <div style={{ display: "flex", gap: 6 }}><button type="button" style={btn()} onClick={() => setP(data.config)}>Huỷ</button><button type="button" style={btn("pri")} onClick={() => save({ ...data.config, ...nums(P) })}>Lưu cài đặt</button></div>}
       </div>
+      <div style={{ ...box, display: "flex", flexDirection: "column", gap: 8, border: `1.5px solid ${data.config.webSync ? "oklch(0.8 0.08 155)" : "oklch(0.85 0.07 70)"}` }}>
+        <Toggle on={data.config.webSync} onClick={() => {
+          const next = !data.config.webSync;
+          if (next && !confirm(`Bật đồng bộ: trang đặt xe trên web sẽ chỉ nhận số xe bằng số xe RẢNH trong đội xe (${data.vehicles.filter((v) => v.mode !== "off").length} xe đang vận hành). Hãy chắc đã nhập đủ xe. Bật?`)) return;
+          save({ ...data.config, webSync: next }, next ? "Đã bật: web tính còn xe theo đội xe" : "Đã tắt: web dùng lịch tồn nhập tay");
+        }}>Dùng đội xe để tính “còn xe” trên trang đặt xe</Toggle>
+        <div style={{ fontSize: 13, color: MUTED, lineHeight: 1.5 }}>
+          {data.config.webSync
+            ? "Đang bật: khách chỉ đặt được khi còn xe rảnh trong đội xe; hết xe thì web báo kín lịch. Lịch tồn nhập tay ở “Lịch giá & tình trạng” không còn dùng."
+            : "Đang tắt: web vẫn dùng lịch tồn nhập tay như cũ. Đơn web vẫn được tự xếp vào xe trống. Nhập đủ xe trong Đội xe rồi bật để tránh nhận quá số xe."}
+        </div>
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(min(100%,360px),1fr))", gap: 12, alignItems: "start" }}>
         {group("Giá theo ngày", "Cộng thêm vào giá thuê của từng xe. Bấm đơn vị để đổi giữa số tiền (đ/ngày) và %", [uRow("Cuối tuần (T7, CN) · cộng thêm", "wk"), uRow("Ngày lễ · cộng thêm", "hol"), uRow("Thuê từ 3 ngày · giảm mỗi ngày", "md3"), uRow("Thuê từ 5 ngày · giảm mỗi ngày", "md5")])}
         {group("Giá thuê theo giờ", "Khách thuê trong ngày · tối đa bằng giá 1 ngày", (Object.keys(FLEET_KINDS) as (keyof typeof FLEET_KINDS)[]).map((k) => nRow(FLEET_KINDS[k], P.hourly[k], (n) => setP({ ...P, hourly: { ...P.hourly, [k]: n } }), "đ/giờ")))}
         {group("Phí phát sinh", "Tự tính khi nhận lại xe", [nRow("Trả muộn (tối đa 5 giờ)", P.late, (n) => setP({ ...P, late: n }), "đ/giờ"), nRow("Thiếu xăng", P.fuel, (n) => setP({ ...P, fuel: n }), "đ/vạch"), nRow("Giao xe xa", P.far, (n) => setP({ ...P, far: n }), "đ")])}
         {group("Đền phụ kiện", "Khi khách làm mất", FLEET_ACC.map((a) => nRow(a, P.acc[a] ?? 0, (n) => setP({ ...P, acc: { ...P.acc, [a]: n } }), "đ")))}
-        {group("Giữ chỗ & CTV", "Nhắc nhả xe khi khách chưa cọc", [nRow("Nhả xe nếu chưa cọc sau", P.holdH, (n) => setP({ ...P, holdH: n }), "giờ"), nRow("Hoa hồng CTV", P.ctv, (n) => setP({ ...P, ctv: Math.min(100, n) }), "%")])}
+        {group("Giữ chỗ & CTV", "Đơn tạo tại quầy chưa cọc quá số giờ này ⇒ tự huỷ để xe trống lại (0 = không tự nhả). Đơn web do sàn xử lý.", [nRow("Tự nhả xe nếu chưa cọc sau", P.holdH, (n) => setP({ ...P, holdH: n }), "giờ"), nRow("Hoa hồng CTV", P.ctv, (n) => setP({ ...P, ctv: Math.min(100, n) }), "%")])}
         {group("Bảo dưỡng", "Chi phí ghi nhanh khi bấm nút ở tab Bảo dưỡng", [nRow("Thay nhớt", P.oilCost, (n) => setP({ ...P, oilCost: n }), "đ"), nRow("Gia hạn bảo hiểm TNDS", P.insCost, (n) => setP({ ...P, insCost: n }), "đ")])}
         <div style={{ ...box, display: "flex", flexDirection: "column", gap: 10 }}>
           <div><div style={{ fontSize: 16, fontWeight: 800 }}>Ngày lễ (tính giá lễ)</div><div style={{ fontSize: 12, color: MUTED }}>Bấm × để bỏ · lưu ngay</div></div>
@@ -355,26 +369,31 @@ export function SettingsTab({ ctx }: { ctx: Ctx }) {
           </label>
         </div>
         <div style={{ ...box, display: "flex", flexDirection: "column", gap: 10 }}>
-          <div><div style={{ fontSize: 16, fontWeight: 800 }}>Nhân viên</div><div style={{ fontSize: 12, color: MUTED }}>Danh bạ nhân viên giao xe · lưu ngay</div></div>
-          {!data.config.staff.length && <span style={{ fontSize: 13, color: MUTED }}>Chưa có nhân viên.</span>}
-          {data.config.staff.map((x, i) => (
-            <div key={x.phone + i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid oklch(0.95 0.005 160)" }}>
+          <div><div style={{ fontSize: 16, fontWeight: 800 }}>Tài khoản nhân viên giao xe</div><div style={{ fontSize: 12, color: MUTED }}>Nhân viên đăng nhập ở /admin/login, chỉ thấy việc giao – nhận xe, tạo đơn tại quầy và ghi thu tiền. Không xem doanh thu, không sửa xe / giá / cài đặt, không huỷ đơn.</div></div>
+          {!data.hasOwner && <div style={{ fontSize: 13, fontWeight: 700, color: "oklch(0.5 0.16 28)" }}>Dịch vụ chưa gắn tài khoản chủ — admin gắn chủ dịch vụ ở trang sửa dịch vụ trước khi tạo nhân viên.</div>}
+          {data.hasOwner && !data.staff.length && <span style={{ fontSize: 13, color: MUTED }}>Chưa có tài khoản nhân viên.</span>}
+          {data.staff.map((x) => (
+            <div key={x.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid oklch(0.95 0.005 160)", opacity: x.active ? 1 : 0.55 }}>
               <span style={{ width: 34, height: 34, borderRadius: "50%", background: "oklch(0.95 0.025 155)", color: "oklch(0.35 0.08 158)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, flex: "none" }}>{ini(x.name)}</span>
-              <div style={{ minWidth: 0, flex: 1 }}><div style={{ fontSize: 14, fontWeight: 800 }}>{x.name}</div><div style={{ fontSize: 12, color: MUTED }}>{x.phone}</div></div>
-              <span onClick={() => { const R = ["Quản lý", "Nhân viên giao xe"]; save({ ...data.config, staff: data.config.staff.map((z, j) => (j === i ? { ...z, role: R[(R.indexOf(z.role) + 1) % 2] } : z)) }); }} style={{ cursor: "pointer", fontSize: 12, fontWeight: 800, padding: "5px 10px", borderRadius: 999, background: "oklch(0.96 0.006 160)", whiteSpace: "nowrap" }}>{x.role}</span>
-              <span onClick={() => confirm("Xoá " + x.name + "?") && save({ ...data.config, staff: data.config.staff.filter((_, j) => j !== i) }, "Đã xoá nhân viên")} style={{ cursor: "pointer", fontSize: 16, color: MUTED }}>×</span>
+              <div style={{ minWidth: 0, flex: 1 }}><div style={{ fontSize: 14, fontWeight: 800 }}>{x.name}{!x.active && " · đã khoá"}</div><div style={{ fontSize: 12, color: MUTED }}>@{x.username}{x.phone ? " · " + x.phone : ""}</div></div>
+              <span onClick={() => { const p = prompt("Mật khẩu mới cho " + x.username + " (tối thiểu 6 ký tự):"); if (p) call({ op: "staffReset", id: x.id, password: p }); }} style={{ cursor: "pointer", fontSize: 12, fontWeight: 800, padding: "5px 10px", borderRadius: 999, background: "oklch(0.96 0.006 160)", whiteSpace: "nowrap" }}>Đổi MK</span>
+              <span onClick={() => call({ op: "staffToggle", id: x.id })} style={{ cursor: "pointer", fontSize: 12, fontWeight: 800, padding: "5px 10px", borderRadius: 999, background: "oklch(0.96 0.006 160)", whiteSpace: "nowrap" }}>{x.active ? "Khoá" : "Mở khoá"}</span>
+              <span onClick={() => confirm("Xoá tài khoản " + x.username + "?") && call({ op: "staffDelete", id: x.id })} title="Xoá" style={{ cursor: "pointer", fontSize: 16, color: MUTED }}>×</span>
             </div>
           ))}
-          <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr) auto", gap: 6 }}>
-            <input value={ns.name} onChange={(e) => setNs({ ...ns, name: e.target.value })} placeholder="Tên" style={{ fontSize: 14, padding: "9px 10px", borderRadius: 10, border: "1.5px solid oklch(0.9 0.01 160)", minWidth: 0, fontFamily: "inherit" }} />
-            <input value={ns.phone} onChange={(e) => setNs({ ...ns, phone: e.target.value })} inputMode="tel" placeholder="SĐT" style={{ fontSize: 14, padding: "9px 10px", borderRadius: 10, border: "1.5px solid oklch(0.9 0.01 160)", minWidth: 0, fontFamily: "inherit" }} />
-            <button type="button" style={btn("pri")} onClick={async () => {
-              const phone = ns.phone.replace(/\s/g, "");
-              if (ns.name.trim().length < 2 || !/^0\d{9}$/.test(phone)) return say("Nhập tên và số điện thoại 10 số");
-              const j = await save({ ...data.config, staff: [...data.config.staff, { name: ns.name.trim(), phone, role: "Nhân viên giao xe" }] }, "Đã thêm nhân viên");
-              if (j) setNs({ name: "", phone: "" });
-            }}>Thêm</button>
-          </div>
+          {data.hasOwner && (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(2,minmax(0,1fr))", gap: 6 }}>
+              <input value={ns.name} onChange={(e) => setNs({ ...ns, name: e.target.value })} placeholder="Tên nhân viên" style={sIn} />
+              <input value={ns.phone} onChange={(e) => setNs({ ...ns, phone: e.target.value })} inputMode="tel" placeholder="SĐT (tuỳ chọn)" style={sIn} />
+              <input value={ns.username} onChange={(e) => setNs({ ...ns, username: e.target.value })} placeholder="Tên đăng nhập" autoComplete="off" style={sIn} />
+              <input value={ns.password} onChange={(e) => setNs({ ...ns, password: e.target.value })} placeholder="Mật khẩu (≥ 6 ký tự)" autoComplete="new-password" style={sIn} />
+              <button type="button" style={{ ...btn("pri"), gridColumn: "1 / -1" }} onClick={async () => {
+                if (ns.name.trim().length < 2 || ns.username.trim().length < 3 || ns.password.length < 6) return say("Nhập tên, tên đăng nhập (≥ 3 ký tự) và mật khẩu (≥ 6 ký tự)");
+                const j = await call({ op: "staffCreate", ...ns });
+                if (j) setNs({ name: "", phone: "", username: "", password: "" });
+              }}>+ Tạo tài khoản nhân viên</button>
+            </div>
+          )}
         </div>
       </div>
     </div>

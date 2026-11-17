@@ -3,6 +3,7 @@ import "server-only";
 import type { BookingRequest, Prisma, AvailabilityStatus } from "@prisma/client";
 import { enumerateNights, enumerateDays, addDays, toDateKey } from "./dates";
 import { syncRoomTypeAvailability } from "./room-availability";
+import { fleetWebServices } from "./fleet";
 
 type Tx = Prisma.TransactionClient;
 
@@ -56,6 +57,8 @@ export async function adjustInventory(
 
   // ----- Xe máy: theo từng ngày thuê -----
   if (booking.rentalVehicleId) {
+    // Nhà xe dùng ĐỘI XE THẬT (quản lý xe) ⇒ tồn tính theo xe rảnh, không trừ lịch tồn nhập tay nữa.
+    if (booking.serviceId && (await fleetWebServices([booking.serviceId], tx)).length > 0) return;
     const end = booking.endDate ?? booking.useDate;
     const days = enumerateDays(booking.useDate, end);
     for (const date of days) {

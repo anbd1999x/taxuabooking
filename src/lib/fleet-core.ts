@@ -69,6 +69,8 @@ export type FleetRentalVM = {
   src: string;
   note: string;
   cancelled: boolean;
+  /** Chủ xe từ chối / huỷ lượt thuê sinh từ đơn web (không tự xếp lại xe cho đơn đó). */
+  rejected: boolean;
   web: boolean;
   ctv: string;
   hand: FleetHand | null;
@@ -79,6 +81,8 @@ export type FleetRentalVM = {
 
 /** Cấu hình đội xe (lưu JSON ở FleetConfig). Đơn vị U: "vnd" (đ/ngày) | "pct" (%). */
 export type FleetConfig = {
+  /** Bật ⇒ trang đặt xe trên web tính "còn xe" theo đội xe thật (thay lịch tồn nhập tay). */
+  webSync: boolean;
   wk: number;
   hol: number;
   md3: number;
@@ -100,6 +104,7 @@ export type FleetConfig = {
 };
 
 export const DEFAULT_FLEET_CONFIG: FleetConfig = {
+  webSync: false,
   wk: 0,
   hol: 0,
   md3: 0,
@@ -129,6 +134,7 @@ export function normalizeConfig(raw: unknown): FleetConfig {
   const acc: Record<string, number> = { ...D.acc };
   for (const k of Object.keys(acc)) acc[k] = num(r.acc?.[k], acc[k]);
   return {
+    webSync: r.webSync === true,
     wk: num(r.wk, D.wk),
     hol: num(r.hol, D.hol),
     md3: num(r.md3, D.md3),
@@ -169,7 +175,7 @@ export function vnNow(at = Date.now()): { today: string; now: string } {
 /** Trạng thái lượt thuê tại thời điểm (`today`, `now` HH:MM). */
 export function rentalStatus(r: FleetRentalVM, today: string, now = "12:00"): FleetStatus {
   if (r.cancelled) return "cancel";
-  if (r.web) return "web";
+  if (r.web) return r.e >= today ? "web" : "done"; // đơn web chờ duyệt đã quá ngày ⇒ không còn giữ xe
   if (r.ret) return "done";
   if (r.hand) return r.e < today || (r.e === today && r.et < now) ? "late" : "renting";
   if (r.e < today) return "done"; // đơn cũ chưa từng lập biên bản
@@ -180,6 +186,22 @@ export function rentalStatus(r: FleetRentalVM, today: string, now = "12:00"): Fl
 /** Ngày cuối thực sự chiếm xe (xe quá hạn vẫn đang bị giữ tới hôm nay). */
 export function effEnd(r: FleetRentalVM, today: string, now = "12:00"): string {
   return rentalStatus(r, today, now) === "late" && r.e < today ? today : r.e;
+}
+
+/** Mốc thời gian so sánh được dạng "yyyy-mm-ddTHH:MM". */
+export const stamp = (d: string, t: string) => `${d}T${t || "00:00"}`;
+/**
+ * Khoảng thời gian lượt thuê CHIẾM XE: [ngày nhận + giờ nhận, ngày trả + giờ trả).
+ * Xe quá hạn chưa trả ⇒ chiếm tới hết hôm nay (chưa biết khi nào về). Không chừa khoảng nghỉ:
+ * xe trả 08:00 thì 08:00 cùng ngày cho thuê tiếp được.
+ */
+export function rentalSpan(r: FleetRentalVM, today: string, now = "12:00"): [string, string] {
+  const end = stamp(r.e, r.et);
+  if (rentalStatus(r, today, now) === "late") {
+    const t = stamp(today, "23:59");
+    return [stamp(r.s, r.st), end > t ? end : t];
+  }
+  return [stamp(r.s, r.st), end];
 }
 
 /** Lượt thuê còn chiếm xe (chưa huỷ, chưa trả). */
@@ -197,26 +219,43 @@ export function vehicleStatusOn(
   now = "12:00",
 ): { key: FleetStatus; r?: FleetRentalVM } {
   if (v.mode === "off") return { key: "off" };
-  const r = rentals.find((x) => x.vid === v.id && x.s <= d && d <= effEnd(x, today, now) && rentalStatus(x, today, now) !== "cancel");
+  // Một ngày có thể có 2 lượt (trả sáng, nhận chiều): hôm nay ưu tiên lượt đang diễn ra lúc này,
+  // rồi lượt chưa trả; ngày khác ưu tiên lượt bắt đầu muộn hơn (đang chiếm xe cuối ngày).
+  const cands = rentals
+    .filter((x) => x.vid === v.id && x.s <= d && d <= effEnd(x, today, now) && rentalStatus(x, today, now) !== "cancel")
+    .sort((a, b) => stamp(a.s, a.st).localeCompare(stamp(b.s, b.st)));
+  const nowTs = stamp(today, now);
+  const r =
+    (d === today ? cands.find((x) => { const [a, b] = rentalSpan(x, today, now); return a <= nowTs && nowTs < b; }) : undefined) ??
+    cands.filter((x) => rentalStatus(x, today, now) !== "done").pop() ??
+    cands.pop();
   if (r) return { key: d < today ? "done" : rentalStatus(r, today, now), r };
   if (v.mode === "maint" && d >= today) return { key: "maint" };
   return { key: "ready" };
 }
 
-/** Xe rảnh (sẵn sàng + không vướng lượt thuê nào) trong khoảng [s, e]. */
+/**
+ * Xe rảnh (sẵn sàng + không vướng lượt thuê nào) trong khoảng [s st, e et).
+ * Không truyền giờ ⇒ xét trọn ngày (00:00 → 23:59). Trùng khi hai khoảng giờ giao nhau (chạm mốc không tính là trùng).
+ */
 export function isVehicleFree(
-  v: FleetVehicleVM,
+  v: Pick<FleetVehicleVM, "id" | "mode">,
   s: string,
   e: string,
   rentals: FleetRentalVM[],
   today: string,
   ignoreRentalId?: string,
   now = "12:00",
+  st = "00:00",
+  et = "23:59",
 ): boolean {
   if (v.mode !== "ready") return false;
-  return !rentals.some(
-    (r) => r.vid === v.id && r.id !== ignoreRentalId && rentalBlocks(r, today, now) && r.s <= e && s <= effEnd(r, today, now),
-  );
+  const a = stamp(s, st), b = stamp(e, et);
+  return !rentals.some((r) => {
+    if (r.vid !== v.id || r.id === ignoreRentalId || !rentalBlocks(r, today, now)) return false;
+    const [rs, re] = rentalSpan(r, today, now);
+    return rs < b && a < re;
+  });
 }
 
 /** Điểm xếp xe (thấp = ưu tiên): xe tình trạng tốt → ít đơn trong tháng → ít km. */
@@ -224,6 +263,17 @@ export function vehicleScore(v: FleetVehicleVM, rentals: FleetRentalVM[], month:
   const condRank = v.cond === "good" ? 0 : v.cond === "ok" ? 1 : 3;
   const used = rentals.filter((r) => r.vid === v.id && r.s.slice(0, 7) === month && !r.cancelled).length;
   return condRank * 1000 + used * 10 + v.odo / 1e5;
+}
+
+/**
+ * Nhóm xe phục vụ một loại xe bán trên web: xe gắn đúng loại đó; chưa gắn xe nào ⇒ các xe chưa gắn loại;
+ * đội xe không có xe chưa gắn ⇒ cả đội xe. (Dùng chung cho tự xếp xe và tính "còn xe" trên web.)
+ */
+export function poolFor<T extends Pick<FleetVehicleVM, "rentalVehicleId">>(vehicles: T[], rentalVehicleId: string | null | undefined): T[] {
+  const linked = rentalVehicleId ? vehicles.filter((v) => v.rentalVehicleId === rentalVehicleId) : [];
+  if (linked.length) return linked;
+  const unlinked = vehicles.filter((v) => !v.rentalVehicleId);
+  return unlinked.length ? unlinked : vehicles;
 }
 
 /** Chọn tự động `qty` xe rảnh tốt nhất trong `pool` cho khoảng [s, e]. */
@@ -234,9 +284,12 @@ export function autoPick(
   qty: number,
   rentals: FleetRentalVM[],
   today: string,
+  st?: string,
+  et?: string,
+  now?: string,
 ): FleetVehicleVM[] {
   return pool
-    .filter((v) => isVehicleFree(v, s, e, rentals, today))
+    .filter((v) => isVehicleFree(v, s, e, rentals, today, undefined, now, st, et))
     .sort((a, b) => vehicleScore(a, rentals, s.slice(0, 7)) - vehicleScore(b, rentals, s.slice(0, 7)))
     .slice(0, Math.max(0, qty));
 }

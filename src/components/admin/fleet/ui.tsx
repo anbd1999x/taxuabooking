@@ -122,5 +122,9 @@ export type FleetData = {
   config: FleetConfig;
   today: string;
   now: string;
+  /** Tài khoản nhân viên giao xe của chủ dịch vụ. */
+  staff: { id: string; name: string; username: string; phone: string | null; active: boolean }[];
+  /** Dịch vụ đã gắn tài khoản chủ (mới tạo được nhân viên). */
+  hasOwner: boolean;
 };
 export type CallFn = (payload: Record<string, unknown>) => Promise<(FleetData & { savedId?: string; message?: string }) | null>;

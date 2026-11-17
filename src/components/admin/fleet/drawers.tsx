@@ -15,7 +15,10 @@ import {
   feeSum,
   isVehicleFree,
   quoteRental,
+  rentalBlocks,
+  rentalSpan,
   rentalStatus,
+  stamp,
   returnFees,
   vehicleStatusOn,
   type FleetCond,
@@ -51,6 +54,8 @@ export type Ctx = {
   say: (t: string) => void;
   setDr: (d: Drawer) => void;
   afterCreate: (s: string) => void;
+  /** Người xem đăng nhập bằng tài khoản nhân viên (không chỉ đang xem chế độ nhân viên). */
+  viewerStaff: boolean;
 };
 
 type Act = { name: string; go: () => void; kind?: "pri" | "orange" | "danger" | "ghost"; flex?: number };
@@ -284,7 +289,8 @@ export function OrderDrawer({ ctx, pre }: { ctx: Ctx; pre?: Partial<OrderState> 
   const ok = !!o.s && !!o.e && o.e >= o.s;
   const nd = ok ? diffDays(o.s, o.e) + 1 : 0;
   const pool = V.filter((v) => v.kind === o.kind && v.mode !== "off");
-  const freeAll = ok ? autoPick(pool, o.s, o.e, pool.length, Bk, T) : [];
+  // Theo GIỜ: xe trả 08:00 thì 08:00 cùng ngày đã nhận đơn mới được (không chừa khoảng nghỉ).
+  const freeAll = ok ? autoPick(pool, o.s, o.e, pool.length, Bk, T, o.st, o.et, NOW) : [];
   const busyV = pool.filter((v) => !freeAll.includes(v));
   const picks = (o.picks ?? freeAll.slice(0, o.qty).map((v) => v.id)).filter((id) => freeAll.some((v) => v.id === id));
   const sel = picks.map((id) => V.find((v) => v.id === id)!).filter(Boolean);
@@ -298,11 +304,12 @@ export function OrderDrawer({ ctx, pre }: { ctx: Ctx; pre?: Partial<OrderState> 
   const black = P.black[phN];
   const why = (v: FleetVehicleVM): [string, string] => {
     if (v.mode === "maint") return ["Đang bảo dưỡng", "oklch(0.55 0.16 28)"];
-    const b = L.find((b) => b.vid === v.id && rentalStatus(b, T, NOW) !== "done" && b.s <= o.e && o.s <= b.e);
-    return b ? ["Bận " + dm(b.s) + "–" + dm(b.e) + " · " + b.name, "oklch(0.55 0.16 28)"] : ["", ""];
+    const a0 = stamp(o.s, o.st), b0 = stamp(o.e, o.et);
+    const b = L.find((x) => { if (x.vid !== v.id || !rentalBlocks(x, T, NOW)) return false; const [rs, re] = rentalSpan(x, T, NOW); return rs < b0 && a0 < re; });
+    return b ? [`Bận ${dm(b.s)} ${b.st} – ${dm(b.e)} ${b.et} · ${b.name}`, "oklch(0.55 0.16 28)"] : ["", ""];
   };
   const short2 = o.qty - picks.length;
-  const otherFree = ok ? (Object.keys(FLEET_KINDS) as FleetKind[]).filter((t) => t !== o.kind).map((t) => [t, V.filter((v) => v.kind === t && isVehicleFree(v, o.s, o.e, Bk, T, undefined, NOW)).length] as const).filter((x) => x[1]) : [];
+  const otherFree = ok ? (Object.keys(FLEET_KINDS) as FleetKind[]).filter((t) => t !== o.kind).map((t) => [t, V.filter((v) => v.kind === t && isVehicleFree(v, o.s, o.e, Bk, T, undefined, NOW, o.st, o.et)).length] as const).filter((x) => x[1]) : [];
   const asWarn = short2 > 0 || !ok;
   const fld = (label: string, key: "name" | "phone" | "cccd" | "ctvName", ph: string, im: "text" | "tel" | "numeric", span: string) => (
     <label key={key} style={{ ...lbl, gridColumn: span }}>{label}
@@ -350,7 +357,7 @@ export function OrderDrawer({ ctx, pre }: { ctx: Ctx; pre?: Partial<OrderState> 
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {(Object.keys(FLEET_KINDS) as FleetKind[]).map((t) => (
             <div key={t} onClick={() => setO({ kind: t, picks: null })} style={{ ...pill(o.kind === t), fontSize: 14, padding: "9px 14px" }}>
-              {FLEET_KINDS[t]} <span style={{ opacity: 0.65 }}>· {ok ? V.filter((v) => v.kind === t && isVehicleFree(v, o.s, o.e, Bk, T, undefined, NOW)).length : 0} trống</span>
+              {FLEET_KINDS[t]} <span style={{ opacity: 0.65 }}>· {ok ? V.filter((v) => v.kind === t && isVehicleFree(v, o.s, o.e, Bk, T, undefined, NOW, o.st, o.et)).length : 0} trống</span>
             </div>
           ))}
         </div>
@@ -463,11 +470,22 @@ export function BookingDrawer({ ctx, id }: { ctx: Ctx; id: string }) {
   const ctvLine = b.ctv ? `Khách từ ${b.ctv} · hoa hồng ${P.ctv}% = ${money(Math.round((b.total * P.ctv) / 100000) * 1000)}` : "";
   const handForm = !b.hand && ["due", "deposit", "hold"].includes(st);
   const retForm = st === "renting" || st === "late";
-  const cancel = (msg: string, opName = "cancel") => () => { if (msg && !confirm(msg)) return; call({ op: opName, id: b.id }); };
+  const cancel = (msg: string, opName = "cancel") => () => {
+    if (b.bookingId) {
+      // Đơn từ web: hỏi lý do để sàn báo lại khách.
+      const reason = prompt((opName === "webReject" ? "Từ chối" : "Huỷ") + " xe này? Lý do (gửi kèm cho sàn):", opName === "webReject" ? "Hết xe trong thời gian này" : "");
+      if (reason === null) return;
+      call({ op: opName, id: b.id, reason });
+      return;
+    }
+    if (msg && !confirm(msg)) return;
+    call({ op: opName, id: b.id });
+  };
   const A: Act[] = [];
-  if (st === "web") A.push({ name: "Từ chối", kind: "danger", go: cancel("Từ chối đơn web này?", "webReject") }, { name: "Xác nhận đơn", kind: "pri", flex: 2, go: () => call({ op: "webConfirm", id: b.id }) });
-  if (st === "hold") A.push({ name: "Huỷ · nhả xe", kind: "danger", go: cancel("") }, { name: "Ghi nhận cọc 30%", kind: "orange", flex: 2, go: () => call({ op: "deposit", id: b.id }) });
-  if (st === "deposit" || st === "due") A.push({ name: "Huỷ", kind: "danger", go: cancel("Huỷ đơn đã cọc?") }, { name: "Xác nhận giao xe", kind: "pri", flex: 2, go: () => call({ op: "handover", id: b.id, hand: { ...hf, odo: digits(hf.odo), photos: hf.photos.filter(Boolean) } }) });
+  const staffOnly = ctx.isStaff && ctx.viewerStaff;
+  if (st === "web" && !staffOnly) A.push({ name: "Từ chối", kind: "danger", go: cancel("Từ chối đơn web này?", "webReject") }, { name: "Xác nhận đơn", kind: "pri", flex: 2, go: () => call({ op: "webConfirm", id: b.id }) });
+  if (st === "hold") A.push(...(staffOnly ? [] : [{ name: "Huỷ · nhả xe", kind: "danger" as const, go: cancel("") }]), { name: "Ghi nhận cọc 30%", kind: "orange", flex: 2, go: () => call({ op: "deposit", id: b.id }) });
+  if (st === "deposit" || st === "due") A.push(...(staffOnly ? [] : [{ name: "Huỷ", kind: "danger" as const, go: cancel("Huỷ đơn đã cọc?") }]), { name: "Xác nhận giao xe", kind: "pri", flex: 2, go: () => call({ op: "handover", id: b.id, hand: { ...hf, odo: digits(hf.odo), photos: hf.photos.filter(Boolean) } }) });
   if (st === "renting" || st === "late") A.push({ name: "Gia hạn +1 ngày", go: () => call({ op: "extend", id: b.id }) }, { name: "Nhận xe & quyết toán", kind: "pri", flex: 2, go: () => call({ op: "return", id: b.id, ret: { ...rf, odo: digits(rf.odo), dmg: digits(rf.dmg) } }) });
   if (st === "done" || st === "cancel") A.push({ name: "Đóng", kind: "pri", go: () => setDr(null) });
   const settle = [
@@ -596,7 +614,8 @@ export function BookingDrawer({ ctx, id }: { ctx: Ctx; id: string }) {
             <b style={{ fontSize: 15, color: y.amt < 0 ? "oklch(0.5 0.16 28)" : "oklch(0.42 0.11 155)", whiteSpace: "nowrap" }}>{y.amt < 0 ? "−" : "+"}{money(Math.abs(y.amt))}</b>
           </div>
         ))}
-        {st !== "cancel" && (
+        {st === "cancel" && b.deposit > 0 && <div style={{ fontSize: 13, fontWeight: 700, color: "oklch(0.48 0.14 50)" }}>Đơn đã huỷ nhưng còn giữ {money(b.deposit)} của khách — ghi “Hoàn cọc” khi đã trả lại (hoặc giữ cọc theo chính sách).</div>}
+        {(st !== "cancel" || b.deposit > 0) && (
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
             <input value={pf.amt} onChange={(e) => setPF({ amt: e.target.value })} inputMode="numeric" placeholder="Số tiền" style={{ ...inputCls, width: 130 }} />
             {["Thu", "Hoàn cọc"].map((n) => <div key={n} onClick={() => setPF({ kind: n })} style={softPill(pf.kind === n)}>{n}</div>)}

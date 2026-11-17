@@ -95,6 +95,71 @@ export function comboMotorbikeCost(bikes: number, nights: number, key?: string |
   return Math.round(Math.max(0, Math.floor(bikes) || 0) * comboMotorbikeDays(nights, pickup, ret, gap) * comboMotorbike(key).perDay);
 }
 
+/** Xe máy thuê kèm của một đơn combo (dịch vụ tính riêng) — dùng chung cho trang tra cứu, email, tin nhắn. */
+export interface ComboBikeFacts {
+  name: string; // "Honda Wave"
+  count: number;
+  days: number; // số ngày tính tiền (1 / 1,5 / 2…)
+  perDay: number | null;
+  /** "06:00 12/12/2026" (đơn rất cũ: chỉ giờ, hoặc null). */
+  pickup: string | null;
+  ret: string | null;
+  amount: number | null; // giá tham khảo
+}
+const BIKE_LABEL_RE = /thuê xe máy (?:([^:·]+): )?(\d+) xe × ([\d,]+) ngày(?: \(nhận ([^,)]+), trả ([^)]+)\))?(?: × [\d.]+đ)? = ([\d.]+)đ/;
+/**
+ * Đọc xe máy thuê kèm của đơn combo: ưu tiên các cột có cấu trúc (`bikeCount`…), đơn cũ chưa có cột thì
+ * tách từ `selectionLabel` ("… thuê xe máy Honda Wave: 1 xe × 1,5 ngày (nhận …, trả …) × 170.000đ = 255.000đ …").
+ * Không có xe kèm ⇒ null.
+ */
+export function comboBikeFacts(b: {
+  category: string;
+  selectionLabel?: string | null;
+  nights?: number | null;
+  bikeCount?: number | null;
+  bikeType?: string | null;
+  bikeFrom?: Date | null;
+  bikeTo?: Date | null;
+  bikePickup?: string | null;
+  bikeReturn?: string | null;
+  bikeAmount?: unknown;
+}): ComboBikeFacts | null {
+  if (b.category !== "COMBO") return null;
+  const dmyOf = (d: Date) => {
+    const k = d.toISOString().slice(0, 10);
+    return `${k.slice(8, 10)}/${k.slice(5, 7)}/${k.slice(0, 4)}`;
+  };
+  if ((b.bikeCount ?? 0) > 0 && b.bikeFrom && b.bikeTo) {
+    const bike = comboMotorbike(b.bikeType);
+    const gap = Math.round((b.bikeTo.getTime() - b.bikeFrom.getTime()) / 86_400_000);
+    const amount = b.bikeAmount == null ? NaN : Number(b.bikeAmount);
+    return {
+      name: bike.name,
+      count: b.bikeCount!,
+      days: comboMotorbikeDays(b.nights ?? 1, b.bikePickup, b.bikeReturn, gap),
+      perDay: bike.perDay,
+      pickup: `${b.bikePickup ? `${b.bikePickup} ` : ""}${dmyOf(b.bikeFrom)}`,
+      ret: `${b.bikeReturn ? `${b.bikeReturn} ` : ""}${dmyOf(b.bikeTo)}`,
+      amount: Number.isFinite(amount) ? amount : null,
+    };
+  }
+  const m = BIKE_LABEL_RE.exec(b.selectionLabel ?? "");
+  if (!m) return null;
+  const name = m[1]?.trim() || COMBO_MOTORBIKES[0].name;
+  const count = Number(m[2]);
+  const days = Number(m[3].replace(",", "."));
+  const amount = Number(m[6].replace(/\./g, ""));
+  return {
+    name,
+    count,
+    days,
+    perDay: COMBO_MOTORBIKES.find((x) => x.name === name)?.perDay ?? (count > 0 && days > 0 ? Math.round(amount / (count * days)) : null),
+    pickup: m[4]?.trim() || null,
+    ret: m[5]?.trim() || null,
+    amount: Number.isFinite(amount) ? amount : null,
+  };
+}
+
 /**
  * Tiền ĐÃ THU quy về MỘT BÊN của đơn combo (nhà xe: tiền vé, homestay: tiền phòng):
  * - khách đã thanh toán đủ ⇒ bên đó nhận đủ phần của mình;

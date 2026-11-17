@@ -12,7 +12,8 @@ function getSecret(): Uint8Array {
   return new TextEncoder().encode(secret);
 }
 
-export type Role = "ADMIN" | "CTV" | "PROVIDER";
+/** DEMO = khách xem bản demo quản lý xe (chỉ vào /admin/provider/xe của nhà xe demo — src/lib/fleet-demo.ts). */
+export type Role = "ADMIN" | "CTV" | "PROVIDER" | "STAFF" | "DEMO";
 
 export interface SessionPayload {
   sub: string;
@@ -43,7 +44,7 @@ export async function verifySessionToken(
       sub: payload.sub,
       username: String(payload.username ?? ""),
       name: String(payload.name ?? ""),
-      role: (role === "CTV" || role === "PROVIDER" ? role : "ADMIN") as Role,
+      role: (role === "CTV" || role === "PROVIDER" || role === "STAFF" || role === "DEMO" ? role : "ADMIN") as Role,
     };
   } catch {
     return null;

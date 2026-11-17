@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { canManageFleet } from "@/lib/fleet";
+import { getDemoSession } from "@/lib/fleet-demo";
 import { MAX_VIDEO_BYTES, processAndSaveMedia, resolveMediaType } from "@/lib/media";
 
 export const dynamic = "force-dynamic";
@@ -20,8 +21,12 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "Tệp quá lớn hoặc tải lên bị gián đoạn." }, { status: 400 });
   }
+  if (session?.role === "DEMO") return NextResponse.json({ error: "Bản demo không tải ảnh / video lên được." }, { status: 403 });
   const serviceId = String(fd.get("serviceId") ?? "");
-  if (!(await canManageFleet(session, serviceId))) return NextResponse.json({ error: "Không có quyền." }, { status: 403 });
+  if (!(await canManageFleet(session, serviceId))) {
+    const demo = await getDemoSession();
+    return NextResponse.json({ error: demo ? "Bản demo không tải ảnh / video lên được." : "Không có quyền." }, { status: 403 });
+  }
   const file = fd.get("file");
   if (!(file instanceof File) || file.size === 0) return NextResponse.json({ error: "Chưa chọn tệp." }, { status: 400 });
   const mime = resolveMediaType(file.type, file.name);

@@ -18,6 +18,7 @@ export default async function AdminLayout({
 
   // Số đơn yêu cầu chưa xử lý (trạng thái NEW) để hiển thị badge trên menu.
   const badges: Record<string, number> = {};
+  const hideNav: string[] = [];
   if (session.role === "ADMIN") {
     const [count, fbCount] = await Promise.all([
       prisma.bookingRequest.count({ where: { status: "NEW" } }),
@@ -48,6 +49,8 @@ export default async function AdminLayout({
       },
     });
     if (count > 0) badges["/admin/provider/don"] = count;
+    // Menu "Quản lý xe máy" chỉ hiện cho chủ có dịch vụ thuê xe máy.
+    if (!(await prisma.service.count({ where: { ownerId: sub, category: "MOTORBIKE" } }))) hideNav.push("/admin/provider/xe");
   }
 
   return (
@@ -55,6 +58,7 @@ export default async function AdminLayout({
       adminName={session.name}
       role={session.role}
       badges={badges}
+      hideNav={hideNav}
       vapidKey={process.env.VAPID_PUBLIC_KEY ?? ""}
     >
       {children}

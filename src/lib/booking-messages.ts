@@ -13,7 +13,7 @@ import { CATEGORIES } from "@/lib/constants";
 import { resolveBusCommissions, resolveRoomCommissions } from "@/lib/provider-commission";
 import { isRentalCategory, durationLabel } from "@/lib/occupancy";
 import { bookingRentalDays, rentalDaysLabel } from "@/lib/rental-days";
-import { bookingCabinBerths, cabinBerthsLabel } from "@/lib/combo-pricing";
+import { bookingCabinBerths, cabinBerthsLabel, comboBikeFacts } from "@/lib/combo-pricing";
 import { parseSurcharges } from "@/lib/surcharges";
 
 /**
@@ -170,6 +170,16 @@ export async function buildBookingMessages(
           `- Trả phòng: trước ${STAY_CHECKOUT_TIME} ngày ${formatDate(b.endDate!)} (${b.nights} đêm)`,
         ]
       : [];
+  // Combo có thuê xe máy kèm (dịch vụ tính riêng, không nằm trong bill) ⇒ ghi rõ trong mọi tin gửi khách.
+  const bike = comboBikeFacts(b);
+  const bikeLines = bike
+    ? [
+        `🏍️ THUÊ XE MÁY KÈM: ${bike.name}`,
+        `- ${bike.count} xe × ${rentalDaysLabel(bike.days)}${bike.pickup && bike.ret ? ` (nhận ${bike.pickup}, trả ${bike.ret})` : ""}`,
+        ...(bike.amount != null ? [`- Giá tham khảo: ${formatPrice(bike.amount)} (chưa phải giá cuối, tính theo giờ sử dụng xe thực tế)`] : []),
+        `- Tính riêng, không nằm trong bill combo — thanh toán trực tiếp khi giao xe`,
+      ]
+    : [];
   // Tiền cọc giữ chỗ = 50% tổng tiền (làm tròn lên nghìn đồng), tự tính theo giá đơn.
   const deposit = price != null && price > 0 ? Math.ceil((price * DEPOSIT_RATE) / 1000) * 1000 : null;
   const depositLines =
@@ -184,7 +194,7 @@ export async function buildBookingMessages(
     `Chào ${b.customerName},`,
     `Tà Xùa Booking đã nhận yêu cầu ${b.code}:`,
     ...(busLines.length || stayLines.length
-      ? [...(busLines.length ? ["", ...busLines] : []), ...(stayLines.length ? ["", ...stayLines] : []), ""]
+      ? [...(busLines.length ? ["", ...busLines] : []), ...(stayLines.length ? ["", ...stayLines] : []), ...(bikeLines.length ? ["", ...bikeLines] : []), ""]
       : [
           `• Dịch vụ: ${b.serviceTitle}`,
           `• Ngày: ${formatDate(b.useDate)}${b.endDate ? ` → ${formatDate(b.endDate)}` : ""}${durationLabel(b) ? ` (${durationLabel(b)})` : ""}`,
@@ -234,6 +244,7 @@ export async function buildBookingMessages(
         ...(b.roomAmount != null ? [`- Tiền phòng: ${formatPrice(b.roomAmount)}`] : []),
       );
     }
+    if (bikeLines.length) confirmLines.push("", ...bikeLines);
     confirmLines.push(
       "",
       ...surchargeLines,
@@ -429,25 +440,24 @@ export async function buildBookingMessages(
   // = 300.000đ — khách thanh toán khi giao xe"; đơn cũ: "thuê xe máy: …") ⇒ thêm 1 khối riêng trong email.
   const label = b.selectionLabel ?? "";
   // Ngoặc nhận/trả: đơn cũ chỉ có giờ "(nhận 06:00, trả 06:00)"; đơn mới có cả ngày "(nhận 06:00 12/12/2026, trả 18:00 13/12/2026)".
-  const moto = /thuê xe máy (?:([^:·]+): )?(\d+) xe × ([\d,]+) ngày(?: \(nhận ([^,)]+), trả ([^)]+)\))?(?: × [\d.]+đ)? = ([\d.]+)đ/.exec(label);
-  const motoOld = moto ? null : /(?:^| · )thuê xe máy: ([^·]+)/.exec(label);
-  if (b.category === "COMBO" && (moto || motoOld)) {
+  const motoOld = bike ? null : /(?:^| · )thuê xe máy: ([^·]+)/.exec(label);
+  if (b.category === "COMBO" && (bike || motoOld)) {
     sections.push({
       tag: "Thuê xe máy",
-      name: moto?.[1]?.trim() || "Xe máy thuê kèm",
+      name: bike ? `${bike.name} (thuê kèm)` : "Xe máy thuê kèm",
       amount: null,
-      rows: moto
+      rows: bike
         ? [
-            ["Số xe", `${moto[2]} xe`],
-            ...(moto[4] && moto[5]
-              ? /\//.test(moto[4] + moto[5])
-                ? ([["Nhận xe", moto[4].trim()], ["Trả xe", moto[5].trim()]] as [string, string][])
-                : ([["Giờ nhận – trả", `${moto[4]} – ${moto[5]}`]] as [string, string][])
+            ["Số xe", `${bike.count} xe`],
+            ...(bike.pickup && bike.ret
+              ? /\//.test(bike.pickup + bike.ret)
+                ? ([["Nhận xe", bike.pickup], ["Trả xe", bike.ret]] as [string, string][])
+                : ([["Giờ nhận – trả", `${bike.pickup} – ${bike.ret}`]] as [string, string][])
               : []),
-            ["Thời gian tính tiền", `${moto[3]} ngày`],
-            ["Thanh toán", "Trả khi nhận xe"],
+            ["Thời gian tính tiền", rentalDaysLabel(bike.days)],
+            ["Thanh toán", "Trả khi nhận xe — tính riêng, không gồm trong bill combo"],
             ["Lưu ý", "Giá tham khảo, chưa phải giá cuối — giá chính thức tính theo giờ sử dụng xe thực tế"],
-            ["Tiền thuê xe (tham khảo)", `${moto[6]}đ`],
+            ...(bike.amount != null ? ([["Tiền thuê xe (tham khảo)", formatPrice(bike.amount)]] as [string, string][]) : []),
           ]
         : [["Chi tiết", motoOld![1].trim()]],
     });

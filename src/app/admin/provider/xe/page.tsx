@@ -39,6 +39,8 @@ export default async function FleetPage({ searchParams }: { searchParams: Promis
       services={services.map((s) => ({ id: s.id, title: s.title }))}
       webTypes={svc.rentalVehicles.map((r) => ({ id: r.id, name: r.vehicleType }))}
       hotline={svc.contactPhone || svc.owner?.phone || ""}
+      viewerRole={session.role === "STAFF" ? "STAFF" : session.role === "PROVIDER" || session.role === "DEMO" ? "PROVIDER" : "ADMIN"}
+      demo={session.role === "DEMO" || svc.title.endsWith("(demo)")}
       initial={data}
     />
   );

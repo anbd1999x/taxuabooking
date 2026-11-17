@@ -36,6 +36,7 @@ import {
   today,
 } from "./dates";
 import { checkWeekendPolicy } from "./weekend-policy";
+import { fleetFreeByWebType } from "./fleet";
 import { toNumber } from "./format";
 
 /**
@@ -872,12 +873,21 @@ export async function getRentalBikes(from: string | null, to: string | null): Pr
     }
   }
 
+  // Nhà xe có ĐỘI XE THẬT ⇒ số xe còn trống theo đội xe (thay lịch tồn nhập tay).
+  const fleetFree = start
+    ? await fleetFreeByWebType(services.map((s) => s.id), toDateKey(start), toDateKey(end!))
+    : new Map<string, { free: number; total: number }>();
+
   const cards: RentalBikeCard[] = [];
   for (const s of services) {
     for (const v of s.rentalVehicles) {
       let available: number | null = null;
       let state: RentalBikeCard["state"] = "unk";
-      if (start) {
+      const ff = fleetFree.get(v.id);
+      if (ff) {
+        available = ff.free;
+        state = ff.free <= 0 ? "full" : ff.free <= 2 ? "low" : "ok";
+      } else if (start) {
         const m = availMap.get(v.id);
         let min = Infinity;
         let missing = false;

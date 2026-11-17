@@ -12,7 +12,7 @@ async function adminGuard(request: NextRequest) {
   const session = token ? await verifySessionToken(token) : null;
 
   const isLogin = pathname === "/admin/login";
-  const home = (r?: string) => (r === "CTV" ? "/admin/ctv" : r === "PROVIDER" ? "/admin/provider" : "/admin");
+  const home = (r?: string) => (r === "CTV" ? "/admin/ctv" : r === "PROVIDER" ? "/admin/provider" : r === "STAFF" || r === "DEMO" ? "/admin/provider/xe" : "/admin");
 
   if (isLogin) {
     if (session) return NextResponse.redirect(new URL(home(session.role), request.url));
@@ -30,6 +30,12 @@ async function adminGuard(request: NextRequest) {
   const isProviderArea = pathname.startsWith("/admin/provider");
   // Chủ dịch vụ được vào "Lịch giá & tình trạng" (dữ liệu đã lọc theo ownerId trong trang/API).
   const isAvailability = pathname.startsWith("/admin/availability");
+
+  // Nhân viên giao xe: CHỈ trang quản lý xe.
+  if (role === "STAFF" || role === "DEMO") {
+    if (!pathname.startsWith("/admin/provider/xe")) return NextResponse.redirect(new URL(home(role), request.url));
+    return NextResponse.next();
+  }
 
   if (isCtvArea) {
     if (role !== "CTV" && role !== "ADMIN") return NextResponse.redirect(new URL(home(role), request.url));

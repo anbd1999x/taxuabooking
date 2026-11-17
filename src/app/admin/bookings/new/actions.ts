@@ -21,6 +21,7 @@ import { adminExtraCost } from "@/lib/occupancy";
 import { tripsOnDate, peekTrip, materializeTrip, ensureTripOnDate, type TripView } from "@/lib/cabin-trips";
 import type { CabinDirection } from "@prisma/client";
 import { loadBookingEdit, type BookingEditProps } from "@/lib/booking-edit";
+import { syncFleetForBooking } from "@/lib/fleet";
 
 /** Chuyến thật của nhà xe theo id (id ảo ⇒ tạo chuyến thật cho ngày đó). Sai nhà xe/chiều ⇒ null. */
 async function resolveAdminTrip(id: string, serviceId: string, direction: CabinDirection) {
@@ -568,6 +569,7 @@ export async function createAdminBooking(
     return { error: err instanceof Error ? err.message : "Có lỗi xảy ra." };
   }
 
+  await syncFleetForBooking(id).catch(() => {}); // đơn xe máy: tự xếp xe trong đội xe
   for (const p of ["/admin/bookings", "/admin/reports", "/admin/provider/don", "/admin/availability", "/admin/ctv/don"]) {
     revalidatePath(p);
   }
@@ -661,6 +663,7 @@ export async function updateAdminBooking(
     return { error: err instanceof Error ? err.message : "Có lỗi xảy ra." };
   }
 
+  await syncFleetForBooking(id).catch(() => {}); // đơn xe máy: đồng bộ đội xe theo thông tin mới
   for (const p of ["/admin/bookings", "/admin/reports", "/admin/provider/don", "/admin/availability", "/admin/ctv/don", `/admin/bookings/${id}`]) {
     revalidatePath(p);
   }

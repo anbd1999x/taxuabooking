@@ -105,7 +105,7 @@ export default async function AccountsPage() {
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${u.role === "CTV" ? "bg-sky-100 text-sky-700" : "bg-amber-100 text-amber-700"}`}>{u.role === "CTV" ? "CTV" : "Chủ dịch vụ"}</span></td>
+                  <td className="px-4 py-3"><span className={`rounded-full px-2.5 py-1 text-xs font-medium ${u.role === "CTV" ? "bg-sky-100 text-sky-700" : "bg-amber-100 text-amber-700"}`}>{u.role === "CTV" ? "CTV" : u.role === "STAFF" ? "Nhân viên xe" : "Chủ dịch vụ"}</span></td>
                   <td className="px-4 py-3 hidden sm:table-cell text-gray-600">{u.phone ?? "—"}</td>
                   <td className="px-4 py-3">
                     {u.role === "CTV" ? (

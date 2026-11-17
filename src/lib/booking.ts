@@ -2,7 +2,7 @@ import { quoteTransport, OTHER_POINT, type TransportLegDTO, type TransportPointD
 import { isRentalTime, rentalChargeDays, rentalDaysLabel } from "./rental-days";
 import "server-only";
 import { ensureServiceSheetFresh } from "./sheet-sync";
-import { autoAssignFleetForBooking } from "./fleet";
+import { autoAssignFleetForBooking, fleetFreeByWebType } from "./fleet";
 import type { ServiceCategory } from "@prisma/client";
 import { prisma } from "./prisma";
 import { CATEGORIES } from "./constants";
@@ -186,6 +186,8 @@ export async function computeAvailability(
     const timed = isRentalTime(times?.pickup) && isRentalTime(times?.ret);
     const charge = timed ? rentalChargeDays(fromKey, toKey, times!.pickup, times!.ret) : null;
     if (timed && charge == null) throw new Error("Giờ trả xe phải sau giờ nhận xe.");
+    // Nhà xe đã nhập ĐỘI XE THẬT ⇒ "còn xe" tính theo xe rảnh trong đội xe (thay lịch tồn nhập tay).
+    const fleetFree = await fleetFreeByWebType([serviceId], fromKey, toKey ?? fromKey, times?.pickup, times?.ret);
     const stayOptions: StayOption[] = vehicles.map((v) => {
       const records = byV.get(v.id) ?? new Map();
       const price = toNumber(v.pricePerDay)!;
@@ -207,13 +209,14 @@ export async function computeAvailability(
         pricing: { weekdayPrice: price, weekendPrice: price, holidayPrice: null },
         records,
       });
+      const ff = fleetFree.get(v.id);
       return {
         id: v.id,
         name: v.vehicleType,
         capacity: 1,
-        status: r.status,
-        bookable: r.bookable,
-        availableUnits: r.minAvailableUnits,
+        status: ff ? (ff.free >= qty ? (ff.free <= 2 ? "LIMITED" : "AVAILABLE") : "SOLD_OUT") : r.status,
+        bookable: ff ? ff.free >= qty : r.bookable,
+        availableUnits: ff ? ff.free : r.minAvailableUnits,
         // Xe máy luôn có giá/ngày niêm yết: ngày chưa nhập lịch vẫn tính được tiền thuê
         // (tình trạng thì vẫn "chờ xác nhận") — trước đây đơn bị để trống giá.
         pricePerUnit:
@@ -409,6 +412,15 @@ export async function createBooking(
     const opt = computed.stayOptions.find((o) => o.id === input.rentalVehicleId);
     if (!opt && computed.stayOptions.length > 0) throw new Error("Loại xe đã chọn không hợp lệ — vui lòng chọn lại.");
     if (opt) {
+      // Đội xe thật hết xe trống trong kỳ thuê ⇒ không nhận đơn (tránh nhận quá số xe).
+      const ff = (await fleetFreeByWebType([service.id], input.useDate, input.endDate ?? input.useDate, input.pickupTime, input.returnTime)).get(opt.id);
+      if (ff && ff.free < qty) {
+        throw new Error(
+          ff.free > 0
+            ? `Chỉ còn ${ff.free} xe ${opt.name} trống trong thời gian này — vui lòng giảm số xe hoặc chọn ngày khác.`
+            : `Xe ${opt.name} đã kín lịch trong thời gian này — vui lòng chọn ngày hoặc loại xe khác.`,
+        );
+      }
       rentalVehicleId = opt.id;
       const timed = isRentalTime(input.pickupTime) && isRentalTime(input.returnTime);
       // Màu chỉ nhận khi thuộc danh sách màu của loại xe (không tin chuỗi tự do từ client).

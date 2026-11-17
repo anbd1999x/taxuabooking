@@ -38,6 +38,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/cafe`, changeFrequency: "weekly", priority: 0.6 },
     { url: `${base}/lien-he`, changeFrequency: "monthly", priority: 0.4 },
     { url: `${base}/gioi-thieu`, changeFrequency: "monthly", priority: 0.4 },
+    { url: `${base}/hop-tac/xe-may`, changeFrequency: "monthly", priority: 0.4 },
     { url: `${base}/gop-y`, changeFrequency: "daily", priority: 0.5 },
     { url: `${base}/cam-ket`, changeFrequency: "monthly", priority: 0.5 },
   ];

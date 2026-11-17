@@ -43,5 +43,5 @@ export async function loginAction(
   });
   await setSessionCookie(token);
   // CTV & chủ dịch vụ về khu vực riêng; admin về trang quản trị.
-  redirect(user.role === "CTV" ? "/admin/ctv" : user.role === "PROVIDER" ? "/admin/provider" : "/admin");
+  redirect(user.role === "CTV" ? "/admin/ctv" : user.role === "PROVIDER" ? "/admin/provider" : user.role === "STAFF" ? "/admin/provider/xe" : "/admin");
 }

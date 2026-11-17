@@ -25,8 +25,23 @@ export async function register() {
     try {
       const cancelled = await cancelExpiredUnpaidBookingsLocked();
       if (cancelled && cancelled.length) console.log("[auto-cancel] quá hạn thanh toán:", cancelled.join(", "));
+      // Đơn xe máy / combo có xe máy vừa bị tự huỷ ⇒ nhả xe trong đội xe ngay.
+      if (cancelled && cancelled.length) {
+        const { prisma } = await import("./lib/prisma");
+        const { syncFleetForBooking } = await import("./lib/fleet");
+        const ids = await prisma.bookingRequest.findMany({ where: { code: { in: cancelled } }, select: { id: true } });
+        for (const b of ids) await syncFleetForBooking(b.id).catch(() => {});
+      }
     } catch (err) {
       console.error("[auto-cancel] lỗi", err);
+    }
+    // Đội xe: tự nhả xe của lượt thuê tạo tay quá hạn chưa cọc (Cài đặt → "Tự nhả xe nếu chưa cọc sau").
+    try {
+      const { releaseExpiredHolds } = await import("./lib/fleet");
+      const n = await releaseExpiredHolds();
+      if (n) console.log("[fleet] tự nhả xe chưa cọc:", n);
+    } catch (err) {
+      console.error("[fleet] lỗi nhả xe", err);
     }
     try {
       const res = await runBookingRemindersLocked();

@@ -9,7 +9,8 @@ import { SITE } from "@/lib/site";
 import { CATEGORIES } from "@/lib/constants";
 import { getSettings } from "@/lib/queries";
 import { isSoldOutCancel } from "@/lib/cancel-reason";
-import { bookingCabinBerths, cabinBerthsLabel, cabinBerthLines } from "@/lib/combo-pricing";
+import { bookingCabinBerths, cabinBerthsLabel, cabinBerthLines, comboBikeFacts } from "@/lib/combo-pricing";
+import { rentalDaysLabel } from "@/lib/rental-days";
 import { TraCuuLookup, type LookupOrder, type LookupPart, type LookupStatus } from "@/components/TraCuuLookup";
 import { getT } from "@/lib/i18n/server";
 import { i18nMeta } from "@/lib/i18n/meta";
@@ -56,7 +57,9 @@ function fmtRange(from: Date, to: Date | null): string {
   return fy === t.split("/")[2] ? `${fd}/${fm} → ${t}` : `${f} → ${t}`;
 }
 
-function str(v: string | string[] | undefined): string {
+const vndText = (n: number) => n.toLocaleString("vi-VN") + "đ";
+
+function str(v:string | string[] | undefined): string {
   return (Array.isArray(v) ? v[0] : v) ?? "";
 }
 
@@ -118,6 +121,23 @@ export default async function LookupPage({
         // Phần phòng: bỏ đuôi "· xe nằm: …" (đã hiện ở phần vé xe).
         { k: "HS", name: comboLabel.slice(plusAt + 3).replace(/\s*·\s*xe nằm:.*$/i, "").trim(), d: null, price: roomAmount },
       );
+      // Xe máy thuê kèm (dịch vụ tính riêng, không nằm trong tổng đơn) — hiện như màn "Đã gửi yêu cầu combo".
+      const bike = comboBikeFacts(b);
+      if (bike) {
+        const days = rentalDaysLabel(bike.days, tr);
+        parts.push({
+          k: "XM",
+          name: `${tr("🏍️ Thuê xe máy")} ${tr(bike.name)} ${tr("(dịch vụ kèm · tính riêng)")}`,
+          d:
+            (bike.pickup && bike.ret && bike.perDay
+              ? tr("{0} · {1} xe × {2} × {3} · nhận {4}, trả {5}", [tr(bike.name), bike.count, days, vndText(bike.perDay), bike.pickup, bike.ret])
+              : `${bike.count} xe × ${days}`) +
+            " — " +
+            tr("giá tham khảo, chưa phải giá cuối") +
+            tr(". Dịch vụ đi kèm, tính riêng, không nằm trong bill combo; giá chính thức tính theo giờ sử dụng xe thực tế, thanh toán trực tiếp khi giao xe."),
+          price: bike.amount,
+        });
+      }
     } else {
       parts.push({
         k: meta.ic,

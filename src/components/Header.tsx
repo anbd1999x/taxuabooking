@@ -29,7 +29,7 @@ export function Header({ customerName = null, showCommitment = true }: { custome
   const home = isHomePath(pathname);
   const phone = useSitePhone();
   const [open, setOpen] = useState(false);
-  const [dd, setDd] = useState(false); // dropdown "Cẩm nang" (desktop)
+  const [dd, setDd] = useState<"" | "guide" | "partner">(""); // dropdown đang mở (desktop): Cẩm nang / Hợp tác
   const [scrolled, setScrolled] = useState(false);
   const progRef = useRef<HTMLDivElement>(null);
   const firstName = customerName ? customerName.trim().split(/\s+/).slice(-1)[0] : "";
@@ -97,6 +97,8 @@ export function Header({ customerName = null, showCommitment = true }: { custome
     { href: "/tra-cuu", label: t("Tra cứu đơn hàng") },
     { href: "/gop-y", label: t("Góp ý") },
   ];
+  // Menu "Hợp tác": trang giới thiệu cho chủ dịch vụ (tiệm xe…).
+  const PARTNER_LINKS = [{ href: "/hop-tac/xe-may", label: t("Quản lý tiệm xe máy") }];
 
   const navItem = cn(
     "whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold transition",
@@ -149,27 +151,29 @@ export function Header({ customerName = null, showCommitment = true }: { custome
               </Link>
             )}
             {/* Menu cấp 2: hover hoặc click mới xổ ra */}
-            <div className="group relative" onMouseLeave={() => setDd(false)}>
-              <button type="button" onClick={() => setDd((o) => !o)} className={cn(navItem, "flex items-center gap-1")}>
-                {t("Cẩm nang")}
-                <span className="text-[10px] transition group-hover:rotate-180">▼</span>
-              </button>
-              {/* pt-1 làm cầu nối hover giữa nút và panel (không bị tắt khi rê chuột qua khe) */}
-              <div className={cn("absolute left-0 top-full z-50 pt-1", dd ? "block" : "hidden group-hover:block")}>
-                <div className="w-56 rounded-2xl bg-white p-1.5 text-ink shadow-lg ring-1 ring-black/5" style={{ textShadow: "none" }}>
-                  {GUIDE_LINKS.map((l) => (
-                    <Link
-                      key={l.href}
-                      href={l.href}
-                      onClick={() => setDd(false)}
-                      className="block rounded-xl px-3 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700"
-                    >
-                      {l.label}
-                    </Link>
-                  ))}
+            {([["guide", t("Cẩm nang"), GUIDE_LINKS], ["partner", t("Hợp tác"), PARTNER_LINKS]] as const).map(([key, label, links]) => (
+              <div key={key} className="group relative" onMouseLeave={() => setDd("")}>
+                <button type="button" onClick={() => setDd((o) => (o === key ? "" : key))} className={cn(navItem, "flex items-center gap-1")}>
+                  {label}
+                  <span className="text-[10px] transition group-hover:rotate-180">▼</span>
+                </button>
+                {/* pt-1 làm cầu nối hover giữa nút và panel (không bị tắt khi rê chuột qua khe) */}
+                <div className={cn("absolute top-full z-50 pt-1", key === "partner" ? "right-0" : "left-0", dd === key ? "block" : "hidden group-hover:block")}>
+                  <div className="w-56 rounded-2xl bg-white p-1.5 text-ink shadow-lg ring-1 ring-black/5" style={{ textShadow: "none" }}>
+                    {links.map((l) => (
+                      <Link
+                        key={l.href}
+                        href={l.href}
+                        onClick={() => setDd("")}
+                        className="block rounded-xl px-3 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-forest-50 hover:text-forest-700"
+                      >
+                        {l.label}
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            ))}
           </nav>
 
           <div className="flex flex-none items-center gap-2 lg:gap-3.5">
@@ -299,6 +303,25 @@ export function Header({ customerName = null, showCommitment = true }: { custome
             >
               <MenuTitle className="mb-1">{t("Cẩm nang Tà Xùa")}</MenuTitle>
               {GUIDE_LINKS.map((l) => (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  onClick={() => setOpen(false)}
+                  className="flex items-center justify-between gap-2.5 border-b border-white/[.08] px-0.5 py-3 text-[15px] font-semibold"
+                  style={{ color: "oklch(0.94 0.015 90)" }}
+                >
+                  <span>{l.label}</span>
+                  <span className="text-sm opacity-45">›</span>
+                </Link>
+              ))}
+            </div>
+
+            <div
+              className={cn("flex flex-col gap-1 transition-[opacity,transform] duration-700", open ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0")}
+              style={{ transitionDelay: open ? ".5s" : "0s" }}
+            >
+              <MenuTitle className="mb-1">{t("Hợp tác")}</MenuTitle>
+              {PARTNER_LINKS.map((l) => (
                 <Link
                   key={l.href}
                   href={l.href}

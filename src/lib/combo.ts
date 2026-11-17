@@ -13,6 +13,7 @@ import { busCommissionFor } from "./provider-commission";
 import { comboMotorbike, comboMotorbikeCost, comboMotorbikeDays, comboMotorbikeValid } from "./combo-pricing";
 import { isRentalTime, rentalDaysLabel } from "./rental-days";
 import { ensureServiceSheetFresh } from "./sheet-sync";
+import { autoAssignFleetForBooking } from "./fleet";
 import { tripsOnDate, peekTrip, materializeTrip, OPEN_SEATS, type TripView } from "./cabin-trips";
 export { cabinAllocation, busCostPerPerson } from "./combo-pricing";
 
@@ -1179,7 +1180,7 @@ export async function createComboBooking(
     code = generateBookingCode("COMBO");
   }
 
-  await prisma.bookingRequest.create({
+  const created = await prisma.bookingRequest.create({
     data: {
       code,
       category: "COMBO",
@@ -1211,6 +1212,18 @@ export async function createComboBooking(
       cabinSolo: nSingle,
       selectionLabel,
       referencePrice: total, // KHÔNG gồm tiền thuê xe máy (tính riêng, trả khi giao xe)
+      // Xe máy thuê kèm (tính riêng) ⇒ lưu có cấu trúc để tự xếp vào đội xe của nhà xe máy.
+      ...(bikes > 0
+        ? {
+            bikeCount: bikes,
+            bikeType: bike.key,
+            bikeFrom: parseDateOnly(bikeFromKey),
+            bikeTo: parseDateOnly(bikeToKey),
+            bikePickup: bikeTimed ? input.motorbikePickup : null,
+            bikeReturn: bikeTimed ? input.motorbikeReturn : null,
+            bikeAmount: bikeCost,
+          }
+        : {}),
       roomAmount,
       busAmount,
       needsConfirmation: true,
@@ -1220,6 +1233,8 @@ export async function createComboBooking(
       busCommission: busCommissionFor(busSvc?.busCommission, people, 2),
     },
   });
+  // Có thuê xe máy kèm ⇒ tự xếp xe trống của nhà xe máy (lỗi không ảnh hưởng đơn combo).
+  if (bikes > 0) await autoAssignFleetForBooking(created.id).catch(() => {});
 
   return { code, needsConfirmation: true };
 }

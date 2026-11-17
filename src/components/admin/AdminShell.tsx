@@ -62,6 +62,8 @@ const CTV_NAV: NavGroup[] = [
     ],
   },
 ];
+/** Nhân viên giao xe (tài khoản do chủ xe tạo): chỉ trang quản lý xe. */
+const STAFF_NAV: NavGroup[] = [{ title: null, items: [{ href: "/admin/provider/xe", label: "Việc giao / nhận xe", exact: false }] }];
 const PROVIDER_NAV: NavGroup[] = [
   {
     title: null,
@@ -80,12 +82,15 @@ export function AdminShell({
   adminName,
   role = "ADMIN",
   badges,
+  hideNav = [],
   vapidKey = "",
   children,
 }: {
   adminName: string;
-  role?: "ADMIN" | "CTV" | "PROVIDER";
+  role?: "ADMIN" | "CTV" | "PROVIDER" | "STAFF" | "DEMO";
   badges?: Record<string, number>;
+  /** Mục menu ẩn theo tài khoản (vd chủ không có xe máy ⇒ ẩn "Quản lý xe máy"). */
+  hideNav?: string[];
   /** VAPID public key — có thì hiện nút bật Web Push thông báo đơn mới (ADMIN). */
   vapidKey?: string;
   children: React.ReactNode;
@@ -94,8 +99,9 @@ export function AdminShell({
   const [open, setOpen] = useState(false);
   // Nhóm do người dùng bấm mở/thu gọn; chưa bấm → mở nhóm chứa trang hiện tại.
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
-  const NAV = role === "CTV" ? CTV_NAV : role === "PROVIDER" ? PROVIDER_NAV : ADMIN_NAV;
-  const roleLabel = role === "CTV" ? "CTV" : role === "PROVIDER" ? "Chủ dịch vụ" : "Quản trị";
+  const NAV0 = role === "CTV" ? CTV_NAV : role === "PROVIDER" ? PROVIDER_NAV : role === "STAFF" ? STAFF_NAV : role === "DEMO" ? STAFF_NAV : ADMIN_NAV;
+  const NAV = hideNav.length ? NAV0.map((g) => ({ ...g, items: g.items.filter((it) => !hideNav.includes(it.href)) })) : NAV0;
+  const roleLabel = role === "CTV" ? "CTV" : role === "PROVIDER" ? "Chủ dịch vụ" : role === "STAFF" ? "Nhân viên" : role === "DEMO" ? "Bản demo" : "Quản trị";
 
   function isActive(item: NavItem) {
     return item.exact ? pathname === item.href : pathname.startsWith(item.href);
