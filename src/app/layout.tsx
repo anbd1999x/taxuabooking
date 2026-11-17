@@ -44,7 +44,12 @@ export async function generateMetadata(): Promise<Metadata> {
     description: t(SITE.description),
     images: ogImages(undefined, t("Biển mây Tà Xùa")),
   },
-  robots: { index: true, follow: true },
+  // max-image-preview:large ⇒ cho phép Google hiện ảnh xem trước cỡ lớn cạnh kết quả tìm kiếm / Discover.
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 },
+  },
   // Mã xác minh Google Search Console (đặt GOOGLE_SITE_VERIFICATION trong .env server).
   verification: process.env.GOOGLE_SITE_VERIFICATION
     ? { google: process.env.GOOGLE_SITE_VERIFICATION }
