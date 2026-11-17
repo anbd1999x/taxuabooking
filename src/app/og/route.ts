@@ -6,7 +6,7 @@ import { OG_HEIGHT, OG_WIDTH } from "@/lib/og";
 export const runtime = "nodejs";
 
 const PUBLIC_DIR = path.join(process.cwd(), "public");
-const FALLBACK = "/hero-taxua.jpg";
+const FALLBACK = "/hero-taxua-v5.jpg"; // banner trang chủ v5
 
 /** Chỉ đọc file ảnh nằm trong thư mục public (chặn "../" và đường dẫn lạ). */
 function resolvePublic(u: string): string | null {

@@ -6,6 +6,9 @@ import { isVideoUrl } from "@/lib/utils";
 export const OG_WIDTH = 1200;
 export const OG_HEIGHT = 630;
 
+/** Ảnh xem trước mặc định = banner trang chủ hiện tại. Đổi banner ⇒ sửa ở đây (và FALLBACK trong app/og/route.ts). */
+export const DEFAULT_OG = "/hero-taxua-v5.jpg";
+
 type OgImage = { url: string; width?: number; height?: number; alt?: string };
 
 /**
@@ -17,7 +20,9 @@ export function ogImages(src?: string | null, alt = "Biển mây Tà Xùa"): OgI
   const s = (src ?? "").trim();
   if (/^https?:\/\//i.test(s)) return [{ url: s, alt }];
   const local = s.startsWith("/") && !isVideoUrl(s) ? s : "";
-  return [{ url: local ? `/og?u=${encodeURIComponent(local)}` : "/og", width: OG_WIDTH, height: OG_HEIGHT, alt }];
+  // Không có ảnh ⇒ banner trang chủ (ghi rõ trong URL để đổi banner là đổi luôn link ảnh, Zalo/Facebook không giữ ảnh cũ).
+  const img = local || DEFAULT_OG;
+  return [{ url: `/og?u=${encodeURIComponent(img)}`, width: OG_WIDTH, height: OG_HEIGHT, alt }];
 }
 
 /**
