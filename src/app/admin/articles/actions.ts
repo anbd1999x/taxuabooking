@@ -27,6 +27,25 @@ function slugify(t: string): string {
     .slice(0, 80);
 }
 
+/** STT nổi bật: số nguyên 0…9999 (trống / không hợp lệ ⇒ 0 = bài thường). */
+function featuredOrderOf(v: FormDataEntryValue | null): number {
+  const n = Math.floor(Number(typeof v === "string" ? v.trim() : ""));
+  return Number.isFinite(n) ? Math.min(9999, Math.max(0, n)) : 0;
+}
+
+/** Đổi nhanh STT nổi bật ngay ở danh sách bài viết. */
+export async function setArticleFeaturedOrder(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  await requireAdmin();
+  const id = s(formData.get("id"));
+  if (!id) return { error: "Thiếu bài viết." };
+  const featuredOrder = featuredOrderOf(formData.get("featuredOrder"));
+  const a = await prisma.article.update({ where: { id }, data: { featuredOrder } }).catch(() => null);
+  if (!a) return { error: "Không tìm thấy bài viết." };
+  revalidate(a.slug);
+  revalidatePath("/admin/articles");
+  return { ok: true, message: featuredOrder ? `Đã đặt nổi bật · STT ${featuredOrder}` : "Đã bỏ nổi bật" };
+}
+
 function revalidate(slug?: string) {
   revalidatePath("/kinh-nghiem");
   revalidatePath("/");
@@ -56,6 +75,7 @@ export async function upsertArticle(_prev: ActionState, formData: FormData): Pro
     excerpt: s(formData.get("excerpt")) ?? null,
     content,
     coverImage: s(formData.get("coverImage")) ?? null,
+    featuredOrder: featuredOrderOf(formData.get("featuredOrder")),
     published: formData.get("published") === "on",
   };
 

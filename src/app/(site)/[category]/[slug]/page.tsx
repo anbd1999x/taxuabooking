@@ -513,8 +513,13 @@ export default async function ServiceDetailPage({
               <h2 className="text-lg font-semibold text-ink">{tr("Các loại xe")}</h2>
               <div className="mt-3 space-y-3">
                 {service.rentalVehicles.map((v) => (
-                  <div key={v.id} className="flex items-center justify-between rounded-xl bg-white p-3 ring-1 ring-black/5">
-                    <div>
+                  <div key={v.id} className="flex items-center justify-between gap-3 rounded-xl bg-white p-3 ring-1 ring-black/5">
+                    {v.imageUrl && (
+                      <div className="relative aspect-[4/3] w-24 flex-none overflow-hidden rounded-lg bg-gray-100 sm:w-28">
+                        <Image src={v.imageUrl} alt={tr(v.vehicleType)} fill sizes="112px" className="object-cover" />
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
                       <p className="font-medium text-ink">{tr(v.vehicleType)}</p>
                       <p className="text-xs text-gray-500">
                         {v.totalUnits} xe{v.deliveryFee ? tr(" · phí giao nhận {0}", [tr(formatPrice(v.deliveryFee))]) : ""}

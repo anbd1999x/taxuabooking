@@ -8,6 +8,7 @@ import { toNumber, formatDate } from "@/lib/format";
 import { toDateKey, today, addDays } from "@/lib/dates";
 import { ServiceForm } from "@/components/admin/ServiceForm";
 import { MoneyInput } from "@/components/admin/MoneyInput";
+import { CoverImagePicker } from "@/components/admin/CoverImagePicker";
 import { ImageUploader } from "@/components/admin/ImageUploader";
 import { DriveImport } from "@/components/admin/DriveImport";
 import { SortableImages } from "@/components/admin/SortableImages";
@@ -1054,7 +1055,10 @@ export default async function EditServicePage({
                 <L label="Số xe"><input name="totalUnits" type="number" defaultValue={v.totalUnits} className={inp} /></L>
                 <L label="Phí giao"><MoneyInput name="deliveryFee" defaultValue={toNumber(v.deliveryFee) ?? ""} className={inp} /></L>
                 <L label="Màu xe (cách nhau bằng dấu phẩy)" cls="col-span-2 sm:col-span-5"><input name="colors" defaultValue={v.colors.join(", ")} placeholder="Đỏ, Đen, Trắng, Xanh" className={inp} /></L>
-                <input type="hidden" name="imageUrl" defaultValue={v.imageUrl ?? ""} />
+                <div className="col-span-2 sm:col-span-6">
+                  <span className="mb-1 block text-xs font-medium text-gray-500">Ảnh bìa loại xe</span>
+                  <CoverImagePicker name="imageUrl" initial={v.imageUrl} compact hint="Ảnh riêng của loại xe này trên trang thuê xe máy. Chưa có ⇒ dùng ảnh chung của cửa hàng. Tải xong nhớ bấm Lưu." />
+                </div>
                 <div className="flex gap-1">
                   <button className="rounded-lg bg-forest-600 px-3 py-2 text-sm text-white">Lưu</button>
                   <DeleteBtn action={deleteVehicle} />
@@ -1068,6 +1072,10 @@ export default async function EditServicePage({
               <L label="Số xe"><input name="totalUnits" type="number" defaultValue={1} className={inp} /></L>
               <L label="Phí giao"><MoneyInput name="deliveryFee" placeholder="0" className={inp} /></L>
               <L label="Màu xe (cách nhau bằng dấu phẩy)" cls="col-span-2 sm:col-span-5"><input name="colors" placeholder="Đỏ, Đen, Trắng, Xanh" className={inp} /></L>
+              <div className="col-span-2 sm:col-span-6">
+                <span className="mb-1 block text-xs font-medium text-gray-500">Ảnh bìa loại xe</span>
+                <CoverImagePicker name="imageUrl" compact hint="Ảnh riêng của loại xe này trên trang thuê xe máy. Bỏ trống ⇒ dùng ảnh chung của cửa hàng." />
+              </div>
               <button className="rounded-lg bg-forest-100 px-3 py-2 text-sm font-medium text-forest-700">+ Thêm</button>
             </ActionForm>
           </div>

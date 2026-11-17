@@ -770,7 +770,8 @@ export async function getCabinWeek(): Promise<{
 export async function getArticles(limit?: number) {
   return prisma.article.findMany({
     where: { published: true },
-    orderBy: { createdAt: "desc" },
+    // Bài nổi bật (STT to → bé) trước, còn lại theo ngày đăng.
+    orderBy: [{ featuredOrder: "desc" }, { createdAt: "desc" }],
     take: limit,
   });
 }

@@ -35,7 +35,8 @@ export default async function ArticlesPage({
 
   const articles = await prisma.article.findMany({
     where: { published: true, ...(topic ? { topic } : {}) },
-    orderBy: { createdAt: "desc" },
+    // Bài nổi bật (STT > 0) lên đầu theo STT to → bé, còn lại theo ngày đăng.
+    orderBy: [{ featuredOrder: "desc" }, { createdAt: "desc" }],
   });
 
   return (
@@ -88,10 +89,18 @@ export default async function ArticlesPage({
                       {tr(articleTopicLabel(a.topic))}
                     </span>
                   )}
+                  {a.featuredOrder > 0 && (
+                    <span className="absolute right-2.5 top-2.5 rounded-full bg-sunset-500 px-2.5 py-1 text-[11px] font-bold text-white shadow-sm">
+                      ★ {tr("Nổi bật")}
+                    </span>
+                  )}
                 </div>
               )}
               <div className="p-4">
-                <p className="text-xs text-gray-400">{formatDate(a.createdAt)}</p>
+                <p className="text-xs text-gray-400">
+                  {!a.coverImage && a.featuredOrder > 0 && <span className="mr-1.5 font-bold text-sunset-600">★ {tr("Nổi bật")}</span>}
+                  {formatDate(a.createdAt)}
+                </p>
                 <h2 className="mt-1 line-clamp-2 font-semibold text-ink group-hover:text-forest-700">{tr(a.title)}</h2>
                 {a.excerpt && <p className="mt-1 line-clamp-2 text-sm text-gray-600">{tr(a.excerpt)}</p>}
               </div>

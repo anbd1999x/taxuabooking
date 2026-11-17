@@ -2,13 +2,15 @@ import Link from "next/link";
 import Image from "next/image";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/format";
-import { deleteArticle, toggleArticlePublished } from "./actions";
+import { deleteArticle, setArticleFeaturedOrder, toggleArticlePublished } from "./actions";
+import { ActionForm } from "@/components/admin/ActionForm";
 import { Stt } from "@/components/admin/Stt";
 
 export const dynamic = "force-dynamic";
 
 export default async function ArticlesPage() {
-  const articles = await prisma.article.findMany({ orderBy: { createdAt: "desc" } });
+  // Cùng thứ tự với trang khách: bài nổi bật (STT to → bé) trước, còn lại theo ngày đăng.
+  const articles = await prisma.article.findMany({ orderBy: [{ featuredOrder: "desc" }, { createdAt: "desc" }] });
 
   return (
     <div className="max-w-4xl">
@@ -17,6 +19,8 @@ export default async function ArticlesPage() {
           <h1 className="text-2xl font-bold text-ink">Bài viết kinh nghiệm</h1>
           <p className="mt-1 text-sm text-gray-500">
             Bài viết chuẩn SEO giúp Google tìm thấy website qua từ khoá "kinh nghiệm Tà Xùa, homestay Tà Xùa…".
+            <br />
+            <b>Bài nổi bật</b>: nhập ★ STT lớn hơn 0 rồi bấm Lưu — bài xếp lên đầu theo số to → bé; 0 = bài thường.
           </p>
         </div>
         <Link href="/admin/articles/new" className="rounded-xl bg-forest-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-forest-700">
@@ -46,6 +50,20 @@ export default async function ArticlesPage() {
               </Link>
               <p className="truncate text-xs text-gray-500">/kinh-nghiem/{a.slug} · {formatDate(a.createdAt)}</p>
             </div>
+            <ActionForm action={setArticleFeaturedOrder} className="flex items-center gap-1" >
+              <input type="hidden" name="id" value={a.id} />
+              <span className={`text-xs font-bold ${a.featuredOrder > 0 ? "text-sunset-600" : "text-gray-400"}`}>★ STT</span>
+              <input
+                type="number"
+                name="featuredOrder"
+                min={0}
+                max={9999}
+                defaultValue={a.featuredOrder}
+                title="STT nổi bật: số lớn xếp trước, 0 = bài thường"
+                className={`w-16 rounded-lg border px-2 py-1.5 text-center text-xs font-bold ${a.featuredOrder > 0 ? "border-sunset-300 bg-sunset-50 text-sunset-700" : "border-gray-200 text-gray-500"}`}
+              />
+              <button className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50">Lưu</button>
+            </ActionForm>
             <form action={toggleArticlePublished}>
               <input type="hidden" name="id" value={a.id} />
               <button

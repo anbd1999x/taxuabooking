@@ -5,7 +5,19 @@ import { useRef, useState } from "react";
 import { showToast } from "./Toast";
 
 /** Chọn/tải ảnh bìa bài viết: upload qua /api/admin/upload (standalone) → điền url vào input ẩn. */
-export function CoverImagePicker({ name = "coverImage", initial }: { name?: string; initial?: string | null }) {
+export function CoverImagePicker({
+  name = "coverImage",
+  initial,
+  hint = "Ảnh ngang 16:9, hiện ở đầu bài + khi chia sẻ link (Facebook/Zalo/Google).",
+  compact = false,
+}: {
+  name?: string;
+  initial?: string | null;
+  /** Dòng gợi ý dưới nút tải (mặc định: gợi ý cho ảnh bìa bài viết). */
+  hint?: string;
+  /** Khung xem trước nhỏ (dùng trong các form dạng dòng, vd loại xe cho thuê). */
+  compact?: boolean;
+}) {
   const [url, setUrl] = useState(initial ?? "");
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -34,7 +46,7 @@ export function CoverImagePicker({ name = "coverImage", initial }: { name?: stri
   return (
     <div className="flex flex-wrap items-start gap-3">
       <input type="hidden" name={name} value={url} />
-      <div className="relative aspect-[16/9] w-52 overflow-hidden rounded-xl bg-gray-100 ring-1 ring-black/5">
+      <div className={`relative overflow-hidden rounded-xl bg-gray-100 ring-1 ring-black/5 ${compact ? "aspect-[4/3] w-32" : "aspect-[16/9] w-52"}`}>
         {url ? (
           <Image src={url} alt="Ảnh bìa" fill sizes="208px" className="object-cover" />
         ) : (
@@ -51,7 +63,7 @@ export function CoverImagePicker({ name = "coverImage", initial }: { name?: stri
             Gỡ ảnh
           </button>
         )}
-        <p className="max-w-[220px] text-[11px] leading-relaxed text-gray-400">Ảnh ngang 16:9, hiện ở đầu bài + khi chia sẻ link (Facebook/Zalo/Google).</p>
+        <p className="max-w-[220px] text-[11px] leading-relaxed text-gray-400">{hint}</p>
       </div>
     </div>
   );

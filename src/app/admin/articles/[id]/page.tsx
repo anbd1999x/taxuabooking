@@ -65,6 +65,12 @@ export default async function ArticleEditPage({ params }: { params: Promise<{ id
           </select>
         </label>
 
+        <label className="block sm:max-w-xs">
+          <span className="text-sm font-medium text-gray-600">STT nổi bật <span className="text-xs text-gray-400">— 0 = bài thường</span></span>
+          <input type="number" name="featuredOrder" min={0} max={9999} step={1} defaultValue={article?.featuredOrder ?? 0} className={inp} />
+          <span className="mt-1 block text-xs text-gray-500">Số lớn hơn 0 ⇒ bài nổi bật, xếp lên đầu trang Kinh nghiệm theo số TO → BÉ.</span>
+        </label>
+
         <label className="block">
           <span className="text-sm font-medium text-gray-600">Mô tả SEO (meta description) <span className="text-xs text-gray-400">— 120–155 ký tự, hiện trên Google</span></span>
           <textarea name="excerpt" defaultValue={article?.excerpt ?? ""} rows={2} maxLength={300} className={inp} placeholder="VD: Hướng dẫn chi tiết thời điểm săn mây đẹp nhất, cách di chuyển bằng xe cabin, homestay view mây và chi phí trọn chuyến Tà Xùa." />
