@@ -57,6 +57,17 @@ export interface EditInit {
   adminNote: string;
   /** Đơn đang giữ chỗ (đã trừ tồn) ⇒ lưu sẽ trả chỗ cũ & giữ lại theo lựa chọn mới. */
   inventoryApplied: boolean;
+  /** Combo có XE MÁY THUÊ KÈM ⇒ cho admin phân đơn xe cho nhà xe nào (null = không có xe kèm). */
+  bike?: {
+    label: string; // "2 xe Honda Wave · 08:00 12/12/2026 → 17:00 13/12/2026"
+    need: number;
+    currentId: string;
+    assigned: number;
+    pending: boolean;
+    rejected: boolean;
+    handed: boolean;
+    options: { id: string; title: string; free: number; webSync: boolean }[];
+  } | null;
 }
 
 const STATUS_OPTS = [
@@ -644,6 +655,35 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
           )}
           {isCombo && !busId && <p className="mt-3 text-sm text-gray-500">Chọn nhà xe để xem chuyến đi / về.</p>}
         </section>
+
+        {/* Xe máy thuê kèm combo: phân cho nhà xe nào */}
+        {edit?.bike && isCombo && (
+          <section className={card}>
+            <h2 className="mb-1 text-base font-extrabold text-ink">Xe máy thuê kèm</h2>
+            <p className="mb-3 text-sm text-gray-600">{edit.bike.label}</p>
+            <label className={label}>Phân đơn xe cho nhà xe</label>
+            <select name="bikeServiceId" defaultValue={edit.bike.currentId} disabled={edit.bike.handed} className={input}>
+              {!edit.bike.currentId && <option value="">— Chưa phân nhà xe —</option>}
+              {edit.bike.options.map((o) => (
+                <option key={o.id} value={o.id} disabled={o.free === 0 && o.id !== edit.bike!.currentId}>
+                  {o.title} · {o.free === 0 ? "hết xe trống" : `còn ${o.free} xe trống`}
+                  {o.webSync ? "" : " · chưa bật nhận đơn web"}
+                  {o.id === edit.bike!.currentId ? " (đang giữ)" : ""}
+                </option>
+              ))}
+            </select>
+            <p className="mt-2 text-xs text-gray-500">
+              {edit.bike.handed
+                ? "Xe đã giao cho khách — không đổi nhà xe được."
+                : edit.bike.currentId
+                  ? `Đang giữ ${edit.bike.assigned}/${edit.bike.need} xe${edit.bike.pending ? " · chờ nhà xe duyệt" : ""}. Đổi nhà xe ⇒ nhả xe ở nhà xe cũ, xếp xe ở nhà xe mới (chờ nhà xe đó duyệt).`
+                  : edit.bike.rejected
+                    ? "Nhà xe trước đã từ chối đơn này — chọn nhà xe khác để phân lại."
+                    : "Chưa có nhà xe nào giữ xe cho đơn này — chọn nhà xe để phân."}
+            </p>
+            {edit.bike.options.length === 0 && <p className="mt-1 text-xs font-semibold text-amber-700">Chưa có nhà xe nào có đội xe.</p>}
+          </section>
+        )}
 
         {/* 3. Khách hàng */}
         <section className={card}>

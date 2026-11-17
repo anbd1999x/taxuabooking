@@ -21,7 +21,7 @@ import { adminExtraCost } from "@/lib/occupancy";
 import { tripsOnDate, peekTrip, materializeTrip, ensureTripOnDate, type TripView } from "@/lib/cabin-trips";
 import type { CabinDirection } from "@prisma/client";
 import { loadBookingEdit, type BookingEditProps } from "@/lib/booking-edit";
-import { syncFleetForBooking } from "@/lib/fleet";
+import { assignComboBikeService, syncFleetForBooking } from "@/lib/fleet";
 
 /** Chuyến thật của nhà xe theo id (id ảo ⇒ tạo chuyến thật cho ngày đó). Sai nhà xe/chiều ⇒ null. */
 async function resolveAdminTrip(id: string, serviceId: string, direction: CabinDirection) {
@@ -630,10 +630,20 @@ export async function updateAdminBooking(
   const newRooms = (data.roomIds as string[] | undefined)?.length ? (data.roomIds as string[]) : data.roomId ? [data.roomId] : [];
   if (!sameIds(oldRooms, newRooms)) changes.push(`Phòng: ${oldRooms.length} → ${newRooms.length} phòng (đã đổi)`);
   if (old.cabinTripId !== data.cabinTripId || old.cabinReturnTripId !== data.cabinReturnTripId) changes.push("Chuyến xe: đã đổi");
-  if (changes.length === 0) return { error: "Không có thay đổi nào." };
+  // Xe máy thuê kèm combo: admin chọn nhà xe khác với nhà xe đang giữ xe ⇒ phân lại sau khi lưu.
+  const bikeSvc = data.category === "COMBO" ? str(fd, "bikeServiceId") : "";
+  const bikeCur = bikeSvc
+    ? (await prisma.fleetRental.findFirst({
+        where: { bookingId: id, OR: [{ state: null }, { state: { notIn: ["cancel", "reject"] } }] },
+        orderBy: { createdAt: "asc" },
+        select: { vehicle: { select: { serviceId: true } } },
+      }))?.vehicle.serviceId ?? ""
+    : "";
+  const bikeChange = Boolean(bikeSvc) && bikeSvc !== bikeCur;
+  if (changes.length === 0 && !bikeChange) return { error: "Không có thay đổi nào." };
 
   try {
-    await prisma.$transaction(async (tx) => {
+    if (changes.length) await prisma.$transaction(async (tx) => {
       if (old.inventoryApplied) {
         // Trả chỗ theo thông tin CŨ…
         if (old.roomTypeId) await assignRoomsForBooking(tx, old, false);
@@ -664,8 +674,12 @@ export async function updateAdminBooking(
   }
 
   await syncFleetForBooking(id).catch(() => {}); // đơn xe máy: đồng bộ đội xe theo thông tin mới
-  for (const p of ["/admin/bookings", "/admin/reports", "/admin/provider/don", "/admin/availability", "/admin/ctv/don", `/admin/bookings/${id}`]) {
+  const bikeRes = bikeChange ? await assignComboBikeService(id, bikeSvc, by).catch(() => ({ error: "Không phân được xe." })) : null;
+  for (const p of ["/admin/bookings", "/admin/reports", "/admin/provider/don", "/admin/provider/xe", "/admin/availability", "/admin/ctv/don", `/admin/bookings/${id}`]) {
     revalidatePath(p);
+  }
+  if (bikeRes && "error" in bikeRes) {
+    return { error: `${changes.length ? "Đã lưu thông tin đơn, nhưng c" : "C"}hưa phân được xe máy: ${bikeRes.error}` };
   }
   if (str(fd, "stay") === "1") return { ok: true }; // sửa trong popup → ở lại trang đang xem
   redirect(`/admin/bookings/${id}`);

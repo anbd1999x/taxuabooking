@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { FleetManager } from "@/components/admin/fleet/FleetManager";
+import { VisitTracker } from "@/components/VisitTracker";
 import { loadFleet } from "@/lib/fleet";
 import { ensureFleetDemo, getDemoSession } from "@/lib/fleet-demo";
 import { prisma } from "@/lib/prisma";
@@ -26,6 +27,8 @@ export default async function FleetDemoPage() {
   // --fleet-sticky-top: thanh tab của FleetManager dính sát mép trên (trang demo không có header dính).
   return (
     <div style={{ ["--fleet-sticky-top" as string]: "0px", minHeight: "100vh", background: "oklch(0.975 0.008 150)", fontFamily: "var(--font-be-vietnam), 'Be Vietnam Pro', system-ui, sans-serif", color: "oklch(0.22 0.03 160)" }}>
+      {/* Trang nằm ngoài layout (site) ⇒ tự gắn bộ ghi lượt xem (PageView kèm IP, xem ở /admin/visits). */}
+      <VisitTracker />
       <header style={{ background: G, color: "white" }}>
         <div style={{ maxWidth: 1600, margin: "0 auto", padding: "10px clamp(14px,2.5vw,28px)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 800, fontSize: 16, whiteSpace: "nowrap" }}>

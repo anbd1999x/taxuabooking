@@ -5,7 +5,7 @@
 import { PrismaClient } from "@prisma/client";
 import { bookingInputSchema } from "../src/lib/validation";
 import { computeAvailability, createBooking } from "../src/lib/booking";
-import { canManageFleet, fleetFreeByWebType, loadFleet, pushFleetPayments, releaseExpiredHolds, syncFleetBookings, syncFleetForBooking } from "../src/lib/fleet";
+import { assignComboBikeService, canManageFleet, comboBikeAssignInfo, fleetFreeByWebType, loadFleet, pushFleetPayments, releaseExpiredHolds, syncFleetBookings, syncFleetForBooking } from "../src/lib/fleet";
 import { isVehicleFree, rentalStatus } from "../src/lib/fleet-core";
 import { getRentalBikes } from "../src/lib/queries";
 
@@ -18,6 +18,7 @@ async function main() {
   const svc = await prisma.service.create({ data: { slug: "test-fleet-" + Date.now(), category: "MOTORBIKE", title: "TEST đội xe", summary: "t", description: "t", published: true } });
   const rv = await prisma.rentalVehicle.create({ data: { serviceId: svc.id, vehicleType: "TEST Wave", pricePerDay: 150000, totalUnits: 5 } });
   const bookingIds: string[] = [];
+  const extraSvcIds: string[] = [];
   try {
     const D1 = key(5), D2 = key(6);
     // Chưa có đội xe ⇒ không ghi đè lịch tồn cũ.
@@ -133,6 +134,34 @@ async function main() {
     ok(cr.length === 1 && cr[0].vehicle.serviceId === svc.id && Number(cr[0].total) === 340000 && cr[0].webPending, "Combo thuê 1 xe Wave → tự xếp vào nhà xe có xe Wave trống, chờ nhà xe duyệt", `${cr.length} xe`);
     const logs = await prisma.bookingLog.count({ where: { bookingId: cb.id, title: { startsWith: "Xe máy kèm combo" } } });
     ok(logs === 1, "Đơn combo có nhật ký đã xếp xe máy");
+
+    // ===== Admin phân xe máy kèm combo cho nhà xe khác =====
+    const mk = async (tag: string, bike: string) => {
+      const s = await prisma.service.create({ data: { slug: `test-fleet-${tag}-${Date.now()}`, category: "MOTORBIKE", title: `TEST nhà xe ${tag}`, summary: "t", description: "t", published: false } });
+      extraSvcIds.push(s.id);
+      await prisma.fleetVehicle.create({ data: { serviceId: s.id, name: bike, plate: `99Z9-${tag}.01`, kind: "so", pricePerDay: 150000 } });
+      return s;
+    };
+    const svcB = await mk("B", "Honda Wave Alpha");
+    const svcC = await mk("C", "Honda Vision");
+    const aliveAt = async () => (await prisma.fleetRental.findMany({ where: { bookingId: cb.id, state: null }, include: { vehicle: true } })).map((r) => r.vehicle.serviceId);
+    const rB = await assignComboBikeService(cb.id, svcB.id, "Admin thử");
+    const atB = await aliveAt();
+    ok("ok" in rB && rB.assigned === 1 && atB.length === 1 && atB[0] === svcB.id, "Admin phân sang nhà xe B → nhả xe nhà xe cũ, xếp 1 xe ở B", JSON.stringify(rB));
+    ok((await prisma.fleetRental.count({ where: { bookingId: cb.id, state: "cancel", vehicle: { serviceId: svc.id } } })) === 1, "Lượt thuê ở nhà xe cũ chuyển thành đã huỷ");
+    const infoB = await comboBikeAssignInfo(cb.id);
+    ok(infoB?.currentId === svcB.id && infoB.assigned === 1 && infoB.pending && infoB.options.some((o) => o.id === svcB.id && o.free === 1), "Form sửa đơn: nhà xe đang giữ = B, B còn 1 xe trống (không tính xe đơn này giữ)", `free=${infoB?.options.find((o) => o.id === svcB.id)?.free}`);
+    ok((await prisma.bookingLog.count({ where: { bookingId: cb.id, title: { startsWith: "Phân xe máy kèm cho" } } })) === 1, "Nhật ký đơn ghi lần phân nhà xe");
+    const rC = await assignComboBikeService(cb.id, svcC.id, "Admin thử");
+    const atC = await aliveAt();
+    ok("error" in rC && atC.length === 1 && atC[0] === svcB.id, "Phân sang nhà xe không có xe Wave → báo lỗi, giữ nguyên ở B", "error" in rC ? rC.error : "");
+    await syncFleetForBooking(cb.id);
+    ok((await aliveAt()).join() === svcB.id, "Đồng bộ lại sau khi phân → vẫn ở nhà xe B");
+    await prisma.fleetRental.updateMany({ where: { bookingId: cb.id, state: null }, data: { state: "reject", webPending: false } });
+    const rA = await assignComboBikeService(cb.id, svc.id, "Admin thử");
+    const atA = await aliveAt();
+    ok("ok" in rA && atA.length === 1 && atA[0] === svc.id, "Nhà xe B từ chối → admin phân lại về nhà xe A được");
+
     await prisma.bookingRequest.update({ where: { id: cb.id }, data: { status: "CANCELLED" } });
     await syncFleetForBooking(cb.id);
     ok((await prisma.fleetRental.count({ where: { bookingId: cb.id, state: null } })) === 0, "Huỷ combo → nhả xe máy kèm");
@@ -160,7 +189,7 @@ async function main() {
     ok(o2.state === "cancel" && f2.state === null, "Quá 1 giờ chưa cọc → tự nhả; đơn mới tạo giữ nguyên");
   } catch (e) { fail++; console.log("✗ LỖI:", (e as Error).message); } finally {
     await prisma.bookingRequest.deleteMany({ where: { OR: [{ id: { in: bookingIds } }, { serviceId: svc.id }] } });
-    await prisma.service.delete({ where: { id: svc.id } });
+    await prisma.service.deleteMany({ where: { id: { in: [svc.id, ...extraSvcIds] } } });
     console.log(`\nKết quả: ${pass} đạt · ${fail} lỗi · đã dọn dữ liệu thử`);
     await prisma.$disconnect();
     process.exit(0);

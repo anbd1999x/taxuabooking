@@ -374,13 +374,14 @@ async function pickComboService(tx: Tx, d: Demand): Promise<string | null> {
  *  - giảm số xe ⇒ huỷ bớt lượt chưa giao; thiếu xe ⇒ tự xếp thêm (trừ khi chủ xe đã từ chối đơn);
  *  - cuối cùng khớp tiền đã thu của đơn với sổ thu chi xe.
  */
-async function reconcileBooking(tx: Tx, b: BookingRow): Promise<number> {
+async function reconcileBooking(tx: Tx, b: BookingRow, forceSvcId?: string): Promise<number> {
   const rentals = await tx.fleetRental.findMany({ where: { bookingId: b.id }, include: { vehicle: true }, orderBy: { createdAt: "asc" } });
   const alive = rentals.filter((r) => r.state !== "cancel" && r.state !== "reject");
   const T = toDateKey(today());
   const d = demandOf(b);
-  // Nhà xe phục vụ: đơn xe máy ⇒ dịch vụ của đơn; combo ⇒ nhà xe đang giữ xe, chưa có thì chọn nhà xe còn xe.
-  let svcId: string | null = d ? (d.combo ? alive[0]?.vehicle.serviceId ?? null : b.serviceId) : null;
+  // Nhà xe phục vụ: đơn xe máy ⇒ dịch vụ của đơn; combo ⇒ nhà xe admin chỉ định (forceSvcId), không thì
+  // nhà xe đang giữ xe, chưa có thì chọn nhà xe còn xe.
+  let svcId: string | null = d ? (d.combo ? forceSvcId ?? alive[0]?.vehicle.serviceId ?? null : b.serviceId) : null;
   if (d?.combo && !svcId && d.e >= T) svcId = await pickComboService(tx, d);
   const valid = !!d && !!svcId && (d.e >= T || alive.some(locked));
 
@@ -426,7 +427,8 @@ async function reconcileBooking(tx: Tx, b: BookingRow): Promise<number> {
   // 4) Thiếu xe ⇒ tự xếp thêm (chủ xe đã từ chối đơn này thì thôi).
   const need = d.qty - keep.length;
   let added = 0;
-  if (need > 0 && !rentals.some((r) => r.state === "reject")) {
+  // Admin chỉ định nhà xe (forceSvcId) ⇒ xếp lại kể cả khi đơn từng bị một nhà xe từ chối.
+  if (need > 0 && (forceSvcId || !rentals.some((r) => r.state === "reject"))) {
     const busy = [...others, ...keep.map((r) => rentalVM(r))];
     const picks = autoPick(d.pool(vehicles, (id) => (id ? names.get(id) ?? "" : "")), d.s, d.e, need, busy, T, d.st, d.et);
     const days = Math.max(1, Math.round((Date.parse(d.e) - Date.parse(d.s)) / 86_400_000) + 1);
@@ -474,6 +476,117 @@ export async function syncFleetForBooking(bookingId: string): Promise<void> {
     await reconcileBooking(tx, b);
   });
 }
+
+/** Thông tin để admin PHÂN xe máy kèm combo cho một nhà xe (form sửa đơn). */
+export interface ComboBikeAssign {
+  need: number; // số xe đơn cần
+  typeName: string; // "wave" | "pg1"
+  from: string; // yyyy-mm-dd
+  to: string;
+  st: string;
+  et: string;
+  currentId: string; // nhà xe đang giữ xe ("" = chưa phân)
+  assigned: number; // số xe đang giữ ở nhà xe hiện tại
+  pending: boolean; // còn chờ nhà xe duyệt
+  rejected: boolean; // từng bị nhà xe từ chối
+  handed: boolean; // đã giao xe ⇒ không đổi nhà xe được
+  options: { id: string; title: string; free: number; webSync: boolean }[];
+}
+
+/**
+ * Danh sách nhà xe có thể nhận xe máy kèm của đơn combo + số xe đúng loại còn trống trong khoảng thuê
+ * (không tính xe đơn này đang giữ). Đơn không có xe kèm / đã huỷ ⇒ null.
+ */
+export async function comboBikeAssignInfo(bookingId: string): Promise<ComboBikeAssign | null> {
+  const b = await prisma.bookingRequest.findUnique({ where: { id: bookingId }, select: bookingSelect });
+  if (!b) return null;
+  const d = demandOf(b);
+  if (!d?.combo) return null;
+  const T = toDateKey(today());
+  const mine = await prisma.fleetRental.findMany({
+    where: { bookingId },
+    select: { state: true, webPending: true, hand: true, ret: true, vehicle: { select: { serviceId: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+  const alive = mine.filter((r) => r.state !== "cancel" && r.state !== "reject");
+  const currentId = alive[0]?.vehicle.serviceId ?? "";
+  const svcs = await prisma.service.findMany({
+    where: { category: "MOTORBIKE", fleetVehicles: { some: {} }, OR: [{ published: true }, { id: currentId || "-" }] },
+    select: {
+      id: true, title: true, fleetConfig: { select: { data: true } },
+      rentalVehicles: { select: { id: true, vehicleType: true } }, fleetVehicles: true,
+    },
+    orderBy: [{ featured: "desc" }, { priorityOrder: "desc" }, { title: "asc" }],
+  });
+  const busy = await prisma.fleetRental.findMany({
+    where: {
+      vehicle: { serviceId: { in: svcs.map((s) => s.id) } },
+      endDate: { gte: parseDateOnly(addDaysKeyLocal(d.s < T ? d.s : T, -60)) },
+      NOT: { bookingId },
+      ...ALIVE,
+    },
+  });
+  const options = svcs.map((s) => {
+    const names = new Map(s.rentalVehicles.map((r) => [r.id, r.vehicleType]));
+    const ids = new Set(s.fleetVehicles.map((v) => v.id));
+    const rs = busy.filter((r) => ids.has(r.vehicleId)).map((r) => rentalVM(r));
+    const pool = d.pool(s.fleetVehicles.map((v) => vehicleVM(v)), (id) => (id ? names.get(id) ?? "" : ""));
+    return {
+      id: s.id,
+      title: s.title,
+      free: autoPick(pool, d.s, d.e, pool.length, rs, T, d.st, d.et).length,
+      webSync: normalizeConfig(s.fleetConfig?.data).webSync,
+    };
+  });
+  return {
+    need: d.qty,
+    typeName: (b.bikeType ?? "wave").toLowerCase(),
+    from: d.s, to: d.e, st: d.st, et: d.et,
+    currentId,
+    assigned: alive.filter((r) => r.vehicle.serviceId === currentId).length,
+    pending: alive.some((r) => r.webPending),
+    rejected: mine.some((r) => r.state === "reject"),
+    handed: alive.some(locked),
+    options,
+  };
+}
+
+/**
+ * Admin PHÂN xe máy kèm combo cho một nhà xe cụ thể: nhả xe chưa giao ở nhà xe cũ, xếp xe đúng loại còn
+ * trống ở nhà xe mới (chờ nhà xe duyệt), ghi nhật ký đơn. Nhà xe mới không còn xe nào ⇒ báo lỗi, giữ nguyên.
+ */
+export async function assignComboBikeService(bookingId: string, serviceId: string, by: string): Promise<{ ok: true; assigned: number; need: number; title: string } | { error: string }> {
+  const b = await prisma.bookingRequest.findUnique({ where: { id: bookingId }, select: bookingSelect });
+  if (!b) return { error: "Không tìm thấy đơn." };
+  const d = demandOf(b);
+  if (!d?.combo) return { error: "Đơn không có xe máy thuê kèm (hoặc đã huỷ)." };
+  if (d.e < toDateKey(today())) return { error: "Lịch thuê xe đã qua, không phân lại được." };
+  const svc = await prisma.service.findFirst({ where: { id: serviceId, category: "MOTORBIKE", fleetVehicles: { some: {} } }, select: { id: true, title: true } });
+  if (!svc) return { error: "Nhà xe không hợp lệ hoặc chưa có đội xe." };
+  const old = await prisma.fleetRental.findMany({ where: { bookingId, ...ALIVE }, select: { hand: true, ret: true, vehicle: { select: { serviceId: true, service: { select: { title: true } } } } } });
+  if (old.some((r) => locked(r) && r.vehicle.serviceId !== svc.id)) return { error: "Xe đã giao cho khách ở nhà xe hiện tại — không đổi nhà xe được." };
+  const from = [...new Set(old.filter((r) => r.vehicle.serviceId !== svc.id).map((r) => r.vehicle.service.title))];
+  try {
+    const assigned = await prisma.$transaction(async (tx) => {
+      for (const id of [...new Set([svc.id, ...old.map((r) => r.vehicle.serviceId)])].sort()) await lockFleet(tx, id);
+      await reconcileBooking(tx, b, svc.id);
+      const n = await tx.fleetRental.count({ where: { bookingId, vehicle: { serviceId: svc.id }, ...ALIVE } });
+      if (!n) throw new Error(`${svc.title} không còn xe ${comboBikeName(b.bikeType)} trống trong khoảng ngày thuê.`);
+      await tx.bookingLog.create({
+        data: {
+          bookingId, kind: "SUPPLIER", by,
+          title: `Phân xe máy kèm cho ${svc.title}`,
+          body: `${from.length ? `Chuyển từ ${from.join(", ")} · ` : ""}Đã xếp ${n}/${d.qty} xe${n < d.qty ? " (nhà xe thiếu xe trống)" : ""}`,
+        },
+      });
+      return n;
+    });
+    return { ok: true, assigned, need: d.qty, title: svc.title };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Không phân được xe." };
+  }
+}
+const comboBikeName = (key: string | null) => ((key ?? "wave").toLowerCase() === "pg1" ? "PG1" : "Wave");
 
 /** Tự xếp xe cho đơn vừa đặt (gọi sau createBooking / đặt combo). Lỗi không ảnh hưởng đơn. */
 export async function autoAssignFleetForBooking(bookingId: string): Promise<void> {

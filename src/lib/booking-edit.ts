@@ -5,7 +5,8 @@ import { COMBO_DISCOUNT } from "./combo";
 import { toNumber } from "./format";
 import { addDays, toDateKey, today } from "./dates";
 import { bookingPax } from "./occupancy";
-import { bookingCabinBerths } from "./combo-pricing";
+import { bookingCabinBerths, comboBikeFacts } from "./combo-pricing";
+import { comboBikeAssignInfo } from "./fleet";
 import { parseSurcharges } from "./surcharges";
 import { resolveBusCommissions, resolveRoomCommissions } from "./provider-commission";
 import { supplierPayouts, type PayoutSide } from "./supplier-payout";
@@ -102,7 +103,24 @@ export async function loadBookingEdit(id: string): Promise<BookingEditProps | nu
     note,
     adminNote: b.adminNote ?? "",
     inventoryApplied: b.inventoryApplied,
+    bike: null,
   };
+
+  // Combo có xe máy thuê kèm ⇒ danh sách nhà xe để admin phân đơn xe.
+  const bikeFacts = comboBikeFacts(b);
+  const bikeInfo = bikeFacts ? await comboBikeAssignInfo(b.id).catch(() => null) : null;
+  if (bikeFacts && bikeInfo && bikeInfo.to >= toDateKey(today())) {
+    edit.bike = {
+      label: `${bikeFacts.count} xe ${bikeFacts.name}${bikeFacts.pickup ? ` · ${bikeFacts.pickup} → ${bikeFacts.ret ?? ""}` : ""}`,
+      need: bikeInfo.need,
+      currentId: bikeInfo.currentId,
+      assigned: bikeInfo.assigned,
+      pending: bikeInfo.pending,
+      rejected: bikeInfo.rejected,
+      handed: bikeInfo.handed,
+      options: bikeInfo.options,
+    };
+  }
 
   // Sàn thanh toán cho nhà cung cấp — cùng công thức với trang chi tiết đơn.
   const [roomDisc, busDisc] = await Promise.all([resolveRoomCommissions([b]), resolveBusCommissions([b])]);

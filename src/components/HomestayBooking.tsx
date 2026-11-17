@@ -720,13 +720,25 @@ export function HomestayBooking({
                               return strike != null ? <span className="whitespace-nowrap text-sm font-semibold text-gray-400 line-through">{tr(fmt(strike))}</span> : null;
                             })()}
                             <span className="whitespace-nowrap">{v.r.por || v.ib ? tr(IB) : nN ? tr(fmt(v.stayPrice)) : tr(fmt(fromPrice(v.r)))}</span>
+                            {!(v.r.por || v.ib) && (() => {
+                              // Badge phần trăm giảm so với giá niêm yết (tối thiểu hiện −1%).
+                              const strike = nN ? v.stayStrike : fromStrike(v.r);
+                              const sale = nN ? v.stayPrice : fromPrice(v.r);
+                              if (strike == null || sale == null || strike <= sale) return null;
+                              const pct = Math.max(1, Math.round(((strike - sale) / strike) * 100));
+                              return (
+                                <span className="self-center whitespace-nowrap rounded-md bg-sunset-500 px-1.5 py-0.5 text-[11px] font-bold leading-none text-white">
+                                  −{pct}%
+                                </span>
+                              );
+                            })()}
                           </div>
                           {!(v.r.por || v.ib) && (() => {
                             // Dòng khuyến mãi khi đặt trên web: giá bán niêm yết − giá đặt web.
                             const strike = nN ? v.stayStrike : fromStrike(v.r);
                             const sale = nN ? v.stayPrice : fromPrice(v.r);
                             return strike != null && sale != null && strike > sale ? (
-                              <div className="text-xs font-semibold text-forest-700">{tr("🎁 Đặt trên website giảm {0}", [tr(fmt(strike - sale))])}</div>
+                              <div className="mt-1 inline-flex w-fit items-center rounded-full bg-forest-50 px-2 py-0.5 text-xs font-semibold text-forest-700 ring-1 ring-forest-200">{tr("🎁 Đặt trên website giảm {0}", [tr(fmt(strike - sale))])}</div>
                             ) : null;
                           })()}
                         </div>
