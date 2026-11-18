@@ -1110,7 +1110,7 @@ async function fetchTabGrid(id: string, gid: string): Promise<SheetGrids | null>
  * <id>: { sheetName, name, isBooked } } }] }.
  */
 export function isCalendarApiUrl(url: string): boolean {
-  return /^https?:\/\/[^/]+\/api\/calendar\/all(?:[?#]|$)/i.test(url.trim());
+  return /^https?:\/\/[^/]+\/api\/calendar\/all(?:[?#]|$)/i.test(url.trim()) || isHotelssUrl(url);
 }
 
 const CALENDAR_API_MONTHS = 7; // tháng hiện tại + 6 tháng tới
@@ -1156,6 +1156,126 @@ async function fetchCalendarApiMonths(
   );
 }
 
+/**
+ * Nguồn lịch dạng booking engine "hotelss.vn" (vd https://cloudgarden.hotelss.vn/?building_id=<mã>):
+ * POST /be_get_availability { building_id, checkin, checkout } (tối đa 7 đêm/lần) → mỗi HẠNG phòng:
+ * rates[] = số phòng còn theo từng đêm, rooms_inventory[] = tên các phòng còn trống cả khoảng hỏi.
+ * Khớp theo TÊN HẠNG phòng trong app = room_type_name. Đêm hạng còn một phần ⇒ hỏi riêng đêm đó để
+ * biết đúng phòng nào trống (có nhớ đệm theo số phòng còn, tránh gọi lại khi không đổi).
+ */
+export function isHotelssUrl(url: string): boolean {
+  return /^https?:\/\/[a-z0-9-]+\.hotelss\.vn(?:[/?#]|$)/i.test(url.trim());
+}
+
+const HOTELSS_WINDOW = 7; // API từ chối khoảng dài hơn 7 đêm
+const HOTELSS_WINDOWS = 13; // 91 đêm tới
+const HOTELSS_EXACT_BUDGET = 40; // số lần hỏi riêng từng đêm tối đa mỗi lượt đồng bộ
+
+type HotelssType = {
+  room_type_name?: string;
+  rates?: { date?: string; availability?: number; is_stopsell?: boolean }[];
+  rooms_inventory?: { room_name?: string }[];
+};
+type HotelssNight = { date: string; types: { name: string; free: number; freeRooms: string[] | null }[] };
+const hotelssNightCache = new Map<string, { sig: string; free: Map<string, string[]> }>();
+
+async function hotelssAvailability(url: string, checkin: string, checkout: string): Promise<HotelssType[] | null> {
+  const u = new URL(url.trim());
+  const buildingId = u.searchParams.get("building_id");
+  if (!buildingId) return null;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20000);
+    const res = await fetch(`${u.origin}/be_get_availability`, {
+      method: "POST",
+      signal: ctrl.signal,
+      headers: {
+        "Content-Type": "application/json",
+        "X-Requested-With": "XMLHttpRequest",
+        Origin: u.origin,
+        Referer: `${u.origin}/`,
+        "User-Agent": "Mozilla/5.0 TaXuaBooking calendar sync",
+      },
+      body: JSON.stringify({ building_id: buildingId, checkin, checkout }),
+      cache: "no-store",
+    });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const j = (await res.json()) as { room_types?: HotelssType[] };
+    return Array.isArray(j.room_types) ? j.room_types : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Chạy tuần tự theo lô nhỏ để không dội API của chủ nhà. */
+async function inBatches<T, R>(items: T[], size: number, fn: (x: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = [];
+  for (let i = 0; i < items.length; i += size) out.push(...(await Promise.all(items.slice(i, i + size).map(fn))));
+  return out;
+}
+
+/**
+ * Lịch 91 đêm tới theo cửa sổ 7 đêm. nights = null khi cửa sổ tải lỗi.
+ * typeSizes: norm(tên hạng) → số phòng của hạng trong app (để biết đêm nào "còn một phần").
+ */
+async function fetchHotelssNights(
+  url: string,
+  ref: Date,
+  typeSizes: Map<string, number>,
+): Promise<{ label: string; nights: HotelssNight[] | null }[]> {
+  const iso = (offset: number) => new Date(ref.getTime() + offset * 86_400_000).toISOString().slice(0, 10);
+  const windows = Array.from({ length: HOTELSS_WINDOWS }, (_, i) => i * HOTELSS_WINDOW);
+  const result = await inBatches(windows, 4, async (start) => {
+    const from = iso(start);
+    const label = `7 đêm từ ${from.slice(8)}/${from.slice(5, 7)}`;
+    const types = await hotelssAvailability(url, from, iso(start + HOTELSS_WINDOW));
+    if (!types) return { label, nights: null };
+    const byDate = new Map<string, HotelssNight>();
+    for (const t of types) {
+      const name = (t.room_type_name ?? "").trim();
+      if (!name) continue;
+      for (const r of t.rates ?? []) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(r.date ?? "")) continue;
+        let night = byDate.get(r.date!);
+        if (!night) byDate.set(r.date!, (night = { date: r.date!, types: [] }));
+        night.types.push({ name, free: r.is_stopsell ? 0 : Math.max(0, Number(r.availability) || 0), freeRooms: null });
+      }
+    }
+    return { label, nights: [...byDate.values()] };
+  });
+
+  // Đêm có hạng "còn một phần" ⇒ cần biết ĐÚNG phòng nào trống: hỏi riêng đêm đó (1 đêm).
+  const partial = result
+    .flatMap((w) => w.nights ?? [])
+    .filter((n) => n.types.some((t) => t.free > 0 && t.free < (typeSizes.get(norm(t.name)) ?? 0)));
+  let budget = HOTELSS_EXACT_BUDGET;
+  await inBatches(partial, 4, async (night) => {
+    const key = `${url}|${night.date}`;
+    const sig = night.types.map((t) => `${norm(t.name)}=${t.free}`).join(",");
+    let cached = hotelssNightCache.get(key);
+    if (!cached || cached.sig !== sig) {
+      if (budget-- <= 0) return;
+      const next = new Date(Date.parse(night.date) + 86_400_000).toISOString().slice(0, 10);
+      const types = await hotelssAvailability(url, night.date, next);
+      if (!types) return;
+      cached = {
+        sig,
+        free: new Map(
+          types.map((t) => [
+            norm(t.room_type_name ?? ""),
+            (t.rooms_inventory ?? []).map((r) => (r.room_name ?? "").trim()).filter(Boolean),
+          ]),
+        ),
+      };
+      hotelssNightCache.set(key, cached);
+    }
+    for (const t of night.types) t.freeRooms = cached.free.get(norm(t.name)) ?? null;
+  });
+  if (hotelssNightCache.size > 2000) hotelssNightCache.clear();
+  return result;
+}
+
 export async function syncServiceSheet(
   serviceId: string,
   source: SheetSyncSource = "MANUAL",
@@ -1180,7 +1300,11 @@ export async function syncServiceSheet(
       roomTypes: {
         select: {
           id: true,
-          rooms: { select: { id: true, name: true, roomTypeId: true, sheetAlias: true } },
+          name: true,
+          rooms: {
+            select: { id: true, name: true, roomTypeId: true, sheetAlias: true },
+            orderBy: { sortOrder: "asc" },
+          },
         },
       },
     },
@@ -1204,6 +1328,11 @@ export async function syncServiceSheet(
   );
   const roomByName = new Map<string, RoomRef>();
   for (const rm of allRooms) for (const n of rm.names) if (!roomByName.has(norm(n))) roomByName.set(norm(n), rm);
+  // Các phòng CÙNG tên/bí danh (vd 2 phòng cùng bí danh "Super (1 mặt kính)" vì sheet có 2 cột
+  // trùng nhãn): lần gặp nhãn thứ N trong sheet ⇒ phòng thứ N (theo thứ tự phòng trong app).
+  const twinsByName = new Map<string, RoomRef[]>();
+  for (const rm of allRooms)
+    for (const n of new Set(rm.names.map(norm))) twinsByName.set(n, [...(twinsByName.get(n) ?? []), rm]);
 
   const ref = today();
 
@@ -1223,7 +1352,44 @@ export async function syncServiceSheet(
     let fetchFailed = false; // có tab tải không được → KHÔNG dọn khoá cũ (tránh mở nhầm)
 
     // 2a) Nguồn API lịch: mỗi tháng = 1 "tab"; mỗi ngày × phòng → isBooked.
-    if (apiSource) {
+    if (apiSource && isHotelssUrl(service.sheetUrl)) {
+      // Booking engine hotelss.vn: khớp theo tên hạng phòng; số phòng còn theo từng đêm.
+      const typeRooms = new Map<string, RoomRef[]>();
+      for (const rt of service.roomTypes)
+        typeRooms.set(norm(rt.name), allRooms.filter((rm) => rm.roomTypeId === rt.id));
+      const typeSizes = new Map([...typeRooms].map(([k, v]) => [k, v.length]));
+      for (const w of await fetchHotelssNights(service.sheetUrl, ref, typeSizes)) {
+        if (!w.nights) {
+          fetchFailed = true;
+          skippedTabs.push(w.label);
+          continue;
+        }
+        anyCalendarTab = true;
+        let seen = false;
+        for (const night of w.nights) {
+          const date = parseDateOnly(night.date);
+          for (const t of night.types) {
+            const rooms = typeRooms.get(norm(t.name)) ?? [];
+            if (rooms.length === 0) {
+              if (t.free === 0) unmatched.add(t.name);
+              continue;
+            }
+            // Phòng trống đích danh (nếu hỏi được); thiếu/lệch tên ⇒ khoá các phòng CUỐI hạng cho đủ số.
+            const freeNames = new Set((t.freeRooms ?? []).map(norm));
+            const named = rooms.filter((rm) => rm.names.some((n) => freeNames.has(norm(n))));
+            const freeIds = new Set(
+              (t.free >= rooms.length ? rooms : named.length === t.free ? named : rooms.slice(0, t.free)).map((rm) => rm.id),
+            );
+            for (const room of rooms) {
+              seen = true;
+              matchedRoomIds.add(room.id);
+              entries.push({ room, date, status: freeIds.has(room.id) ? "AVAILABLE" : "BOOKED" });
+            }
+          }
+        }
+        (seen ? syncedTabs : skippedTabs).push(w.label);
+      }
+    } else if (apiSource) {
       for (const m of await fetchCalendarApiMonths(service.sheetUrl, ref)) {
         if (!m.days) {
           fetchFailed = true;
@@ -1350,6 +1516,11 @@ export async function syncServiceSheet(
             room = matchRoom(roomByName, allRooms, cand);
             if (room) {
               exact = roomByName.get(norm(cand))?.id === room.id;
+              // Nhãn trùng nguyên văn với nhãn đã nhận ở hàng trước ⇒ chuyển sang phòng "sinh đôi" kế tiếp.
+              if (exact && picked.get(room.id)?.exact) {
+                const twin = (twinsByName.get(norm(cand)) ?? []).find((x) => !picked.has(x.id));
+                if (twin) room = twin;
+              }
               break;
             }
           }

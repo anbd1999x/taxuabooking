@@ -38,7 +38,7 @@ export interface StayOption {
   bookable: boolean;
   availableUnits: number;
   pricePerUnit: number | null; // tổng giá 1 phòng/xe cho cả kỳ
-  strikePerUnit?: number | null; // homestay: tổng giá gạch (giá bán niêm yết) cả kỳ, null = không giảm
+  strikePerUnit?: number | null; // tổng giá gạch cả kỳ (homestay: giá niêm yết; xe máy: giá gạch/ngày × số ngày), null = không giảm
   count: number; // số đêm/ngày
   colors?: string[]; // thuê xe máy: các màu có sẵn để khách chọn
   commission?: number; // tổng chiết khấu CTV cho phòng này cả kỳ (homestay)
@@ -228,7 +228,12 @@ export async function computeAvailability(
                 : null),
         count: charge ?? r.count,
         colors: v.colors,
+        _list: toNumber(v.listPrice),
       };
+    }).map(({ _list, ...o }) => {
+      // Giá gạch của loại xe (RentalVehicle.listPrice) × số ngày tính tiền — chỉ khi cao hơn tiền thuê.
+      const strike = _list != null && _list > 0 && o.pricePerUnit != null ? Math.round(_list * o.count) : null;
+      return { ...o, strikePerUnit: strike != null && strike > (o.pricePerUnit ?? 0) ? strike : null };
     });
     return { kind: "rental", nights: days.length, stayOptions };
   }

@@ -51,6 +51,7 @@ const SEO_META: Record<string, { title: string; description: string }> = {
 };
 import { addDays, parseDateOnly, toDateKey, today, isValidDateKey } from "@/lib/dates";
 import { getT } from "@/lib/i18n/server";
+import { dmy } from "@/lib/date-format";
 import { i18nAlternates, i18nOg } from "@/lib/i18n/meta";
 import Link from "@/components/Link";
 
@@ -135,8 +136,11 @@ async function CategoryBody({
 
   // ----- Combo: tìm xe + phòng khớp giá mong muốn -----
   if (cat.key === "COMBO") {
-    const from = str(sp.from);
-    const to = str(sp.to);
+    // Vào /combo chưa chọn ngày ⇒ hiện sẵn KẾT QUẢ MẪU: combo 2 ngày 1 đêm tính từ hôm nay
+    // (đi tối nay → nhận phòng sáng mai → về ngày kia), 2 người lớn. Khách đổi ngày/số người rồi tìm lại.
+    const isSample = !str(sp.from) && !str(sp.to);
+    const from = isSample ? toDateKey(today()) : str(sp.from);
+    const to = isSample ? toDateKey(addDays(today(), 2)) : str(sp.to);
     const origin = str(sp.origin)?.trim() || "";
     // `people` (link cũ) = số người lớn; `kids=5-8` = tuổi từng trẻ.
     // Tối đa 30 người lớn = giới hạn của form đặt combo (comboBookingSchema) — vượt thì phương án hiện ra nhưng không đặt được.
@@ -185,8 +189,14 @@ async function CategoryBody({
           origins={origins}
         />
 
-        <ScrollToResults token={`${from ?? ""}|${to ?? ""}`} enabled={Boolean(from && to)} offset={12}>
+        <ScrollToResults token={`${from ?? ""}|${to ?? ""}`} enabled={Boolean(from && to) && !isSample} offset={12}>
         <div className="mt-6">
+          {isSample && result != null && result.planCount > 0 && result.busCount > 0 && (
+            <p className="mb-4 rounded-2xl bg-white px-4 py-3 text-sm text-gray-600 ring-1 ring-forest-200">
+              <b className="text-forest-700">{t("Gợi ý combo 2 ngày 1 đêm")}</b>{" · "}
+              {t("đi {0} – về {1} · {2} người lớn. Đổi ngày, số người ở ô tìm kiếm phía trên để xem giá đúng chuyến của bạn.", [dmy(from!), dmy(to!), adults])}
+            </p>
+          )}
           {!from || !to ? (
             <p className="rounded-2xl border border-dashed border-gray-300 bg-white py-14 text-center text-gray-500">
               {t("Chọn ngày đi và ngày về để tìm combo.")}

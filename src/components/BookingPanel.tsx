@@ -502,16 +502,19 @@ export function BookingPanel({
                       {kind === "stay" ? tr("{0} đêm", [o.count]) : tr("tính {0} thuê", [rentalDaysLabel(o.count, tr)])}
                       {o.bookable ? tr(" · còn {0}", [o.availableUnits]) : ""}
                     </span>
-                    {kind === "stay" && o.pricePerUnit != null && o.strikePerUnit != null && o.strikePerUnit > o.pricePerUnit && (
+                    {o.pricePerUnit != null && o.strikePerUnit != null && o.strikePerUnit > o.pricePerUnit && (
                       // Bảng giá rõ ràng: giá bán niêm yết → khuyến mãi khi đặt trên website → tổng.
                       <span className="mt-1.5 flex flex-col gap-0.5 rounded-lg bg-white/70 px-2.5 py-1.5 ring-1 ring-forest-100">
-                        <PriceLine className="text-xs" label={tr("Giá bán")} amount={o.strikePerUnit * quantity} />
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="flex-1"><PriceLine className="text-xs" label={tr("Giá bán")} amount={o.strikePerUnit * quantity} /></span>
+                          <span className="flex-none rounded-full bg-red-600 px-1.5 py-0.5 text-[11px] font-extrabold leading-none text-white">−{Math.round((1 - o.pricePerUnit / o.strikePerUnit) * 100)}%</span>
+                        </span>
                         <PriceLine className="text-xs" promo label={tr("🎁 Khuyến mãi khi đặt trên website")} amount={(o.strikePerUnit - o.pricePerUnit) * quantity} />
                       </span>
                     )}
                     <span className="mt-1 block font-bold text-forest-700">
                       {o.pricePerUnit != null
-                        ? `${kind === "stay" && o.strikePerUnit != null && o.strikePerUnit > o.pricePerUnit ? tr("Tổng") + ": " : ""}${tr(formatVnd(o.pricePerUnit * quantity))} cho ${quantity} ${kind === "stay" ? tr("phòng") : `xe × ${rentalDaysLabel(o.count, tr)}`}`
+                        ? `${o.strikePerUnit != null && o.strikePerUnit > o.pricePerUnit ? tr("Tổng") + ": " : ""}${tr(formatVnd(o.pricePerUnit * quantity))} cho ${quantity} ${kind === "stay" ? tr("phòng") : `xe × ${rentalDaysLabel(o.count, tr)}`}`
                         : tr("Liên hệ xác nhận giá")}
                     </span>
                     {/* Chọn màu xe (admin cấu hình ở loại xe) — chỉ hiện ở loại xe đang chọn. */}

@@ -22,7 +22,7 @@ export async function saveSheetUrl(_prev: SheetActionState, formData: FormData):
   const url = s(formData.get("sheetUrl"));
   if (!serviceId) return { error: "Thiếu homestay." };
   if (url && !isCalendarApiUrl(url) && (!/^https:\/\/docs\.google\.com\//i.test(url) || !sheetCsvUrl(url))) {
-    return { error: "Link không phải Google Sheet hợp lệ (cần dạng https://docs.google.com/spreadsheets/d/...) hoặc API lịch (…/api/calendar/all)." };
+    return { error: "Link không phải Google Sheet hợp lệ (cần dạng https://docs.google.com/spreadsheets/d/...) hoặc API lịch (…/api/calendar/all, hoặc https://<tên>.hotelss.vn/?building_id=…)." };
   }
   await prisma.service.update({
     where: { id: serviceId },

@@ -459,6 +459,8 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
                       ? tr("Chỉ còn {0} xe", [b.available])
                       : tr("Còn {0} xe", [b.available]);
               const total = days ? b.pricePerDay * days * qty + (ship ? (b.deliveryFee ?? FEE) : 0) : 0;
+              // Giá gạch cùng đơn vị với số to: chưa chọn ngày = giá gạch/ngày; đã chọn = tổng theo giá gạch (+ phí giao).
+              const strike = b.originalPrice == null ? null : days ? b.originalPrice * days * qty + (ship ? (b.deliveryFee ?? FEE) : 0) : b.originalPrice;
               const tail = (() => { const p = new URLSearchParams(); if (from) p.set("from", from); if (to) p.set("to", to); const s = p.toString(); return s ? `?${s}` : ""; })();
               const stockLabel = searched && b.available != null ? `${b.available} xe` : `${b.totalUnits} xe`;
               const feeText = ship
@@ -508,10 +510,10 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
                     <div className="flex flex-col gap-2 border-t border-[oklch(0.94_0.01_200)] pt-2 sm:flex-row sm:items-end sm:justify-between sm:gap-2.5 sm:pt-3">
                       <div className="min-w-0">
                         <div className="text-[11px] text-gray-500 sm:text-xs">{days ? tr("{0} ngày × {1} xe", [days, qty]) : tr("Giá thuê")}</div>
-                        {/* Giá gạch chỉ hiện khi chưa chọn ngày (lúc đó số to là giá/ngày, so sánh cùng đơn vị). */}
-                        {!days && b.originalPrice != null && (
+                        
+                        {strike != null && b.originalPrice != null && (
                           <div className="flex items-center gap-1.5 leading-none">
-                            <span className="text-[12px] font-semibold text-gray-400 line-through sm:text-[13px]">{tr(vnd(b.originalPrice))}</span>
+                            <span className="text-[12px] font-semibold text-gray-400 line-through sm:text-[13px]">{tr(vnd(strike))}</span>
                             <span className="rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-extrabold text-white sm:text-[11px]">−{Math.round((1 - b.pricePerDay / b.originalPrice) * 100)}%</span>
                           </div>
                         )}
