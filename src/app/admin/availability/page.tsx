@@ -9,7 +9,7 @@ import { MonthOverview } from "@/components/admin/MonthOverview";
 import { CabinMonth, type CabinDay } from "@/components/admin/CabinMonth";
 import { AvailabilityEditor } from "@/components/admin/AvailabilityEditor";
 import { toNumber } from "@/lib/format";
-import { bookingCabinBerths } from "@/lib/combo-pricing";
+import { bookingCabinBerths, bookingBusSeats } from "@/lib/combo-pricing";
 import { parseDateOnly } from "@/lib/dates";
 import { roomPricing, priceForDay } from "@/lib/availability";
 
@@ -149,7 +149,7 @@ export default async function AvailabilityPage({
         code: b.code,
         name: b.customerName,
         phone: b.phone,
-        seats: b.quantity,
+        seats: bookingBusSeats(b), // số người ĐI XE (combo tự chọn có thể khác số khách)
         berths: (() => {
           const c = bookingCabinBerths(b);
           return c

@@ -242,3 +242,135 @@ export function cabinBerthLines(c: CabinBerths, busTotal: number | null | undefi
     );
   return out;
 }
+
+/* ===================== Báo giá combo — MỘT NGUỒN cho server lẫn client ===================== */
+
+/** Giảm giá cố định cho mỗi khách CÓ VÉ XE trong combo. */
+export const COMBO_DISCOUNT = 25000;
+
+export interface ComboQuoteRoom {
+  /** Tiền 1 phòng cả kỳ (giường cộng đồng: tiền 1 NGƯỜI cả kỳ). */
+  cost: number;
+  /** Giá gạch (niêm yết) cả kỳ; null = không giảm. */
+  costOld?: number | null;
+  capacity: number;
+  /** Sức chứa tối đa khi ở ghép (≥ capacity). */
+  maxCapacity: number;
+  communal: boolean;
+  noComboDiscount: boolean;
+}
+
+export type ComboQuoteError = "NO_ROOM" | "MIXED" | "CAPACITY";
+
+export interface ComboQuote {
+  /** null = hợp lệ. NO_ROOM: chưa có phòng · MIXED: lẫn phòng thường với giường cộng đồng · CAPACITY: không đủ chỗ. */
+  error: ComboQuoteError | null;
+  communal: boolean;
+  capacityStd: number;
+  capacityMax: number;
+  extraGuests: number;
+  extraCost: number;
+  /** TỔNG tiền phòng cả đoàn (đã gồm phụ thu ở ghép). */
+  roomCost: number;
+  /** TỔNG tiền phòng theo giá niêm yết (≥ roomCost). */
+  roomCostOld: number;
+  /** Số chỗ giữ trên xe = khách nằm ghép + khách nằm riêng. */
+  seatCount: number;
+  busAmount: number;
+  noDiscount: boolean;
+  /** Số khách được giảm combo = min(khách tính phí, số người có vé). */
+  discountPeople: number;
+  discount: number;
+  /** TỔNG khách trả (phòng + vé − giảm combo). */
+  total: number;
+}
+
+/**
+ * Tính TOÀN BỘ tiền một đơn combo. Dùng chung cho `createComboBooking` (server, số chính thức)
+ * và giao diện "Combo tự chọn" (xem trước) ⇒ hai bên không thể lệch công thức.
+ *
+ * - Phòng thường: cộng tiền từng phòng; khách vượt sức chứa chuẩn (tới maxCapacity) chịu phụ thu
+ *   `extraFeeStay` (phụ thu CHUNG của homestay × số đêm) mỗi người.
+ * - Giường cộng đồng (giá theo NGƯỜI): xếp khách vào giường rẻ trước; không ở ghép, không giảm combo.
+ * - Vé: nằm ghép = fare/người, nằm riêng = 2 × fare/người.
+ * - Giảm combo 25k × min(khách tính phí, số người có vé); bỏ khi có giường cộng đồng / phòng tick "không giảm".
+ */
+export function comboQuote(input: {
+  rooms: ComboQuoteRoom[];
+  /** Số khách TÍNH PHÍ (người lớn + trẻ từ ngưỡng miễn phí của home). */
+  people: number;
+  extraFeeStay: number;
+  /** Giá vé khứ hồi 1 khách nằm ghép. */
+  fare: number;
+  shared: number;
+  solo: number;
+}): ComboQuote {
+  const { rooms } = input;
+  const people = Math.max(0, Math.floor(input.people) || 0);
+  const shared = Math.max(0, Math.floor(input.shared) || 0);
+  const solo = Math.max(0, Math.floor(input.solo) || 0);
+  const fee = Math.max(0, input.extraFeeStay || 0);
+  const communal = rooms.length > 0 && rooms.every((r) => r.communal);
+  const mixed = !communal && rooms.some((r) => r.communal);
+  const capacityStd = rooms.reduce((n, r) => n + r.capacity, 0);
+  const capacityMax = communal ? capacityStd : rooms.reduce((n, r) => n + Math.max(r.capacity, r.maxCapacity), 0);
+  const error: ComboQuoteError | null =
+    rooms.length === 0 ? "NO_ROOM" : mixed ? "MIXED" : capacityMax < people ? "CAPACITY" : null;
+
+  let roomCost = 0;
+  let roomCostOld = 0;
+  let extraGuests = 0;
+  let extraCost = 0;
+  if (communal) {
+    let remaining = people;
+    for (const r of [...rooms].sort((a, b) => a.cost - b.cost)) {
+      const take = Math.min(remaining, r.capacity);
+      roomCost += r.cost * take;
+      roomCostOld += Math.max(r.cost, r.costOld ?? 0) * take;
+      remaining -= take;
+    }
+  } else {
+    roomCost = rooms.reduce((n, r) => n + r.cost, 0);
+    roomCostOld = rooms.reduce((n, r) => n + Math.max(r.cost, r.costOld ?? 0), 0);
+    if (people > capacityStd && !error) {
+      extraGuests = people - capacityStd;
+      extraCost = extraGuests * fee;
+      roomCost += extraCost;
+      roomCostOld += extraCost; // phụ thu không giảm
+    }
+  }
+  const seatCount = shared + solo;
+  const busAmount = cabinSeatTotal(input.fare, shared, solo);
+  const noDiscount = communal || rooms.some((r) => r.noComboDiscount);
+  const discountPeople = rooms.length > 0 ? Math.min(people, seatCount) : 0;
+  const discount = noDiscount ? 0 : COMBO_DISCOUNT * discountPeople;
+  return {
+    error, communal, capacityStd, capacityMax, extraGuests, extraCost, roomCost, roomCostOld,
+    seatCount, busAmount, noDiscount, discountPeople, discount,
+    total: Math.max(0, roomCost + busAmount - discount),
+  };
+}
+
+/**
+ * Số CHỖ TRÊN XE của đơn có chuyến cabin (= số người đi xe). Đơn "combo tự chọn" có thể khác số khách ở
+ * homestay (`quantity`): vài khách tự đi xe riêng. Mọi nơi hiển thị/báo cho NHÀ XE phải dùng hàm này,
+ * không dùng thẳng `quantity`.
+ */
+export function bookingBusSeats(b: {
+  quantity: number;
+  seatsSingle?: number | null;
+  seatsDouble?: number | null;
+  cabinShared?: number | null;
+  cabinSolo?: number | null;
+  selectionLabel?: string | null;
+}): number {
+  const c = bookingCabinBerths(b);
+  if (c) return c.shared + c.solo;
+  const n = (b.seatsSingle ?? 0) + (b.seatsDouble ?? 0);
+  return n > 0 ? n : b.quantity;
+}
+
+/** Combo: số khách KHÔNG đi xe của đơn (tự đi xe riêng) — 0 với mọi đơn thường. */
+export function comboSelfTravelGuests(b: Parameters<typeof bookingBusSeats>[0] & { category: string }): number {
+  return b.category === "COMBO" ? Math.max(0, b.quantity - bookingBusSeats(b)) : 0;
+}

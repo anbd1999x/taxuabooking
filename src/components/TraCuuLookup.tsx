@@ -299,7 +299,7 @@ export function TraCuuLookup({
                                   <div className="mt-1.5 flex flex-col gap-1">
                                     {p.lines.map((l) => (
                                       <div key={l} className="flex items-start gap-1.5 text-[13px] font-semibold leading-[1.45]" style={{ color: "oklch(0.32 0.06 230)" }}>
-                                        <span className="flex-none">🎫</span>
+                                        <span className="flex-none">{p.k === "HS" ? (l.startsWith("+") ? "➕" : "🛏️") : "🎫"}</span>
                                         <span>{tr(l)}</span>
                                       </div>
                                     ))}

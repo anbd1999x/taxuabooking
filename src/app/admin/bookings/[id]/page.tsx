@@ -36,7 +36,8 @@ import { blockIp } from "../../ip-block/actions";
 import { geoForIps } from "@/lib/visits";
 import { regionLabel } from "@/lib/track-labels";
 import { bookingPax, isRentalCategory } from "@/lib/occupancy";
-import { bookingCabinBerths, cabinBerthsLabel, cabinBerthLines, comboBikeFacts } from "@/lib/combo-pricing";
+import { bookingCabinBerths, bookingBusSeats, comboSelfTravelGuests, cabinBerthsLabel, cabinBerthLines, comboBikeFacts } from "@/lib/combo-pricing";
+import { roomGroups, roomGroupLines, roomGroupsShort, extraGuestNote } from "@/lib/booking-rooms";
 import { parseSurcharges } from "@/lib/surcharges";
 import { bookingRentalDays, rentalDaysLabel } from "@/lib/rental-days";
 
@@ -193,6 +194,8 @@ export default async function BookingDetailPage({
     routeLines: string[];
     /** Chi tiết từng loại vé xe (cabin đôi/đơn) kèm tiền. */
     ticketLines?: string[];
+    /** Từng hạng phòng + tên phòng cụ thể (đơn nhiều phòng), kèm ghi chú ở ghép. */
+    roomLines?: string[];
     chips: string[];
     price: number | null;
     heldSide: "room" | "bus";
@@ -208,6 +211,8 @@ export default async function BookingDetailPage({
         b.seatsDouble ? `${b.seatsDouble} cabin đôi` : "",
       ].filter(Boolean).join(" + ") || `${b.quantity} chỗ`;
 
+  const busSeats = bookingBusSeats(b);
+  const selfTravel = comboSelfTravelGuests(b);
   if (outTrip) {
     // Lộ trình từng lượt: điểm đón → điểm trả của chuyến + ngày giờ khởi hành.
     // Ưu tiên điểm khách tự chọn (lưu trong note) nếu khác lộ trình mặc định.
@@ -224,14 +229,18 @@ export default async function BookingDetailPage({
       ic: "XE",
       icTone: "bg-sky-100 text-sky-700",
       name: `${outTrip.service.title}${retTrip ? " · Cabin khứ hồi" : " · Xe cabin"}`,
-      detail: berths ? `${b.quantity} khách · ${cabinBerthsLabel(berths)}` : seatsLabel,
+      // Số người ĐI XE (combo tự chọn có thể khác số khách ở homestay).
+      detail: berths
+        ? `${busSeats} khách đi xe · ${cabinBerthsLabel(berths)}${selfTravel > 0 ? ` · ${selfTravel} khách tự đi xe riêng` : ""}`
+        : seatsLabel,
       routeLines,
       ticketLines: berths
         ? cabinBerthLines(berths, b.category === "COMBO" ? toNumber(b.busAmount) : price)
         : undefined,
       chips: [
         retTrip ? "Khứ hồi" : "Một chiều",
-        `${b.quantity} khách`,
+        `${busSeats} khách đi xe`,
+        ...(selfTravel > 0 ? [`${selfTravel} khách tự đi`] : []),
         ...(berths?.shared ? [`${berths.shared} cabin đôi`] : []),
         ...(berths?.solo ? [`${berths.solo} cabin đơn`] : []),
         ...(dropChosen ? [`Trả khách: ${dropChosen}`] : []),
@@ -243,9 +252,15 @@ export default async function BookingDetailPage({
   }
   if (rooms.length || (b.category !== "CABIN" && b.category !== "COMBO") || (b.category === "COMBO" && b.serviceId)) {
     // Gộp phòng theo hạng để hiện đủ các căn đã giữ: "Phòng Đơn (Mây) + Phòng Đôi (Couple 1)".
-    const roomsLabel = rooms.length
-      ? rooms.map((r) => `${r.roomType.name} (${r.name})`).join(" + ")
-      : "";
+    // Nhiều phòng ⇒ tiêu đề chỉ ghi gọn "2× Phòng đôi + 1× Gia đình", tên từng phòng xuống danh sách riêng.
+    const groups = roomGroups(rooms);
+    const manyRooms = rooms.length > 1;
+    const roomsLabel = !rooms.length
+      ? ""
+      : manyRooms
+        ? roomGroupsShort(groups)
+        : `${rooms[0].roomType.name} (${rooms[0].name})`;
+    const extraNote = b.category === "COMBO" ? extraGuestNote(b.selectionLabel) : null;
     const stay = roomsLabel ? `${b.service?.title ?? b.serviceTitle} · ${roomsLabel}` : b.serviceTitle;
     const isRental = isRentalCategory(b.category);
     const isStay = !isRental && b.nights != null && b.endDate != null;
@@ -264,6 +279,7 @@ export default async function BookingDetailPage({
         ? `Nhận ${formatDate(b.useDate)} · Trả ${formatDate(b.endDate!)} · ${b.nights} đêm · ${bookingPax(b)} người`
         : `${formatDate(b.useDate)}${b.endDate ? ` → ${formatDate(b.endDate)}` : ""} · SL ${b.quantity}${b.selectionLabel && !rooms.length ? ` · ${b.selectionLabel}` : ""}`,
       routeLines: [],
+      roomLines: [...(manyRooms ? roomGroupLines(groups) : []), ...(extraNote ? [extraNote] : [])],
       chips: isRental
         ? [`${rentDays} ngày thuê`, `${b.quantity} xe`]
         : isStay ? [...roomChips, `${b.nights} đêm`, `${bookingPax(b)} người`] : [cat.shortLabel],
@@ -335,7 +351,7 @@ export default async function BookingDetailPage({
 
   // Văn bản sao chép.
   const partLines = parts
-    .map((p) => `- ${p.name}: ${[...p.routeLines, p.detail, ...(p.ticketLines ?? [])].filter(Boolean).join(" · ")}`)
+    .map((p) => `- ${p.name}: ${[...p.routeLines, p.detail, ...(p.ticketLines ?? []), ...(p.roomLines ?? [])].filter(Boolean).join(" · ")}`)
     .join("\n");
   const summaryText =
     `Đơn ${b.code} · ${b.customerName} · ${b.phone} · ${b.quantity} khách\n${partLines}\n` +
@@ -764,6 +780,16 @@ export default async function BookingDetailPage({
                           {p.ticketLines.map((t) => (
                             <div key={t} className="flex items-start gap-1.5 text-[13px] font-semibold text-sky-900">
                               <span className="flex-none">🎫</span>
+                              <span className="leading-snug">{t}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {p.roomLines && p.roomLines.length > 0 && (
+                        <div className="mt-1.5 flex flex-col gap-1 rounded-xl bg-forest-50 px-3 py-2">
+                          {p.roomLines.map((t) => (
+                            <div key={t} className="flex items-start gap-1.5 text-[13px] font-semibold text-forest-900">
+                              <span className="flex-none">{t.startsWith("+") ? "➕" : "🛏️"}</span>
                               <span className="leading-snug">{t}</span>
                             </div>
                           ))}

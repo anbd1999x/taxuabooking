@@ -1,6 +1,6 @@
 "use client";
 
-import { dmy, wdDmy } from "@/lib/date-format";
+import { dmy } from "@/lib/date-format";
 import { trackLeadConversion } from "@/lib/ads";
 import { SupportHoursNote } from "@/components/SupportHours";
 import { ItineraryLink } from "@/components/itinerary/ItineraryLink";
@@ -8,7 +8,7 @@ import { We } from "@/components/SiteContact";
 import Link from "@/components/Link";
 import Image from "next/image";
 import { createPortal } from "react-dom";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type {
   ComboBusOption,
   ComboHomeOption,
@@ -18,14 +18,15 @@ import type {
   ComboSearchResult,
 } from "@/lib/combo";
 import { ensureSheetFresh } from "@/components/ensureSheet";
-import { cabinAllocation, busCostPerPerson, cabinSeatTotal, COMBO_MOTORBIKES, comboMotorbike, comboMotorbikeCost, comboMotorbikeDays, comboMotorbikeValid, type ComboBikeKey } from "@/lib/combo-pricing";
+import { cabinAllocation, busCostPerPerson, cabinSeatTotal } from "@/lib/combo-pricing";
 import { vnPhoneError } from "@/lib/phone";
-import { RENTAL_HOURS, RENTAL_DEFAULT_HOUR, rentalDaysLabel } from "@/lib/rental-days";
 import { BookingEmailField, emailLooksValid } from "@/components/BookingEmailField";
 import { PriceLine } from "@/components/WebPromo";
 import { showGlobalLoading } from "@/components/useSearchNav";
 import { CommitmentLink } from "@/components/trust/parts";
 import { useT } from "@/components/i18n/I18nProvider";
+import { ComboModeSlot } from "@/components/combo/ComboModeSwitch";
+import { useComboBike, comboBikePayload, ComboBikeSummary, ComboBikePicker, ComboBikeDoneNote } from "@/components/combo/ComboBike";
 
 // Phải khớp COMBO_DISCOUNT trong src/lib/combo.ts (server tính lại giá khi đặt).
 const COMBO_DISCOUNT = 25000;
@@ -162,10 +163,12 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
 
       {/* Thanh lọc kết quả: Xem theo nhà · Khu vực · Sắp xếp — dropdown CHỮ MẢNH,
           không khung (đồng bộ kiểu lọc nhanh của trang danh sách homestay). */}
-      <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+      {/* Desktop: bộ lọc (trái) + công tắc chế độ combo (phải) cùng MỘT hàng; mobile: công tắc full ngang bên dưới. */}
+      <div className="mb-4 lg:flex lg:items-center lg:justify-between lg:gap-4">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-2 lg:flex-1 lg:flex-nowrap lg:gap-x-4">
         {homeNames.length > 1 && (
-          <label className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-gray-500">
-            {tr("Xem theo nhà")}
+          <label className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-gray-500 lg:shrink">
+            <span className="flex-none whitespace-nowrap">{tr("Xem theo homestay")}</span>
             <select value={homeName} onChange={(e) => setHomeName(e.target.value)} className={SEL} style={{ color: "oklch(0.29 0.055 160)" }}>
               <option value="all">{tr("Tất cả homestay")}</option>
               {homeNames.map((n) => (
@@ -175,8 +178,8 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
           </label>
         )}
         {zones.length > 1 && (
-          <label className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-gray-500">
-            {tr("Khu vực")}
+          <label className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-gray-500 lg:shrink">
+            <span className="flex-none whitespace-nowrap">{tr("Khu vực")}</span>
             <select value={zone} onChange={(e) => setZone(e.target.value)} className={SEL} style={{ color: "oklch(0.52 0.12 50)" }}>
               <option value="all">{tr("Mọi khu vực")}</option>
               {zones.map((z) => (
@@ -185,8 +188,8 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
             </select>
           </label>
         )}
-        <label className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-gray-500">
-          {tr("Sắp xếp")}
+        <label className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-gray-500 lg:shrink">
+          <span className="flex-none whitespace-nowrap">{tr("Sắp xếp")}</span>
           <select value={sort} onChange={(e) => setSort(e.target.value)} className={SEL} style={{ color: "oklch(0.29 0.055 160)" }}>
             <option value="match">{budget != null ? tr("Tối ưu (khớp giá · tiện ích · vị trí)") : tr("Tối ưu (giá · tiện ích · vị trí)")}</option>
             <option value="priceAsc">{tr("Giá thấp → cao")}</option>
@@ -194,6 +197,8 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
             <option value="near">{tr("Gần trung tâm nhất")}</option>
           </select>
         </label>
+      </div>
+        <div className="flex justify-end pt-5 lg:ml-auto lg:flex-none lg:pt-0"><ComboModeSlot /></div>
       </div>
 
       <div className="flex flex-col gap-4">
@@ -363,42 +368,9 @@ function ComboPlanCard({
     setPreview({ gi, roomId: first });
   }
 
-  // Tuỳ chọn thêm xe máy (chọn loại: Wave 170k / PG1 270k mỗi xe mỗi ngày) — MẶC ĐỊNH KHÔNG TICK. Số ngày thuê = số đêm.
-  const [withBike, setWithBike] = useState(false);
-  const [bikeType, setBikeType] = useState<ComboBikeKey>(COMBO_MOTORBIKES[0].key);
-  const bike = comboMotorbike(bikeType);
-  const [bikeQty, setBikeQty] = useState(Math.max(1, Math.ceil(people / 2)));
-  const bikes = withBike ? Math.min(bikeQty, people) : 0;
-  // Ngày nhận / trả xe: chọn trong khoảng lưu trú [check-in, check-out] (mặc định cả kỳ) — VD ở 3 ngày nhưng chỉ thuê 2 ngày.
-  const stayDays = useMemo(() => dayKeysBetween(checkIn, checkOut), [checkIn, checkOut]);
-  const [bikeFrom, setBikeFrom] = useState(checkIn);
-  const [bikeTo, setBikeTo] = useState(checkOut);
-  // Giờ nhận / giờ trả xe: số ngày thuê quy đổi theo mốc 24 giờ (mặc định 06:00 – 06:00 = đúng số ngày lịch).
-  const [bikePickup, setBikePickup] = useState(RENTAL_DEFAULT_HOUR);
-  const [bikeReturn, setBikeReturn] = useState(RENTAL_DEFAULT_HOUR);
-  const bikeGap = Math.max(0, stayDays.indexOf(bikeTo) - stayDays.indexOf(bikeFrom));
-  const bikeTimeOk = comboMotorbikeValid(bikeGap, bikePickup, bikeReturn);
-  const bikeDays = comboMotorbikeDays(nights, bikePickup, bikeReturn, bikeGap);
-  const bikeCost = comboMotorbikeCost(bikes, nights, bikeType, bikePickup, bikeReturn, bikeGap);
-  const bikeWhenFrom = `${bikePickup} ${wdDmy(bikeFrom, tr)}`;
-  const bikeWhenTo = `${bikeReturn} ${wdDmy(bikeTo, tr)}`;
-  // Đổi ngày mà thành thuê TRONG NGÀY (nhận = trả) với giờ trả ≤ giờ nhận (vd mặc định 06:00–06:00)
-  // ⇒ tự đẩy giờ trả lên mốc sau giờ nhận để khỏi báo lỗi ngay.
-  function fixSameDay(from: string, to: string) {
-    if (from === to && bikeReturn <= bikePickup) {
-      setBikeReturn(RENTAL_HOURS.find((h) => h > bikePickup) ?? RENTAL_HOURS[RENTAL_HOURS.length - 1]);
-    }
-  }
-  function pickBikeFrom(k: string) {
-    const to = bikeTo < k ? k : bikeTo;
-    setBikeFrom(k);
-    setBikeTo(to);
-    fixSameDay(k, to);
-  }
-  function pickBikeTo(k: string) {
-    setBikeTo(k);
-    fixSameDay(bikeFrom, k);
-  }
+  // Tuỳ chọn thêm xe máy — dùng chung với Combo tự chọn (ComboBike.tsx).
+  const bikeOpt = useComboBike({ people, nights, checkIn, checkOut });
+  const { bikes, bikeTimeOk } = bikeOpt;
 
   const [openForm, setOpenForm] = useState(false);
   const [name, setName] = useState("");
@@ -432,7 +404,9 @@ function ComboPlanCard({
     if (gi >= 0) openRoom(gi);
   }
 
+  const sendLock = useRef(false); // khoá tức thời chống bấm đúp ⇒ tạo 2 đơn
   async function book() {
+    if (sendLock.current) return;
     setErr("");
     if (!bus) { setErr(tr("Vui lòng chọn xe cabin.")); return; }
     if (cabinCovered !== people) { setErr(tr("Chỗ nằm trên xe đang xếp {0}/{1} người.", [cabinCovered, people])); return; }
@@ -441,6 +415,7 @@ function ComboPlanCard({
     if (!name.trim()) { setErr(tr("Vui lòng nhập họ tên.")); return; }
     { const pe = vnPhoneError(phone); if (pe) { setErr(pe); return; } }
     if (!emailLooksValid(email)) { setErr(tr("Email không hợp lệ (có thể để trống).")); return; }
+    sendLock.current = true;
     setSubmitting(true);
     try {
       const res = await fetch("/api/combo/book", {
@@ -457,12 +432,7 @@ function ComboPlanCard({
           childrenAges,
           cabinSingle: cbSingle,
           cabinDouble: cbDouble,
-          motorbikes: bikes,
-          motorbikeType: bikes > 0 ? bikeType : null,
-          motorbikePickup: bikes > 0 ? bikePickup : null,
-          motorbikeReturn: bikes > 0 ? bikeReturn : null,
-          motorbikePickupDate: bikes > 0 ? bikeFrom : null,
-          motorbikeReturnDate: bikes > 0 ? bikeTo : null,
+          ...comboBikePayload(bikeOpt),
           customerName: name.trim(),
           phone: phone.trim(),
           email: email.trim() || null,
@@ -475,6 +445,7 @@ function ComboPlanCard({
     } catch {
       setErr(tr("Lỗi kết nối, vui lòng thử lại."));
     } finally {
+      sendLock.current = false;
       setSubmitting(false);
     }
   }
@@ -703,11 +674,7 @@ function ComboPlanCard({
                   <div className="mt-0.5 text-2xl font-extrabold text-ink">{tr(done.code)}</div>
                   <div className="mt-1 text-sm leading-relaxed text-gray-600"><We cap />{" "}{tr("sẽ gọi")}{" "}<b>{tr(phone)}</b>{" "}{tr("để xác nhận xe, phòng và chốt giá. Chưa thanh toán online.")}</div>
                 </div>
-                {bikes > 0 && (
-                  <div className="rounded-xl border border-dashed border-sunset-300 bg-sunset-50 p-3.5 text-[13px] leading-relaxed text-gray-700">
-                    🏍️ <b className="text-ink">{tr("Thuê xe máy {0}: {1} xe × {2} (nhận {3}, trả {4}) ≈ {5}", [tr(bike.name), bikes, rentalDaysLabel(bikeDays, tr), bikeWhenFrom, bikeWhenTo, tr(vnd(bikeCost))])}</b> — <b>{tr("giá tham khảo, chưa phải giá cuối")}</b>{tr(". Dịch vụ đi kèm, tính riêng, không nằm trong bill combo; giá chính thức tính theo giờ sử dụng xe thực tế, thanh toán trực tiếp khi giao xe.")}
-                  </div>
-                )}
+                <ComboBikeDoneNote state={bikeOpt} />
                 <SupportHoursNote />
                 <button type="button" onClick={() => setOpenForm(false)} className="rounded-full bg-forest-600 py-3 text-center text-sm font-bold text-white hover:bg-forest-700">Xong</button>
               </div>
@@ -751,16 +718,7 @@ function ComboPlanCard({
                 </div>
 
                 {/* Xe máy = dịch vụ đi kèm TÍNH RIÊNG: không cộng vào bill combo, trả khi giao xe */}
-                {bikes > 0 && (
-                  <div className="flex flex-col gap-1 rounded-xl border border-dashed border-sunset-300 bg-sunset-50 p-3.5 text-[13px]">
-                    <div className="flex items-start justify-between gap-3">
-                      <span className="min-w-0 font-bold text-ink">{tr("🏍️ Thuê xe máy")}{" "}<span className="block font-semibold text-gray-500 sm:inline">{tr("(dịch vụ kèm · tính riêng)")}</span></span>
-                      <span className="flex-none text-right font-extrabold text-ink"><span className="block text-[11px] font-semibold text-gray-500">{tr("Giá tham khảo")}</span>{tr(vnd(bikeCost))}</span>
-                    </div>
-                    <div className="text-xs text-gray-600">{tr("{0} · {1} xe × {2} × {3} · nhận {4}, trả {5}", [tr(bike.name), bikes, rentalDaysLabel(bikeDays, tr), tr(vnd(bike.perDay)), bikeWhenFrom, bikeWhenTo])}</div>
-                    <div className="text-xs font-semibold leading-relaxed text-sunset-700">{tr("Không tính vào bill combo ở trên — thanh toán trực tiếp khi giao xe.")}</div>
-                  </div>
-                )}
+                <ComboBikeSummary state={bikeOpt} />
 
                 {/* Chỗ nằm trên xe cabin: chọn nằm ghép (đôi) / nằm riêng (đơn) */}
                 <div className="flex flex-col gap-2.5 rounded-xl border border-gray-200 p-3.5">
@@ -788,86 +746,7 @@ function ComboPlanCard({
                 </div>
 
                 {/* Tuỳ chọn thêm: thuê xe máy (mặc định không tick) */}
-                <div className="flex flex-col gap-2.5 rounded-xl border border-gray-200 p-3.5">
-                  <label className="flex cursor-pointer items-start gap-2.5">
-                    <input type="checkbox" checked={withBike} onChange={(e) => setWithBike(e.target.checked)} className="mt-0.5 h-[18px] w-[18px] flex-none accent-forest-600" />
-                    <span className="min-w-0">
-                      <span className="block text-sm font-bold text-ink">{tr("🏍️ Thêm thuê xe máy")}</span>
-                      {/* Giá từng loại xe luôn hiện; phần mô tả & điều kiện chỉ hiện khi đã tick. */}
-                      <span className="block text-xs text-gray-500"><b className="text-forest-700">{COMBO_MOTORBIKES.map((b) => tr("{0} {1}/ngày", [b.name, vnd(b.perDay)])).join(" · ")}</b>{withBike && tr(" · nhận xe tại Tà Xùa, tự đi săn mây & các điểm check-in")}</span>
-                      {withBike && <span className="mt-0.5 block text-xs font-semibold text-sunset-700">{tr("Dịch vụ đi kèm, tính riêng — không cộng vào bill combo, thanh toán khi giao xe. Số tiền hiển thị chỉ là giá tham khảo, chưa phải giá cuối; giá chính thức tính theo giờ sử dụng xe thực tế.")}</span>}
-                    </span>
-                  </label>
-                  {withBike && (
-                    <div className="flex flex-col gap-2 border-t border-dashed border-gray-200 pt-2.5">
-                      <div className="text-sm font-bold text-ink">{tr("Chọn loại xe")}</div>
-                      <div className="grid grid-cols-2 gap-2">
-                        {COMBO_MOTORBIKES.map((b) => {
-                          const on = bikeType === b.key;
-                          return (
-                            <button
-                              key={b.key}
-                              type="button"
-                              onClick={() => setBikeType(b.key)}
-                              aria-pressed={on}
-                              className={`flex flex-col items-start rounded-xl border-[1.5px] px-3 py-2 text-left transition ${on ? "border-forest-600 bg-forest-50" : "border-gray-200 bg-white hover:border-forest-300"}`}
-                            >
-                              <span className="text-sm font-bold text-ink">{tr(b.name)}</span>
-                              <span className={`text-xs font-semibold ${on ? "text-forest-700" : "text-gray-500"}`}>{tr("{0}/ngày", [tr(vnd(b.perDay))])}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                  {withBike && (
-                    <div className="flex flex-col gap-2 border-t border-dashed border-gray-200 pt-2.5">
-                      <div className="grid grid-cols-2 gap-2">
-                        <label className="flex flex-col gap-1">
-                          <span className="text-xs font-semibold text-gray-600">{tr("Ngày nhận xe")}</span>
-                          <select value={bikeFrom} onChange={(e) => pickBikeFrom(e.target.value)} aria-label={tr("Ngày nhận xe")} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-forest-500">
-                            {stayDays.map((k) => <option key={k} value={k}>{wdDmy(k, tr)}</option>)}
-                          </select>
-                        </label>
-                        <label className="flex flex-col gap-1">
-                          <span className="text-xs font-semibold text-gray-600">{tr("Ngày trả xe")}</span>
-                          <select value={bikeTo} onChange={(e) => pickBikeTo(e.target.value)} aria-label={tr("Ngày trả xe")} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-forest-500">
-                            {stayDays.filter((k) => k >= bikeFrom).map((k) => <option key={k} value={k}>{wdDmy(k, tr)}</option>)}
-                          </select>
-                        </label>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        {([
-                          [tr("Giờ nhận xe"), bikePickup, setBikePickup],
-                          [tr("Giờ trả xe"), bikeReturn, setBikeReturn],
-                        ] as const).map(([label, value, set]) => (
-                          <label key={label} className="flex flex-col gap-1">
-                            <span className="text-xs font-semibold text-gray-600">{tr(label)}</span>
-                            <select value={value} onChange={(e) => set(e.target.value)} aria-label={tr(label)} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-forest-500">
-                              {RENTAL_HOURS.map((h) => <option key={h} value={h}>{tr(h)}</option>)}
-                            </select>
-                          </label>
-                        ))}
-                      </div>
-                      <p className="text-[11px] leading-relaxed text-gray-500">
-                        {bikeTimeOk ? <>{tr("Thuê trong khoảng lưu trú, không bắt buộc cả kỳ —")}{" "}<b className="text-ink">{tr("tính {0}", [rentalDaysLabel(bikeDays, tr)])}</b></> : <b className="text-red-600">{tr("Trả xe trong ngày nhận thì giờ trả phải sau giờ nhận xe.")}</b>}{tr(". Mỗi 24 giờ kể từ giờ nhận = 1 ngày; trả trễ tới 6 giờ tính thêm nửa ngày, trễ hơn 6 giờ tính thêm 1 ngày.")}
-                      </p>
-                    </div>
-                  )}
-                  {withBike && (
-                    <div className="flex items-center justify-between gap-3 border-t border-dashed border-gray-200 pt-2.5">
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-bold text-ink">{tr("Số xe")}</div>
-                        <div className="text-xs text-gray-500">{bikes} xe × {rentalDaysLabel(bikeDays, tr)} × {tr(vnd(bike.perDay))} ≈ <b className="whitespace-nowrap text-sunset-600">{tr(vnd(bikeCost))}</b> <span className="whitespace-nowrap">{tr("(tham khảo)")}</span></div>
-                      </div>
-                      <div className="flex flex-none items-center gap-2.5">
-                        <button type="button" onClick={() => setBikeQty((q) => Math.max(1, Math.min(q, people) - 1))} disabled={bikes <= 1} className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-lg font-bold text-ink disabled:opacity-40">−</button>
-                        <span className="w-5 text-center text-base font-extrabold text-ink">{bikes}</span>
-                        <button type="button" onClick={() => setBikeQty((q) => Math.min(people, q + 1))} disabled={bikes >= people} className="flex h-8 w-8 items-center justify-center rounded-full border border-gray-200 text-lg font-bold text-ink disabled:opacity-40">+</button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <ComboBikePicker state={bikeOpt} />
 
                 <input value={name} onChange={(e) => setName(e.target.value)} placeholder={tr("Họ và tên *")} className="rounded-xl border border-gray-200 px-3.5 py-3 text-sm outline-none focus:border-forest-500" />
                 <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder={tr("Số điện thoại *")} className="rounded-xl border border-gray-200 px-3.5 py-3 text-sm outline-none focus:border-forest-500" />
@@ -1030,16 +909,6 @@ function ComboPlanCard({
 
 function fmtDayKey(key: string): string {
   return dmy(key);
-}
-
-/** Các khoá yyyy-mm-dd từ `from` tới `to` (gồm cả hai đầu). */
-function dayKeysBetween(from: string, to: string): string[] {
-  const out: string[] = [];
-  const end = Date.parse(`${to}T00:00:00Z`);
-  for (let t = Date.parse(`${from}T00:00:00Z`); Number.isFinite(t) && t <= end && out.length < 60; t += 86_400_000) {
-    out.push(new Date(t).toISOString().slice(0, 10));
-  }
-  return out.length ? out : [from];
 }
 
 /** Khoá cuộn trang nền khi mở modal/panel — tránh vuốt xuyên làm thanh địa chỉ mobile co giãn, đẩy mép trên (nút ×) ra khỏi màn hình. */

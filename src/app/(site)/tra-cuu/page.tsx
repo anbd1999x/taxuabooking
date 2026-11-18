@@ -9,7 +9,9 @@ import { SITE } from "@/lib/site";
 import { CATEGORIES } from "@/lib/constants";
 import { getSettings } from "@/lib/queries";
 import { isSoldOutCancel } from "@/lib/cancel-reason";
-import { bookingCabinBerths, cabinBerthsLabel, cabinBerthLines, comboBikeFacts } from "@/lib/combo-pricing";
+import { bookingCabinBerths, bookingBusSeats, comboSelfTravelGuests, cabinBerthsLabel, cabinBerthLines, comboBikeFacts } from "@/lib/combo-pricing";
+import { roomGroups, roomGroupLines, extraGuestNote } from "@/lib/booking-rooms";
+import { partyLabel } from "@/lib/occupancy";
 import { rentalDaysLabel } from "@/lib/rental-days";
 import { TraCuuLookup, type LookupOrder, type LookupPart, type LookupStatus } from "@/components/TraCuuLookup";
 import { getT } from "@/lib/i18n/server";
@@ -86,9 +88,16 @@ export default async function LookupPage({
           },
           orderBy: { createdAt: "desc" },
           take: 30,
-          include: { service: { select: { slug: true, category: true } } },
+          include: { service: { select: { slug: true, category: true, title: true } } },
         })
       : [];
+
+  // Phòng cụ thể của các đơn combo (để hiện từng hạng phòng trên một dòng riêng).
+  const comboRoomIds = [...new Set(bookings.filter((b) => b.category === "COMBO").flatMap((b) => (b.roomIds.length ? b.roomIds : b.roomId ? [b.roomId] : [])))];
+  const roomRows = comboRoomIds.length
+    ? await prisma.room.findMany({ where: { id: { in: comboRoomIds } }, select: { id: true, name: true, roomType: { select: { name: true } } } })
+    : [];
+  const roomById = new Map(roomRows.map((r) => [r.id, r]));
 
   const settings = await getSettings();
   const phone = settings.contactPhone || SITE.defaultPhone;
@@ -109,17 +118,41 @@ export default async function LookupPage({
     const comboLabel = b.selectionLabel?.replace(/^Combo:\s*/i, "");
     const plusAt = comboLabel?.indexOf(" + ") ?? -1;
     if (b.category === "COMBO" && comboLabel && plusAt > 0) {
+      // Phần XE: "xe Nhà xe X (đi dd/mm/yyyy hh:mm, về …, đón tại …)" ⇒ tên nhà xe riêng, lịch xe xuống dòng mô tả.
+      const busRaw = comboLabel.slice(0, plusAt).trim().replace(/^xe\s+/i, "");
+      const busHead = /^(.+?) \((.+)\)$/.exec(busRaw);
+      const selfTravel = comboSelfTravelGuests(b);
+      // Phần PHÒNG: đủ dữ liệu phòng ⇒ tên homestay + từng hạng phòng một dòng; thiếu (phòng đã xoá) ⇒ nhãn cũ.
+      const ids = b.roomIds.length ? b.roomIds : b.roomId ? [b.roomId] : [];
+      const rooms = ids.map((id) => roomById.get(id)).filter((r): r is NonNullable<typeof r> => !!r);
+      const roomsOk = rooms.length > 0 && rooms.length === ids.length;
+      const extraNote = extraGuestNote(b.selectionLabel);
+      // Nhãn cũ của phần phòng: bỏ đuôi "· xe nằm: …" (đã hiện ở phần vé xe).
+      const stayLegacy = comboLabel.slice(plusAt + 3).replace(/\s*·\s*xe nằm:.*$/i, "").trim();
+      const guests = b.adults != null ? partyLabel(b.adults, b.childrenAges ?? [], tr) : `${b.quantity} ${tr("khách")}`;
       parts.push(
-        // selectionLabel ghi "Combo: xe Nhà xe X (…)" → bỏ chữ "xe " thừa trước tên nhà xe.
         {
           k: "XE",
-          name: comboLabel.slice(0, plusAt).trim().replace(/^xe\s+/i, ""),
-          d: berths ? tr("Vé khứ hồi · {0}", [cabinBerthsLabel(berths, tr)]) : null,
-          lines: berths ? cabinBerthLines(berths, busAmount) : undefined,
+          name: busHead ? busHead[1] : busRaw,
+          d:
+            [busHead ? busHead[2] : null, berths ? tr("Vé khứ hồi · {0}", [cabinBerthsLabel(berths, tr)]) : null]
+              .filter(Boolean)
+              .join(" · ") || null,
+          lines: [
+            ...(berths ? cabinBerthLines(berths, busAmount) : []),
+            ...(selfTravel > 0 ? [tr("{0} khách tự đi xe riêng (không có vé xe trong đơn)", [selfTravel])] : []),
+          ],
           price: busAmount,
         },
-        // Phần phòng: bỏ đuôi "· xe nằm: …" (đã hiện ở phần vé xe).
-        { k: "HS", name: comboLabel.slice(plusAt + 3).replace(/\s*·\s*xe nằm:.*$/i, "").trim(), d: null, price: roomAmount },
+        roomsOk
+          ? {
+              k: "HS",
+              name: b.service?.title ?? stayLegacy.split(" · ")[0],
+              d: tr("Nhận phòng {0} · Trả phòng {1} · {2} đêm · {3}", [fmtD(b.useDate), fmtD(b.endDate), b.nights ?? 1, guests]),
+              lines: [...roomGroupLines(roomGroups(rooms)), ...(extraNote ? [extraNote] : [])],
+              price: roomAmount,
+            }
+          : { k: "HS", name: stayLegacy, d: null, price: roomAmount },
       );
       // Xe máy thuê kèm (dịch vụ tính riêng, không nằm trong tổng đơn) — hiện như màn "Đã gửi yêu cầu combo".
       const bike = comboBikeFacts(b);
@@ -174,6 +207,7 @@ export default async function LookupPage({
       when: fmtRange(b.useDate, b.endDate),
       pax:
         `${b.quantity} ${meta.unit}` +
+        (b.category === "COMBO" && bookingBusSeats(b) !== b.quantity ? ` · ${bookingBusSeats(b)} vé xe` : "") +
         (berthsShort && (b.category === "CABIN" || b.category === "COMBO") ? ` (${berthsShort})` : ""),
       created: fmtD(b.createdAt),
       total,

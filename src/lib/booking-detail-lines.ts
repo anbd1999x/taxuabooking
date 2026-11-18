@@ -41,10 +41,18 @@ export function bookingDetailLines(chips: string[]): DetailLine[] {
     const berth = /^xe nằm: (.+)$/.exec(p);
     const motoSeparate = /^DỊCH VỤ KÈM.*?: thuê xe máy (.+)$/.exec(p);
     const motoOld = /^thuê xe máy: (.+)$/.exec(p);
+    const custom = /^COMBO TỰ CHỌN: (.+)$/.exec(p);
     if (stay) {
-      out.push({ label: "Phòng", value: stay[1] });
+      // "2× Phòng đôi (P201, P202) + 1× Gia đình (F1), +1 khách ở ghép (phụ thu …)" ⇒ mỗi hạng 1 dòng.
+      const ghep = /^(.*?), (\+\d+ khách ở ghép .+)$/.exec(stay[1]);
+      const roomsText = ghep ? ghep[1] : stay[1];
+      const groups = roomsText.split(/ \+ (?=\d+× )/).map((s) => s.trim()).filter(Boolean);
+      if (groups.length > 1) groups.forEach((g, i) => out.push({ label: i === 0 ? `Phòng (${groups.length} hạng)` : "", value: g }));
+      else out.push({ label: "Phòng", value: roomsText });
+      if (ghep) out.push({ label: "Ở ghép", value: ghep[2] });
       out.push({ label: "Lưu trú", value: stay[2] });
-    } else if (berth) out.push({ label: "Chỗ nằm trên xe", value: berth[1] });
+    } else if (custom) out.push({ label: "Combo tự chọn", value: custom[1] });
+    else if (berth) out.push({ label: "Chỗ nằm trên xe", value: berth[1] });
     else if (motoSeparate) out.push({ label: "Xe máy (tính riêng, ngoài bill)", value: motoSeparate[1] });
     else if (motoOld) out.push({ label: "Thuê xe máy", value: motoOld[1] });
     else if (/người lớn|trẻ|khách/.test(p)) out.push({ label: "Khách", value: p });

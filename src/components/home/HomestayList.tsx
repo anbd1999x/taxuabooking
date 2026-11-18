@@ -9,6 +9,7 @@ import { useSearchNav } from "@/components/useSearchNav";
 import { AREA_OPTIONS, areaZone } from "@/lib/constants";
 import { useT } from "@/components/i18n/I18nProvider";
 import { TripFlag } from "@/components/TripFlag";
+import { PushSwitch } from "@/components/home/PushSwitch";
 import type { TFunc } from "@/lib/i18n/config";
 
 /**
@@ -23,6 +24,8 @@ export interface HomestayCard {
   typeName?: string; // tên hạng phòng (để dịch riêng)
   roomName?: string | null; // tên phòng khi nhóm chỉ có 1 phòng
   homeName: string; // tên homestay
+  homeCover?: string | null; // ảnh bìa homestay (chế độ xem "Homestay")
+  homeDesc?: string; // tóm tắt homestay (chế độ xem "Homestay")
   area: string;
   distanceKm: number | null; // cách trung tâm Tà Xùa (km); null = chưa nhập
   amen: Record<AmenKey, boolean>; // tiện ích (hạng phòng + dịch vụ) để lọc
@@ -94,7 +97,13 @@ export function HomestayList({
   initialTo = "",
   initialQ = "",
   initialPeople = 0,
+  initialView = "room",
+  homeInfo,
 }: {
+  /** Ảnh bìa + tóm tắt từng homestay (theo slug) cho chế độ "Theo nhà" — gửi 1 lần/nhà, không lặp trên từng thẻ phòng. */
+  homeInfo?: Record<string, { cover: string | null; desc: string }>;
+  /** Chế độ kết quả: "room" = từng loại phòng (mặc định), "home" = gom theo homestay (?view=home). */
+  initialView?: "room" | "home";
   items: HomestayCard[];
   initialFrom?: string;
   initialTo?: string;
@@ -106,6 +115,7 @@ export function HomestayList({
   const { pending: searching, go } = useSearchNav();
   const [w, setW] = useState(1280);
   const [q, setQ] = useState(initialQ);
+  const [view, setView] = useState<"room" | "home">(initialView);
   // ci/co = ngày đang CHỌN (nháp). Tình trạng còn phòng trong `items` do server
   // tính theo ngày TRÊN URL (initialFrom/initialTo) — chỉ đổi khi bấm "Tìm kiếm".
   const [ci, setCi] = useState(initialFrom); // nhận phòng = from
@@ -277,7 +287,7 @@ export function HomestayList({
   // Số thẻ đang dựng: bắt đầu 24, cuộn tới cuối danh sách thì thêm 24. Đổi bộ lọc / dữ liệu ⇒ về 24
   // (so khoá lọc thay vì setState trong effect).
   const PAGE = 24;
-  const fkey = JSON.stringify([q, ci, co, adults, childAges, price, type, zone, home, sort, amen, all.length]);
+  const fkey = JSON.stringify([view, q, ci, co, adults, childAges, price, type, zone, home, sort, [...amen], all.length]);
   const [lim, setLim] = useState({ k: fkey, n: PAGE });
   const limit = lim.k === fkey ? lim.n : PAGE;
   const moreRef = useRef<HTMLDivElement>(null);
@@ -299,7 +309,7 @@ export function HomestayList({
       el.style.opacity = "1";
       el.style.transform = "none";
     });
-  }, [q, ci, co, adults, childAges, price, type, zone, home, sort, amen, all, limit]);
+  }, [view, q, ci, co, adults, childAges, price, type, zone, home, sort, amen, all, limit]);
 
   // Mở trang với sẵn ngày (từ trang chủ) → cuộn xuống danh sách để thấy kết quả
   // ngay trên mobile. Không chạy khi đang gõ lọc trực tiếp.
@@ -446,6 +456,39 @@ export function HomestayList({
         : bySort(a, b),
     );
   }
+  // ---- Chế độ "Homestay": gom các loại phòng ĐÃ LỌC theo từng nhà (mỗi nhà 1 thẻ) ----
+  // Nhà chỉ hiện khi còn ít nhất 1 loại phòng khớp bộ lọc; giá "từ" = phòng khớp rẻ nhất.
+  const homes = (() => {
+    const m = new Map<string, {
+      slug: string; name: string; area: string; distanceKm: number | null; cover: string | null; desc: string;
+      hot: boolean; types: number; freeRooms: number; maxCap: number; amen: Set<AmenKey>; price: number; old: number | null;
+    }>();
+    for (const x of items) {
+      let g = m.get(x.slug);
+      if (!g) {
+        g = {
+          slug: x.slug, name: x.homeName, area: x.area, distanceKm: x.distanceKm, cover: homeInfo?.[x.slug]?.cover ?? x.homeCover ?? x.cover,
+          desc: homeInfo?.[x.slug]?.desc ?? x.homeDesc ?? x.desc, hot: x.featured, types: 0, freeRooms: 0, maxCap: 0, amen: new Set(), price: 0, old: null,
+        };
+        m.set(x.slug, g);
+      }
+      g.types += 1;
+      g.freeRooms += x.freeRooms;
+      g.maxCap = Math.max(g.maxCap, x.capacity);
+      if (!g.cover) g.cover = x.cover;
+      for (const a of AMENITIES) if (x.amen?.[a.key]) g.amen.add(a.key);
+      if (x.price > 0) {
+        const shown = hasDates ? (x.stayTotal ?? x.price * nights) : x.price;
+        const old = hasDates ? (x.stayTotal != null ? x.stayOld : x.priceOld != null ? x.priceOld * nights : null) : x.priceOld;
+        if (g.price === 0 || shown < g.price) { g.price = shown; g.old = old; }
+      }
+    }
+    const list = [...m.values()]; // giữ thứ tự xuất hiện (ưu tiên / tên / gần trung tâm) của danh sách phòng
+    if (sort === "priceAsc") list.sort((a, b) => (a.price > 0 ? a.price : Infinity) - (b.price > 0 ? b.price : Infinity));
+    else if (sort === "priceDesc") list.sort((a, b) => b.price - a.price);
+    return list;
+  })();
+  const shownCount = view === "home" ? homes.length : items.length;
   const hasFilter = Boolean(q || ci || co || adults > 0 || childAges.length > 0 || price !== "all" || type !== "all" || zone !== "all" || home !== "all" || sort !== "rec" || amen.size > 0);
   const toggleAmen = (k: AmenKey) =>
     setAmen((prev) => {
@@ -474,6 +517,7 @@ export function HomestayList({
     if (q) p.set("q", q);
     if (adults > 0) p.set("people", String(adults));
     if (childAges.length) p.set("kids", childAges.join("-"));
+    if (view === "home") p.set("view", "home");
     go(`/homestay${p.toString() ? `?${p}` : ""}`, { replace: true }); // kèm refresh — tránh cache cũ
     const el = listRef.current;
     if (el) window.setTimeout(() => window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 12, behavior: "smooth" }), 120);
@@ -482,7 +526,7 @@ export function HomestayList({
   // Xoá lọc: về trạng thái không ngày (server trả "Chọn ngày để xem").
   function clearAll() {
     setQ(""); setCi(""); setCo(""); setAdults(0); setChildAges([]); setPrice("all"); setType("all"); setZone("all"); setHome("all"); setSort("rec"); setAmen(new Set());
-    go("/homestay", { replace: true });
+    go(view === "home" ? "/homestay?view=home" : "/homestay", { replace: true });
   }
 
   const cell = "flex min-w-0 flex-col gap-0.5 rounded-[14px] bg-[oklch(0.965_0.01_230)] px-3.5 py-2.5";
@@ -693,7 +737,7 @@ export function HomestayList({
             <div className="flex items-center gap-2">
               {hasFilter && <button type="button" onClick={clearAll} className="px-3 py-2 text-sm font-bold text-gray-500">{tr("Xoá lọc")}</button>}
               <span className="text-sm font-semibold text-gray-500">
-                {items.length}{" "}{tr("loại phòng")}{hasDates ? tr(" · {0} đêm", [nights]) : ""}
+                {shownCount}{" "}{view === "home" ? "homestay" : tr("loại phòng")}{hasDates ? tr(" · {0} đêm", [nights]) : ""}
                 {hiddenFull > 0 && <span className="text-gray-400">{" "}{tr("· đã ẩn {0} loại hết phòng", [hiddenFull])}</span>}
                 {hiddenPolicyHomes > 0 && (
                   <span className="block text-[13px] font-medium text-amber-700">
@@ -727,15 +771,17 @@ export function HomestayList({
       {/* LIST */}
       <main ref={listRef} className="container-page pb-24 pt-9">
         {/* Lọc nhanh ngay trên kết quả — dropdown chữ nhỏ: theo TÊN homestay & theo KHU VỰC */}
+        {/* Desktop: bộ lọc nhà/khu vực (trái) + công tắc chế độ (phải) cùng MỘT hàng; mobile: lọc 1 hàng, công tắc full ngang bên dưới. */}
+        <div className="mb-5 md:mt-3 md:flex md:items-center md:justify-between md:gap-5">
         {(homeNames.length > 1 || zones.length > 1) && (
-          <div className="mb-5 flex flex-wrap items-center gap-x-5 gap-y-2">
+          <div className="mb-3 flex min-w-0 flex-nowrap items-center gap-x-3 sm:gap-x-5 md:mb-0 md:flex-1">
             {homeNames.length > 1 && (
-              <label className="flex items-center gap-2 text-[13px] font-semibold text-gray-500">
-                {tr("Xem theo nhà")}
+              <label className="flex min-w-0 flex-1 items-center gap-1.5 text-[13px] font-semibold text-gray-500 sm:flex-initial sm:gap-2">
+                <span className="flex-none whitespace-nowrap">{tr("Xem theo homestay")}</span>
                 <select
                   value={home}
                   onChange={(e) => setHome(e.target.value)}
-                  className="max-w-[260px] cursor-pointer border-0 bg-transparent p-0 text-[13px] font-extrabold outline-none"
+                  className="w-full min-w-0 max-w-[260px] cursor-pointer truncate sm:w-auto border-0 bg-transparent p-0 text-[13px] font-extrabold outline-none"
                   style={{ color: TH.G }}
                 >
                   <option value="all">{tr("Tất cả homestay")}</option>
@@ -746,12 +792,12 @@ export function HomestayList({
               </label>
             )}
             {zones.length > 1 && (
-              <label className="flex items-center gap-2 text-[13px] font-semibold text-gray-500">
-                {tr("Khu vực")}
+              <label className="flex min-w-0 flex-1 items-center gap-1.5 text-[13px] font-semibold text-gray-500 sm:flex-initial sm:gap-2">
+                <span className="flex-none whitespace-nowrap">{tr("Khu vực")}</span>
                 <select
                   value={zone}
                   onChange={(e) => setZone(e.target.value)}
-                  className="max-w-[220px] cursor-pointer border-0 bg-transparent p-0 text-[13px] font-extrabold outline-none"
+                  className="w-full min-w-0 max-w-[220px] cursor-pointer truncate sm:w-auto border-0 bg-transparent p-0 text-[13px] font-extrabold outline-none"
                   style={{ color: "oklch(0.52 0.12 50)" }}
                 >
                   <option value="all">{tr("Mọi khu vực")}</option>
@@ -763,8 +809,85 @@ export function HomestayList({
             )}
           </div>
         )}
+          {/* Công tắc chế độ kết quả (trên lưới thẻ, căn phải): Theo nhà / Theo phòng.
+              Kiểu "người tí hon đẩy núm" theo claude.ai/design "Nut chuyen che do" — xem PushSwitch. */}
+          <div className="flex justify-end pt-4 md:ml-auto md:flex-none md:pt-0">
+            <div className="w-full sm:w-[400px] md:w-[340px] lg:w-[400px]">
+              <PushSwitch
+                value={view}
+                onChange={setView}
+                left={{ k: "home", name: tr("Theo homestay"), n: homes.length }}
+                right={{ k: "room", name: tr("Theo phòng"), n: items.length }}
+                ariaLabel={tr("Xem kết quả")}
+                flag={tr("Đi Tà Xùa thôi!")}
+                pushLabel={tr("ĐẨY")}
+                tip={(name) => tr("Đẩy sang {0}", [name])}
+              />
+            </div>
+          </div>
+        </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] sm:gap-[22px]">
-          {items.slice(0, limit).map((s, i) => (
+          {view === "home" && homes.slice(0, limit).map((h, i) => (
+            <Link
+              key={h.slug}
+              href={`/homestay/${h.slug}${dateQS}${partyQS}`}
+              data-reveal="1"
+              className="group flex flex-col overflow-hidden rounded-[22px] border border-[oklch(0.93_0.01_230)] bg-white opacity-0 transition hover:shadow-[0_24px_50px_-24px_oklch(0.3_0.08_260_/.4)]"
+              style={{ transform: "translateY(24px)", transitionProperty: "opacity, transform, box-shadow", transitionDuration: ".6s", transitionDelay: `${(i % 3) * 0.08}s` }}
+            >
+              <div className="relative aspect-[16/10] overflow-hidden bg-gray-100 sm:aspect-[4/3]">
+                {h.cover ? <Image src={h.cover} alt={tr(h.name)} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" /> : <div className="flex h-full items-center justify-center text-4xl">🏠</div>}
+                {h.hot && (
+                  <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-sunset-500 px-2 py-0.5 text-[11px] font-extrabold tracking-wide text-white shadow-sm sm:left-3 sm:top-3 sm:px-2.5 sm:py-1 sm:text-xs">🔥 HOT</span>
+                )}
+              </div>
+              <div className="flex flex-1 flex-col gap-1 p-3 sm:gap-2 sm:p-5 sm:pt-[18px]">
+                <div className="line-clamp-1 text-[11px] font-semibold text-gray-500 sm:text-[13px]">
+                  {tr(h.area)}
+                  {h.distanceKm != null && (h.distanceKm === 0 ? tr(" · ngay trung tâm") : tr(" · cách trung tâm {0}km", [h.distanceKm.toLocaleString("vi-VN")]))}
+                </div>
+                <div className="line-clamp-2 text-[15px] font-extrabold leading-[1.25] tracking-[-0.015em] text-ink sm:text-[19px]">{tr(h.name)}</div>
+                <div className="text-[11px] font-semibold text-gray-500 sm:text-[12px]">
+                  {h.types}{" "}{tr("loại phòng")} · {tr("Tối đa")}{" "}{h.maxCap}{" "}{tr("khách")}{tr("/phòng")}
+                  {hasDates && <span className="ml-1.5 inline-block whitespace-nowrap rounded-full px-1.5 py-px text-[10px] font-bold sm:text-[11px]" style={{ background: STATUS[h.freeRooms <= 2 ? "low" : "ok"].bg, color: STATUS[h.freeRooms <= 2 ? "low" : "ok"].fg }}>{tr("Còn {0} phòng", [h.freeRooms])}</span>}
+                </div>
+                {h.amen.size > 0 && (() => {
+                  const tags = AMENITIES.filter((a) => h.amen.has(a.key));
+                  return (
+                    <div className="flex flex-wrap gap-1">
+                      {tags.slice(0, 4).map((a) => (
+                        <span key={a.key} className="rounded-full bg-[oklch(0.96_0.02_155)] px-2 py-0.5 text-[10px] font-semibold text-[oklch(0.36_0.08_155)] sm:text-[11px]">{tr(a.icon)} {tr(a.label)}</span>
+                      ))}
+                      {tags.length > 4 && <span className="rounded-full bg-[oklch(0.96_0.005_230)] px-2 py-0.5 text-[10px] font-semibold text-gray-500 sm:text-[11px]">+{tags.length - 4}</span>}
+                    </div>
+                  );
+                })()}
+                <div className="line-clamp-2 text-[13px] leading-[1.5] text-gray-500 sm:line-clamp-3 sm:text-sm sm:leading-[1.55]">{tr(h.desc)}</div>
+                <div className="flex-1" />
+                <div className="mt-1 flex flex-wrap items-end justify-between gap-x-2 gap-y-2 border-t border-[oklch(0.94_0.01_230)] pt-2 sm:mt-1.5 sm:pt-3">
+                  <div className="min-w-0">
+                    <div className="text-[11px] text-gray-500 sm:text-xs">{h.price > 0 ? (hasDates ? tr("{0} đêm từ", [nights]) : tr("Giá từ")) : tr("Giá phòng")}</div>
+                    <div className="flex flex-wrap items-baseline gap-x-1.5">
+                      {h.price > 0 ? (
+                        <>
+                          {h.old != null && h.old > h.price && (
+                            <span className="whitespace-nowrap text-[12px] text-gray-400 line-through sm:text-[14px]">{tr(vnd(h.old))}</span>
+                          )}
+                          <span className="whitespace-nowrap">
+                            <span className="text-[15px] font-extrabold tracking-[-0.02em] min-[400px]:text-[17px] sm:text-[21px]" style={{ color: TH.G }}>{tr(vnd(h.price))}</span>{!hasDates && <span className="text-[11px] text-gray-500 min-[400px]:text-[12px] sm:text-[13px]">{tr("/đêm")}</span>}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-[15px] font-extrabold tracking-[-0.02em] sm:text-[18px]" style={{ color: TH.G }}>{tr("IB để biết giá")}</span>
+                      )}
+                    </div>
+                  </div>
+                  <span className="whitespace-nowrap rounded-full px-3 py-2 text-xs font-bold text-white transition group-hover:bg-sunset-500 sm:px-4 sm:py-2.5 sm:text-sm" style={{ background: TH.G }}>{tr("Xem chi tiết")}</span>
+                </div>
+              </div>
+            </Link>
+          ))}
+          {view === "room" && items.slice(0, limit).map((s, i) => (
             <Link
               key={s.id}
               href={`/homestay/${s.slug}${dateQS}${partyQS}`}
@@ -834,16 +957,16 @@ export function HomestayList({
             </Link>
           ))}
         </div>
-        {items.length > limit && (
+        {shownCount > limit && (
           <div ref={moreRef} className="mt-6 flex justify-center">
             <button type="button" onClick={() => setLim({ k: fkey, n: limit + PAGE })} className="rounded-full border border-[oklch(0.88_0.02_230)] bg-white px-6 py-3 text-sm font-bold text-ink hover:bg-gray-50">
-              {tr("Xem thêm {0} phòng (còn {1})", [Math.min(PAGE, items.length - limit), items.length - limit])}
+              {tr(view === "home" ? "Xem thêm {0} homestay (còn {1})" : "Xem thêm {0} phòng (còn {1})", [Math.min(PAGE, shownCount - limit), shownCount - limit])}
             </button>
           </div>
         )}
         {items.length === 0 && (
           <div className="flex flex-col items-center gap-2.5 rounded-[22px] border border-dashed border-[oklch(0.85_0.02_230)] bg-white px-6 py-14 text-center">
-            <div className="text-[19px] font-extrabold text-ink">{tr("Không có phòng phù hợp")}</div>
+            <div className="text-[19px] font-extrabold text-ink">{view === "home" ? tr("Không có homestay phù hợp") : tr("Không có phòng phù hợp")}</div>
             <div className="max-w-[420px] text-[15px] text-gray-500">{tr("Thử đổi ngày hoặc khoảng giá. Hoặc gọi")}{" "}<SitePhone />, <We />{" "}{tr("tìm chỗ giúp.")}</div>
             <button type="button" onClick={clearAll} className="mt-1.5 rounded-full px-5 py-2.5 text-sm font-bold text-white" style={{ background: TH.G }}>{tr("Xoá bộ lọc")}</button>
           </div>

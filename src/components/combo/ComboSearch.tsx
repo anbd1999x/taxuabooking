@@ -67,7 +67,10 @@ export function ComboSearch({
   initialKind = "all",
   initialOrigin = "",
   origins = [],
+  mode = "",
 }: {
+  /** Chế độ đang xem ("tu-chon" = combo tự chọn) — giữ nguyên khi tìm lại. */
+  mode?: string;
   initialFrom?: string;
   initialTo?: string;
   initialPeople?: number;
@@ -110,6 +113,7 @@ export function ComboSearch({
     if (price) p.set("price", price);
     if (filters.size) p.set("f", [...filters].join(","));
     if (kind && kind !== "all") p.set("kind", kind);
+    if (mode) p.set("mode", mode);
     go(`/combo?${p.toString()}`);
   }
 

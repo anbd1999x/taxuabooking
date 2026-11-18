@@ -13,7 +13,8 @@ import { CATEGORIES } from "@/lib/constants";
 import { resolveBusCommissions, resolveRoomCommissions } from "@/lib/provider-commission";
 import { isRentalCategory, durationLabel } from "@/lib/occupancy";
 import { bookingRentalDays, rentalDaysLabel } from "@/lib/rental-days";
-import { bookingCabinBerths, cabinBerthsLabel, comboBikeFacts } from "@/lib/combo-pricing";
+import { bookingCabinBerths, bookingBusSeats, comboSelfTravelGuests, cabinBerthsLabel, comboBikeFacts } from "@/lib/combo-pricing";
+import { roomGroups, roomGroupLines, roomGroupsFull, extraGuestNote } from "@/lib/booking-rooms";
 import { parseSurcharges } from "@/lib/surcharges";
 
 /**
@@ -121,9 +122,28 @@ export async function buildBookingMessages(
       : null;
   const mapUrl = b.service?.mapUrl || null;
   const ctvLine = b.ctv ? `${b.ctv.name}${b.ctv.phone ? ` · ${b.ctv.phone}` : ""}` : null;
-  const roomsConfirmLabel = rooms.length
-    ? rooms.map((r) => `${r.roomType.name} (${r.name})`).join(", ")
-    : null;
+  // Phòng gom theo hạng: 1 phòng "Phòng đôi (P201)"; nhiều phòng "2× Phòng đôi (P201, P202) + 1× Gia đình (F1)".
+  const rGroups = roomGroups(rooms);
+  const roomsConfirmLabel = !rooms.length
+    ? null
+    : rooms.length === 1
+      ? `${rooms[0].roomType.name} (${rooms[0].name})`
+      : roomGroupsFull(rGroups);
+  // Tin nhắn / email nhiều phòng: mỗi hạng 1 dòng riêng cho dễ đọc.
+  const roomMsgLines = (dash: string): string[] =>
+    !rooms.length
+      ? []
+      : rooms.length === 1
+        ? [`${dash}Phòng: ${roomsConfirmLabel}`]
+        : [`${dash}Phòng (${rooms.length} phòng):`, ...roomGroupLines(rGroups).map((l) => `   • ${l}`)];
+  const extraNote = b.category === "COMBO" ? extraGuestNote(b.selectionLabel) : null;
+  const extraShort = extraNote?.replace(" khách ở ghép", " khách") ?? null; // "+1 khách · phụ thu 150.000đ"
+  const extraMsgLines = (dash: string): string[] => (extraShort ? [`${dash}Ở ghép: ${extraShort}`] : []);
+  // Số người ĐI XE (combo tự chọn có thể khác số khách ở homestay) + số khách tự đi xe riêng.
+  const busSeats = bookingBusSeats(b);
+  const selfTravel = comboSelfTravelGuests(b);
+  const selfTravelLines = (dash: string): string[] =>
+    selfTravel > 0 ? [`${dash}Lưu ý: ${selfTravel} khách tự đi xe riêng (không có vé xe trong đơn)`] : [];
   const isRental = isRentalCategory(b.category);
   const isStay = !isRental && b.nights != null && b.endDate != null;
   const rentDaysText = `${rentalDaysLabel(bookingRentalDays(b))} thuê`;
@@ -159,13 +179,15 @@ export async function buildBookingMessages(
           ? [`- Về: ${retTrip.departureTime} ngày ${formatDate(retTrip.departureDate)}${retTrip.pickupPoint ? `, từ ${retTrip.pickupPoint}` : ""}${dropChosen || pickupChosen || retTrip.dropoffPoint ? ` → ${dropChosen || pickupChosen || retTrip.dropoffPoint}` : ""}`]
           : ["- Vé một chiều (chưa gồm chiều về)"]),
         ...(seatsLabel ? [`- Chỗ nằm: ${seatsLabel}`] : []),
+        ...selfTravelLines("- "),
       ]
     : [];
   const stayLines =
     hasRoom && isStay
       ? [
           `🏠 HOMESTAY: ${stayName}`,
-          ...(roomsConfirmLabel ? [`- Phòng: ${roomsConfirmLabel}`] : []),
+          ...roomMsgLines("- "),
+          ...extraMsgLines("- "),
           `- Nhận phòng: từ ${STAY_CHECKIN_TIME} ngày ${formatDate(b.useDate)}`,
           `- Trả phòng: trước ${STAY_CHECKOUT_TIME} ngày ${formatDate(b.endDate!)} (${b.nights} đêm)`,
         ]
@@ -231,6 +253,7 @@ export async function buildBookingMessages(
         ...(outPickup2 ? [`- Đón tại: ${outPickup2}`] : []),
         `- Giờ đi: ${formatDate(outTrip.departureDate)} ${outTrip.departureTime}`,
         ...(retTrip ? [`- Giờ về: ${formatDate(retTrip.departureDate)} ${retTrip.departureTime}`] : []),
+        ...selfTravelLines("- "),
         ...(b.busAmount != null ? [`- Tiền vé: ${formatPrice(b.busAmount)}`] : []),
       );
     }
@@ -238,7 +261,8 @@ export async function buildBookingMessages(
       confirmLines.push(
         "",
         `🏠 HOMESTAY: ${b.service?.title ?? b.serviceTitle}`,
-        ...(roomsConfirmLabel ? [`- Phòng: ${roomsConfirmLabel}`] : []),
+        ...roomMsgLines("- "),
+        ...extraMsgLines("- "),
         ...(isStay ? [`- Nhận phòng: ${formatDate(b.useDate)}`, `- Trả phòng: ${formatDate(b.endDate!)}`] : []),
         ...(mapUrl ? [`- Định vị: ${mapUrl}`] : []),
         ...(b.roomAmount != null ? [`- Tiền phòng: ${formatPrice(b.roomAmount)}`] : []),
@@ -282,7 +306,7 @@ export async function buildBookingMessages(
       `Sđt: ${b.phone}`,
       ...(ctvLine ? [`Hỗ trợ: ${ctvLine}`] : []),
       `${isRental ? "Thuê xe máy" : "Homestay"}: ${b.service?.title ?? b.serviceTitle}`,
-      ...(roomsConfirmLabel ? [`Số phòng: ${roomsConfirmLabel}`] : []),
+      ...(rooms.length > 1 ? roomMsgLines("") : roomsConfirmLabel ? [`Số phòng: ${roomsConfirmLabel}`] : []),
       ...(isRental
         ? rentLines
         : isStay
@@ -330,7 +354,7 @@ export async function buildBookingMessages(
         `Tà Xùa Booking gửi ${outTrip.service.title} đơn ${b.code}:`,
         // Nhà xe cần SĐT để gọi đón khách ⇒ luôn kèm, kể cả đơn chưa cọc. Không ghi tiền (bán ra / thực nhận).
         `- Khách: ${b.customerName} · ${b.phone}`,
-        `- Số khách: ${b.quantity} khách${seatsLabel ? ` · ${seatsLabel}` : ""}`,
+        `- Số khách đi xe: ${busSeats} khách${seatsLabel ? ` · ${seatsLabel}` : ""}`,
         `- Loại vé: ${retTrip ? "Khứ hồi" : "Một chiều"}`,
         `- Chiều đi: ${outTrip.departureTime} ngày ${formatDate(outTrip.departureDate)}${outPickup2 ? `, đón tại ${outPickup2}` : ""}`,
         ...(retTrip
@@ -352,7 +376,8 @@ export async function buildBookingMessages(
         guestLine,
         ...(stayish
           ? [
-              ...(roomsConfirmLabel ? [`- Phòng: ${roomsConfirmLabel}`] : []),
+              ...roomMsgLines("- "),
+              ...extraMsgLines("- "),
               ...(isStay
                 ? [
                     `- Nhận phòng: từ ${STAY_CHECKIN_TIME} ngày ${formatDate(b.useDate)}`,
@@ -399,6 +424,7 @@ export async function buildBookingMessages(
         ...(outPickup2 ? ([["Điểm đón", outPickup2]] as [string, string][]) : []),
         ...(retTrip ? ([["Chiều về", `${retTrip.departureTime} · ${formatDate(retTrip.departureDate)}`]] as [string, string][]) : []),
         ...(retTrip && (dropChosen || pickupChosen) ? ([["Điểm trả", (dropChosen || pickupChosen)!]] as [string, string][]) : []),
+        ...(selfTravel > 0 ? ([["Lưu ý", `${selfTravel} khách tự đi xe riêng (không có vé xe trong đơn)`]] as [string, string][]) : []),
         ...(isCombo && b.busAmount != null ? ([["Tiền vé", formatPrice(b.busAmount)]] as [string, string][]) : []),
       ],
     });
@@ -409,7 +435,12 @@ export async function buildBookingMessages(
       name: stayName,
       amount: isCombo ? toNumber(b.roomAmount) : null,
       rows: [
-        ...(roomsConfirmLabel ? ([["Phòng", roomsConfirmLabel]] as [string, string][]) : []),
+        ...(rooms.length > 1
+          ? ([["Số phòng", `${rooms.length} phòng`], ...rGroups.map((g) => [`${g.names.length}× ${g.typeName}`, g.names.join(", ")])] as [string, string][])
+          : roomsConfirmLabel
+            ? ([["Phòng", roomsConfirmLabel]] as [string, string][])
+            : []),
+        ...(extraShort ? ([["Ở ghép", extraShort]] as [string, string][]) : []),
         ["Nhận phòng", `từ ${STAY_CHECKIN_TIME} · ${formatDate(b.useDate)}`],
         ["Trả phòng", `trước ${STAY_CHECKOUT_TIME} · ${formatDate(b.endDate!)}`],
         ["Số đêm", `${b.nights} đêm`],

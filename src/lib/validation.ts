@@ -113,7 +113,13 @@ export const comboBookingSchema = z
     toKey: z.string().regex(dateKeyRegex, "Ngày về không hợp lệ.").refine(realDate, "Ngày về không hợp lệ."),
     // Phương án ghép NHIỀU phòng gửi roomIds; client cũ gửi roomId đơn.
     roomId: z.string().min(1).optional().nullable(),
-    roomIds: z.array(z.string().min(1)).max(10).optional().nullable(),
+    roomIds: z.array(z.string().min(1)).max(20).optional().nullable(),
+    // Combo TỰ CHỌN: số vé xe khứ hồi khách tự chọn (có thể khác số khách — vd vài người tự đi xe riêng).
+    // Trống ⇒ combo gợi ý: số vé = số khách, xếp nằm ghép/riêng theo cabinSingle/cabinDouble.
+    tickets: z.coerce.number().int().min(1).max(40).optional().nullable(),
+    // Tổng tiền khách đang thấy trên giao diện (combo tự chọn gửi kèm): server tính ra số khác ⇒ từ chối,
+    // không chốt đơn theo giá khác giá khách vừa xem.
+    expectedTotal: z.coerce.number().int().min(0).optional().nullable(),
     outboundTripId: z.string().min(1, "Thiếu chuyến đi."),
     returnTripId: z.string().min(1, "Thiếu chuyến về."),
     origin: z.string().trim().max(120).optional().nullable(),
@@ -124,8 +130,8 @@ export const comboBookingSchema = z
     childrenAges: z.array(z.coerce.number().int().min(0).max(17)).max(20).optional(),
     // Chỗ nằm xe cabin THEO NGƯỜI: cabinSingle = số khách nằm riêng (×2 vé), cabinDouble = số khách
     // nằm ghép. Tổng ≠ số khách (client cũ) → server xếp mặc định cả đoàn nằm ghép.
-    cabinSingle: z.coerce.number().int().min(0).max(30).default(0),
-    cabinDouble: z.coerce.number().int().min(0).max(30).default(0),
+    cabinSingle: z.coerce.number().int().min(0).max(40).default(0),
+    cabinDouble: z.coerce.number().int().min(0).max(40).default(0),
     // Tuỳ chọn thêm: số xe máy thuê kèm combo (0 = không thuê). Giá/ngày & số ngày do server tính.
     motorbikes: z.coerce.number().int().min(0).max(30).default(0),
     // Loại xe máy thuê kèm (wave | pg1); client cũ không gửi ⇒ Honda Wave.

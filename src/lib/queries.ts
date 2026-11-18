@@ -579,6 +579,9 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
           typeName: rt.name,
           roomName: g.length > 1 ? null : first.roomName,
           homeName: s.title,
+          // Ảnh bìa + tóm tắt của HOMESTAY — cho chế độ xem "Homestay" (gom thẻ theo nhà).
+          homeCover: s.images[0]?.url && !VIDEO_URL_RE.test(s.images[0].url) ? s.images[0].url : null,
+          homeDesc: s.summary,
           area: s.area ?? "Tà Xùa",
           distanceKm: s.distanceKm ?? null,
           // Tiện ích để lọc ở trang danh sách (hạng phòng + dịch vụ).

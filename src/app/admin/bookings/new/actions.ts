@@ -9,7 +9,7 @@ import { requireAdmin, getSession } from "@/lib/auth";
 import { CATEGORIES, BOOKING_STATUS_META } from "@/lib/constants";
 import { computeAvailability } from "@/lib/booking";
 import { cabinJourneyFare, getCabinFareOptions } from "@/lib/cabin";
-import { cabinSeatTotal } from "@/lib/combo-pricing";
+import { cabinSeatTotal, bookingBusSeats } from "@/lib/combo-pricing";
 import { resolveCommission } from "@/lib/commission";
 import { adjustInventory, assignRoomsForBooking, statusHoldsInventory } from "@/lib/inventory";
 import { isValidDateKey, parseDateOnly, toDateKey } from "@/lib/dates";
@@ -194,7 +194,7 @@ export type AdminBookingData = Omit<
  */
 async function buildAdminBookingData(
   fd: FormData,
-  prev?: { quantity: number; adults: number | null; childrenAges: number[]; category: string } | null,
+  prev?: { quantity: number; adults: number | null; childrenAges: number[]; category: string; seatsSingle?: number | null; seatsDouble?: number | null; cabinShared?: number | null; cabinSolo?: number | null; selectionLabel?: string | null } | null,
 ): Promise<{ error: string } | { data: AdminBookingData; isCombo: boolean }> {
   const serviceId = str(fd, "serviceId");
   const customerName = str(fd, "customerName");
@@ -272,8 +272,12 @@ async function buildAdminBookingData(
 
     const shared = int(fd, "shared");
     const solo = int(fd, "solo");
-    const people = shared + solo;
-    if (people < 1) return { error: "Nhập số khách nằm ghép / nằm riêng." };
+    const seats = shared + solo; // số người ĐI XE
+    if (seats < 1) return { error: "Nhập số khách nằm ghép / nằm riêng." };
+    // Đơn "combo tự chọn" có thể có số khách ở homestay KHÁC số vé xe (vài khách tự đi xe riêng). Form chỉ
+    // nhập số vé ⇒ khi sửa, giữ nguyên độ chênh của đơn cũ để không âm thầm đổi số khách / sức chứa phòng.
+    const guestGap = prev && prev.category === "COMBO" ? prev.quantity - bookingBusSeats(prev) : 0;
+    const people = Math.max(1, seats + guestGap); // số khách TÍNH PHÍ ở homestay
 
     const outId = str(fd, "cabinTripId");
     const retId = str(fd, "cabinReturnTripId");
@@ -325,18 +329,19 @@ async function buildAdminBookingData(
     roomTypeId = roomRows.find((r) => r.id === roomId)?.roomTypeId ?? null;
     cabinTripId = outbound.id;
     cabinReturnTripId = ret.id;
-    seatsSingle = people;
+    seatsSingle = seats;
     seatsDouble = 0;
     cabinShared = shared;
     cabinSolo = solo;
     stayCommission = rooms.reduce((n, o) => n + (o.commission ?? 0), 0);
-    busCommission = busCommissionFor(bus.busCommission, people, 2);
+    busCommission = busCommissionFor(bus.busCommission, seats, 2);
     const tickets = [shared ? `${shared} khách nằm ghép (cabin đôi)` : null, solo ? `${solo} khách nằm riêng (cabin đơn)` : null].filter(Boolean).join(" + ");
     const busWhen =
       `đi ${dmy(outbound.departureDate)} ${outbound.departureTime}, về ${dmy(ret.departureDate)} ${ret.departureTime}`;
     selectionLabel =
       `Combo: xe ${bus.title} từ ${origin} (${busWhen}) · ${rooms.map((o) => o.name).join(", ") || "chưa chọn phòng"} · ` +
       `${nights ?? 0} đêm (${dmy(checkInKey)} → ${dmy(endDateRaw)}) · ${people} khách · xe: ${tickets}` +
+      (seats !== people ? ` · ${seats} khách đi xe` : "") +
       (comboExtra.cost > 0 ? ` · +${comboExtra.extraGuests} khách phụ thu ${formatPrice(comboExtra.cost)}` : "");
   } else if (service.category === "CABIN") {
     const shared = int(fd, "shared");

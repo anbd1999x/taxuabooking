@@ -16,6 +16,8 @@ import { CabinList } from "@/components/cabin/CabinList";
 import { ComboSearch } from "@/components/combo/ComboSearch";
 import { ComboResults } from "@/components/combo/ComboResults";
 import { ComboHero } from "@/components/combo/ComboHero";
+import { ComboCustom } from "@/components/combo/ComboCustom";
+import { ComboModeSwitch, ComboModeSlot } from "@/components/combo/ComboModeSwitch";
 import { FilterBar } from "@/components/FilterBar";
 import { ScrollToResults } from "@/components/ScrollToResults";
 import { ogBlock } from "@/lib/og";
@@ -166,12 +168,34 @@ async function CategoryBody({
       | "single"
       | "double"
       | "dorm";
+    // 2 chế độ: "Combo gợi ý" (mặc định — ghép sẵn theo từng home) / "Combo tự chọn" (?mode=tu-chon —
+    // khách tự chọn homestay, nhiều phòng, nhà xe và số vé).
+    const custom = str(sp.mode) === "tu-chon";
     const [origins, result] = await Promise.all([
       getComboOrigins(),
       from && to
-        ? findComboMatches({ fromKey: from, toKey: to, people: adults, adults, childrenAges, origin: origin || null, budget, priceMax, priceMin, filters: comboFilters, roomKind })
+        ? findComboMatches({ fromKey: from, toKey: to, people: adults, adults, childrenAges, origin: origin || null, budget, priceMax, priceMin, filters: comboFilters, roomKind, keepAllHomes: custom })
         : Promise.resolve(null),
     ]);
+    // Link chuyển chế độ: giữ nguyên mọi tham số tìm kiếm đang có.
+    const modeHref = (toCustom: boolean) => {
+      const q = new URLSearchParams();
+      if (!isSample) {
+        if (from) q.set("from", from);
+        if (to) q.set("to", to);
+        q.set("people", String(adults));
+      }
+      if (childrenAges.length) q.set("kids", childrenAges.join("-"));
+      if (origin) q.set("origin", origin);
+      if (pm) q.set("price", priceKey);
+      if (activeFilters.length) q.set("f", activeFilters.join(","));
+      if (roomKind !== "all") q.set("kind", roomKind);
+      if (toCustom) q.set("mode", "tu-chon");
+      const s = q.toString();
+      return s ? `/combo?${s}` : "/combo";
+    };
+    // ComboResults / ComboCustom tự có chỗ đặt công tắc chế độ (cùng hàng bộ lọc); các trạng thái còn lại dùng slot ở trang.
+    const hasList = Boolean(from && to && result && (custom ? result.homes.length > 0 || (result.planCount > 0 && result.busCount > 0) : result.planCount > 0 && result.busCount > 0));
 
     return (
       <div style={{ background: "oklch(0.975 0.01 150)" }}>
@@ -187,11 +211,21 @@ async function CategoryBody({
           initialKind={roomKind}
           initialOrigin={origin}
           origins={origins}
+          mode={custom ? "tu-chon" : ""}
         />
 
-        <ScrollToResults token={`${from ?? ""}|${to ?? ""}`} enabled={Boolean(from && to) && !isSample} offset={12}>
+        <ScrollToResults token={`${from ?? ""}|${to ?? ""}|${custom ? 1 : 0}`} enabled={(Boolean(from && to) && !isSample) || custom} offset={12}>
+        {/* Nút chuyển 2 chế độ combo (núm đẩy + nhân vật cầm cờ) */}
+        <ComboModeSwitch
+          mode={custom ? "custom" : "sug"}
+          sugHref={modeHref(false)}
+          customHref={modeHref(true)}
+          sugCount={result && result.busCount > 0 ? result.planCount : null}
+        />
         <div className="mt-6">
-          {isSample && result != null && result.planCount > 0 && result.busCount > 0 && (
+          {/* Không có danh sách kết quả (chưa chọn ngày / không ghép được) ⇒ công tắc nằm riêng một hàng. */}
+          {!hasList && <div className="mb-4 flex justify-end pt-3 sm:pt-0"><ComboModeSlot /></div>}
+          {!custom && isSample && result != null && result.planCount > 0 && result.busCount > 0 && (
             <p className="mb-4 rounded-2xl bg-white px-4 py-3 text-sm text-gray-600 ring-1 ring-forest-200">
               <b className="text-forest-700">{t("Gợi ý combo 2 ngày 1 đêm")}</b>{" · "}
               {t("đi {0} – về {1} · {2} người lớn. Đổi ngày, số người ở ô tìm kiếm phía trên để xem giá đúng chuyến của bạn.", [dmy(from!), dmy(to!), adults])}
@@ -244,6 +278,8 @@ async function CategoryBody({
                 </div>
               );
             })()
+          ) : custom && result.homes.length > 0 ? (
+            <ComboCustom key={`${from}|${to}|${adults}|${childrenAges.join("-")}`} result={result} suggestHref={modeHref(false)} />
           ) : result.planCount === 0 || result.busCount === 0 ? (
             <div className="rounded-2xl border border-dashed border-gray-300 bg-white py-14 text-center">
               <p className="text-lg font-medium text-gray-700">{t("Chưa ghép được combo phù hợp")}</p>
@@ -264,7 +300,8 @@ async function CategoryBody({
         </div>
         </ScrollToResults>
 
-        <div className="-mx-4 mt-10 sm:mx-0"><SeoBlock kind="COMBO" /></div>
+        {/* SeoBlock tự có container-page (đệm 1rem / 1.5rem) mà ở đây đã nằm trong container-page ⇒ bù lề âm để khung rộng bằng khu đặt combo phía trên. */}
+        <div className="-mx-4 mt-10 sm:-mx-6"><SeoBlock kind="COMBO" /></div>
 
         <section className="mt-2 border-t border-gray-200 pt-6">
           <h2 className="text-sm font-semibold text-gray-500">{t("Dịch vụ khác tại Tà Xùa")}</h2>
@@ -284,13 +321,18 @@ async function CategoryBody({
   // ----- Homestay: trang danh sách "biển mây" (hero động + tìm kiếm + lưới) -----
   if (cat.key === "HOMESTAY") {
     const homestays = await getHomestayRoomCards(str(sp.from) ?? null, str(sp.to) ?? null);
+    // Ảnh bìa + tóm tắt của nhà: gửi xuống client 1 lần/nhà (tách khỏi ~400 thẻ phòng để payload không phình).
+    const homeInfo = Object.fromEntries(homestays.map((h) => [h.slug, { cover: h.homeCover ?? null, desc: h.homeDesc ?? "" }]));
+    const roomCards = homestays.map(({ homeCover: _c, homeDesc: _d, ...r }) => r);
     return (
       <>
         <HomestayList
-          items={homestays}
+          items={roomCards}
+          homeInfo={homeInfo}
           initialFrom={str(sp.from) ?? ""}
           initialTo={str(sp.to) ?? ""}
           initialQ={str(sp.q) ?? ""}
+          initialView={str(sp.view) === "home" ? "home" : "room"}
           initialPeople={Math.min(20, Math.max(0, Math.trunc(Number(str(sp.people))) || 0))}
         />
         {/* Link tới MỌI homestay, dựng phía server: lưới thẻ phía trên chỉ dựng 24 thẻ đầu (cuộn mới nạp thêm)
