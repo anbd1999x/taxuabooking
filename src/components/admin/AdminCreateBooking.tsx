@@ -52,6 +52,7 @@ export interface EditInit {
   customerName: string;
   phone: string;
   customerFacebook: string;
+  customerEmail: string;
   ctvId: string;
   note: string;
   adminNote: string;
@@ -706,6 +707,19 @@ export default function AdminCreateBooking({ categories, services, ctvs, todayKe
                 autoComplete="off"
                 placeholder="facebook.com/ten.khach hoặc link tin nhắn"
                 defaultValue={edit?.customerFacebook}
+                className={input}
+              />
+            </div>
+            <div>
+              <label className={label}>Email khách (nếu có)</label>
+              <input
+                name="customerEmail"
+                type="email"
+                inputMode="email"
+                autoComplete="off"
+                maxLength={160}
+                placeholder="Có email ⇒ tự gửi thư thông tin đơn cho khách"
+                defaultValue={edit?.customerEmail}
                 className={input}
               />
             </div>

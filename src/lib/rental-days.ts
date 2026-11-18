@@ -71,7 +71,7 @@ export function bookingRentalDays(b: { rentalDays?: unknown; nights: number | nu
 }
 
 /**
- * TIỀN GỐC (giá gạch) của một đơn thuê xe máy = giá gốc/ngày cấu hình ở admin (Service.originalPrice) × số xe ×
+ * TIỀN GỐC (giá gạch) của một đơn thuê xe máy = giá gạch/ngày của LOẠI XE (RentalVehicle.listPrice, lấy qua `rentalListPriceMap`) × số xe ×
  * số ngày tính tiền. `null` khi không phải đơn xe máy, chưa cấu hình giá gốc, hoặc giá gốc không cao hơn tiền bán.
  */
 export function rentalOriginalTotal(

@@ -92,9 +92,11 @@ export async function SeoBlock({ kind }: { kind: Kind }) {
   return (
     <section className="container-page pb-14 pt-4">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <div className="rounded-[22px] border border-gray-200 bg-white p-5 sm:p-8">
+      {/* Desktop: 2 cột (giới thiệu + link | câu hỏi thường gặp) để lấp đầy bề ngang thẻ. */}
+      <div className="rounded-[22px] border border-gray-200 bg-white p-5 sm:p-8 lg:grid lg:grid-cols-2 lg:gap-x-12">
+        <div>
         <h2 className="text-xl font-extrabold tracking-[-0.02em] text-ink sm:text-2xl">{t(b.heading)}</h2>
-        <div className="mt-3 flex max-w-3xl flex-col gap-3 text-[15px] leading-relaxed text-gray-600">
+        <div className="mt-3 flex flex-col gap-3 text-[15px] leading-relaxed text-gray-600">
           {b.intro.map((p) => <p key={p}>{t(p)}</p>)}
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
@@ -102,8 +104,10 @@ export async function SeoBlock({ kind }: { kind: Kind }) {
             <Link key={href} href={href} className="rounded-full bg-forest-50 px-3.5 py-2 text-sm font-semibold text-forest-700 ring-1 ring-forest-200 hover:bg-forest-100">{t(label)}</Link>
           ))}
         </div>
-        <h2 className="mt-8 text-lg font-extrabold tracking-[-0.02em] text-ink sm:text-xl">{t("Câu hỏi thường gặp")}</h2>
-        <div className="mt-3 max-w-3xl divide-y divide-gray-200 border-y border-gray-200">
+        </div>
+        <div>
+        <h2 className="mt-8 text-lg font-extrabold tracking-[-0.02em] text-ink sm:text-xl lg:mt-0">{t("Câu hỏi thường gặp")}</h2>
+        <div className="mt-3 divide-y divide-gray-200 border-y border-gray-200">
           {b.faq.map(([q, a]) => (
             <details key={q} className="group py-3">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-[15px] font-bold text-ink [&::-webkit-details-marker]:hidden">
@@ -113,6 +117,7 @@ export async function SeoBlock({ kind }: { kind: Kind }) {
               <p className="mt-2 text-[15px] leading-relaxed text-gray-600">{tA(a)}</p>
             </details>
           ))}
+        </div>
         </div>
       </div>
     </section>

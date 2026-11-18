@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import CategorySkeleton from "@/components/skeletons/CategorySkeleton";
 import { SitePhone } from "@/components/SiteContact";
 import { notFound } from "next/navigation";
 import { categoryBySlug, CATEGORY_LIST } from "@/lib/constants";
@@ -81,7 +83,19 @@ export async function generateMetadata({
   };
 }
 
-export default async function CategoryPage({
+/**
+ * Khung chờ đặt bằng <Suspense> NGAY TRONG trang (không dùng `loading.tsx`): `loading.tsx` ở đây sẽ bọc
+ * luôn các trang con /[slug], khiến trang không tồn tại vẫn trả mã 200 (Google coi là "soft 404").
+ */
+export default function CategoryPage(props: { params: Promise<{ category: string }>; searchParams: SP }) {
+  return (
+    <Suspense fallback={<CategorySkeleton />}>
+      <CategoryBody {...props} />
+    </Suspense>
+  );
+}
+
+async function CategoryBody({
   params,
   searchParams,
 }: {
@@ -269,6 +283,18 @@ export default async function CategoryPage({
           initialQ={str(sp.q) ?? ""}
           initialPeople={Math.min(20, Math.max(0, Math.trunc(Number(str(sp.people))) || 0))}
         />
+        {/* Link tới MỌI homestay, dựng phía server: lưới thẻ phía trên chỉ dựng 24 thẻ đầu (cuộn mới nạp thêm)
+            nên Google không thấy link của các homestay còn lại. */}
+        <nav aria-label={t("Tất cả homestay tại Tà Xùa")} className="container-page pb-6 pt-2">
+          <h2 className="text-sm font-semibold text-gray-500">{t("Tất cả homestay tại Tà Xùa")}</h2>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[...new Map(homestays.map((h) => [h.slug, h.homeName])).entries()].map(([slug, name]) => (
+              <Link key={slug} href={`/homestay/${slug}`} className="rounded-full bg-white px-3.5 py-2 text-sm text-forest-700 ring-1 ring-forest-200 hover:bg-forest-50">
+                {t(name)}
+              </Link>
+            ))}
+          </div>
+        </nav>
         <SeoBlock kind="HOMESTAY" />
       </>
     );

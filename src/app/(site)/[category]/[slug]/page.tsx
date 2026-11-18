@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
+import ServiceDetailSkeleton from "@/components/skeletons/ServiceDetailSkeleton";
 import { ogBlock } from "@/lib/og";
 import { unstable_cache } from "next/cache";
 import Link from "@/components/Link";
@@ -88,7 +90,30 @@ export async function generateMetadata({
   };
 }
 
-export default async function ServiceDetailPage({
+type PageProps = {
+  params: Promise<{ category: string; slug: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+/**
+ * Kiểm tra dịch vụ có tồn tại + đúng danh mục TRƯỚC khi mở khung chờ: lúc này chưa gửi byte nào nên
+ * trang không tồn tại trả đúng mã 404 và sai danh mục trả đúng mã chuyển hướng. (Trước đây khung chờ
+ * `loading.tsx` gửi mã 200 đi trước ⇒ Google coi là "soft 404".)
+ */
+export default async function ServiceDetailPage(props: PageProps) {
+  const { category, slug } = await props.params;
+  const service = await getServiceDetail(slug);
+  if (!service) notFound();
+  const cat = CATEGORIES[service.category];
+  if (category !== cat.slug) redirect(await lp(`/${cat.slug}/${service.slug}`));
+  return (
+    <Suspense fallback={<ServiceDetailSkeleton />}>
+      <ServiceDetailBody {...props} />
+    </Suspense>
+  );
+}
+
+async function ServiceDetailBody({
   params,
   searchParams,
 }: {
@@ -381,7 +406,7 @@ export default async function ServiceDetailPage({
                 <span className="text-2xl font-extrabold text-forest-700">{tr(formatPrice(base))}</span>
                 {service.priceUnit && <span className="text-sm text-gray-500">{tr(service.priceUnit)}</span>}
                 {onSale && (
-                  <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-bold text-red-600 ring-1 ring-red-100">
+                  <span className="rounded-full bg-red-600 px-2 py-0.5 text-xs font-extrabold text-white">
                     {tr("Giảm {0}%", [Math.round((1 - base / orig) * 100)])}
                   </span>
                 )}
@@ -525,7 +550,22 @@ export default async function ServiceDetailPage({
                         {v.totalUnits} xe{v.deliveryFee ? tr(" · phí giao nhận {0}", [tr(formatPrice(v.deliveryFee))]) : ""}
                       </p>
                     </div>
-                    <p className="font-semibold text-forest-700">{tr("{0}/ngày", [tr(formatPrice(v.pricePerDay))])}</p>
+                    {(() => {
+                      const price = toNumber(v.pricePerDay) ?? 0;
+                      const strike = toNumber(v.listPrice);
+                      const onSale = strike != null && price > 0 && strike > price;
+                      return (
+                        <div className="flex-none text-right">
+                          {onSale && (
+                            <p className="flex items-center justify-end gap-1.5">
+                              <span className="text-xs text-gray-400 line-through">{tr(formatPrice(strike))}</span>
+                              <span className="rounded-full bg-red-600 px-1.5 py-0.5 text-[11px] font-extrabold text-white">−{Math.round((1 - price / strike) * 100)}%</span>
+                            </p>
+                          )}
+                          <p className="font-semibold text-forest-700">{tr("{0}/ngày", [tr(formatPrice(v.pricePerDay))])}</p>
+                        </div>
+                      );
+                    })()}
                   </div>
                 ))}
               </div>

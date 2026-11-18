@@ -30,7 +30,7 @@ export default async function ArticleEditPage({ params }: { params: Promise<{ id
       <div className="mt-4 rounded-2xl bg-sky-50 p-4 text-[13px] leading-relaxed text-sky-900 ring-1 ring-sky-100">
         <p className="font-bold">📈 Checklist bài chuẩn SEO</p>
         <ul className="mt-1 list-inside list-disc space-y-0.5">
-          <li><b>Tiêu đề</b> ≤ 65 ký tự, chứa từ khoá (vd "Kinh nghiệm săn mây Tà Xùa tháng 12/2026").</li>
+          <li><b>Tiêu đề</b> ≤ 65 ký tự, chứa từ khoá (vd “Kinh nghiệm săn mây Tà Xùa tháng 12/2026”).</li>
           <li><b>Mô tả SEO</b> 120–155 ký tự — là đoạn hiện dưới tiêu đề trên Google.</li>
           <li>Chia bài bằng tiêu đề mục: gõ <code className="rounded bg-white px-1">## Tiêu đề mục</code> và <code className="rounded bg-white px-1">### Mục nhỏ</code>, mỗi mục chứa từ khoá phụ.</li>
           <li>Chèn link nội bộ: <code className="rounded bg-white px-1">[homestay Tà Xùa](/homestay)</code>, <code className="rounded bg-white px-1">[xe cabin](/xe-cabin)</code>.</li>

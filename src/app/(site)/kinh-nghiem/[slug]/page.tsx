@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { ogImages } from "@/lib/og";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
+import { ARTICLE_REDIRECTS } from "@/lib/article-redirects";
 import Image from "next/image";
 import Link from "@/components/Link";
 import { getArticle } from "@/lib/queries";
@@ -9,7 +10,7 @@ import { formatDate } from "@/lib/format";
 import { SITE } from "@/lib/site";
 import { renderMarkdown } from "@/lib/markdown";
 import { articleTopicLabel } from "@/lib/constants";
-import { getLocale, getT, tLong } from "@/lib/i18n/server";
+import { getLocale, getT, lp, tLong } from "@/lib/i18n/server";
 import { i18nAlternates } from "@/lib/i18n/meta";
 import { LOCALE_META } from "@/lib/i18n/config";
 
@@ -53,7 +54,12 @@ export default async function ArticlePage({
   const tr = await getT();
   const { slug } = await params;
   const a = await getArticle(slug);
-  if (!a) notFound();
+  if (!a) {
+    // Bài đã gộp / gỡ ⇒ 301 về bài giữ lại (xem ARTICLE_REDIRECTS).
+    const to = ARTICLE_REDIRECTS[slug];
+    if (to) permanentRedirect(await lp(to));
+    notFound();
+  }
 
   // Bài cùng chủ đề (thiếu thì bù bài mới nhất khác chủ đề) — đọc tiếp không cần back.
   const sameTopic = a.topic

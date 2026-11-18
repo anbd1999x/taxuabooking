@@ -56,6 +56,7 @@ const LOG_DOT: Record<string, string> = {
   NOTE: "bg-gray-400",
   SUPPLIER: "bg-sky-500",
   SYSTEM: "bg-gray-300",
+  EMAIL: "bg-amber-500",
 };
 
 export default async function BookingDetailPage({

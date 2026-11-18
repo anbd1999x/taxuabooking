@@ -1044,7 +1044,8 @@ export default async function EditServicePage({
       {/* RENTAL: loại xe */}
       {kind === "rental" && (
         <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">
-          <h2 className="mb-4 text-lg font-semibold text-ink">Loại xe cho thuê</h2>
+          <h2 className="text-lg font-semibold text-ink">Loại xe cho thuê</h2>
+          <p className="mb-4 mt-1 text-xs text-gray-400">“Giá gạch/ngày” cao hơn “Giá/ngày” ⇒ web hiện giá gạch ngang kèm nhãn đỏ % khuyến mãi cho loại xe đó. Để trống = không giảm giá.</p>
           <div className="space-y-3">
             {service.rentalVehicles.map((v) => (
               <ActionForm key={v.id} action={upsertVehicle} className="grid grid-cols-2 gap-2 rounded-xl bg-gray-50 p-3 sm:grid-cols-6 sm:items-end">
@@ -1052,9 +1053,10 @@ export default async function EditServicePage({
                 <input type="hidden" name="id" value={v.id} />
                 <L label="Loại xe" cls="col-span-2"><input name="vehicleType" defaultValue={v.vehicleType} className={inp} /></L>
                 <L label="Giá/ngày"><MoneyInput name="pricePerDay" defaultValue={toNumber(v.pricePerDay) ?? 0} className={inp} /></L>
+                <L label="Giá gạch/ngày"><MoneyInput name="listPrice" defaultValue={toNumber(v.listPrice) ?? ""} placeholder="Không giảm" className={inp} /></L>
                 <L label="Số xe"><input name="totalUnits" type="number" defaultValue={v.totalUnits} className={inp} /></L>
                 <L label="Phí giao"><MoneyInput name="deliveryFee" defaultValue={toNumber(v.deliveryFee) ?? ""} className={inp} /></L>
-                <L label="Màu xe (cách nhau bằng dấu phẩy)" cls="col-span-2 sm:col-span-5"><input name="colors" defaultValue={v.colors.join(", ")} placeholder="Đỏ, Đen, Trắng, Xanh" className={inp} /></L>
+                <L label="Màu xe (cách nhau bằng dấu phẩy)" cls="col-span-2 sm:col-span-6"><input name="colors" defaultValue={v.colors.join(", ")} placeholder="Đỏ, Đen, Trắng, Xanh" className={inp} /></L>
                 <div className="col-span-2 sm:col-span-6">
                   <span className="mb-1 block text-xs font-medium text-gray-500">Ảnh bìa loại xe</span>
                   <CoverImagePicker name="imageUrl" initial={v.imageUrl} compact hint="Ảnh riêng của loại xe này trên trang thuê xe máy. Chưa có ⇒ dùng ảnh chung của cửa hàng. Tải xong nhớ bấm Lưu." />
@@ -1069,12 +1071,14 @@ export default async function EditServicePage({
               <input type="hidden" name="serviceId" value={service.id} />
               <L label="Loại xe" cls="col-span-2"><input name="vehicleType" placeholder="Honda Wave" className={inp} /></L>
               <L label="Giá/ngày"><MoneyInput name="pricePerDay" defaultValue={0} className={inp} /></L>
+              <L label="Giá gạch/ngày"><MoneyInput name="listPrice" placeholder="Không giảm" className={inp} /></L>
               <L label="Số xe"><input name="totalUnits" type="number" defaultValue={1} className={inp} /></L>
               <L label="Phí giao"><MoneyInput name="deliveryFee" placeholder="0" className={inp} /></L>
-              <L label="Màu xe (cách nhau bằng dấu phẩy)" cls="col-span-2 sm:col-span-5"><input name="colors" placeholder="Đỏ, Đen, Trắng, Xanh" className={inp} /></L>
+              <L label="Màu xe (cách nhau bằng dấu phẩy)" cls="col-span-2 sm:col-span-6"><input name="colors" placeholder="Đỏ, Đen, Trắng, Xanh" className={inp} /></L>
               <div className="col-span-2 sm:col-span-6">
                 <span className="mb-1 block text-xs font-medium text-gray-500">Ảnh bìa loại xe</span>
-                <CoverImagePicker name="imageUrl" compact hint="Ảnh riêng của loại xe này trên trang thuê xe máy. Bỏ trống ⇒ dùng ảnh chung của cửa hàng." />
+                {/* key theo số loại xe ⇒ thêm xong thì khung ảnh tự trống lại cho loại kế tiếp */}
+                <CoverImagePicker key={service.rentalVehicles.length} name="imageUrl" compact hint="Ảnh riêng của loại xe này trên trang thuê xe máy. Bỏ trống ⇒ dùng ảnh chung của cửa hàng." />
               </div>
               <button className="rounded-lg bg-forest-100 px-3 py-2 text-sm font-medium text-forest-700">+ Thêm</button>
             </ActionForm>

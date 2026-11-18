@@ -3,6 +3,7 @@ import { pageMeta } from "@/lib/og";
 import Link from "@/components/Link";
 import { getSettings } from "@/lib/queries";
 import { SITE } from "@/lib/site";
+import { formatPhone } from "@/lib/trust-popup";
 import { getT } from "@/lib/i18n/server";
 import { i18nMeta } from "@/lib/i18n/meta";
 
@@ -142,7 +143,7 @@ export default async function GuidePage() {
         <h2 className="text-lg font-bold text-ink">{tr("Cần hỗ trợ?")}</h2>
         <p className="mt-1 text-sm text-gray-600">{tr("Liên hệ trực tiếp để được tư vấn và đặt nhanh.")}</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <a href={`tel:${tel}`} className="rounded-lg bg-forest-600 px-4 py-2 text-sm font-semibold text-white hover:bg-forest-700">📞 {tr(phone)}</a>
+          <a href={`tel:${tel}`} className="rounded-lg bg-forest-600 px-4 py-2 text-sm font-semibold text-white hover:bg-forest-700">📞 {formatPhone(phone)}</a>
           {zalo && <a href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="rounded-lg bg-sunset-500 px-4 py-2 text-sm font-semibold text-white hover:bg-sunset-600">💬 Chat Zalo</a>}
           <Link href="/lien-he" className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50">{tr("Trang liên hệ")}</Link>
         </div>

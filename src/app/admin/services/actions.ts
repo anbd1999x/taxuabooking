@@ -420,6 +420,8 @@ export async function updateService(
     },
   });
   if (d.category === "CABIN" && d.featured) await enforceSingleFeaturedCabin(id);
+  // Xe máy: form không còn ô giá chung ⇒ giá "từ" + giá gạch chung tự suy từ các loại xe.
+  if (d.category === "MOTORBIKE") await syncRentalServicePrice(id);
   revalidatePath("/admin/services");
   revalidatePath(`/admin/services/${id}`);
   return { ok: true, serviceId: id };
@@ -1115,6 +1117,8 @@ export async function upsertVehicle(_prev: ActionState, formData: FormData): Pro
   const data = {
     vehicleType: s(formData.get("vehicleType")) ?? "Xe máy",
     pricePerDay: num(formData.get("pricePerDay")) ?? 0,
+    // Giá gạch/ngày: để trống hoặc không cao hơn giá thuê ⇒ không giảm giá.
+    listPrice: ((lp) => (lp != null && lp > (num(formData.get("pricePerDay")) ?? 0) ? lp : null))(num(formData.get("listPrice"))),
     totalUnits: num(formData.get("totalUnits")) ?? 1,
     deliveryFee: num(formData.get("deliveryFee")) ?? null,
     imageUrl: s(formData.get("imageUrl")) ?? null,
@@ -1131,6 +1135,7 @@ export async function upsertVehicle(_prev: ActionState, formData: FormData): Pro
   try {
     if (id) await prisma.rentalVehicle.update({ where: { id }, data });
     else await prisma.rentalVehicle.create({ data: { serviceId, ...data } });
+    await syncRentalServicePrice(serviceId);
   } catch {
     return { error: "Lưu loại xe thất bại." };
   }
@@ -1148,8 +1153,39 @@ export async function deleteVehicle(formData: FormData): Promise<void> {
     });
     if (active > 0) throw new Error("Loại xe đang có đơn chưa xử lý xong — huỷ/hoàn tất các đơn đó trước khi xoá.");
     await prisma.rentalVehicle.delete({ where: { id } });
+    if (serviceId) await syncRentalServicePrice(serviceId);
   }
   if (serviceId) revalidatePath(`/admin/services/${serviceId}`);
+}
+
+/**
+ * Cửa hàng XE MÁY không nhập giá chung: giá "từ" của cửa hàng (`Service.basePrice`) = giá/ngày thấp nhất
+ * trong các loại xe, giá gạch chung (`Service.originalPrice`) = giá gạch của chính loại xe rẻ nhất đó
+ * (thẻ dịch vụ / "Giá từ" ở trang chi tiết dùng 2 số này). Gọi sau mỗi lần thêm / sửa / xoá loại xe.
+ */
+async function syncRentalServicePrice(serviceId: string): Promise<void> {
+  const svc = await prisma.service.findUnique({
+    where: { id: serviceId },
+    select: { category: true, rentalVehicles: { select: { pricePerDay: true, listPrice: true } } },
+  });
+  if (!svc || svc.category !== "MOTORBIKE") return;
+  const list = svc.rentalVehicles
+    .map((v) => ({ price: Number(v.pricePerDay), strike: v.listPrice == null ? null : Number(v.listPrice) }))
+    .filter((v) => v.price > 0)
+    .sort((a, b) => a.price - b.price || (b.strike ?? 0) - (a.strike ?? 0));
+  const cheapest = list[0];
+  if (!cheapest && svc.rentalVehicles.length === 0) {
+    // Chưa có loại xe nào: giữ giá "từ" cũ, chỉ bỏ giá gạch chung.
+    await prisma.service.update({ where: { id: serviceId }, data: { originalPrice: null } });
+    return;
+  }
+  await prisma.service.update({
+    where: { id: serviceId },
+    data: {
+      basePrice: cheapest ? cheapest.price : null,
+      originalPrice: cheapest && cheapest.strike != null && cheapest.strike > cheapest.price ? cheapest.strike : null,
+    },
+  });
 }
 
 // ---------------- Chuyến cabin ----------------

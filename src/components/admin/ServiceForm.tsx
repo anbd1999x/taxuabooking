@@ -176,20 +176,34 @@ export function ServiceForm({
             />
           </label>
         )}
-        <label className="block">
-          <span className="text-sm font-medium text-gray-600">Giá bán (đ)</span>
-          <MoneyInput name="basePrice" defaultValue={initial.basePrice ?? ""} placeholder="Để trống = Liên hệ" className={inputCls} />
-        </label>
-        <label className="block">
-          <span className="text-sm font-medium text-gray-600">Giá gốc — gạch ngang (đ)</span>
-          <MoneyInput name="originalPrice" defaultValue={initial.originalPrice ?? ""} placeholder="Để trống = không giảm giá" className={inputCls} />
-        </label>
+        {cat === "MOTORBIKE" ? (
+          <>
+            {/* Xe máy: giá & giá gạch nhập theo TỪNG LOẠI XE (mục "Loại xe cho thuê"); giá "từ" của cửa hàng tự tính. */}
+            <input type="hidden" name="basePrice" value={initial.basePrice ?? ""} />
+            <input type="hidden" name="originalPrice" value={initial.originalPrice ?? ""} />
+          </>
+        ) : (
+          <>
+            <label className="block">
+              <span className="text-sm font-medium text-gray-600">Giá bán (đ)</span>
+              <MoneyInput name="basePrice" defaultValue={initial.basePrice ?? ""} placeholder="Để trống = Liên hệ" className={inputCls} />
+            </label>
+            <label className="block">
+              <span className="text-sm font-medium text-gray-600">Giá gốc — gạch ngang (đ)</span>
+              <MoneyInput name="originalPrice" defaultValue={initial.originalPrice ?? ""} placeholder="Để trống = không giảm giá" className={inputCls} />
+            </label>
+          </>
+        )}
         <label className="block">
           <span className="text-sm font-medium text-gray-600">Đơn vị giá</span>
           <input name="priceUnit" defaultValue={initial.priceUnit ?? ""} placeholder="/đêm, /vé..." className={inputCls} />
         </label>
       </div>
-      <p className="-mt-3 text-xs text-gray-400">Nhập &quot;Giá gốc&quot; cao hơn &quot;Giá bán&quot; để web hiển thị giá gạch ngang kèm % giảm (khuyến mãi).</p>
+      <p className="-mt-3 text-xs text-gray-400">
+        {cat === "MOTORBIKE"
+          ? "Giá thuê và giá gạch nhập theo từng loại xe ở mục “Loại xe cho thuê” bên dưới — giá “từ” của cửa hàng tự lấy theo loại xe rẻ nhất."
+          : "Nhập \"Giá gốc\" cao hơn \"Giá bán\" để web hiển thị giá gạch ngang kèm % giảm (khuyến mãi)."}
+      </p>
       <label className="block">
         <span className="text-sm font-medium text-gray-600">Link Google Maps</span>
         <input

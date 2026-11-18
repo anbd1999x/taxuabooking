@@ -599,6 +599,7 @@
  "Dịch vụ & chuyến đi": "서비스 & 여행",
  "Dịch vụ đi kèm, tính riêng — không cộng vào bill combo, thanh toán khi giao xe. Số tiền hiển thị chỉ là giá tham khảo, chưa phải giá cuối; giá chính thức tính theo giờ sử dụng xe thực tế.": "별도 정산되는 부가 서비스로 콤보 청구서에 합산되지 않으며 차량 인도 시 결제합니다. 표시 금액은 참고용이며 최종 가격이 아닙니다. 정식 가격은 실제 이용 시간 기준입니다.",
  "Dịch vụ khác tại Tà Xùa": "따쑤아의 다른 서비스",
+ "Tất cả homestay tại Tà Xùa": "따쑤아의 모든 홈스테이",
  "Dịch vụ không được cung cấp, bạn không đồng ý phương án thay thế nào, và Tà Xùa Booking không hoàn tiền trong thời hạn trên.": "서비스가 제공되지 않았고, 어떤 대체 방안에도 동의하지 않았으며, Tà Xùa Booking이 위 기한 내에 환불하지 않았을 것.",
  "Dịch vụ không tồn tại.": "존재하지 않는 서비스입니다.",
  "dữ liệu cá nhân của bạn cho bên thứ ba vì mục đích quảng cáo.": "광고 목적으로 개인정보를 제3자에게.",
@@ -1899,7 +1900,7 @@
  "🎁 Đặt trên website giảm {0}": "🎁 웹사이트 예약 시 {0} 할인",
  "{0} chặng · chọn điểm đón & điểm đến để xem giá": "{0}개 구간 · 출발지와 도착지를 선택해 요금 확인",
  "Hợp tác": "제휴",
- "Quản lý tiệm xe máy": "오토바이 대여점 관리",
+ "Quản lý cho thuê xe":"오토바이 대여점 관리",
  "Phần mềm quản lý tiệm cho thuê xe máy": "오토바이 대여점 관리 소프트웨어",
  "Biết ngay xe nào rảnh, ai đang thuê, ai đã cọc. Tự xếp xe không trùng lịch, biên bản giao xe có ảnh, tự tính phí phát sinh, nhận đơn từ Tà Xùa Booking.": "어떤 오토바이가 비어 있는지, 누가 대여 중인지, 누가 보증금을 냈는지 한눈에 확인하세요. 중복 없는 자동 배차, 사진이 포함된 인도 기록, 추가 요금 자동 계산, Tà Xùa Booking 주문 수신."
 }

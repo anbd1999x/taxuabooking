@@ -789,7 +789,7 @@ export interface RentalBikeCard {
   name: string;
   image: string | null;
   pricePerDay: number;
-  /** Giá gốc gạch ngang (Service.originalPrice) — chỉ khi cao hơn giá thuê của xe này. */
+  /** Giá gạch/ngày của loại xe (RentalVehicle.listPrice) — chỉ khi cao hơn giá thuê của xe này. */
   originalPrice: number | null;
   totalUnits: number;
   deliveryFee: number | null;
@@ -914,13 +914,8 @@ export async function getRentalBikes(from: string | null, to: string | null): Pr
         name: v.vehicleType,
         image: v.imageUrl ?? s.images[0]?.url ?? null,
         pricePerDay: toNumber(v.pricePerDay) ?? 0,
-        // Giá gạch cấu hình ở cấp CỬA HÀNG: cửa hàng nhiều loại xe thì chỉ gạch ở xe có giá = giá "từ" của
-        // cửa hàng (tránh gạch 300k lên một xe vốn chỉ 180k); cửa hàng 1 loại xe thì gạch luôn.
-        originalPrice: strikeFor(
-          toNumber(v.pricePerDay),
-          toNumber(s.originalPrice),
-          s.rentalVehicles.length === 1 || toNumber(v.pricePerDay) === toNumber(s.basePrice),
-        ),
+        // Giá gạch cấu hình theo TỪNG LOẠI XE (RentalVehicle.listPrice) — cao hơn giá thuê mới gạch.
+        originalPrice: strikeFor(toNumber(v.pricePerDay), toNumber(v.listPrice)),
         totalUnits: v.totalUnits,
         deliveryFee: toNumber(v.deliveryFee),
         kind: bikeKind(v.vehicleType),

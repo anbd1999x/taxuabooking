@@ -7,6 +7,7 @@ import { resolveBusCommissions, resolveRoomCommissions } from "@/lib/provider-co
 import { effectiveDiscounts } from "@/lib/supplier-payout";
 import { OrdersTable } from "../ctv/page";
 import { rentalOriginalTotal } from "@/lib/rental-days";
+import { rentalListPriceMap } from "@/lib/rental-list-price";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,7 @@ export default async function ProviderHome() {
   ]);
   // Chiết khấu hiệu lực mỗi đơn (snapshot, hoặc tính bù cho đơn cũ chưa backfill).
   const both = [...all, ...recent];
-  const [roomDisc, busDisc] = await Promise.all([resolveRoomCommissions(both), resolveBusCommissions(both)]);
+  const [roomDisc, busDisc, listPrices] = await Promise.all([resolveRoomCommissions(both), resolveBusCommissions(both), rentalListPriceMap(both)]);
 
   // Tiền chủ dịch vụ THỰC NHẬN = phần tiền bán ra của bên mình − chiết khấu bên mình để lại cho sàn.
   //  - Homestay (và đơn combo phía home): tiền phòng − chiết khấu từng căn.
@@ -67,8 +68,8 @@ export default async function ProviderHome() {
         : toNumber(b.amountCollected) ?? 0;
     return n + Math.min(raw, net); // tiền đã thu quy về thực nhận, không vượt quá
   }, 0);
-  // Số gạch ngang: giá gốc cấu hình ở admin (xe máy); không có thì giá bán khi đơn có chiết khấu.
-  const strikeOf = (b: B) => rentalOriginalTotal(b, b.service?.originalPrice) ?? (discOf(b) > 0 ? grossOf(b) : null);
+  // Số gạch ngang: giá gạch của loại xe cấu hình ở admin (xe máy); không có thì giá bán khi đơn có chiết khấu.
+  const strikeOf = (b: B) => rentalOriginalTotal(b, listPrices.get(b.rentalVehicleId ?? "")) ?? (discOf(b) > 0 ? grossOf(b) : null);
   const amounts = Object.fromEntries(recent.map((b) => [b.id, { net: netOf(b), discount: discOf(b), strike: strikeOf(b) }]));
   const gross = all.reduce((n, b) => n + grossOf(b), 0);
   const strikeTotal = all.reduce((n, b) => n + (strikeOf(b) ?? netOf(b)), 0);

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { Suspense, cache } from "react";
+import ServiceDetailSkeleton from "@/components/skeletons/ServiceDetailSkeleton";
 import { ogBlock } from "@/lib/og";
 import { notFound } from "next/navigation";
-import { getRoomDetail, getSettings } from "@/lib/queries";
+import { getRoomDetail as getRoomDetailRaw, getSettings } from "@/lib/queries";
 import { CATEGORIES } from "@/lib/constants";
 import { formatPrice } from "@/lib/format";
 import { roomFromPrice, isRoomPriceOnRequest } from "@/lib/availability";
@@ -15,6 +17,9 @@ import { i18nAlternates, i18nOg } from "@/lib/i18n/meta";
 import Link from "@/components/Link";
 
 export const dynamic = "force-dynamic";
+
+// Metadata + bước kiểm tra tồn tại + thân trang dùng chung 1 lần truy vấn.
+const getRoomDetail = cache(getRoomDetailRaw);
 
 export async function generateMetadata({
   params,
@@ -37,10 +42,26 @@ export async function generateMetadata({
     description,
     alternates: await i18nAlternates(path),
     openGraph: await i18nOg({ title, description, path, image: cover, alt: `${t(room.name)} – ${t(svc.title)}` }),
+    // Trang từng phòng gần như trùng nhau (cùng home, khác tên/ảnh) ⇒ không cho Google lập chỉ mục,
+    // vẫn "follow" để bot đi tiếp sang trang homestay. Trang homestay mới là trang cần lên top.
+    robots: { index: false, follow: true },
   };
 }
 
-export default async function RoomDetailPage({
+type PageProps = { params: Promise<{ category: string; slug: string; roomId: string }> };
+
+/** Kiểm tra phòng tồn tại TRƯỚC khung chờ ⇒ phòng đã xoá trả đúng mã 404 (không phải "soft 404"). */
+export default async function RoomDetailPage(props: PageProps) {
+  const { slug, roomId } = await props.params;
+  if (!(await getRoomDetail(slug, roomId))) notFound();
+  return (
+    <Suspense fallback={<ServiceDetailSkeleton />}>
+      <RoomDetailBody {...props} />
+    </Suspense>
+  );
+}
+
+async function RoomDetailBody({
   params,
 }: {
   params: Promise<{ category: string; slug: string; roomId: string }>;

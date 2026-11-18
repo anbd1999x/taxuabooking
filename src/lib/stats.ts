@@ -1,4 +1,5 @@
 import { rentalOriginalTotal } from "./rental-days";
+import { rentalListPriceMap } from "./rental-list-price";
 import "server-only";
 import { prisma } from "./prisma";
 import { parseDateOnly, addDays } from "./dates";
@@ -186,6 +187,7 @@ export async function computeStats(fromKey: string, toKey: string, ownerId?: str
       serviceId: true,
       nights: true,
       rentalDays: true,
+      rentalVehicleId: true,
       seatsSingle: true,
       seatsDouble: true,
       roomId: true,
@@ -205,13 +207,13 @@ export async function computeStats(fromKey: string, toKey: string, ownerId?: str
 
   // Thay chiết khấu home / nhà xe bằng giá trị hiệu lực (snapshot, hoặc tính bù cho đơn
   // cũ chưa có snapshot) — để tiền thực nhận của chủ dịch vụ & doanh thu sàn đúng ngay.
-  const [roomDisc, busDisc] = await Promise.all([resolveRoomCommissions(bookings), resolveBusCommissions(bookings)]);
+  const [roomDisc, busDisc, listPrices] = await Promise.all([resolveRoomCommissions(bookings), resolveBusCommissions(bookings), rentalListPriceMap(bookings)]);
   for (const b of bookings) {
     // Admin sửa tay số phải trả ⇒ chiết khấu hiệu lực = bán ra − số sửa tay (khớp báo cáo thanh toán).
     const eff = effectiveDiscounts(b, roomDisc.get(b.id) ?? 0, busDisc.get(b.id) ?? 0);
     (b as { roomCommission: unknown }).roomCommission = eff.room;
     (b as { busCommission: unknown }).busCommission = eff.bus;
-    (b as { originalTotal?: number | null }).originalTotal = rentalOriginalTotal(b, b.service?.originalPrice);
+    (b as { originalTotal?: number | null }).originalTotal = rentalOriginalTotal(b, listPrices.get(b.rentalVehicleId ?? ""));
   }
 
   // Chủ nhà xe của các đơn combo (tra theo chuyến đi) — cho bảng theo chủ dịch vụ.

@@ -98,7 +98,7 @@ export function Header({ customerName = null, showCommitment = true }: { custome
     { href: "/gop-y", label: t("Góp ý") },
   ];
   // Menu "Hợp tác": trang giới thiệu cho chủ dịch vụ (tiệm xe…).
-  const PARTNER_LINKS = [{ href: "/hop-tac/xe-may", label: t("Quản lý tiệm xe máy") }];
+  const PARTNER_LINKS = [{ href: "/hop-tac/xe-may", label: t("Quản lý cho thuê xe") }];
 
   const navItem = cn(
     "whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold transition",

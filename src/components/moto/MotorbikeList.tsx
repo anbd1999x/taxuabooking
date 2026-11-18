@@ -484,6 +484,7 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
                       <div className="flex flex-wrap gap-1 sm:gap-1.5">
                         <span className="whitespace-nowrap rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-[oklch(0.3_0.04_160)] sm:px-2.5 sm:py-1 sm:text-xs">{tr(b.kind)}</span>
                         {b.featured && <span className="whitespace-nowrap rounded-full bg-sunset-500 px-2 py-0.5 text-[11px] font-bold text-white sm:px-2.5 sm:py-1 sm:text-xs">{tr("Nổi bật")}</span>}
+                        {b.originalPrice != null && <span className="whitespace-nowrap rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-extrabold text-white shadow-[0_2px_8px_rgba(220,38,38,.45)] sm:px-2.5 sm:py-1 sm:text-xs">−{Math.round((1 - b.pricePerDay / b.originalPrice) * 100)}%</span>}
                       </div>
                       <span className="max-w-full truncate rounded-full px-2 py-0.5 text-[11px] font-bold sm:px-2.5 sm:py-1 sm:text-xs" style={{ background: sm.bg, color: sm.fg }}>{tr(status)}</span>
                     </div>
@@ -508,7 +509,12 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
                       <div className="min-w-0">
                         <div className="text-[11px] text-gray-500 sm:text-xs">{days ? tr("{0} ngày × {1} xe", [days, qty]) : tr("Giá thuê")}</div>
                         {/* Giá gạch chỉ hiện khi chưa chọn ngày (lúc đó số to là giá/ngày, so sánh cùng đơn vị). */}
-                        {!days && b.originalPrice != null && <div className="text-[12px] font-semibold leading-none text-gray-400 line-through sm:text-[13px]">{tr(vnd(b.originalPrice))}</div>}
+                        {!days && b.originalPrice != null && (
+                          <div className="flex items-center gap-1.5 leading-none">
+                            <span className="text-[12px] font-semibold text-gray-400 line-through sm:text-[13px]">{tr(vnd(b.originalPrice))}</span>
+                            <span className="rounded-full bg-red-600 px-1.5 py-0.5 text-[10px] font-extrabold text-white sm:text-[11px]">−{Math.round((1 - b.pricePerDay / b.originalPrice) * 100)}%</span>
+                          </div>
+                        )}
                         <div>
                           <span className="whitespace-nowrap text-[18px] font-extrabold tracking-[-0.02em] sm:text-[22px]" style={{ color: "oklch(0.34 0.07 160)" }}>{days ? tr(vnd(total)) : tr(vnd(b.pricePerDay))}</span>
                           {!days && <span className="text-[12px] text-gray-500 sm:text-[13px]">{tr("/ngày")}</span>}

@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { SITE } from "@/lib/site";
 import { toNumber } from "@/lib/format";
 import { articleTopicLabel } from "@/lib/constants";
+import { getSettings } from "@/lib/queries";
+import { formatPhone } from "@/lib/trust-popup";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +13,9 @@ export const dynamic = "force-dynamic";
  */
 export async function GET() {
   const base = SITE.url.replace(/\/$/, "");
+  // SĐT duy nhất toàn web = số chọn ở /admin/popup (getSettings ghi đè contactPhone).
+  const settings = await getSettings();
+  const phone = formatPhone(settings.contactPhone || SITE.defaultPhone);
   const [cabins, articles] = await Promise.all([
     prisma.service.findMany({
       where: { category: "CABIN", published: true },
@@ -50,7 +55,7 @@ export async function GET() {
 
   const body = `# ${SITE.name}
 
-> ${SITE.name} (${base}) là website đặt dịch vụ du lịch Tà Xùa (xã Tà Xùa, tỉnh Sơn La, Việt Nam; cách Hà Nội khoảng 215–220 km): xe cabin giường nằm Hà Nội – Tà Xùa, homestay/bungalow săn mây, thuê xe máy, xe ôm, taxi và combo xe + homestay. Khách xem giá và tình trạng còn chỗ theo ngày rồi gửi yêu cầu đặt; không thanh toán online, nhân viên gọi lại xác nhận. Hỗ trợ ${SITE.supportHours} hằng ngày, điện thoại/Zalo ${SITE.defaultPhone}.
+> ${SITE.name} (${base}) là website đặt dịch vụ du lịch Tà Xùa (xã Tà Xùa, tỉnh Sơn La, Việt Nam; cách Hà Nội khoảng 215–220 km): xe cabin giường nằm Hà Nội – Tà Xùa, homestay/bungalow săn mây, thuê xe máy, xe ôm, taxi và combo xe + homestay. Khách xem giá và tình trạng còn chỗ theo ngày rồi gửi yêu cầu đặt; không thanh toán online, nhân viên gọi lại xác nhận. Hỗ trợ ${SITE.supportHours} hằng ngày, điện thoại/Zalo ${phone}.
 
 Ngôn ngữ: tiếng Việt (gốc), English (/en), 中文 (/zh), 한국어 (/ko). Tiếng Trung gọi Tà Xùa là 塔萨, tiếng Hàn là 따쑤아.
 

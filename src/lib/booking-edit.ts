@@ -99,6 +99,7 @@ export async function loadBookingEdit(id: string): Promise<BookingEditProps | nu
     customerName: b.customerName,
     phone: b.phone,
     customerFacebook: b.customerFacebook ?? "",
+    customerEmail: b.customerEmail ?? "",
     ctvId: b.ctvId ?? "",
     note,
     adminNote: b.adminNote ?? "",

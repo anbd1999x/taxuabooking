@@ -3,6 +3,7 @@ import { pageMeta } from "@/lib/og";
 import Link from "@/components/Link";
 import { getSettings } from "@/lib/queries";
 import { SITE } from "@/lib/site";
+import { formatPhone } from "@/lib/trust-popup";
 import { getT } from "@/lib/i18n/server";
 import { i18nMeta } from "@/lib/i18n/meta";
 
@@ -98,7 +99,7 @@ export default async function PrivacyPage() {
             {t("Mọi thắc mắc về quyền riêng tư, vui lòng liên hệ:")}
           </p>
           <ul className="list-none space-y-1">
-            <li>{t("📞 Điện thoại/Zalo:")}{" "}<a href={`tel:${phone.replace(/\s/g, "")}`} className="font-semibold text-forest-700">{t(phone)}</a></li>
+            <li>{t("📞 Điện thoại/Zalo:")}{" "}<a href={`tel:${phone.replace(/\s/g, "")}`} className="font-semibold text-forest-700">{formatPhone(phone)}</a></li>
             {email && <li>✉️ Email: <a href={`mailto:${email}`} className="font-semibold text-forest-700">{t(email)}</a></li>}
             <li>🌐 Website: taxuabooking.com</li>
           </ul>

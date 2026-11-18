@@ -18,7 +18,7 @@ export default async function ArticlesPage() {
         <div>
           <h1 className="text-2xl font-bold text-ink">Bài viết kinh nghiệm</h1>
           <p className="mt-1 text-sm text-gray-500">
-            Bài viết chuẩn SEO giúp Google tìm thấy website qua từ khoá "kinh nghiệm Tà Xùa, homestay Tà Xùa…".
+            Bài viết chuẩn SEO giúp Google tìm thấy website qua từ khoá “kinh nghiệm Tà Xùa, homestay Tà Xùa…”.
             <br />
             <b>Bài nổi bật</b>: nhập ★ STT lớn hơn 0 rồi bấm Lưu — bài xếp lên đầu theo số to → bé; 0 = bài thường.
           </p>
@@ -31,7 +31,7 @@ export default async function ArticlesPage() {
       <div className="mt-5 space-y-2.5">
         {articles.length === 0 && (
           <p className="rounded-2xl border border-dashed border-gray-300 bg-white py-12 text-center text-gray-500">
-            Chưa có bài viết nào. Bấm "Viết bài mới" để bắt đầu.
+            Chưa có bài viết nào. Bấm “Viết bài mới” để bắt đầu.
           </p>
         )}
         {articles.map((a, i) => (

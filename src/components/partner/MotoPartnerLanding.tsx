@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Trang giới thiệu "Quản lý tiệm xe máy" cho chủ tiệm cho thuê xe (menu Hợp tác).
+ * Trang giới thiệu "Quản lý cho thuê xe" cho chủ tiệm cho thuê xe (menu Hợp tác).
  * Theo claude.ai/design project 4ec052fe… file "Gioi thieu Quan ly Xe may.dc.html".
  * Ảnh: public/hop-tac/xe-*.jpg (ảnh xe thật của các tiệm trên Tà Xùa Booking).
  */

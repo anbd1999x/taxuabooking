@@ -22,6 +22,7 @@ import { tripsOnDate, peekTrip, materializeTrip, ensureTripOnDate, type TripView
 import type { CabinDirection } from "@prisma/client";
 import { loadBookingEdit, type BookingEditProps } from "@/lib/booking-edit";
 import { assignComboBikeService, syncFleetForBooking } from "@/lib/fleet";
+import { sendBookingEmail, sendConfirmEmailIfDue } from "@/lib/booking-email";
 
 /** Chuyến thật của nhà xe theo id (id ảo ⇒ tạo chuyến thật cho ngày đó). Sai nhà xe/chiều ⇒ null. */
 async function resolveAdminTrip(id: string, serviceId: string, direction: CabinDirection) {
@@ -213,6 +214,11 @@ async function buildAdminBookingData(
   if (!/^[0-9+().\s-]{8,15}$/.test(phone)) return { error: "Số điện thoại không hợp lệ." };
   const customerFacebook = normalizeFacebookUrl(str(fd, "customerFacebook"));
   if (customerFacebook === undefined) return { error: "Link Facebook không hợp lệ." };
+  // Email khách (tuỳ chọn): có ⇒ gửi thư thông tin đơn như khách tự đặt trên web.
+  const customerEmail = str(fd, "customerEmail").toLowerCase() || null;
+  if (customerEmail && (customerEmail.length > 160 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail))) {
+    return { error: "Email không hợp lệ." };
+  }
   if (!isValidDateKey(useDate)) return { error: "Chọn ngày sử dụng." };
   if (endDateRaw && (!isValidDateKey(endDateRaw) || endDateRaw < useDate)) return { error: "Ngày kết thúc phải từ ngày bắt đầu trở đi." };
 
@@ -442,6 +448,7 @@ async function buildAdminBookingData(
       customerName,
       phone,
       customerFacebook,
+      customerEmail,
       // Cabin/combo: ghi điểm đón (tuyến) vào ghi chú như đơn đặt web ("Đón: …") để trang
       // chi tiết / tin nhắn nhà xe hiện đúng điểm đón thay vì điểm mặc định của chuyến.
       note:
@@ -570,6 +577,12 @@ export async function createAdminBooking(
   }
 
   await syncFleetForBooking(id).catch(() => {}); // đơn xe máy: tự xếp xe trong đội xe
+  // Khách có email ⇒ gửi thư như đơn đặt web: đơn đã xác nhận → thư xác nhận (1 lần),
+  // đơn còn chờ → thư "đã nhận yêu cầu". Tạo ở trạng thái huỷ ⇒ không gửi.
+  if (data.customerEmail) {
+    if (statusHoldsInventory(status)) await sendConfirmEmailIfDue(id);
+    else if (status !== "CANCELLED") await sendBookingEmail(id, "received").catch(() => {});
+  }
   for (const p of ["/admin/bookings", "/admin/reports", "/admin/provider/don", "/admin/availability", "/admin/ctv/don"]) {
     revalidatePath(p);
   }
@@ -619,6 +632,7 @@ export async function updateAdminBooking(
   diff("Khách", old.customerName, data.customerName);
   diff("SĐT", old.phone, data.phone);
   diff("Facebook", old.customerFacebook, data.customerFacebook);
+  diff("Email", old.customerEmail, data.customerEmail);
   diff("Ghi chú", old.note, data.note);
   diff("Ghi chú nội bộ", old.adminNote, data.adminNote);
   diff("CTV", old.ctvId ?? "—", data.ctvId ?? "—");
@@ -674,6 +688,12 @@ export async function updateAdminBooking(
   }
 
   await syncFleetForBooking(id).catch(() => {}); // đơn xe máy: đồng bộ đội xe theo thông tin mới
+  // Vừa thêm / đổi email khách ⇒ gửi thư theo trạng thái hiện tại của đơn (xác nhận: đúng 1 lần).
+  const newEmail = (data.customerEmail as string | null) || null;
+  if (newEmail && newEmail !== old.customerEmail) {
+    if (statusHoldsInventory(old.status)) await sendConfirmEmailIfDue(id);
+    else if (old.status !== "CANCELLED") await sendBookingEmail(id, "received").catch(() => {});
+  }
   const bikeRes = bikeChange ? await assignComboBikeService(id, bikeSvc, by).catch(() => ({ error: "Không phân được xe." })) : null;
   for (const p of ["/admin/bookings", "/admin/reports", "/admin/provider/don", "/admin/provider/xe", "/admin/availability", "/admin/ctv/don", `/admin/bookings/${id}`]) {
     revalidatePath(p);

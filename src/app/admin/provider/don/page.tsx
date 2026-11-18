@@ -10,6 +10,7 @@ import { providerUnlocked } from "@/lib/booking-flow";
 import { ProviderOrders, type ProviderOrderVM, type POStatus } from "@/components/admin/ProviderOrders";
 import { durationLabel, bookingCountLabel } from "@/lib/occupancy";
 import { rentalOriginalTotal } from "@/lib/rental-days";
+import { rentalListPriceMap } from "@/lib/rental-list-price";
 
 export const dynamic = "force-dynamic";
 
@@ -54,10 +55,11 @@ export default async function ProviderOrdersPage({ searchParams }: { searchParam
   ]);
 
   // Chiết khấu hiệu lực + nhãn phòng thực của mỗi đơn (snapshot, hoặc tính bù đơn cũ).
-  const [infoMap, roomDiscMap, busDiscMap] = await Promise.all([
+  const [infoMap, roomDiscMap, busDiscMap, listPrices] = await Promise.all([
     resolveRoomInfo(bookings),
     resolveRoomCommissions(bookings),
     resolveBusCommissions(bookings),
+    rentalListPriceMap(bookings),
   ]);
 
   const orders: ProviderOrderVM[] = bookings.map((b) => {
@@ -166,7 +168,7 @@ export default async function ProviderOrdersPage({ searchParams }: { searchParam
       gross,
       discount,
       // Số gạch ngang: giá gốc cấu hình ở admin (xe máy) — không có thì giá bán khi đơn có chiết khấu.
-      strike: rentalOriginalTotal(b, b.service?.originalPrice) ?? (discount > 0 ? gross : null),
+      strike: rentalOriginalTotal(b, listPrices.get(b.rentalVehicleId ?? "")) ?? (discount > 0 ? gross : null),
       net,
       collected,
       moneyLabel,

@@ -38,8 +38,30 @@ export async function sendBookingEmail(id: string, kind: BookingEmailKind, to?: 
   const m = await bookingMessagesById(id);
   if (!m) return { ok: false, error: "Không tìm thấy đơn." };
   const mail = renderBookingEmail(kind, m.facts, await company());
-  return sendMail({ to: dest, ...mail });
+  const r = await sendMail({ to: dest, ...mail });
+  // Lịch sử đơn: ghi lại mỗi lần gửi thư cho khách (thành công / thất bại kèm lỗi).
+  // Gửi thử tới địa chỉ khác (`to`, trang /admin/popup) thì không ghi.
+  if (!to) {
+    await prisma.bookingLog
+      .create({
+        data: {
+          bookingId: id,
+          kind: "EMAIL",
+          title: `Gửi email ${EMAIL_KIND_LABEL[kind]}: ${r.ok ? "thành công" : "THẤT BẠI"}`,
+          body: `Tới: ${dest}${r.ok ? "" : `\nLỗi: ${r.error}`}`.slice(0, 500),
+          by: "Hệ thống",
+        },
+      })
+      .catch((err) => console.error("booking email log error", err));
+  }
+  return r;
 }
+
+const EMAIL_KIND_LABEL: Record<BookingEmailKind, string> = {
+  received: "đã nhận yêu cầu",
+  confirmed: "xác nhận đơn",
+  cancelled: "báo huỷ đơn",
+};
 
 /**
  * Sau khi khách gửi đơn thành công: lưu email khách (nếu có) rồi gửi email "đã nhận yêu cầu".

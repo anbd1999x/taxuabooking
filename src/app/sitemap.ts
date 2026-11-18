@@ -9,7 +9,8 @@ export const dynamic = "force-dynamic";
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = SITE.url.replace(/\/$/, "");
 
-  const [services, articles, rooms, places] = await Promise.all([
+  // Không đưa trang từng phòng (/phong/<id>) vào sitemap: gần như trùng nhau và đã noindex — dồn lượt thu thập của Google cho trang chính.
+  const [services, articles, places] = await Promise.all([
     prisma.service.findMany({
       where: { published: true },
       select: { slug: true, category: true, updatedAt: true },
@@ -17,10 +18,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     prisma.article.findMany({
       where: { published: true },
       select: { slug: true, updatedAt: true },
-    }),
-    prisma.room.findMany({
-      where: { roomType: { service: { published: true } } },
-      select: { id: true, updatedAt: true, roomType: { select: { service: { select: { slug: true, category: true } } } } },
     }),
     prisma.place.findMany({
       where: { published: true, slug: { not: null }, kind: { in: ["RESTAURANT", "CAFE"] } },
@@ -63,14 +60,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  // Trang chi tiết từng phòng homestay.
-  const roomRoutes: MetadataRoute.Sitemap = rooms.map((r) => ({
-    url: `${base}/${CATEGORIES[r.roomType.service.category].slug}/${r.roomType.service.slug}/phong/${r.id}`,
-    lastModified: r.updatedAt,
-    changeFrequency: "weekly",
-    priority: 0.6,
-  }));
-
   // Trang chi tiết nhà hàng / cafe.
   const placeRoutes: MetadataRoute.Sitemap = places.map((p) => ({
     url: `${base}/${p.kind === "CAFE" ? "cafe" : "nha-hang"}/${p.slug}`,
@@ -80,7 +69,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // Đa ngôn ngữ: mỗi URL khai kèm các bản /en, /zh, /ko (hreflang) để Google ghép cặp.
-  const all = [...staticRoutes, ...categoryRoutes, ...serviceRoutes, ...roomRoutes, ...articleRoutes, ...placeRoutes];
+  const all = [...staticRoutes, ...categoryRoutes, ...serviceRoutes, ...articleRoutes, ...placeRoutes];
   return all.map((r) => {
     const path = r.url.slice(base.length) || "/";
     const languages: Record<string, string> = { [LOCALE_META.vi.htmlLang]: r.url };
