@@ -156,7 +156,8 @@ export function ComboCustom({
   const billable = billableOf(home, adults);
   const freeKids = childrenAges.length - (billable - adults);
 
-  const [sel, setSel] = useState<Record<string, number>>(() => (homes[0] ? cheapestPick(listRooms(homes[0]), billableOf(homes[0], result.adults)) : {}));
+  // Mặc định KHÔNG chọn sẵn phòng nào — khách tự chọn (nút "Gợi ý rẻ nhất" chọn giúp khi cần).
+  const [sel, setSel] = useState<Record<string, number>>({});
   const [busId, setBusId] = useState(() => cheapestBus(buses)?.serviceId ?? "");
   const bus = buses.find((b) => b.serviceId === busId) ?? cheapestBus(buses);
   const [ticketsRaw, setTicketsRaw] = useState<number | null>(null); // null = theo số khách
@@ -239,15 +240,14 @@ export function ComboCustom({
   const vrGroup = useMemo(() => (vrHome && viewRoom ? listRooms(vrHome).find((g) => g.key === viewRoom.key) ?? null : null), [vrHome, viewRoom]);
   /** Chọn nhà khác từ hộp "Xem phòng" và thêm luôn 1 phòng loại đang xem. */
   function chooseHomeWithRoom(h: ComboHomeOption, key: string) {
-    const pick = cheapestPick(listRooms(h), billableOf(h, adults));
     setHomeId(h.serviceId);
-    setSel({ ...pick, [key]: Math.max(1, pick[key] ?? 0) });
+    setSel({ [key]: 1 }); // chỉ đúng phòng khách vừa xem, không tự thêm phòng khác
     setStage("build");
   }
 
   function pickHome(h: ComboHomeOption) {
     setHomeId(h.serviceId);
-    setSel(cheapestPick(listRooms(h), billableOf(h, adults)));
+    setSel({}); // đổi home ⇒ bỏ phòng của home cũ, không tự chọn phòng mới
     setStage("build");
   }
   function setQty(g: Grp, q: number) {

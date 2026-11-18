@@ -3,7 +3,7 @@
 import { SupportHoursNote } from "@/components/SupportHours";
 import { trackLeadConversion } from "@/lib/ads";
 import { VoiceText } from "@/components/SiteContact";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { CabinDirectionOptions, CabinTripAvail, CabinDay, CabinFareOption } from "@/lib/cabin";
 import { cabinSeatTotal } from "@/lib/combo-pricing";
 import { vnPhoneError } from "@/lib/phone";
@@ -158,7 +158,9 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
     setStep(2);
   }
 
+  const sendLock = useRef(false); // khoá tức thời chống bấm đúp ⇒ tạo 2 đơn
   async function submit() {
+    if (sendLock.current) return;
     setTried(true);
     if (!name.trim() || !phoneOk) {
       setErr(!name.trim() ? tr("Vui lòng nhập họ tên.") : phoneErr);
@@ -169,6 +171,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
       return;
     }
     setErr(null);
+    sendLock.current = true;
     setSubmitting(true);
     try {
       const res = await fetch("/api/cabin/book", {
@@ -202,6 +205,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
     } catch {
       setErr(tr("Lỗi kết nối, vui lòng thử lại."));
     } finally {
+      sendLock.current = false;
       setSubmitting(false);
     }
   }

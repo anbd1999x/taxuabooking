@@ -6,7 +6,7 @@ import { PriceLine } from "@/components/WebPromo";
 import { SupportHoursNote } from "@/components/SupportHours";
 import { trackLeadConversion } from "@/lib/ads";
 import { ItineraryLink } from "@/components/itinerary/ItineraryLink";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ServiceCategory, AvailabilityStatus } from "@prisma/client";
 import { DateField } from "@/components/DateField";
 import { QtyInput } from "@/components/QtyInput";
@@ -180,10 +180,13 @@ export function BookingPanel({
     }
   }
 
+  const sendLock = useRef(false); // khoá tức thời chống bấm đúp ⇒ tạo 2 đơn
   async function submit(e: React.FormEvent) {
-    e.preventDefault();
+    e.preventDefault(); // luôn chặn gửi form mặc định (kể cả lần bấm đúp bị bỏ qua)
+    if (sendLock.current) return;
     setSubmitError(null);
     setFieldErrors({});
+    sendLock.current = true;
     setSubmitting(true);
     try {
       const payload = {
@@ -222,6 +225,7 @@ export function BookingPanel({
     } catch {
       setSubmitError(tr("Lỗi kết nối, vui lòng thử lại."));
     } finally {
+      sendLock.current = false;
       setSubmitting(false);
     }
   }

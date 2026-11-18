@@ -441,7 +441,9 @@ export function HomestayBooking({
   const phoneOk = phoneErr === null;
   const ready = nN > 0 && hasSel && !over && !policyWarn;
 
+  const sendLock = useRef(false); // khoá tức thời chống bấm đúp ⇒ tạo 2 đơn
   async function submit() {
+    if (sendLock.current) return;
     setErr("");
     if (policyWarn) { setErr(policyWarn); return; }
     if (!ready) {
@@ -460,6 +462,7 @@ export function HomestayBooking({
       return;
     }
     if (!emailLooksValid(email)) { setErr(tr("Email không hợp lệ (có thể để trống).")); return; }
+    sendLock.current = true;
     setSubmitting(true);
     try {
       const res = await fetch("/api/bookings", {
@@ -487,6 +490,7 @@ export function HomestayBooking({
     } catch {
       setErr(tr("Lỗi kết nối, vui lòng thử lại."));
     } finally {
+      sendLock.current = false;
       setSubmitting(false);
     }
   }
