@@ -26,6 +26,7 @@ import { showGlobalLoading } from "@/components/useSearchNav";
 import { CommitmentLink } from "@/components/trust/parts";
 import { useT } from "@/components/i18n/I18nProvider";
 import { ComboModeSlot } from "@/components/combo/ComboModeSwitch";
+import { ComboSchedule } from "@/components/combo/ComboSchedule";
 import { useComboBike, comboBikePayload, ComboBikeSummary, ComboBikePicker, ComboBikeDoneNote } from "@/components/combo/ComboBike";
 
 // Phải khớp COMBO_DISCOUNT trong src/lib/combo.ts (server tính lại giá khi đặt).
@@ -701,7 +702,7 @@ function ComboPlanCard({
                   {origin && (
                     <div className="flex justify-between gap-2"><span className="text-gray-500">{tr("Điểm đón")}</span><span className="font-bold text-ink">{tr(origin)}</span></div>
                   )}
-                  <div className="flex justify-between gap-2"><span className="text-gray-500">{tr("Ngày")}</span><span className="font-bold text-ink">{tr("{0} → {1} · {2} đêm", [fmtDayKey(checkIn), fmtDayKey(checkOut), nights])}</span></div>
+                  <ComboSchedule fromKey={fromKey} toKey={toKey} checkIn={checkIn} checkOut={checkOut} nights={nights} outTime={bus?.outboundTime ?? null} retTime={bus?.returnTime ?? null} origin={null} />
                   <div className="flex justify-between gap-2">
                     <span className="text-gray-500">{tr("Khách")}</span>
                     <span className="text-right font-bold text-ink">

@@ -374,3 +374,7 @@ export function bookingBusSeats(b: {
 export function comboSelfTravelGuests(b: Parameters<typeof bookingBusSeats>[0] & { category: string }): number {
   return b.category === "COMBO" ? Math.max(0, b.quantity - bookingBusSeats(b)) : 0;
 }
+
+/** Giờ nhận / trả phòng CHUẨN ghi cho khách (tin nhắn, email, bảng tổng combo); homestay có quy định riêng thì báo thêm. */
+export const STAY_CHECKIN_TIME = "14:00";
+export const STAY_CHECKOUT_TIME = "12:00";

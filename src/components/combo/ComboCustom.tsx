@@ -4,7 +4,7 @@ import { dmy } from "@/lib/date-format";
 import { trackLeadConversion } from "@/lib/ads";
 import Link from "@/components/Link";
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Children, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { ComboBusOption, ComboHomeOption, ComboRoomOption, ComboSearchResult } from "@/lib/combo";
 import { ensureSheetFresh } from "@/components/ensureSheet";
 import { payingChildren } from "@/lib/occupancy";
@@ -12,6 +12,7 @@ import { comboQuote } from "@/lib/combo-pricing";
 import { CUSTOM_MAX_PEOPLE, CUSTOM_MAX_ROOMS, CUSTOM_MAX_TICKETS, cheapestPick, groupQty, groupRooms, pickedRooms, toQuoteRoom, type CustomRoomGroup } from "@/lib/combo-custom";
 import { ComboModeSlot } from "@/components/combo/ComboModeSwitch";
 import { HomeDrawer, RoomViewer } from "@/components/combo/ComboCustomViews";
+import { ComboSchedule } from "@/components/combo/ComboSchedule";
 import { useComboBike, comboBikePayload, ComboBikePicker, ComboBikeSummary, ComboBikeDoneNote } from "@/components/combo/ComboBike";
 import { vnPhoneError } from "@/lib/phone";
 import { BookingEmailField, emailLooksValid } from "@/components/BookingEmailField";
@@ -48,6 +49,58 @@ function cheapestBus(buses: ComboBusOption[]): ComboBusOption | undefined {
   return [...buses].sort((a, b) => a.farePerPerson - b.farePerPerson)[0];
 }
 
+/**
+ * Băng trượt ngang theo TRANG: mỗi trang xếp dọc `perPage` mục, vuốt ngang (dừng đúng từng trang) hoặc bấm
+ * mũi tên / chấm tròn bên dưới để chuyển trang. `resetKey` đổi ⇒ quay về trang đầu.
+ */
+function PagedRail({ children, perPage, resetKey }: { children: ReactNode; perPage: number; resetKey: string }) {
+  const t = useT();
+  const items = Children.toArray(children);
+  const pages: ReactNode[][] = [];
+  for (let i = 0; i < items.length; i += perPage) pages.push(items.slice(i, i + perPage));
+  const ref = useRef<HTMLDivElement>(null);
+  const [page, setPage] = useState(0);
+  const GAP = 10;
+  const go = (i: number, smooth = true) => {
+    const el = ref.current;
+    if (el) el.scrollTo({ left: Math.max(0, i) * (el.clientWidth + GAP), behavior: smooth ? "smooth" : "auto" });
+  };
+  useEffect(() => { go(0, false); }, [resetKey]);
+  const many = pages.length > 1;
+  const arrow = "flex h-9 w-9 flex-none items-center justify-center rounded-full text-xl font-extrabold transition disabled:opacity-30";
+  return (
+    <>
+      <div
+        ref={ref}
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          const p = Math.round(el.scrollLeft / (el.clientWidth + GAP));
+          if (p !== page) setPage(p);
+        }}
+        className="flex snap-x snap-mandatory gap-2.5 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {pages.map((pg, i) => (
+          <div key={i} className="flex w-full flex-none snap-start snap-always flex-col gap-2.5">{pg}</div>
+        ))}
+      </div>
+      {many && (
+        <div className="flex items-center justify-between gap-3">
+          <button type="button" aria-label={t("Trang trước")} onClick={() => go(page - 1)} disabled={page <= 0} className={`${arrow} bg-white`} style={{ border: `1.5px solid ${G}`, color: G }}>‹</button>
+          <div className="flex min-w-0 flex-col items-center gap-1.5 text-xs font-bold" style={{ color: MUTED }}>
+            <div className="flex items-center gap-1.5">
+              {pages.map((_, i) => (
+                <button key={i} type="button" aria-label={t("Trang {0}", [i + 1])} onClick={() => go(i)} className="h-2 rounded-full transition-all" style={{ width: i === page ? 18 : 8, background: i === page ? G : "oklch(0.86 0.02 160)" }} />
+              ))}
+            </div>
+            <span>{t("Vuốt ngang để xem thêm · {0}/{1}", [page + 1, pages.length])}</span>
+          </div>
+          <button type="button" aria-label={t("Trang sau")} onClick={() => go(page + 1)} disabled={page >= pages.length - 1} className={`${arrow} text-white`} style={{ background: G }}>›</button>
+        </div>
+      )}
+    </>
+  );
+}
+
 export function ComboCustom({
   result,
   suggestHref,
@@ -79,6 +132,26 @@ export function ComboCustom({
     else if (sort === "near") arr.sort((a, b) => distOf(a) - distOf(b) || fromOf(a) - fromOf(b));
     return arr; // "match": giữ thứ tự server (nổi bật / ưu tiên)
   }, [homes, zone, homeName, sort]);
+  // ----- Băng trượt homestay: mỗi trang 2 × 2 thẻ, vuốt ngang / bấm mũi tên để sang trang -----
+  const homePages = useMemo(() => {
+    const pages: ComboHomeOption[][] = [];
+    for (let i = 0; i < shownHomes.length; i += 4) pages.push(shownHomes.slice(i, i + 4));
+    return pages;
+  }, [shownHomes]);
+  const railRef = useRef<HTMLDivElement>(null);
+  const [railPage, setRailPage] = useState(0);
+  const RAIL_GAP = 10;
+  const goRailPage = (i: number, smooth = true) => {
+    const el = railRef.current;
+    if (!el) return;
+    el.scrollTo({ left: Math.max(0, i) * (el.clientWidth + RAIL_GAP), behavior: smooth ? "smooth" : "auto" });
+  };
+  // Đổi nhà đang chọn / đổi bộ lọc ⇒ đưa băng trượt tới trang có nhà đang chọn (không có thì về trang đầu).
+  useEffect(() => {
+    const idx = shownHomes.findIndex((h) => h.serviceId === homeId);
+    goRailPage(idx < 0 ? 0 : Math.floor(idx / 4), false);
+  }, [shownHomes, homeId]);
+
   const billableOf = (h: ComboHomeOption | undefined, a: number) => a + payingChildren(childrenAges, h?.childFreeUnderAge ?? 0);
   const billable = billableOf(home, adults);
   const freeKids = childrenAges.length - (billable - adults);
@@ -343,14 +416,25 @@ export function ComboCustom({
               <span className={stepDot} style={{ background: G }}>1</span>
               <div>
                 <div className="text-[19px] font-extrabold">{t("Chọn homestay")}</div>
-                <div className="text-[13px]" style={{ color: MUTED }}>{t("Chưa biết nhà nào? Bấm “Xem nhà” để xem ảnh, đánh giá, tiện ích")}</div>
+                <div className="text-[13px]" style={{ color: MUTED }}>{t("Chưa biết home nào? Bấm “Xem home” để xem ảnh, đánh giá, tiện ích")}</div>
               </div>
             </div>
             {shownHomes.length === 0 && (
               <div className="rounded-2xl border border-dashed px-4 py-6 text-center text-sm font-semibold" style={{ borderColor: LINE, color: MUTED }}>{t("Không có homestay phù hợp")}</div>
             )}
-            <div className="grid max-h-[570px] auto-rows-[280px] grid-cols-2 gap-2.5 overflow-y-auto pr-0.5 sm:max-h-[670px] sm:auto-rows-[330px]">
-              {shownHomes.map((h) => {
+            <div className="relative">
+            <div
+              ref={railRef}
+              onScroll={(e) => {
+                const el = e.currentTarget;
+                const p = Math.round(el.scrollLeft / (el.clientWidth + RAIL_GAP));
+                if (p !== railPage) setRailPage(p);
+              }}
+              className="flex snap-x snap-mandatory gap-2.5 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {homePages.map((page, pi) => (
+              <div key={pi} className="grid w-full flex-none snap-start snap-always auto-rows-[280px] grid-cols-2 content-start gap-2.5 sm:auto-rows-[330px]">
+              {page.map((h) => {
                 const on = h.serviceId === home?.serviceId;
                 const from = Math.min(...h.rooms.map((r) => r.roomCost));
                 const img = h.cover ?? h.rooms.find((r) => r.cover)?.cover ?? null;
@@ -395,13 +479,58 @@ export function ComboCustom({
                         className="rounded-full border-[1.5px] bg-white p-2 text-center text-[13px] font-extrabold transition-colors hover:border-[oklch(0.29_0.055_160)]"
                         style={{ borderColor: "oklch(0.86 0.03 158)", color: "oklch(0.3 0.06 158)" }}
                       >
-                        {t("Xem nhà →")}
+                        {t("Xem home")}
                       </button>
                     </div>
                   </div>
                 );
               })}
+              </div>
+              ))}
             </div>
+            {/* Mũi tên 2 bên: báo cho khách biết còn trang để vuốt / bấm */}
+            {homePages.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  aria-label={t("Trang trước")}
+                  onClick={() => goRailPage(railPage - 1)}
+                  disabled={railPage <= 0}
+                  className="absolute left-1 top-1/2 z-[2] flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white text-xl font-extrabold shadow-[0_6px_16px_-4px_oklch(0.2_0.03_160_/.5)] transition disabled:pointer-events-none disabled:opacity-0 sm:-left-3"
+                  style={{ border: `1.5px solid ${G}`, color: G }}
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  aria-label={t("Trang sau")}
+                  onClick={() => goRailPage(railPage + 1)}
+                  disabled={railPage >= homePages.length - 1}
+                  className="absolute right-1 top-1/2 z-[2] flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-xl font-extrabold text-white shadow-[0_6px_16px_-4px_oklch(0.2_0.03_160_/.5)] transition disabled:pointer-events-none disabled:opacity-0 sm:-right-3"
+                  style={{ background: G }}
+                >
+                  ›
+                </button>
+              </>
+            )}
+            </div>
+            {homePages.length > 1 && (
+              <div className="flex items-center justify-center gap-3 text-xs font-bold" style={{ color: MUTED }}>
+                <div className="flex items-center gap-1.5">
+                  {homePages.map((_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      aria-label={t("Trang {0}", [i + 1])}
+                      onClick={() => goRailPage(i)}
+                      className="h-2 rounded-full transition-all"
+                      style={{ width: i === railPage ? 18 : 8, background: i === railPage ? G : "oklch(0.86 0.02 160)" }}
+                    />
+                  ))}
+                </div>
+                <span>{t("Vuốt ngang để xem thêm · {0}/{1}", [railPage + 1, homePages.length])}</span>
+              </div>
+            )}
           </section>
 
           {/* BƯỚC 2 — PHÒNG */}
@@ -433,8 +562,8 @@ export function ComboCustom({
                 </div>
                 <span className="text-sm font-extrabold sm:whitespace-nowrap" style={{ color: capWarn ? "oklch(0.5 0.15 45)" : "oklch(0.36 0.09 155)" }}>{capText}</span>
               </div>
-              {/* Danh sách phòng nằm trong khung cố định, cuộn bên trong (không kéo dài trang). */}
-              <div className="flex max-h-[470px] flex-col gap-2.5 overflow-y-auto pr-0.5 sm:max-h-[520px]">
+              {/* Danh sách phòng: băng trượt ngang, mỗi trang 3 phòng (vuốt / bấm mũi tên để sang trang). */}
+              <PagedRail perPage={3} resetKey={home.serviceId}>
                 {groups.map((g) => {
                   const q = qOf(g);
                   const on = q > 0;
@@ -461,7 +590,7 @@ export function ComboCustom({
                     >
                       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-[oklch(0.95_0.01_160)]">
                         {img && <Image src={img} alt={t(title)} fill sizes="120px" className="object-cover" />}
-                        <button type="button" onClick={() => setViewRoom({ homeId: home.serviceId, key: g.key })} aria-label={t("Xem phòng →")} className="absolute inset-0" />
+                        <button type="button" onClick={() => setViewRoom({ homeId: home.serviceId, key: g.key })} aria-label={t("Xem phòng")} className="absolute inset-0" />
                         {photoCount > 0 && (
                           <span className="pointer-events-none absolute bottom-1.5 left-1.5 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-extrabold text-white" style={{ background: "oklch(0.15 0.02 160 / .7)" }}>{t("{0} ảnh", [photoCount])}</span>
                         )}
@@ -486,8 +615,8 @@ export function ComboCustom({
                           <span className="text-[19px] font-extrabold" style={{ color: "oklch(0.6 0.18 42)" }}>{vnd(g.unit)}</span>
                           <span className="text-[13px]" style={{ color: MUTED }}>{perUnit(g.communal)}</span>
                         </div>
-                        <button type="button" onClick={() => setViewRoom({ homeId: home.serviceId, key: g.key })} className="self-start text-[13px] font-extrabold underline underline-offset-[3px]" style={{ color: "oklch(0.38 0.08 158)" }}>
-                          {t("Xem phòng →")}
+                        <button type="button" onClick={() => setViewRoom({ homeId: home.serviceId, key: g.key })} className="self-start text-[13px] font-extrabold" style={{ color: "oklch(0.38 0.08 158)" }}>
+                          {t("Xem phòng")}
                         </button>
                       </div>
                       {avail === 1 ? (
@@ -524,7 +653,7 @@ export function ComboCustom({
                     </div>
                   );
                 })}
-              </div>
+              </PagedRail>
             </section>
           )}
 
@@ -653,6 +782,11 @@ export function ComboCustom({
                     {t("{0} khách nằm ghép × {1} + {2} khách nằm riêng × {3}", [shared, vnd(fare), solo, vnd(2 * fare)])}
                   </div>
                 )}
+              </div>
+              {/* Lịch trình đầy đủ: lên xe · nhận phòng · trả phòng · xe về */}
+              <div className="flex flex-col gap-1.5 border-t border-dashed pt-2.5" style={{ borderColor: "oklch(0.86 0.01 160)" }}>
+                <div className="text-xs font-extrabold tracking-[.08em]" style={{ color: "oklch(0.5 0.08 158)" }}>{t("LỊCH TRÌNH")}</div>
+                <ComboSchedule className="text-sm" fromKey={fromKey} toKey={toKey} checkIn={checkIn} checkOut={checkOut} nights={nights} outTime={bus?.outboundTime ?? null} retTime={bus?.returnTime ?? null} origin={origin} />
               </div>
               {(webKm > 0 || comboKm > 0) && (
                 <div className="flex flex-col gap-1.5 border-t border-dashed pt-2.5 text-sm" style={{ borderColor: "oklch(0.86 0.01 160)" }}>

@@ -13,7 +13,7 @@ import { CATEGORIES } from "@/lib/constants";
 import { resolveBusCommissions, resolveRoomCommissions } from "@/lib/provider-commission";
 import { isRentalCategory, durationLabel } from "@/lib/occupancy";
 import { bookingRentalDays, rentalDaysLabel } from "@/lib/rental-days";
-import { bookingCabinBerths, bookingBusSeats, comboSelfTravelGuests, cabinBerthsLabel, comboBikeFacts } from "@/lib/combo-pricing";
+import { bookingCabinBerths, bookingBusSeats, comboSelfTravelGuests, cabinBerthsLabel, comboBikeFacts, STAY_CHECKIN_TIME, STAY_CHECKOUT_TIME } from "@/lib/combo-pricing";
 import { roomGroups, roomGroupLines, roomGroupsFull, extraGuestNote } from "@/lib/booking-rooms";
 import { parseSurcharges } from "@/lib/surcharges";
 
@@ -24,8 +24,6 @@ import { parseSurcharges } from "@/lib/surcharges";
  */
 
 // Giờ nhận / trả phòng chuẩn ghi trong tin nhắn gửi khách (homestay có quy định riêng thì báo thêm).
-const STAY_CHECKIN_TIME = "14:00";
-const STAY_CHECKOUT_TIME = "12:00";
 // Tỉ lệ cọc giữ chỗ ghi trong tin nhắn gửi khách.
 const DEPOSIT_RATE = 0.5;
 

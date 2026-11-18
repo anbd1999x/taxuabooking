@@ -93,6 +93,9 @@ export function ComboSearch({
   const [price, setPrice] = useState(initialPrice);
   const [filters, setFilters] = useState<Set<string>>(new Set(initialFilters));
   const [kind, setKind] = useState(initialKind);
+  // Bộ lọc Loại phòng / Tiện ích: mặc định THU GỌN cho ô tìm kiếm gọn, bấm để sổ xuống.
+  const [showFilters, setShowFilters] = useState(false);
+  const activeCount = filters.size + (kind && kind !== "all" ? 1 : 0);
 
   function toggle(key: string) {
     setFilters((prev) => {
@@ -266,8 +269,28 @@ export function ComboSearch({
 
       <div className="mx-1 h-px bg-[oklch(0.92_0.01_200)]" />
 
-      {/* Bộ lọc: nhãn trái + chip phải (theo thiết kế) */}
-      <div className="grid items-center gap-x-4 gap-y-2.5 px-1.5" style={{ gridTemplateColumns: "auto minmax(0,1fr)" }}>
+      {/* Bộ lọc: thu gọn mặc định — bấm để sổ xuống (trượt mở) */}
+      <button
+        type="button"
+        onClick={() => setShowFilters((v) => !v)}
+        aria-expanded={showFilters}
+        aria-controls="combo-filters"
+        className="flex items-center justify-between gap-3 rounded-[12px] px-1.5 py-1 text-left transition hover:bg-[oklch(0.975_0.008_200)]"
+      >
+        <span className="flex min-w-0 items-center gap-2 text-[13px] font-bold text-[oklch(0.35_0.03_160)]">
+          {t("Bộ lọc: loại phòng, tiện ích")}
+          {activeCount > 0 && <span className="rounded-full bg-forest-600 px-2 py-0.5 text-[11px] font-extrabold text-white">{activeCount}</span>}
+        </span>
+        <span className={`flex h-7 w-7 flex-none items-center justify-center rounded-full bg-[oklch(0.955_0.012_200)] text-sm font-extrabold text-ink transition-transform duration-300 ${showFilters ? "rotate-180" : ""}`}>⌄</span>
+      </button>
+      <div
+        id="combo-filters"
+        className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out ${showFilters ? "grid-rows-[1fr] opacity-100" : "-mt-3 grid-rows-[0fr] opacity-0"}`}
+        aria-hidden={!showFilters}
+        inert={!showFilters}
+      >
+      <div className="overflow-hidden">
+      <div className="grid items-center gap-x-4 gap-y-2.5 px-1.5 pb-0.5" style={{ gridTemplateColumns: "auto minmax(0,1fr)" }}>
         <span className="whitespace-nowrap text-[13px] font-bold text-[oklch(0.45_0.02_160)]">{t("Loại phòng")}</span>
         <div className="flex flex-wrap gap-1.5">
           {ROOM_KIND_OPTIONS.map((o) => (
@@ -284,6 +307,8 @@ export function ComboSearch({
             </button>
           ))}
         </div>
+      </div>
+      </div>
       </div>
 
       <button

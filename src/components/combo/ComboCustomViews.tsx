@@ -186,7 +186,7 @@ export function HomeDrawer({
                 <span className="min-w-0">
                   <span className="block text-sm font-extrabold">{t(g.rooms.length === 1 ? g.rep.roomName : g.rep.typeName)}</span>
                   <span className="block text-xs" style={{ color: MUTED }}>
-                    {t("{0} người", [g.cap])}{g.rooms.length > 1 ? ` · ${t("Còn {0} phòng", [g.rooms.length])}` : ""} · <b style={{ color: "oklch(0.38 0.08 158)" }}>{t("Xem phòng →")}</b>
+                    {t("{0} người", [g.cap])}{g.rooms.length > 1 ? ` · ${t("Còn {0} phòng", [g.rooms.length])}` : ""} · <b style={{ color: "oklch(0.38 0.08 158)" }}>{t("Xem phòng")}</b>
                   </span>
                 </span>
                 <span className="whitespace-nowrap text-right">
@@ -232,7 +232,7 @@ export function HomeDrawer({
         <div className="flex gap-2 border-t px-[18px] pt-3" style={{ borderColor: "oklch(0.93 0.01 160)", paddingBottom: "calc(12px + env(safe-area-inset-bottom))" }}>
           <a href={`tel:${phone.replace(/\s/g, "")}`} className="whitespace-nowrap rounded-full border-[1.5px] px-4 py-[13px] text-[15px] font-extrabold" style={{ borderColor: "oklch(0.88 0.015 160)", color: "oklch(0.25 0.03 160)" }}>{t("Hỏi tụi mình")}</a>
           <button type="button" onClick={onChoose} className="flex-1 rounded-full p-[13px] text-center text-[15px] font-extrabold text-white" style={{ background: selected ? G : O }}>
-            {selected ? t("✓ Đang chọn · Chọn phòng ↓") : t("Chọn nhà này cho combo")}
+            {selected ? t("✓ Đang chọn · Chọn phòng ↓") : t("Chọn home này cho combo")}
           </button>
         </div>
       </aside>
@@ -260,7 +260,7 @@ export function RoomViewer({
   inCombo: boolean;
   qty: number;
   onQty: (q: number) => void;
-  /** Phòng thuộc nhà KHÁC nhà đang chọn ⇒ nút "Chọn nhà này & thêm phòng". */
+  /** Phòng thuộc nhà KHÁC nhà đang chọn ⇒ nút "Chọn home này & thêm phòng". */
   onChooseHome: () => void;
   onClose: () => void;
 }) {
@@ -374,7 +374,7 @@ export function RoomViewer({
               <button type="button" aria-label={t("Thêm phòng")} onClick={() => onQty(qty + 1)} disabled={qty >= avail} className="flex h-10 w-10 items-center justify-center rounded-full text-xl font-extrabold text-white disabled:opacity-35" style={{ background: G }}>+</button>
             </div>
           ) : (
-            <button type="button" onClick={onChooseHome} className="whitespace-nowrap rounded-full px-[18px] py-[13px] text-[15px] font-extrabold text-white" style={{ background: O }}>{t("Chọn nhà này & thêm phòng")}</button>
+            <button type="button" onClick={onChooseHome} className="whitespace-nowrap rounded-full px-[18px] py-[13px] text-[15px] font-extrabold text-white" style={{ background: O }}>{t("Chọn home này & thêm phòng")}</button>
           )}
         </div>
       </div>
