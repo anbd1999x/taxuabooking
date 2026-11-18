@@ -96,7 +96,8 @@ function resolveMap(mapUrl: string | null | undefined, fallbackQuery: string): {
   const url = (mapUrl ?? "").trim();
   if (!url) return { embedSrc: fallbackEmbed, openUrl: fallbackOpen };
   if (url.includes("/maps/embed")) return { embedSrc: url, openUrl: url };
-  const at = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  // Ưu tiên toạ độ CỦA ĐỊA ĐIỂM (!3d…!4d…); phần @lat,lng chỉ là tâm khung nhìn, lệch ghim vài trăm mét.
+  const at = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) ?? url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
   if (at) {
     const coords = `${at[1]},${at[2]}`;
     return { embedSrc: `https://www.google.com/maps?q=${coords}&z=16&output=embed`, openUrl: url };

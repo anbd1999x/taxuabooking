@@ -41,7 +41,8 @@ function openStatus(hours: string | null, t: TFunc): { open: boolean; label: str
 function mapEmbed(place: Place): string {
   const url = (place.mapUrl ?? "").trim();
   if (url.includes("/maps/embed")) return url;
-  const at = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  // Ưu tiên toạ độ CỦA ĐỊA ĐIỂM (!3d…!4d…); phần @lat,lng chỉ là tâm khung nhìn, lệch ghim vài trăm mét.
+  const at = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) ?? url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
   if (at) return `https://www.google.com/maps?q=${at[1]},${at[2]}&z=16&output=embed`;
   const qp = url.match(/[?&]q=([^&]+)/);
   if (qp) return `https://www.google.com/maps?q=${qp[1]}&z=15&output=embed`;
