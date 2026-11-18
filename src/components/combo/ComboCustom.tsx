@@ -349,7 +349,7 @@ export function ComboCustom({
             {shownHomes.length === 0 && (
               <div className="rounded-2xl border border-dashed px-4 py-6 text-center text-sm font-semibold" style={{ borderColor: LINE, color: MUTED }}>{t("Không có homestay phù hợp")}</div>
             )}
-            <div className="grid max-h-[550px] auto-rows-[270px] grid-cols-2 gap-2.5 overflow-y-auto pr-0.5 sm:max-h-[670px] sm:auto-rows-[330px]">
+            <div className="grid max-h-[570px] auto-rows-[280px] grid-cols-2 gap-2.5 overflow-y-auto pr-0.5 sm:max-h-[670px] sm:auto-rows-[330px]">
               {shownHomes.map((h) => {
                 const on = h.serviceId === home?.serviceId;
                 const from = Math.min(...h.rooms.map((r) => r.roomCost));
@@ -365,25 +365,25 @@ export function ComboCustom({
                     className="flex cursor-pointer flex-col overflow-hidden rounded-[18px] text-left outline-none transition-colors hover:border-[oklch(0.6_0.08_158)] focus-visible:border-[oklch(0.6_0.08_158)]"
                     style={{ border: `2px solid ${on ? G : LINE}`, background: on ? "oklch(0.97 0.02 155)" : "white" }}
                   >
-                    <div className="relative min-h-[90px] w-full flex-1 overflow-hidden bg-[oklch(0.95_0.01_160)]">
+                    <div className="relative min-h-0 w-full flex-1 basis-0 overflow-hidden bg-[oklch(0.95_0.01_160)]">
                       {img && <Image src={img} alt={t(h.title)} fill sizes="260px" className="object-cover" />}
                       {h.area && <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-white px-[9px] py-1 text-xs font-bold">{t(h.area)}</span>}
                       {on && <span className="absolute right-2 top-2 flex h-[26px] w-[26px] items-center justify-center rounded-full text-sm font-extrabold text-white" style={{ background: G }}>✓</span>}
                     </div>
                     <div className="flex flex-none flex-col gap-1.5 px-3 pb-3 pt-2.5">
                       <div className="flex flex-wrap items-baseline justify-between gap-x-2">
-                        <span className="line-clamp-2 text-[15px] font-extrabold leading-snug sm:text-base">{t(h.title)}</span>
+                        <span className="line-clamp-1 min-w-0 text-[15px] font-extrabold leading-snug sm:line-clamp-2 sm:text-base">{t(h.title)}</span>
                         {h.rating != null && h.reviewCount > 0 && (
                           <span className="whitespace-nowrap text-[13px] font-extrabold" style={{ color: "oklch(0.5 0.14 60)" }}>
                             ★ {h.rating.toFixed(1).replace(".", ",")} <span className="font-semibold" style={{ color: MUTED }}>({h.reviewCount})</span>
                           </span>
                         )}
                       </div>
-                      <div className="text-[13px]" style={{ color: MUTED }}>
+                      <div className="truncate text-[13px]" style={{ color: MUTED }}>
                         {t("{0} phòng trống · từ {1}", [h.rooms.length, vnd(from)])}
                       </div>
                       {h.amenities.length > 0 && (
-                        <div className="flex flex-wrap gap-[5px]">
+                        <div className="flex h-[22px] flex-none flex-nowrap gap-[5px] overflow-hidden">
                           {h.amenities.slice(0, 2).map((a) => (
                             <span key={a} className="whitespace-nowrap rounded-full px-2 py-[3px] text-[11px] font-bold" style={{ background: "oklch(0.95 0.025 155)", color: "oklch(0.36 0.08 155)" }}>{t(a)}</span>
                           ))}

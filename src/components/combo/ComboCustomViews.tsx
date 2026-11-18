@@ -295,7 +295,7 @@ export function RoomViewer({
   return createPortal(
     <>
       <div onClick={onClose} className="fixed inset-0 z-[70]" style={{ background: "oklch(0.15 0.03 165 / .55)", backdropFilter: "blur(2px)" }} />
-      <div role="dialog" aria-modal="true" aria-label={t(title)} className="fixed inset-0 z-[71] m-auto flex h-fit max-h-[92vh] w-[min(760px,96vw)] flex-col overflow-hidden rounded-3xl bg-white text-ink" style={{ animation: "cc-rise .25s ease both" }}>
+      <div role="dialog" aria-modal="true" aria-label={t(title)} className="fixed inset-0 z-[71] m-auto flex h-fit max-h-[92vh] supports-[height:100dvh]:max-h-[92dvh] w-[min(760px,96vw)] flex-col overflow-hidden rounded-3xl bg-white text-ink" style={{ animation: "cc-rise .25s ease both" }}>
         <div className="flex items-center justify-between gap-2.5 border-b px-4 py-3" style={{ borderColor: "oklch(0.93 0.01 160)" }}>
           <div className="min-w-0">
             <div className="truncate text-xs font-bold" style={{ color: MUTED }}>{t(home.title)}{home.area ? ` · ${t(home.area)}` : ""}</div>
@@ -303,7 +303,7 @@ export function RoomViewer({
           </div>
           <CloseBtn onClose={onClose} label={t("Đóng")} />
         </div>
-        <div className="flex flex-1 flex-col gap-3.5 overflow-y-auto px-4 pb-[18px] pt-3.5">
+        <div className="flex min-h-0 flex-initial flex-col gap-3.5 overflow-y-auto overscroll-contain px-4 pb-[18px] pt-3.5">
           <div className="relative aspect-video flex-none overflow-hidden rounded-[18px] bg-[oklch(0.95_0.01_160)]">
             {imgs.length > 0 ? (
               <Image key={imgs[i]} src={imgs[i]} alt={t(title)} fill sizes="760px" className="object-cover" />
