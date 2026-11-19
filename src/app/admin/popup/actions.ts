@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import type { FormResult } from "@/components/admin/ActionForm";
 import { TRUST_POPUP_KEY, type TrustPopupConfig } from "@/lib/trust-popup";
+import { COMBO_DISCOUNT_KEY } from "@/lib/combo-pricing";
+import { HOLIDAYS_KEY, normalizeHolidays } from "@/lib/holidays";
 import { mailConfigured, verifySmtp, sendMail, SMTP_PASS_KEY } from "@/lib/mail";
 import { sendBookingEmail, type BookingEmailKind } from "@/lib/booking-email";
 
@@ -32,6 +34,52 @@ export async function saveLegalInfo(_prev: FormResult, fd: FormData): Promise<Fo
   revalidatePath("/", "layout");
   revalidatePath("/admin/popup", "page");
   return { ok: true, message: "Đã lưu thông tin pháp lý. Tải lại trang web để thấy." };
+}
+
+/** Mức giảm combo / khách (SiteSetting `comboDiscount`) — đọc ở getComboDiscount() (combo.ts). */
+export async function saveComboDiscount(_prev: FormResult, fd: FormData): Promise<FormResult> {
+  await requireAdmin();
+  const raw = String(fd.get("comboDiscount") ?? "").replace(/[^\d]/g, "");
+  if (!raw) return { error: "Nhập số tiền giảm (0 = tắt giảm combo)." };
+  const value = Math.round(Number(raw));
+  if (!Number.isFinite(value) || value < 0) return { error: "Số tiền không hợp lệ." };
+  if (value > 5_000_000) return { error: "Mức giảm quá lớn (tối đa 5.000.000đ / khách)." };
+
+  await prisma.siteSetting.upsert({
+    where: { key: COMBO_DISCOUNT_KEY },
+    create: { key: COMBO_DISCOUNT_KEY, value: String(value) },
+    update: { value: String(value) },
+  });
+  updateTag("settings");
+  revalidatePath("/combo", "page");
+  revalidatePath("/admin/popup", "page");
+  return { ok: true, message: `Đã lưu: giảm ${value.toLocaleString("vi-VN")}đ / khách khi đặt combo.` };
+}
+
+/** Lịch ngày lễ (SiteSetting `holidays`) — đêm trong khoảng ⇒ phòng có giá lễ tính giá lễ. */
+export async function saveHolidays(_prev: FormResult, fd: FormData): Promise<FormResult> {
+  await requireAdmin();
+  let raw: unknown;
+  try {
+    raw = JSON.parse(String(fd.get("holidays") ?? "[]"));
+  } catch {
+    return { error: "Dữ liệu ngày lễ không hợp lệ." };
+  }
+  const list = normalizeHolidays(raw);
+  if (Array.isArray(raw) && list.length < raw.length) return { error: "Có ngày lễ thiếu ngày bắt đầu — điền đủ hoặc xoá dòng đó." };
+  if (list.length > 100) return { error: "Tối đa 100 ngày lễ." };
+  const tooLong = list.find((h) => !h.yearly && (Date.parse(h.to) - Date.parse(h.from)) / 86400000 > 31);
+  if (tooLong) return { error: `“${tooLong.name}” dài hơn 31 ngày — kiểm tra lại ngày bắt đầu/kết thúc.` };
+
+  await prisma.siteSetting.upsert({
+    where: { key: HOLIDAYS_KEY },
+    create: { key: HOLIDAYS_KEY, value: JSON.stringify(list) },
+    update: { value: JSON.stringify(list) },
+  });
+  updateTag("settings");
+  revalidatePath("/", "layout"); // trang homestay / combo / danh sách phòng tính lại giá lễ
+  revalidatePath("/admin/popup", "page");
+  return { ok: true, message: list.length ? `Đã lưu ${list.length} ngày lễ.` : "Đã xoá hết ngày lễ." };
 }
 
 export async function saveTrustPopup(_prev: FormResult, fd: FormData): Promise<FormResult> {

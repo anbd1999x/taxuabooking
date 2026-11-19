@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { FLEET_ACC, FLEET_KINDS, diffDays, feeSum, isVehicleFree, rentalStatus, type FleetConfig, type FleetRentalVM } from "@/lib/fleet-core";
+import { FLEET_ACC, FLEET_KINDS, diffDays, feeSum, isVehicleFree, keptOf, rentalStatus, shopHeld, type FleetConfig, type FleetRentalVM } from "@/lib/fleet-core";
 import type { Ctx } from "./drawers";
 import { BORDER, G, MUTED, O, ST, Empty, MiniStat, Thumb, Toggle, btn, dm, ini, money, pill, short } from "./ui";
 
@@ -40,7 +40,10 @@ export function WebTab({ ctx }: { ctx: Ctx }) {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, paddingTop: 10, borderTop: "1px solid oklch(0.94 0.008 160)", flexWrap: "wrap" }}>
                 <b style={{ fontSize: 18, color: "oklch(0.55 0.16 45)" }}>{money(b.total)}</b>
                 <div style={{ display: "flex", gap: 6 }}>
-                  <button type="button" onClick={() => { const reason = prompt("Từ chối đơn này? Lý do (gửi kèm cho sàn):", "Hết xe trong thời gian này"); if (reason !== null) call({ op: "webReject", id: b.id, reason }); }} style={btn("danger")}>Từ chối</button>
+                  <button type="button" onClick={() => {
+                    // Nhà xe đã thu tiền của đơn ⇒ từ chối trong ngăn chi tiết (phải chọn Hoàn / Giữ cọc).
+                    if (shopHeld(b, Bk) > 0) { setDr({ kind: "book", id: b.id }); ctx.say("Đơn đã có tiền nhà xe thu — bấm “Từ chối” trong chi tiết để chọn hoàn / giữ cọc"); return; }
+                    const reason = prompt("Từ chối đơn này? Lý do (gửi kèm cho sàn):", "Hết xe trong thời gian này"); if (reason !== null) call({ op: "webReject", id: b.id, reason }); }} style={btn("danger")}>Từ chối</button>
                   <button type="button" onClick={() => setDr({ kind: "book", id: b.id })} style={btn()}>Chi tiết</button>
                   <button type="button" onClick={() => call({ op: "webConfirm", id: b.id })} style={btn("pri")}>Xác nhận</button>
                 </div>
@@ -212,9 +215,13 @@ export function ReportTab({ ctx, wide }: { ctx: Ctx; wide: boolean }) {
   const RY = String(ry);
   const yb = Bk.filter((b) => !b.cancelled && !b.web && b.s.slice(0, 4) === RY);
   const sumB = (l: FleetRentalVM[]) => l.reduce((a, b) => a + b.total + feeSum(b), 0);
-  const mRevs = Array.from({ length: 12 }, (_, mi) => { const l = yb.filter((b) => b.s.slice(5, 7) === String(mi + 1).padStart(2, "0")); return { r: sumB(l), n: l.length }; });
+  // Đơn đã huỷ mà nhà xe giữ cọc ⇒ phần giữ lại là doanh thu (tính theo tháng nhận xe của đơn).
+  const yk = Bk.filter((b) => b.cancelled && keptOf(b) > 0 && b.s.slice(0, 4) === RY);
+  const sumK = (l: FleetRentalVM[]) => l.reduce((a, b) => a + keptOf(b), 0);
+  const mRevs = Array.from({ length: 12 }, (_, mi) => { const mm = String(mi + 1).padStart(2, "0"); const l = yb.filter((b) => b.s.slice(5, 7) === mm); return { r: sumB(l) + sumK(yk.filter((b) => b.s.slice(5, 7) === mm)), n: l.length }; });
   const mx = Math.max(1, ...mRevs.map((x) => x.r));
-  const yRev = sumB(yb), yFees = yb.reduce((a, b) => a + feeSum(b), 0);
+  const yKept = sumK(yk);
+  const yRev = sumB(yb) + yKept, yFees = yb.reduce((a, b) => a + feeSum(b), 0);
   const mCost = V.reduce((a, v) => a + v.svc.filter((x) => x.d.slice(0, 4) === RY).reduce((c, x) => c + x.cost, 0), 0);
   const ctvB = yb.filter((b) => b.ctv || b.src === "CTV");
   const ctvCost = Math.round((ctvB.reduce((a, b) => a + b.total, 0) * P.ctv) / 100);
@@ -242,6 +249,7 @@ export function ReportTab({ ctx, wide }: { ctx: Ctx; wide: boolean }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,160px),1fr))", gap: 10 }}>
         <MiniStat k={"Doanh thu " + RY} v={short(yRev)} sub={yb.length + " đơn"} c="oklch(0.3 0.03 160)" />
         <MiniStat k="Phát sinh thu thêm" v={short(yFees)} sub="Trả muộn, xăng, hư hỏng" c="oklch(0.5 0.13 60)" />
+        {yKept > 0 && <MiniStat k="Giữ cọc khi huỷ" v={short(yKept)} sub={yk.length + " đơn huỷ (đã tính vào doanh thu)"} c="oklch(0.5 0.13 60)" />}
         <MiniStat k="Chi bảo dưỡng" v={short(mCost)} sub="Sửa chữa, bảo hiểm" c="oklch(0.52 0.16 28)" />
         <MiniStat k="Hoa hồng CTV" v={short(ctvCost)} sub={P.ctv + "% doanh thu đơn CTV"} c="oklch(0.52 0.16 28)" />
         <MiniStat k="Lãi gộp" v={short(yRev - mCost - ctvCost)} sub="Chưa trừ xăng, mặt bằng" c="oklch(0.42 0.11 155)" />

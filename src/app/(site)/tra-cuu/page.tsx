@@ -14,7 +14,8 @@ import { roomGroups, roomGroupLines, extraGuestNote } from "@/lib/booking-rooms"
 import { partyLabel } from "@/lib/occupancy";
 import { rentalDaysLabel } from "@/lib/rental-days";
 import { TraCuuLookup, type LookupOrder, type LookupPart, type LookupStatus } from "@/components/TraCuuLookup";
-import { getT } from "@/lib/i18n/server";
+import { redirect } from "next/navigation";
+import { getT, lp } from "@/lib/i18n/server";
 import { i18nMeta } from "@/lib/i18n/meta";
 
 export const dynamic = "force-dynamic";
@@ -75,6 +76,12 @@ export default async function LookupPage({
   const q = str(sp.q).trim();
   const digits = q.replace(/\D/g, "");
   const code = q.toUpperCase();
+
+  // Mã đơn vé / đặt bàn (TX-VE-XXXXX, module Vé & đặt bàn) ⇒ mở thẳng trang vé điện tử của đơn.
+  if (/^TX-VE-[A-Z0-9]{5}$/.test(code)) {
+    const tk = await prisma.ticketOrder.findFirst({ where: { code, status: { not: "draft" } }, select: { token: true } });
+    if (tk) redirect(await lp(`/ve/don/${tk.token}`));
+  }
 
   // Tra theo SĐT (đủ 8+ số) hoặc theo mã đơn (TX-...). Tránh trả toàn bộ khi để trống.
   const bookings =

@@ -48,11 +48,15 @@ export async function syncIcalSource(sourceId: string): Promise<IcalSyncResult> 
         ) {
           continue; // ngày đã bận bởi nơi khác → giữ nguyên chủ sở hữu bản ghi
         }
-        await tx.roomDayStatus.upsert({
-          where: { roomId_date: { roomId, date } },
-          create: { roomId, date, status: "CLOSED", note: tag },
-          update: { status: "CLOSED", note: tag },
-        });
+        // Ghi có điều kiện: ô có thể vừa bị đơn web / Quản lý phòng chiếm giữa lúc đọc và ghi.
+        if (existing) {
+          await tx.roomDayStatus.updateMany({
+            where: { id: existing.id, bookingId: null, stayId: null, OR: [{ note: tag }, { note: null, status: "AVAILABLE" }] },
+            data: { status: "CLOSED", note: tag },
+          });
+        } else {
+          await tx.roomDayStatus.createMany({ data: [{ roomId, date, status: "CLOSED", note: tag }], skipDuplicates: true });
+        }
         affected.add(dk);
       }
 

@@ -19,6 +19,7 @@ import { supplierPayouts, collectorOf, PROVIDER_EXTRA_ID, PROVIDER_EXTRA_LABEL }
 import { bookingMessagesById, type BookingMessages } from "@/lib/booking-messages";
 import { sendConfirmEmailIfDue } from "@/lib/booking-email";
 import { assignComboBikeService, syncFleetForBooking } from "@/lib/fleet";
+import { syncStaysForBooking } from "@/lib/stay";
 import { resolveBusCommissions, resolveRoomCommissions } from "@/lib/provider-commission";
 
 export interface BookingActionState {
@@ -129,7 +130,7 @@ export async function advanceBookingStatusResult(formData: FormData): Promise<{ 
     return { error: err instanceof Error ? err.message : "Có lỗi xảy ra." };
   }
   void sendConfirmEmailIfDue(id); // đơn vừa xác nhận + khách có email ⇒ gửi thư xác nhận (1 lần)
-  void syncFleetForBooking(id).catch(() => {}); // đơn xe máy: đồng bộ đội xe (huỷ ⇒ nhả xe)
+  void syncFleetForBooking(id).catch(() => {}); void syncStaysForBooking(id).catch(() => {}); // đơn xe máy: đồng bộ đội xe (huỷ ⇒ nhả xe)
   for (const p of [...REVALIDATE, `/admin/bookings/${id}`]) revalidatePath(p);
   return {};
 }
@@ -214,7 +215,7 @@ function log(
 }
 
 function revalidateDetail(id: string) {
-  void syncFleetForBooking(id).catch(() => {}); // đơn xe máy: đồng bộ đội xe
+  void syncFleetForBooking(id).catch(() => {}); void syncStaysForBooking(id).catch(() => {}); // đơn xe máy: đồng bộ đội xe
   for (const p of [...REVALIDATE, `/admin/bookings/${id}`]) revalidatePath(p);
 }
 
@@ -309,7 +310,7 @@ export async function bulkUpdateBookingStatus(
   if (done === 0) return { error: "Không có đơn nào được cập nhật (có thể hết chỗ hoặc không đủ quyền)." };
   for (const p of REVALIDATE) revalidatePath(p);
   for (const id of ids) revalidatePath(`/admin/bookings/${id}`);
-  for (const id of ids.slice(0, 100).map(String)) { void sendConfirmEmailIfDue(id); void syncFleetForBooking(id).catch(() => {}); }
+  for (const id of ids.slice(0, 100).map(String)) { void sendConfirmEmailIfDue(id); void syncFleetForBooking(id).catch(() => {}); void syncStaysForBooking(id).catch(() => {}); }
   return { ok: true, message: done === 1 ? `Đã chuyển đơn sang “${label}”` : `Đã chuyển ${done} đơn sang “${label}”` };
 }
 
@@ -386,7 +387,7 @@ export async function saveBookingStage(
     return { error: err instanceof Error ? err.message : "Có lỗi xảy ra." };
   }
   void sendConfirmEmailIfDue(id);
-  void syncFleetForBooking(id).catch(() => {}); // đơn xe máy: đồng bộ đội xe (huỷ ⇒ nhả xe)
+  void syncFleetForBooking(id).catch(() => {}); void syncStaysForBooking(id).catch(() => {}); // đơn xe máy: đồng bộ đội xe (huỷ ⇒ nhả xe)
   revalidateDetail(id);
   return { ok: true, message: `Đã chuyển đơn sang “${BOOKING_STATUS_META[status].label}”` };
 }
@@ -1007,7 +1008,7 @@ export async function updateBookingStatus(
   }
 
   void sendConfirmEmailIfDue(id);
-  void syncFleetForBooking(id).catch(() => {}); // đơn xe máy: đồng bộ đội xe (huỷ ⇒ nhả xe)
+  void syncFleetForBooking(id).catch(() => {}); void syncStaysForBooking(id).catch(() => {}); // đơn xe máy: đồng bộ đội xe (huỷ ⇒ nhả xe)
   revalidatePath("/admin/bookings");
   revalidatePath(`/admin/bookings/${id}`);
   revalidatePath("/admin/inventory");

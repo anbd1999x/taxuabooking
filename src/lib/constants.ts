@@ -100,6 +100,7 @@ export const ARTICLE_TOPICS = [
   { key: "di-chuyen", label: "Di chuyển" },
   { key: "an-uong", label: "Ăn uống & đặc sản" },
   { key: "cam-nang", label: "Cẩm nang & mẹo" },
+  { key: "review-homestay", label: "Review homestay" },
 ] as const;
 
 export function articleTopicLabel(key: string | null | undefined): string | null {

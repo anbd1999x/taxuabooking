@@ -22,6 +22,7 @@ import { tripsOnDate, peekTrip, materializeTrip, ensureTripOnDate, type TripView
 import type { CabinDirection } from "@prisma/client";
 import { loadBookingEdit, type BookingEditProps } from "@/lib/booking-edit";
 import { assignComboBikeService, syncFleetForBooking } from "@/lib/fleet";
+import { syncStaysForBooking } from "@/lib/stay";
 import { sendBookingEmail, sendConfirmEmailIfDue } from "@/lib/booking-email";
 
 /** Chuyến thật của nhà xe theo id (id ảo ⇒ tạo chuyến thật cho ngày đó). Sai nhà xe/chiều ⇒ null. */
@@ -581,7 +582,7 @@ export async function createAdminBooking(
     return { error: err instanceof Error ? err.message : "Có lỗi xảy ra." };
   }
 
-  await syncFleetForBooking(id).catch(() => {}); // đơn xe máy: tự xếp xe trong đội xe
+  await syncFleetForBooking(id).catch(() => {}); await syncStaysForBooking(id).catch(() => {}); // đơn xe máy: tự xếp xe trong đội xe
   // Khách có email ⇒ gửi thư như đơn đặt web: đơn đã xác nhận → thư xác nhận (1 lần),
   // đơn còn chờ → thư "đã nhận yêu cầu". Tạo ở trạng thái huỷ ⇒ không gửi.
   if (data.customerEmail) {
@@ -692,7 +693,7 @@ export async function updateAdminBooking(
     return { error: err instanceof Error ? err.message : "Có lỗi xảy ra." };
   }
 
-  await syncFleetForBooking(id).catch(() => {}); // đơn xe máy: đồng bộ đội xe theo thông tin mới
+  await syncFleetForBooking(id).catch(() => {}); await syncStaysForBooking(id).catch(() => {}); // đơn xe máy: đồng bộ đội xe theo thông tin mới
   // Vừa thêm / đổi email khách ⇒ gửi thư theo trạng thái hiện tại của đơn (xác nhận: đúng 1 lần).
   const newEmail = (data.customerEmail as string | null) || null;
   if (newEmail && newEmail !== old.customerEmail) {

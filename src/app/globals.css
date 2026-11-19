@@ -144,3 +144,33 @@ body {
 .md-table td:first-child { font-weight: 600; color: oklch(0.25 0.03 160); }
 .md-table tr:last-child td { border-bottom: 0; }
 .md-table tbody tr:nth-child(even) td { background: oklch(0.985 0.005 160); }
+
+/* Thanh cuộn khu quản trị (.admin-ui ở AdminShell): mảnh, bo tròn, nhạt — đậm lên khi rê chuột; trong menu tối dùng tông sáng.
+   Áp cho cả thanh cuộn của trang (html) lẫn mọi vùng cuộn bên trong. Trang khách giữ thanh cuộn mặc định. */
+html:has(.admin-ui)::-webkit-scrollbar,
+.admin-ui *::-webkit-scrollbar { width: 10px; height: 10px; }
+html:has(.admin-ui)::-webkit-scrollbar-track,
+.admin-ui *::-webkit-scrollbar-track,
+.admin-ui *::-webkit-scrollbar-corner { background: transparent; }
+html:has(.admin-ui)::-webkit-scrollbar-thumb,
+.admin-ui *::-webkit-scrollbar-thumb {
+  background: oklch(0.55 0.03 160 / 0.28);
+  background-clip: content-box;
+  border: 3px solid transparent; /* chừa viền trong suốt ⇒ phần nhìn thấy chỉ rộng 4px */
+  border-radius: 999px;
+}
+html:has(.admin-ui)::-webkit-scrollbar-thumb:hover,
+.admin-ui *::-webkit-scrollbar-thumb:hover { background-color: oklch(0.45 0.05 160 / 0.55); }
+html:has(.admin-ui)::-webkit-scrollbar-thumb:active,
+.admin-ui *::-webkit-scrollbar-thumb:active { background-color: oklch(0.38 0.06 160 / 0.7); }
+.admin-ui aside::-webkit-scrollbar-thumb,
+.admin-ui aside *::-webkit-scrollbar-thumb { background-color: oklch(1 0 0 / 0.18); }
+.admin-ui aside::-webkit-scrollbar-thumb:hover,
+.admin-ui aside *::-webkit-scrollbar-thumb:hover { background-color: oklch(1 0 0 / 0.4); }
+/* Firefox (không có ::-webkit-scrollbar): dùng thuộc tính chuẩn. */
+@supports not selector(::-webkit-scrollbar) {
+  html:has(.admin-ui),
+  .admin-ui * { scrollbar-width: thin; scrollbar-color: oklch(0.55 0.03 160 / 0.35) transparent; }
+  .admin-ui aside,
+  .admin-ui aside * { scrollbar-color: oklch(1 0 0 / 0.25) transparent; }
+}

@@ -1,4 +1,5 @@
 import Link from "@/components/Link";
+import { venueForPlace } from "@/lib/ticket";
 import type { Place, PlaceReview } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/queries";
@@ -90,6 +91,8 @@ const BEST_TIME = [
 
 export async function PlaceDetail({ place, basePath }: { place: Place & { reviews: PlaceReview[] }; basePath: string }) {
   const tr = await getT();
+  // Quán đã mở đặt bàn / bán vé trên web (module Vé & đặt bàn, gắn qua TicketVenue.placeId).
+  const venue = await venueForPlace(place.id);
   const gallery = [place.coverImage, ...(place.images ?? "").split("|")].map((s) => (s ?? "").trim()).filter((s) => s && !isVideoUrl(s));
   const reviews = place.reviews;
   const count = reviews.length;
@@ -302,6 +305,11 @@ export async function PlaceDetail({ place, basePath }: { place: Place & { review
               <div className="flex justify-between gap-3 text-sm"><span style={{ color: MUTED }}>{tr("Khu vực")}</span><b className="text-right">{tr(place.area)}</b></div>
               {bookingLabel && <div className="flex justify-between gap-3 text-sm"><span style={{ color: MUTED }}>{tr("Đặt bàn")}</span><b className="text-right">{tr(bookingLabel)}</b></div>}
             </div>
+            {venue && (
+              <Link href={`/ve/${venue.slug}`} className="rounded-full px-3.5 py-3.5 text-center text-[15px] font-extrabold text-white" style={{ background: "oklch(0.68 0.18 45)" }}>
+                {venue.kind === "RESTAURANT" ? tr("Đặt bàn online") : tr("Mua vé online")}
+              </Link>
+            )}
             <a href={zaloHref} target="_blank" rel="noopener noreferrer" className="rounded-full px-3.5 py-3.5 text-center text-[15px] font-extrabold text-white" style={{ background: ACCENT }}>{hasOwnZalo ? tr("Nhắn quán qua Zalo") : tr("Hỏi Tà Xùa Booking qua Zalo")}</a>
             <div className="text-center text-xs leading-[1.5]" style={{ color: MUTED }}>
               {tr("Muốn ở gần đây? Xem")}{" "}<Link href="/homestay" className="font-bold">homestay khu {tr(place.area)}</Link>{" "}{tr("hoặc đặt")}{" "}<Link href="/xe-cabin" className="font-bold">{tr("vé xe cabin")}</Link>.

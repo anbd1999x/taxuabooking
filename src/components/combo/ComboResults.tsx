@@ -29,9 +29,6 @@ import { ComboModeSlot } from "@/components/combo/ComboModeSwitch";
 import { ComboSchedule } from "@/components/combo/ComboSchedule";
 import { useComboBike, comboBikePayload, ComboBikeSummary, ComboBikePicker, ComboBikeDoneNote } from "@/components/combo/ComboBike";
 
-// Phải khớp COMBO_DISCOUNT trong src/lib/combo.ts (server tính lại giá khi đặt).
-const COMBO_DISCOUNT = 25000;
-
 const G = "oklch(0.29 0.055 160)"; // xanh rừng
 const O = "oklch(0.68 0.18 45)"; // cam điểm nhấn
 
@@ -55,8 +52,8 @@ function vnd(n: number): string {
  * Giá combo/khách của một phương án (roomCost = TỔNG tiền phòng cả đoàn).
  * busPerPerson = tiền xe/khách theo cách xếp mặc định — cả đoàn nằm ghép (busCostPerPerson) — khớp giá khi đặt.
  */
-function planPP(plan: ComboStayPlan, people: number, busPerPerson: number): number {
-  return Math.max(0, Math.round(plan.roomCost / people) + busPerPerson - (plan.noDiscount ? 0 : COMBO_DISCOUNT));
+function planPP(plan: ComboStayPlan, people: number, busPerPerson: number, discount: number): number {
+  return Math.max(0, Math.round(plan.roomCost / people) + busPerPerson - (plan.noDiscount ? 0 : discount));
 }
 
 /** Một thẻ kết quả = một PHƯƠNG ÁN ghép phòng của một homestay. */
@@ -69,7 +66,7 @@ interface PlanEntry {
 
 export function ComboResults({ result }: { result: ComboSearchResult }) {
   const tr = useT();
-  const { homes, buses, adults, childrenAges, nights, origin, budget, priceMax, priceMin, checkIn, checkOut, fromKey, toKey } = result;
+  const { homes, buses, adults, childrenAges, nights, origin, budget, priceMax, priceMin, checkIn, checkOut, fromKey, toKey, comboDiscount } = result;
   const exactBudget = priceMax == null && priceMin == null ? budget : null;
 
   const [zone, setZone] = useState("all");
@@ -97,7 +94,7 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
       if (homeName !== "all" && home.title !== homeName) continue;
       const cheapestFare = cheapestFareFor(home.billable);
       for (const plan of home.plans) {
-        arr.push({ home, plan, bestPrice: planPP(plan, home.billable, cheapestFare), score: 0 });
+        arr.push({ home, plan, bestPrice: planPP(plan, home.billable, cheapestFare, comboDiscount), score: 0 });
       }
     }
     if (arr.length === 0) return arr;
@@ -221,6 +218,7 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
             fromKey={fromKey}
             toKey={toKey}
             origin={origin}
+            comboDiscount={comboDiscount}
           />
         ))}
       </div>
@@ -260,6 +258,7 @@ function ComboPlanCard({
   fromKey,
   toKey,
   origin,
+  comboDiscount,
 }: {
   home: ComboHomeOption;
   plan: ComboStayPlan;
@@ -278,6 +277,8 @@ function ComboPlanCard({
   fromKey: string;
   toKey: string;
   origin: string | null;
+  /** Mức giảm combo / khách (cấu hình ở /admin/popup, server gửi kèm kết quả). */
+  comboDiscount: number;
 }) {
   const tr = useT();
   // Chỉ những xe còn đủ chỗ cho số khách tính phí của home này.
@@ -344,20 +345,20 @@ function ComboPlanCard({
   const fare = bus?.farePerPerson ?? 0;
   const cabinCost = cabinSeatTotal(fare, cbDouble, cbSingle); // ghép = fare/người, riêng = 2×fare/người
   // Tổng = tiền phòng thật cả đoàn (khớp server createComboBooking), không nhân lại roomShare đã làm tròn.
-  const total = Math.max(0, plan.roomCost + cabinCost - (plan.noDiscount ? 0 : COMBO_DISCOUNT * people));
+  const total = Math.max(0, plan.roomCost + cabinCost - (plan.noDiscount ? 0 : comboDiscount * people));
   const pricePerPerson = people > 0 ? Math.round(total / people) : 0;
   const diff = budget != null ? pricePerPerson - budget : null;
   // Giá gạch (niêm yết) trọn gói khi phòng có giảm theo ngày — chỉ phần phòng đổi.
   const totalOld =
     plan.roomCostOld != null
-      ? Math.max(0, plan.roomCostOld + cabinCost - (plan.noDiscount ? 0 : COMBO_DISCOUNT * people))
+      ? Math.max(0, plan.roomCostOld + cabinCost - (plan.noDiscount ? 0 : comboDiscount * people))
       : null;
   const ppOld = totalOld != null && people > 0 ? Math.round(totalOld / people) : null;
   const hasStrike = ppOld != null && ppOld > pricePerPerson;
   // Bảng giá rõ ràng: giá bán (phòng theo giá niêm yết + vé) → KM đặt web (phần phòng) → KM combo → trọn gói.
   const roomShareOld = plan.roomCostOld != null && plan.roomCostOld > plan.roomCost ? Math.round(plan.roomCostOld / people) : roomShare;
   const webPromoPP = roomShareOld - roomShare; // / khách
-  const comboPromoPP = plan.noDiscount ? 0 : COMBO_DISCOUNT; // / khách
+  const comboPromoPP = plan.noDiscount ? 0 : comboDiscount; // / khách
   const webPromoTotal = plan.roomCostOld != null && plan.roomCostOld > plan.roomCost ? plan.roomCostOld - plan.roomCost : 0; // cả đoàn, không làm tròn
   const grossTotal = total + webPromoTotal + comboPromoPP * people; // giá bán cả đoàn (trước khuyến mãi)
 

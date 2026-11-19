@@ -14,6 +14,8 @@ import { AgentNote } from "@/components/AgentNote";
 import { prisma } from "@/lib/prisma";
 import { roomPricing, roomListPrice, roomListDaysOfWeek, isRoomPriceOnRequest } from "@/lib/availability";
 import { today, toDateKey, addDays } from "@/lib/dates";
+import { getHolidays } from "@/lib/holidays-server";
+import { holidayKeysBetween } from "@/lib/holidays";
 import { BookingPanel } from "@/components/BookingPanel";
 import { HomestayBooking, type HomestayRoom } from "@/components/HomestayBooking";
 import { CabinBooking } from "@/components/cabin/CabinBooking";
@@ -155,6 +157,9 @@ async function ServiceDetailBody({
     const NUM_DAYS = 75;
     const start = today();
     const windowEnd = addDays(start, NUM_DAYS - 1);
+    // Đêm ngày lễ trong khung lịch ⇒ phòng có giá lễ tính giá lễ (client tính cùng công thức server).
+    const holidays = await getHolidays();
+    const holidayKeys = holidayKeysBetween(holidays, toDateKey(start), toDateKey(windowEnd));
     const roomIds = stayRooms.map((x) => x.r.id);
     // Ngày bị chiếm (không bán) của từng phòng trong cửa sổ hiển thị.
     // Homestay "chỉ liên hệ" KHÔNG nối sheet lịch → bỏ qua, mọi phòng coi như trống.
@@ -178,7 +183,7 @@ async function ServiceDetailBody({
       occByRoom.set(st.roomId, arr);
     }
     const rooms: HomestayRoom[] = stayRooms.map(({ rt, r }) => {
-      const pricing = roomPricing(r);
+      const pricing = roomPricing(r, holidays);
       return {
         id: r.id,
         typeName: rt.name,
@@ -202,6 +207,7 @@ async function ServiceDetailBody({
         por: isRoomPriceOnRequest(r),
         days: pricing.daysOfWeek ?? [null, null, null, null, null, null, null],
         listDays: roomListDaysOfWeek(r),
+        holiday: pricing.holidayPrice,
         occupied: occByRoom.get(r.id) ?? [],
       };
     });
@@ -260,6 +266,12 @@ async function ServiceDetailBody({
       ],
     };
 
+    // Bài review riêng của homestay (chủ đề review-homestay) ⇒ link 2 chiều trang đặt ↔ bài viết.
+    const review = await prisma.article.findFirst({
+      where: { published: true, topic: "review-homestay", slug: { in: [`review-${service.slug}`, `review-${service.slug}-ta-xua`] } },
+      select: { slug: true, title: true },
+    });
+
     return (
       <div className="container-page py-8 pb-28 lg:pb-8">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(stayJsonLd) }} />
@@ -277,6 +289,7 @@ async function ServiceDetailBody({
           contactOnly={service.contactOnly}
           inquiryOnly={service.inquiryOnly && !service.contactOnly}
           rooms={rooms}
+          holidayKeys={holidayKeys}
           startKey={toDateKey(start)}
           numDays={NUM_DAYS}
           initialCheckIn={typeof sp.from === "string" ? sp.from : null}
@@ -312,6 +325,14 @@ async function ServiceDetailBody({
                 </div>
                 <h1 className="mt-2 text-[clamp(26px,4vw,40px)] font-extrabold leading-[1.1] tracking-tight text-ink">{tr(service.title)}</h1>
                 <p className="mt-2 text-[17px] text-gray-600">{tr(service.summary)}</p>
+                {review && (
+                  <Link
+                    href={`/kinh-nghiem/${review.slug}`}
+                    className="mt-2 inline-block text-sm font-semibold text-forest-700 underline underline-offset-4 hover:text-sunset-600"
+                  >
+                    {tr("📖 Đọc review chi tiết: {0}", [await tLong(review.title)])}
+                  </Link>
+                )}
               </div>
             </div>
           }

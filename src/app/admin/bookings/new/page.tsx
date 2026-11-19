@@ -2,7 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { CATEGORY_LIST } from "@/lib/constants";
-import { COMBO_DISCOUNT } from "@/lib/combo";
+import { getComboDiscount } from "@/lib/combo";
 import { toDateKey, today } from "@/lib/dates";
 import AdminCreateBooking from "@/components/admin/AdminCreateBooking";
 
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NewAdminBookingPage() {
   await requireAdmin();
-  const [services, ctvs] = await Promise.all([
+  const [services, ctvs, comboDiscount] = await Promise.all([
     prisma.service.findMany({
       select: { id: true, title: true, category: true, published: true },
       orderBy: [{ published: "desc" }, { priorityOrder: "desc" }, { title: "asc" }],
@@ -20,6 +20,7 @@ export default async function NewAdminBookingPage() {
       select: { id: true, name: true, username: true },
       orderBy: { name: "asc" },
     }),
+    getComboDiscount(),
   ]);
 
   return (
@@ -44,7 +45,7 @@ export default async function NewAdminBookingPage() {
         }))}
         ctvs={ctvs.map((c) => ({ id: c.id, name: c.name || c.username }))}
         todayKey={toDateKey(today())}
-        comboDiscount={COMBO_DISCOUNT}
+        comboDiscount={comboDiscount}
       />
     </div>
   );

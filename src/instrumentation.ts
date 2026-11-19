@@ -31,6 +31,9 @@ export async function register() {
         const { syncFleetForBooking } = await import("./lib/fleet");
         const ids = await prisma.bookingRequest.findMany({ where: { code: { in: cancelled } }, select: { id: true } });
         for (const b of ids) await syncFleetForBooking(b.id).catch(() => {});
+        // Đơn homestay / combo chủ nhà đã "xác nhận còn phòng" mà bị tự huỷ ⇒ nhả ô giữ hộ ở Quản lý phòng.
+        const { syncStaysForBooking } = await import("./lib/stay");
+        for (const b of ids) await syncStaysForBooking(b.id).catch(() => {});
       }
     } catch (err) {
       console.error("[auto-cancel] lỗi", err);
@@ -42,6 +45,22 @@ export async function register() {
       if (n) console.log("[fleet] tự nhả xe chưa cọc:", n);
     } catch (err) {
       console.error("[fleet] lỗi nhả xe", err);
+    }
+    // Quản lý phòng: tự nhả giữ chỗ chưa cọc quá hạn (Cài đặt → "Giữ chỗ chưa cọc").
+    try {
+      const { releaseExpiredStayHolds } = await import("./lib/stay");
+      const n = await releaseExpiredStayHolds();
+      if (n) console.log("[stay] tự nhả giữ chỗ chưa cọc:", n);
+    } catch (err) {
+      console.error("[stay] lỗi nhả giữ chỗ", err);
+    }
+    // Vé & đặt bàn: đơn chờ thu tiền quá hạn giữ chỗ ⇒ huỷ + nhả ghế / bàn.
+    try {
+      const { releaseExpiredTicketHolds } = await import("./lib/ticket");
+      const n = await releaseExpiredTicketHolds();
+      if (n) console.log("[ticket] tự huỷ đơn hết hạn giữ chỗ:", n);
+    } catch (err) {
+      console.error("[ticket] lỗi nhả chỗ", err);
     }
     try {
       const res = await runBookingRemindersLocked();

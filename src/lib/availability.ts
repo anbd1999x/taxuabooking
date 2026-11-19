@@ -1,6 +1,7 @@
 import type { AvailabilityStatus } from "@prisma/client";
 import { isWeekend, toDateKey } from "./dates";
 import { toNumber } from "./format";
+import { isHolidayKey, type Holiday } from "./holidays";
 
 /** Mức độ ưu tiên khi gộp trạng thái nhiều ngày (số lớn = nghiêm trọng hơn). */
 const SEVERITY: Record<AvailabilityStatus, number> = {
@@ -27,6 +28,11 @@ export interface RoomPricing {
    * [CN, T2, T3, T4, T5, T6, T7]. Phần tử null = dùng weekday/weekend.
    */
   daysOfWeek?: (number | null)[];
+  /**
+   * Lịch ngày lễ (SiteSetting `holidays`). Đêm rơi vào ngày lễ + `holidayPrice` > 0 ⇒ tính giá lễ
+   * (đè giá theo thứ). Không truyền ⇒ không xét ngày lễ.
+   */
+  holidays?: readonly Holiday[];
 }
 
 export interface AvailabilityRecord {
@@ -90,6 +96,8 @@ export function roomTypePricing(r: RoomTypePriceFields): RoomPricing {
 type RoomPriceFields = {
   listPrice: unknown;
   salePrice: unknown;
+  /** Giá ngày lễ của phòng (null/0 = không có). */
+  holidayPrice?: unknown;
   priceMon: unknown;
   priceTue: unknown;
   priceWed: unknown;
@@ -101,9 +109,11 @@ type RoomPriceFields = {
 
 /**
  * Dựng `RoomPricing` cho một phòng con. Giá hiệu lực = giá chiết khấu (nếu có),
- * ngược lại giá thường; giá theo thứ (nếu nhập) ghi đè từng ngày.
+ * ngược lại giá thường; giá theo thứ (nếu nhập) ghi đè từng ngày; đêm NGÀY LỄ (theo `holidays`)
+ * dùng `holidayPrice` của phòng nếu có.
  */
-export function roomPricing(r: RoomPriceFields): RoomPricing {
+export function roomPricing(r: RoomPriceFields, holidays?: readonly Holiday[]): RoomPricing {
+  const hol = toNumber(r.holidayPrice as never);
   const list = toNumber(r.listPrice as never) ?? 0;
   const saleRaw = toNumber(r.salePrice as never);
   const sale = saleRaw != null && saleRaw > 0 ? saleRaw : null; // 0 = không giảm
@@ -111,7 +121,8 @@ export function roomPricing(r: RoomPriceFields): RoomPricing {
   return {
     weekdayPrice: base,
     weekendPrice: base,
-    holidayPrice: null,
+    holidayPrice: hol != null && hol > 0 ? hol : null,
+    holidays,
     daysOfWeek: [
       toNumber(r.priceSun as never),
       toNumber(r.priceMon as never),
@@ -259,8 +270,9 @@ export function roomFromPrice(r: RoomPriceFields & RoomListPriceFields): { price
 export function stayStrike(
   nights: Date[],
   r: RoomPriceFields & RoomListPriceFields,
+  holidays?: readonly Holiday[],
 ): { total: number; strikeTotal: number | null } {
-  const pricing = roomPricing(r);
+  const pricing = roomPricing(r, holidays);
   let total = 0;
   let strikeSum = 0;
   let anyStrike = false;
@@ -283,6 +295,10 @@ export function priceForDay(
   override: number | null,
 ): number {
   if (override != null) return override;
+  // Đêm NGÀY LỄ (lịch ở /admin/popup) + phòng có giá lễ ⇒ giá lễ, đè cả giá theo thứ.
+  if (pricing.holidayPrice != null && pricing.holidayPrice > 0 && pricing.holidays?.length && isHolidayKey(pricing.holidays, toDateKey(date))) {
+    return pricing.holidayPrice;
+  }
   // Giá theo thứ (nếu được thiết lập) có ưu tiên hơn weekday/weekend.
   const perDay = pricing.daysOfWeek?.[date.getUTCDay()];
   if (perDay != null) return perDay;

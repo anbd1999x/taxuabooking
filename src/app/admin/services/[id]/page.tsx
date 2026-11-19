@@ -632,7 +632,7 @@ export default async function EditServicePage({
                                       <L label="Tối đa (người)" cls="sm:col-span-3"><input name="maxCapacity" type="number" min={0} defaultValue={room.maxCapacity ?? ""} placeholder="= sức chứa" className={inp} /></L>
                                       <L label="Tên khác trong sheet lịch" cls="sm:col-span-5"><input name="sheetAlias" defaultValue={room.sheetAlias ?? ""} placeholder="VD: Vip Xoay 1, Vip360 1" className={inp} /></L>
                                       <label className="flex items-center gap-2 self-end pb-2 text-sm font-semibold text-sunset-700 sm:col-span-4"><input type="checkbox" name="featured" defaultChecked={room.featured} className="h-4 w-4 accent-sunset-500" /> ⭐ Phòng nổi bật (lên đầu khi tìm)</label>
-                                      <label className="flex items-center gap-2 self-end pb-2 text-sm font-semibold text-gray-700 sm:col-span-12"><input type="checkbox" name="noComboDiscount" defaultChecked={room.noComboDiscount} className="h-4 w-4 accent-forest-600" /> 🚫 Không giảm 25k khi đặt combo (phòng này không hưởng khuyến mãi combo)</label>
+                                      <label className="flex items-center gap-2 self-end pb-2 text-sm font-semibold text-gray-700 sm:col-span-12"><input type="checkbox" name="noComboDiscount" defaultChecked={room.noComboDiscount} className="h-4 w-4 accent-forest-600" /> 🚫 Không giảm giá combo (phòng này không hưởng khuyến mãi combo)</label>
                                       <p className="self-center text-[11px] leading-relaxed text-gray-400 sm:col-span-12">Phụ thu <b>người thêm / check-in sớm / check-out muộn</b> cấu hình <b>chung cho cả homestay</b> ở tab Thông tin.</p>
                                       <L label="Tiện ích (cách nhau dấu phẩy)" cls="sm:col-span-7"><input name="amenities" defaultValue={room.amenities ?? ""} placeholder="Wifi, Nóng lạnh, Ban công" className={inp} /></L>
                                       <L label="Mô tả ngắn" cls="sm:col-span-5"><input name="description" defaultValue={room.description ?? ""} className={inp} /></L>
@@ -974,7 +974,7 @@ export default async function EditServicePage({
                         <L label="Tối đa (người)" cls="sm:col-span-3"><input name="maxCapacity" type="number" min={0} defaultValue={room.maxCapacity ?? ""} placeholder="= sức chứa" className={inp} /></L>
                         <L label="Tên khác trong sheet lịch" cls="sm:col-span-5"><input name="sheetAlias" defaultValue={room.sheetAlias ?? ""} placeholder="VD: Vip Xoay 1, Vip360 1" className={inp} /></L>
                         <label className="flex items-center gap-2 self-end pb-2 text-sm font-semibold text-sunset-700 sm:col-span-4"><input type="checkbox" name="featured" defaultChecked={room.featured} className="h-4 w-4 accent-sunset-500" /> ⭐ Phòng nổi bật (lên đầu khi tìm)</label>
-                        <label className="flex items-center gap-2 self-end pb-2 text-sm font-semibold text-gray-700 sm:col-span-12"><input type="checkbox" name="noComboDiscount" defaultChecked={room.noComboDiscount} className="h-4 w-4 accent-forest-600" /> 🚫 Không giảm 25k khi đặt combo (phòng này không hưởng khuyến mãi combo)</label>
+                        <label className="flex items-center gap-2 self-end pb-2 text-sm font-semibold text-gray-700 sm:col-span-12"><input type="checkbox" name="noComboDiscount" defaultChecked={room.noComboDiscount} className="h-4 w-4 accent-forest-600" /> 🚫 Không giảm giá combo (phòng này không hưởng khuyến mãi combo)</label>
                         <p className="self-center text-[11px] leading-relaxed text-gray-400 sm:col-span-12">Phụ thu <b>người thêm / check-in sớm / check-out muộn</b> cấu hình <b>chung cho cả homestay</b> ở tab Thông tin.</p>
                         <L label="Tiện ích (cách nhau dấu phẩy)" cls="sm:col-span-7"><input name="amenities" defaultValue={room.amenities ?? ""} placeholder="Wifi, Nóng lạnh, Ban công" className={inp} /></L>
                         <L label="Mô tả ngắn" cls="sm:col-span-5"><input name="description" defaultValue={room.description ?? ""} className={inp} /></L>
@@ -1026,7 +1026,7 @@ export default async function EditServicePage({
                 <L label="Giá đang bán" cls="sm:col-span-2"><MoneyInput name="salePrice" placeholder="(nếu có)" className={inp} /></L>
                 <L label="Tối đa (người)" cls="sm:col-span-3"><input name="maxCapacity" type="number" min={0} placeholder="= sức chứa" className={inp} /></L>
                 <label className="flex items-center gap-2 self-end pb-2 text-sm font-semibold text-sunset-700 sm:col-span-4"><input type="checkbox" name="featured" className="h-4 w-4 accent-sunset-500" /> ⭐ Phòng nổi bật (lên đầu khi tìm)</label>
-                <label className="flex items-center gap-2 self-end pb-2 text-sm font-semibold text-gray-700 sm:col-span-12"><input type="checkbox" name="noComboDiscount" className="h-4 w-4 accent-forest-600" /> 🚫 Không giảm 25k khi đặt combo (phòng này không hưởng khuyến mãi combo)</label>
+                <label className="flex items-center gap-2 self-end pb-2 text-sm font-semibold text-gray-700 sm:col-span-12"><input type="checkbox" name="noComboDiscount" className="h-4 w-4 accent-forest-600" /> 🚫 Không giảm giá combo (phòng này không hưởng khuyến mãi combo)</label>
                 <p className="self-center text-[11px] leading-relaxed text-gray-400 sm:col-span-5">Phụ thu <b>người thêm / check-in sớm / check-out muộn</b> cấu hình <b>chung cho cả homestay</b> ở tab Thông tin.</p>
                 <L label="Tiện ích (cách nhau dấu phẩy)" cls="sm:col-span-7"><input name="amenities" placeholder="Wifi, Nóng lạnh, Ban công" className={inp} /></L>
                 <L label="Mô tả ngắn" cls="sm:col-span-5"><input name="description" className={inp} /></L>
@@ -1360,6 +1360,7 @@ const LIST_DAY_FIELDS = [
 ] as const;
 
 interface RoomDayPrices {
+  holidayPrice?: unknown;
   priceMon: unknown; priceTue: unknown; priceWed: unknown; priceThu: unknown;
   priceFri: unknown; priceSat: unknown; priceSun: unknown;
   listPriceMon: unknown; listPriceTue: unknown; listPriceWed: unknown; listPriceThu: unknown;
@@ -1405,6 +1406,9 @@ function TypeBulkPriceForm({
             </L>
           ))}
         </div>
+        <L label="🎉 Giá ngày lễ" cls="sm:col-span-3">
+          <MoneyInput name="holidayPrice" defaultValue={toNumber(first.holidayPrice as never) ?? ""} placeholder="(không có)" className={inp} />
+        </L>
         <p className="col-span-2 text-[11px] leading-relaxed text-gray-500 sm:col-span-9">
           ⚠️ Giá theo thứ (T2–CN) <b>ĐÈ</b> giá đang bán & giá gốc — muốn web dùng giá gốc/giá đang bán thì
           <b> xoá trống các ô thứ</b>. Bấm Áp giá sẽ ghi đè giá của <b>tất cả {rt.rooms.length} phòng</b> trong hạng này.
@@ -1446,11 +1450,12 @@ function RoomFeatures({ room }: { room?: RoomFeatureFlags }) {
 function RoomConDayPrices({ room }: { room?: RoomDayPrices }) {
   const vals = DAY_FIELDS.map((d) => (room ? toNumber(room[d.name] as never) : null));
   const listVals = LIST_DAY_FIELDS.map((d) => (room ? toNumber(room[d.name] as never) : null));
-  const hasAny = vals.some((v) => v != null) || listVals.some((v) => v != null);
+  const holiday = room ? toNumber(room.holidayPrice as never) : null;
+  const hasAny = vals.some((v) => v != null) || listVals.some((v) => v != null) || holiday != null;
   return (
     <details open={hasAny} className="col-span-1 mt-1 sm:col-span-12">
       <summary className="cursor-pointer text-[11px] font-medium text-forest-700">
-        Giá theo thứ (tuỳ chọn — để trống = dùng giá đang bán/giá gốc)
+        Giá theo thứ & giá ngày lễ (tuỳ chọn — để trống = dùng giá đang bán/giá gốc)
       </summary>
       <div className="mt-2 grid grid-cols-[auto_repeat(7,minmax(0,1fr))] items-end gap-2">
         <span className="pb-2 text-[11px] font-medium text-gray-500">Giá bán</span>
@@ -1469,6 +1474,15 @@ function RoomConDayPrices({ room }: { room?: RoomDayPrices }) {
       <p className="mt-1.5 text-[11px] leading-relaxed text-gray-500">
         💡 <b>Giá bán</b> = giá khách trả đêm đó. <b>Giá gạch</b> = giá niêm yết gạch ngang cạnh giá bán (để trống = dùng giá gốc chung / không gạch). Nhập <b>0</b> ở giá bán = ngày đó hiện <b>“IB để biết giá”</b>.
       </p>
+      <div className="mt-2 flex flex-wrap items-end gap-3">
+        <L label="🎉 Giá ngày lễ / đêm">
+          <MoneyInput name="holidayPrice" defaultValue={holiday ?? ""} placeholder="(không có)" className={`${inp} w-40`} />
+        </L>
+        <p className="pb-2 text-[11px] leading-relaxed text-gray-500">
+          Đêm rơi vào <a href="/admin/popup#ngay-le" className="font-semibold text-forest-700 underline">lịch ngày lễ</a> tính giá này
+          (đè cả giá theo thứ). Để trống = ngày lễ vẫn tính giá thường.
+        </p>
+      </div>
     </details>
   );
 }

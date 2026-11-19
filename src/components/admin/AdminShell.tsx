@@ -26,7 +26,9 @@ const ADMIN_NAV: NavGroup[] = [
     title: "Dịch vụ & nội dung",
     items: [
       { href: "/admin/services", label: "Quản lý dịch vụ" },
+      { href: "/admin/provider/phong", label: "Quản lý phòng (homestay)" },
       { href: "/admin/provider/xe", label: "Quản lý xe máy" },
+      { href: "/admin/provider/ve", label: "Vé & đặt bàn" },
       { href: "/admin/places", label: "Nhà hàng, Cafe & Check-in" },
       { href: "/admin/itinerary", label: "Lịch trình mẫu" },
       { href: "/admin/articles", label: "Bài viết (SEO)" },
@@ -63,14 +65,25 @@ const CTV_NAV: NavGroup[] = [
   },
 ];
 /** Nhân viên giao xe (tài khoản do chủ xe tạo): chỉ trang quản lý xe. */
-const STAFF_NAV: NavGroup[] = [{ title: null, items: [{ href: "/admin/provider/xe", label: "Việc giao / nhận xe", exact: false }] }];
+const STAFF_NAV: NavGroup[] = [
+  {
+    title: null,
+    items: [
+      { href: "/admin/provider/xe", label: "Việc giao / nhận xe", exact: false },
+      { href: "/admin/provider/soat-ve", label: "Soát vé" },
+      { href: "/admin/provider/phong", label: "Lễ tân · buồng phòng" },
+    ],
+  },
+];
 const PROVIDER_NAV: NavGroup[] = [
   {
     title: null,
     items: [
       { href: "/admin/provider", label: "Tổng quan", exact: true },
+      { href: "/admin/provider/phong", label: "Quản lý phòng" },
       { href: "/admin/availability", label: "Lịch giá & tình trạng" },
       { href: "/admin/provider/xe", label: "Quản lý xe máy" },
+      { href: "/admin/provider/ve", label: "Vé & đặt bàn" },
       { href: "/admin/provider/don", label: "Đơn & xác nhận" },
       { href: "/admin/provider/thong-ke", label: "Thống kê" },
       { href: "/admin/provider/ctv", label: "CTV của tôi" },
@@ -135,7 +148,7 @@ export function AdminShell({
   }
 
   return (
-    <div className="flex min-h-screen bg-cloud">
+    <div className="admin-ui flex min-h-screen bg-cloud">
       {/* Sidebar: cột flex cao đúng màn hình — menu ở giữa CUỘN ĐƯỢC, chân menu không đè lên */}
       <aside
         className={cn(

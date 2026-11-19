@@ -1,5 +1,7 @@
 import Link from "@/components/Link";
 import { getT } from "@/lib/i18n/server";
+import { getComboDiscount } from "@/lib/combo";
+import { formatPrice } from "@/lib/format";
 
 /**
  * Khối nội dung SEO ở cuối trang danh sách (xe cabin / homestay / combo): đoạn giới thiệu có từ khoá,
@@ -13,6 +15,8 @@ interface Block {
   intro: string[];
   links: [string, string][];
   faq: [string, string][];
+  /** Nối câu "rẻ hơn đặt lẻ {mức giảm combo}" vào cuối đoạn giới thiệu cuối (cấu hình ở /admin/popup; 0 ⇒ bỏ câu). */
+  comboSave?: boolean;
 }
 
 const NOTE = "Giá là mức tham khảo, có thể thay đổi theo mùa và dịp lễ; giá chính xác hiện khi bạn chọn ngày.";
@@ -62,8 +66,9 @@ const BLOCKS: Record<Kind, Block> = {
     heading: "Combo Tà Xùa: xe cabin khứ hồi + homestay trọn gói",
     intro: [
       "Combo Tà Xùa ghép sẵn vé xe cabin khứ hồi với phòng homestay còn trống đúng ngày bạn đi. Bạn nhập điểm xuất phát, ngày đi, ngày về, số người và mức giá mong muốn; hệ thống tính ra giá trọn gói cho mỗi người và gợi ý cách chia phòng cho cả đoàn.",
-      "Ngày đi là đêm bạn lên xe, phòng được tính từ sáng hôm sau, nên không lo lệch ngày giữa xe và phòng. Giá combo mỗi người rẻ hơn đặt lẻ 25.000đ.",
+      "Ngày đi là đêm bạn lên xe, phòng được tính từ sáng hôm sau, nên không lo lệch ngày giữa xe và phòng.",
     ],
+    comboSave: true,
     links: [
       ["/kinh-nghiem/combo-xe-cabin-homestay-ta-xua", "Combo xe cabin + homestay có lợi gì?"],
       ["/lich-trinh", "Lịch trình Tà Xùa 2N1Đ, 3N2Đ"],
@@ -82,6 +87,9 @@ const BLOCKS: Record<Kind, Block> = {
 export async function SeoBlock({ kind }: { kind: Kind }) {
   const t = await getT();
   const b = BLOCKS[kind];
+  const comboDiscount = b.comboSave ? await getComboDiscount() : 0;
+  const saveLine = comboDiscount > 0 ? " " + t("Giá combo mỗi người rẻ hơn đặt lẻ {0}.", [formatPrice(comboDiscount)]) : "";
+  const tP = (p: string, i: number) => t(p) + (i === b.intro.length - 1 ? saveLine : "");
   // Câu trả lời có nối NOTE ở cuối ⇒ dịch 2 phần riêng (khoá từ điển là từng câu).
   const tA = (a: string) => (a.endsWith(NOTE) ? `${t(a.slice(0, -NOTE.length).trim())} ${t(NOTE)}` : t(a));
   const jsonLd = {
@@ -97,7 +105,7 @@ export async function SeoBlock({ kind }: { kind: Kind }) {
         <div>
         <h2 className="text-xl font-extrabold tracking-[-0.02em] text-ink sm:text-2xl">{t(b.heading)}</h2>
         <div className="mt-3 flex flex-col gap-3 text-[15px] leading-relaxed text-gray-600">
-          {b.intro.map((p) => <p key={p}>{t(p)}</p>)}
+          {b.intro.map((p, i) => <p key={p}>{tP(p, i)}</p>)}
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
           {b.links.map(([href, label]) => (

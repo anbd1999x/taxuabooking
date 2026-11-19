@@ -733,6 +733,8 @@ export async function applyRoomTypePrices(_prev: ActionState, formData: FormData
     priceFri: num(formData.get("priceFri")) ?? null,
     priceSat: num(formData.get("priceSat")) ?? null,
     priceSun: num(formData.get("priceSun")) ?? null,
+    // Giá NGÀY LỄ (lịch lễ ở /admin/popup) — 0/trống = null (không có giá lễ).
+    holidayPrice: num(formData.get("holidayPrice")) || null,
     // Giá gạch (niêm yết) theo thứ — 0/trống = null (dùng giá gốc chung / không gạch).
     listPriceMon: num(formData.get("listPriceMon")) || null,
     listPriceTue: num(formData.get("listPriceTue")) || null,
@@ -817,7 +819,7 @@ export async function upsertRoom(_prev: ActionState, formData: FormData): Promis
     sheetAlias: s(formData.get("sheetAlias")) ?? null,
     // Phòng nổi bật: lên đầu trang tìm homestay.
     featured: formData.get("featured") === "on",
-    // Không áp khuyến mãi combo (−25k/khách) cho phòng này.
+    // Không áp khuyến mãi combo (giảm / khách cấu hình ở /admin/popup) cho phòng này.
     noComboDiscount: formData.get("noComboDiscount") === "on",
     listPrice: num(formData.get("listPrice")) ?? 0,
     // 0 = không giảm giá → lưu null (0 thật sẽ làm giá hiệu lực = 0đ).
@@ -829,6 +831,8 @@ export async function upsertRoom(_prev: ActionState, formData: FormData): Promis
     priceFri: num(formData.get("priceFri")) ?? null,
     priceSat: num(formData.get("priceSat")) ?? null,
     priceSun: num(formData.get("priceSun")) ?? null,
+    // Giá NGÀY LỄ (lịch lễ ở /admin/popup) — 0/trống = null (không có giá lễ).
+    holidayPrice: num(formData.get("holidayPrice")) || null,
     // Giá gạch (niêm yết) theo thứ — 0/trống = null (dùng giá gốc chung / không gạch).
     listPriceMon: num(formData.get("listPriceMon")) || null,
     listPriceTue: num(formData.get("listPriceTue")) || null,
@@ -924,6 +928,7 @@ export async function duplicateRoom(formData: FormData): Promise<void> {
       priceFri: src.priceFri,
       priceSat: src.priceSat,
       priceSun: src.priceSun,
+      holidayPrice: src.holidayPrice,
       listPriceMon: src.listPriceMon,
       listPriceTue: src.listPriceTue,
       listPriceWed: src.listPriceWed,

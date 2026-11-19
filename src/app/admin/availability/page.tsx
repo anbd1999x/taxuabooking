@@ -12,6 +12,7 @@ import { toNumber } from "@/lib/format";
 import { bookingCabinBerths, bookingBusSeats } from "@/lib/combo-pricing";
 import { parseDateOnly } from "@/lib/dates";
 import { roomPricing, priceForDay } from "@/lib/availability";
+import { getHolidays } from "@/lib/holidays-server";
 
 export const dynamic = "force-dynamic";
 
@@ -104,9 +105,10 @@ export default async function AvailabilityPage({
     }
     // Giá mỗi phòng/đêm cho chế độ tổng quan (giá-theo-thứ ?? chiết khấu ?? thường).
     const dayDates = days.map((d) => parseDateOnly(d));
+    const holidays = await getHolidays(); // đêm ngày lễ ⇒ giá lễ
     for (const rt of roomTypes) {
       for (const room of rt.rooms) {
-        const pricing = roomPricing(room);
+        const pricing = roomPricing(room, holidays);
         for (let i = 0; i < days.length; i++) {
           priceMap[`${room.id}|${days[i]}`] = priceForDay(dayDates[i], pricing, null);
         }

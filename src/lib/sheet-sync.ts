@@ -1595,7 +1595,7 @@ export async function syncServiceSheet(
     const rangeTo = new Date(Math.max(...times));
     const existingList = await prisma.roomDayStatus.findMany({
       where: { roomId: { in: [...matchedRoomIds] }, date: { gte: rangeFrom, lte: rangeTo } },
-      select: { id: true, roomId: true, date: true, status: true, note: true, bookingId: true },
+      select: { id: true, roomId: true, date: true, status: true, note: true, bookingId: true, stayId: true },
     });
     const existingByKey = new Map(existingList.map((x) => [`${x.roomId}|${toDateKey(x.date)}`, x]));
 
@@ -1619,6 +1619,8 @@ export async function syncServiceSheet(
         continue;
       }
       if (existing?.note?.startsWith("OTA#")) continue;
+      // Lượt ở / ngày đóng phòng do chủ nhà tạo ở "Quản lý phòng" (stayId, note "PMS…") — nguồn chuẩn, sheet không đè.
+      if (existing?.stayId || existing?.note?.startsWith("PMS")) continue;
 
       if (status === "AVAILABLE") {
         // Sheet trống → mở lại mọi khoá không thuộc đơn thật/OTA.
@@ -1660,7 +1662,16 @@ export async function syncServiceSheet(
     }
 
     await prisma.$transaction([
-      prisma.roomDayStatus.deleteMany({ where: { id: { in: deleteIds } } }),
+      // Kiểm lại lúc xoá: id đọc từ trước có thể vừa bị đơn web / Quản lý phòng / OTA ghi đè cùng dòng
+      // (upsert giữ nguyên id) — những ô đó không được xoá. (note null phải tách riêng: NOT LIKE với null = loại.)
+      prisma.roomDayStatus.deleteMany({
+        where: {
+          id: { in: deleteIds },
+          bookingId: null,
+          stayId: null,
+          OR: [{ note: null }, { AND: [{ NOT: { note: { startsWith: "PMS" } } }, { NOT: { note: { startsWith: "OTA#" } } }] }],
+        },
+      }),
       // skipDuplicates: nếu một đơn thật vừa chiếm (roomId, date) giữa lúc đọc và ghi
       // thì bản ghi của sheet bị bỏ qua, đơn thật được giữ nguyên.
       prisma.roomDayStatus.createMany({ data: creates, skipDuplicates: true }),

@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "./prisma";
 import { CATEGORY_LIST, type AvailabilityKind } from "./constants";
-import { COMBO_DISCOUNT } from "./combo";
+import { getComboDiscount } from "./combo";
 import { toNumber } from "./format";
 import { addDays, toDateKey, today } from "./dates";
 import { bookingPax } from "./occupancy";
@@ -151,7 +151,7 @@ export async function loadBookingEdit(id: string): Promise<BookingEditProps | nu
     })),
     ctvs: ctvs.map((c) => ({ id: c.id, name: c.name || c.username })),
     todayKey: toDateKey(today()),
-    comboDiscount: COMBO_DISCOUNT,
+    comboDiscount: await getComboDiscount(),
     edit,
   };
 }

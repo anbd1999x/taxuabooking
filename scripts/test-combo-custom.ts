@@ -200,6 +200,7 @@ async function dbCheck() {
   const { roomPricing, priceForDay } = await import("../src/lib/availability");
   const { parseDateOnly, addDays, enumerateNights, toDateKey, today } = await import("../src/lib/dates");
   const { toNumber } = await import("../src/lib/format");
+  const holidays = await (await import("../src/lib/holidays-server")).getHolidays();
   let rooms = 0;
   let homes = 0;
   for (const [offset, len] of [[1, 2], [3, 3], [9, 2], [20, 4]] as const) {
@@ -216,7 +217,7 @@ async function dbCheck() {
       for (const r of h.rooms) {
         rooms++;
         const d = byId.get(r.roomId)!;
-        const pr = roomPricing(d);
+        const pr = roomPricing(d, holidays);
         const serverCost = nights.reduce((n, day) => n + priceForDay(day, pr, null), 0);
         const want = [serverCost, d.capacity, Math.max(d.capacity, d.maxCapacity ?? d.capacity), isCommunalRoom(d.roomType.name, d.name), d.noComboDiscount, (toNumber(d.roomType.service.extraPersonFee) ?? 0) * nights.length];
         const got = [r.roomCost, r.capacity, r.maxCapacity, r.communal, r.noComboDiscount, r.extraFeeStay];
@@ -226,7 +227,7 @@ async function dbCheck() {
       const groups = groupRooms(h);
       const pick = pickedRooms(groups, cheapestPick(groups, h.billable));
       if (pick.length) {
-        const q = comboQuote({ rooms: pick.map(toQuoteRoom), people: h.billable, extraFeeStay: h.rooms[0].extraFeeStay, fare: res.buses[0]?.farePerPerson ?? 0, shared: h.billable, solo: 0 });
+        const q = comboQuote({ rooms: pick.map(toQuoteRoom), people: h.billable, extraFeeStay: h.rooms[0].extraFeeStay, fare: res.buses[0]?.farePerPerson ?? 0, shared: h.billable, solo: 0, discountPerGuest: res.comboDiscount });
         if (q.error) eq(`DB gợi ý mặc định ${h.title}`, q.error, null);
       }
     }

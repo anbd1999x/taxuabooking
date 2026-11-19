@@ -43,6 +43,8 @@ export interface HomestayRoom {
   days: (number | null)[];
   /** Giá gạch (niêm yết) theo thứ, cùng chỉ mục getUTCDay(). null = dùng listPrice chung. */
   listDays: (number | null)[];
+  /** Giá NGÀY LỄ (đêm nằm trong `holidayKeys`), đè giá theo thứ. null = không có giá lễ. */
+  holiday: number | null;
   /** Các ngày (yyyy-mm-dd) phòng bị chiếm (không bán). */
   occupied: string[];
 }
@@ -130,8 +132,11 @@ export function HomestayBooking({
   childFreeUnderAge = 6,
   initialAdults,
   initialChildAges,
+  holidayKeys = [],
 }: {
   serviceId: string;
+  /** Các đêm (yyyy-mm-dd) là NGÀY LỄ trong khung lịch — phòng có giá lễ tính giá lễ đêm đó (cùng công thức server). */
+  holidayKeys?: string[];
   /** Trẻ dưới số tuổi này miễn phí (không tính người/phụ thu). */
   childFreeUnderAge?: number;
   /** Số người lớn / tuổi trẻ em mang từ trang tìm kiếm sang (điền sẵn). */
@@ -230,7 +235,10 @@ export function HomestayBooking({
   const occ = useMemo(() => rooms.map((r) => new Set(r.occupied)), [rooms]);
   // r.days lập chỉ mục theo getUTCDay(): [CN, T2, T3, T4, T5, T6, T7].
   // Giá 1 đêm; trả null = ngày đó KHÔNG công khai giá (IB) — khi giá hiệu lực ≤ 0.
+  const holSet = useMemo(() => new Set(holidayKeys), [holidayKeys]);
   const nightPrice = (r: HomestayRoom, d: Date): number | null => {
+    // Đêm ngày lễ + phòng có giá lễ ⇒ giá lễ (khớp priceForDay phía server).
+    if (r.holiday != null && r.holiday > 0 && holSet.has(keyOf(d))) return r.holiday;
     const o = r.days[d.getUTCDay()];
     const p = o != null ? o : r.base;
     return p > 0 ? p : null;
@@ -701,6 +709,9 @@ export function HomestayBooking({
                           <>
                             <span>{tr("Ngày thường")}{" "}<b className="text-ink">{v.wdP > 0 ? tr(fmt(v.wdP)) : tr(IB)}</b></span>
                             <span>{tr("Cuối tuần")}{" "}<b className="text-ink">{v.weP > 0 ? tr(fmt(v.weP)) : tr(IB)}</b></span>
+                            {v.r.holiday != null && v.r.holiday > 0 && holidayKeys.length > 0 && (
+                              <span>{tr("Ngày lễ")}{" "}<b className="text-ink">{tr(fmt(v.r.holiday))}</b></span>
+                            )}
                             {v.r.hasSale && <span className="text-gray-400 line-through">{tr(fmt(v.r.listPrice))}</span>}
                           </>
                         )}

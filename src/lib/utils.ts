@@ -33,6 +33,7 @@ const BOOKING_CODE_PREFIX: Record<string, string> = {
   MOTORBIKE: "XM", // thuê xe máy
   TAXI: "TX",
   XEOM: "XO",
+  TICKET: "VE", // vé cổng / show / đặt bàn (module Vé & đặt bàn — bảng TicketOrder)
 };
 
 /**

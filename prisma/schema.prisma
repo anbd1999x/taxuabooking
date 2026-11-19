@@ -99,6 +99,8 @@ model AdminUser {
   role         UserRole @default(ADMIN)
   active       Boolean  @default(true)
   providerId   String? // với CTV: thuộc chủ cơ sở nào
+  /// Với STAFF: khu làm việc — "phong" = lễ tân Quản lý phòng; "xe"/null = nhân viên giao xe (+ soát vé).
+  staffArea    String?
   commissionPerOrder Decimal? @db.Decimal(12, 0) // với CTV: hoa hồng cố định/đơn (mặc định)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -173,6 +175,10 @@ model Service {
   bookings       BookingRequest[]
   fleetVehicles  FleetVehicle[] // đội xe thật (quản lý xe cho thuê của chủ dịch vụ)
   fleetConfig    FleetConfig? // cấu hình đội xe (giá lễ/cuối tuần, phí phát sinh, DS đen...)
+  homeConfig     HomeConfig? // Quản lý phòng (homestay): giờ nhận/trả, phụ phí, dịch vụ phát sinh, khách quen/DS đen
+  roomStays      RoomStay[]
+  homeCloses     HomeClose[]
+  homeExpenses   HomeExpense[]
   cabinPriceRows CabinPriceRow[]
   cabinRoutes    CabinRoute[]
   reviews        Review[]
@@ -278,6 +284,8 @@ model Room {
   priceFri    Decimal?        @db.Decimal(12, 0)
   priceSat    Decimal?        @db.Decimal(12, 0)
   priceSun    Decimal?        @db.Decimal(12, 0)
+  // Giá NGÀY LỄ (mỗi đêm rơi vào lịch ngày lễ cấu hình ở /admin/popup) — đè giá theo thứ & giá thường. null/0 = không có giá lễ.
+  holidayPrice Decimal?       @db.Decimal(12, 0)
   // Giá gạch (niêm yết) theo thứ — để gạch ngang cạnh giá-theo-thứ. null = dùng
   // giá niêm yết chung (listPrice) khi có giảm, hoặc không gạch.
   listPriceMon Decimal? @db.Decimal(12, 0)
@@ -299,11 +307,16 @@ model Room {
   commissionSun Decimal? @db.Decimal(12, 0)
   sortOrder   Int             @default(0)
   icalToken   String?         @unique // token bí mật cho link xuất lịch iCal (OTA)
+  // Buồng phòng (module Quản lý phòng): clean | dirty | cleaning | maint
+  hkStatus    String          @default("clean")
+  hkAt        DateTime?
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
   dayStatuses RoomDayStatus[]
   images      RoomImage[]
   icalSources RoomIcalSource[]
+  stays       RoomStay[]
+  serviceLogs RoomServiceLog[]
 
   @@index([roomTypeId])
 }
@@ -344,12 +357,15 @@ model RoomDayStatus {
   date      DateTime   @db.Date
   status    RoomStatus @default(AVAILABLE)
   bookingId String? // đơn đang chiếm phòng (để tự trả khi huỷ)
+  // Lượt ở do chủ nhà tạo ở "Quản lý phòng" (RoomStay) đang chiếm ô này. Sheet/iCal không ghi đè.
+  stayId    String?
   note      String?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
   @@unique([roomId, date])
   @@index([date])
+  @@index([stayId])
 }
 
 /// Nhiều ảnh / video cho mỗi hạng phòng.
@@ -1083,4 +1099,357 @@ model FleetConfig {
   service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   data      Json     @default("{}")
   updatedAt DateTime @updatedAt
+}
+
+// ============================ VÉ & ĐẶT BÀN (vé cổng / show / nhà hàng) ============================
+
+/// Một địa điểm bán vé: điểm check-in (GATE), show ca nhạc (SHOW) hoặc nhà hàng nhận đặt bàn (RESTAURANT).
+model TicketVenue {
+  id          String   @id @default(cuid())
+  kind        String // GATE | SHOW | RESTAURANT
+  slug        String   @unique
+  name        String
+  area        String?
+  description String?
+  coverImage  String?
+  ownerId     String? // chủ địa điểm (AdminUser PROVIDER); null = sàn tự vận hành
+  placeId     String? // gắn với Place (nhà hàng / điểm check-in) nếu có
+  published   Boolean  @default(false)
+  // GATE: { quota } · SHOW: { holdMin } · RESTAURANT: { policy: none|deposit|min, amount, slots[], floors[{name,sub}] }
+  config      Json     @default("{}")
+  // SHOW: sơ đồ ghế { rows, cols, cells: { "r-c": vip|norm|aisle|broken|empty } }
+  layout      Json?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tiers    TicketTier[]
+  menu     TicketMenuItem[]
+  tables   TicketTable[]
+  sessions TicketSession[]
+  orders   TicketOrder[]
+  dineOrders   DineOrder[]
+  dineRequests DineRequest[]
+
+  @@index([kind, published])
+  @@index([ownerId])
+}
+
+/// Hạng vé. SHOW: seatClass vip|norm = giá ghế theo hạng trên sơ đồ; seatClass null = vé không số ghế (khu đứng, có quota/suất).
+model TicketTier {
+  id        String      @id @default(cuid())
+  venueId   String
+  venue     TicketVenue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  name      String
+  price     Decimal     @db.Decimal(12, 0)
+  listPrice Decimal?    @db.Decimal(12, 0)
+  seatClass String? // vip | norm (chỉ SHOW)
+  quota     Int? // SHOW không số ghế: số vé mỗi suất
+  active    Boolean     @default(true)
+  sortOrder Int         @default(0)
+
+  @@index([venueId])
+}
+
+/// Món ăn / đồ uống bán kèm vé hoặc đặt trước ở nhà hàng.
+model TicketMenuItem {
+  id        String      @id @default(cuid())
+  venueId   String
+  venue     TicketVenue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  name      String
+  group     String?
+  description String? // mô tả ngắn hiện ở thực đơn QR ("Nồi 3–4 người, gà bản")
+  hot       Boolean     @default(false) // nhãn "Bán chạy"
+  price     Decimal     @db.Decimal(12, 0)
+  imageUrl  String? // ảnh bìa (= ảnh đầu tiên của images)
+  images    String[]    @default([]) // nhiều ảnh của món (/uploads/…), thực đơn QR hiện dạng trượt
+  active    Boolean     @default(true)
+  sortOrder Int         @default(0)
+
+  @@index([venueId])
+}
+
+/// Bàn của nhà hàng.
+model TicketTable {
+  id        String      @id @default(cuid())
+  venueId   String
+  venue     TicketVenue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  name      String
+  capacity  Int         @default(4)
+  zone      String      @default("Trong nhà")
+  floor     Int         @default(0) // chỉ số tầng trong config.floors
+  round     Boolean     @default(false)
+  active    Boolean     @default(true)
+  sortOrder Int         @default(0)
+  qrKey     String? // khoá trong mã QR dán ở bàn (/qr/<slug>/<bàn>?k=…) — không có khoá thì không gọi món được
+
+  dineOrders   DineOrder[]
+  dineRequests DineRequest[]
+
+  @@unique([venueId, name])
+}
+
+/// Suất bán: GATE = 1 dòng/ngày (time ""), SHOW = suất diễn, RESTAURANT = khung giờ. GATE & RESTAURANT tạo khi cần.
+model TicketSession {
+  id        String      @id @default(cuid())
+  venueId   String
+  venue     TicketVenue @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  date      DateTime    @db.Date
+  time      String      @default("") // "20:00"; GATE = ""
+  quota     Int? // GATE: quota ngày (null = theo config.quota)
+  status    String      @default("open") // open | paused
+  createdAt DateTime    @default(now())
+
+  orders TicketOrder[]
+  seats  TicketSeat[]
+
+  @@unique([venueId, date, time])
+}
+
+/// Đơn vé / đặt bàn. status: wait (chờ xác nhận / chờ thu tiền — holdUntil = hạn giữ chỗ) | ok | here | eat | done | cancel.
+model TicketOrder {
+  id           String        @id @default(cuid())
+  code         String        @unique // TX-VE-XXXXX
+  token        String        @unique // khoá xem vé điện tử (/ve/don/<token>)
+  venueId      String
+  venue        TicketVenue   @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  sessionId    String
+  session      TicketSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  customerName String
+  phone        String
+  email        String?
+  guests       Int           @default(1)
+  note         String?
+  source       String        @default("Web") // Web | CTV | Zalo | Điện thoại | Quầy
+  ctvId        String?
+  status       String        @default("wait")
+  ticketAmount Decimal       @default(0) @db.Decimal(12, 0)
+  foodAmount   Decimal       @default(0) @db.Decimal(12, 0)
+  total        Decimal       @default(0) @db.Decimal(12, 0)
+  deposit      Decimal       @default(0) @db.Decimal(12, 0) // cọc bàn phải thu (RESTAURANT)
+  paid         Decimal       @default(0) @db.Decimal(12, 0) // đã thu
+  payMethod    String? // Tiền mặt | Chuyển khoản
+  holdUntil    DateTime?
+  createdBy    String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  items   TicketOrderItem[]
+  seats   TicketSeat[]
+  tickets Ticket[]
+
+  @@index([venueId, status])
+  @@index([sessionId])
+  @@index([phone])
+}
+
+/// Dòng của đơn (chụp lại tên + giá lúc đặt): vé theo hạng hoặc món ăn / đồ uống.
+model TicketOrderItem {
+  id      String      @id @default(cuid())
+  orderId String
+  order   TicketOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  kind    String // ticket | food
+  refId   String? // TicketTier.id / TicketMenuItem.id
+  name    String
+  price   Decimal     @db.Decimal(12, 0)
+  qty     Int
+  note    String?
+
+  @@index([orderId])
+}
+
+/// Ghế (SHOW, key "A7") hoặc bàn (RESTAURANT, key = TicketTable.id) đã bị giữ trong một suất.
+/// orderId null = khoá tay (khách mời). Ràng buộc unique chống bán trùng.
+model TicketSeat {
+  id        String        @id @default(cuid())
+  sessionId String
+  session   TicketSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  key       String
+  orderId   String?
+  order     TicketOrder?  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  createdAt DateTime      @default(now())
+
+  @@unique([sessionId, key])
+  @@index([orderId])
+}
+
+/// Vé điện tử: mỗi người / mỗi ghế một mã QR (kind entry); voucher đồ ăn uống (kind food).
+model Ticket {
+  id      String      @id @default(cuid())
+  orderId String
+  order   TicketOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  code    String      @unique // TX-VE-XXXXX-1
+  token   String      @unique // nội dung mã QR
+  kind    String      @default("entry") // entry | food
+  label   String // "Người lớn" / "Ghế C7 · Thường" / "2× Trà Shan tuyết"
+  seatKey String?
+  usedAt  DateTime?
+  usedBy  String?
+
+  @@index([orderId])
+}
+
+// ============================ QUẢN LÝ PHÒNG (chủ homestay) ============================
+
+/// Lượt ở: 1 phòng × khoảng đêm [checkIn, checkOut). Chủ tự tạo (bookingId null — giữ ô lịch qua
+/// RoomDayStatus.stayId) hoặc sinh từ đơn của sàn (bookingId — ô lịch do đơn giữ). Trạng thái suy ra
+/// ở `stayStatus` (src/lib/stay-core.ts); `state` chỉ lưu cancel | noshow | reject.
+model RoomStay {
+  id           String    @id @default(cuid())
+  code         String    @unique // LT-XXXXX
+  serviceId    String
+  service      Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  roomId       String
+  room         Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  bookingId    String? // đơn của sàn (BookingRequest.id); null = chủ nhà tự tạo
+  groupId      String? // đoàn nhiều phòng (cùng một lần đặt)
+  groupName    String?
+  customerName String
+  phone        String
+  guests       Int       @default(1)
+  guestList    Json      @default("[]") // khách lưu trú [{name, cccd}]
+  checkIn      DateTime  @db.Date
+  checkOut     DateTime  @db.Date
+  total        Decimal   @db.Decimal(12, 0) // tiền phòng (chưa gồm dịch vụ phát sinh)
+  source       String    @default("Gọi điện")
+  note         String?
+  state        String? // null | cancel | noshow | reject
+  holdUntil    DateTime? // giữ chỗ chưa cọc: quá hạn thì tự nhả
+  checkedInAt  DateTime?
+  checkedOutAt DateTime?
+  fees         Json      @default("[]") // dịch vụ phát sinh / phụ thu [{name, amt}]
+  createdBy    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  payments     StayPayment[]
+
+  @@index([serviceId, checkOut])
+  @@index([roomId, checkIn])
+  @@index([bookingId])
+}
+
+/// Sổ thu của lượt ở (âm = hoàn). method: Tiền mặt | Chuyển khoản | Sàn thu hộ.
+model StayPayment {
+  id     String   @id @default(cuid())
+  stayId String
+  stay   RoomStay @relation(fields: [stayId], references: [id], onDelete: Cascade)
+  at     DateTime @default(now())
+  amount Decimal  @db.Decimal(12, 0)
+  method String
+  kind   String // Cọc | Thu | Hoàn | Sàn ghi nhận thu | Sàn ghi nhận hoàn
+  by     String?
+
+  @@index([stayId])
+  @@index([at])
+}
+
+/// Cấu hình Quản lý phòng của một homestay (JSON — xem normalizeHomeConfig).
+model HomeConfig {
+  serviceId String   @id
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  data      Json     @default("{}")
+  updatedAt DateTime @updatedAt
+}
+
+/// Đóng phòng theo khoảng ngày [fromDate, toDate] (gồm cả 2 đầu). Ghi RoomDayStatus CLOSED note "PMS#c:<id>".
+model HomeClose {
+  id        String   @id @default(cuid())
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  roomIds   String[]
+  fromDate  DateTime @db.Date
+  toDate    DateTime @db.Date
+  reason    String
+  createdBy String?
+  createdAt DateTime @default(now())
+
+  @@index([serviceId])
+}
+
+/// Chi phí vận hành của homestay (điện nước, lương, vật tư, sửa chữa…).
+model HomeExpense {
+  id        String   @id @default(cuid())
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  category  String
+  amount    Decimal  @db.Decimal(12, 0)
+  note      String?
+  by        String?
+  createdAt DateTime @default(now())
+
+  @@index([serviceId, date])
+}
+
+/// Sự cố / sửa chữa của một phòng.
+model RoomServiceLog {
+  id        String   @id @default(cuid())
+  roomId    String
+  room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date
+  what      String
+  cost      Decimal  @default(0) @db.Decimal(12, 0)
+  by        String?
+  createdAt DateTime @default(now())
+
+  @@index([roomId])
+}
+
+// ============================ GỌI MÓN QR TẠI BÀN (nhà hàng) ============================
+
+/// Một LẦN GỌI món của bàn (khách quét QR ở bàn rồi gửi). status: new (đơn mới) → cooking (bếp đang làm) → served (đã lên món)
+/// → paid (đã thu tiền, dọn bàn) | cancel. Hoá đơn của bàn = mọi lần gọi chưa paid / cancel.
+model DineOrder {
+  id        String       @id @default(cuid())
+  venueId   String
+  venue     TicketVenue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  tableId   String?
+  table     TicketTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  tableName String // chụp lại tên bàn (bàn có thể bị xoá sau này)
+  status    String       @default("new")
+  note      String? // ghi chú cho cả bàn
+  source    String       @default("QR") // QR (khách tự gọi) | Quầy (nhân viên nhập hộ)
+  createdAt DateTime     @default(now())
+  cookingAt DateTime?
+  servedAt  DateTime?
+  paidAt    DateTime?
+  payMethod String? // Tiền mặt | Chuyển khoản
+  paidBy    String?
+
+  items DineOrderItem[]
+
+  @@index([venueId, status])
+  @@index([tableId, status])
+  @@index([venueId, paidAt])
+}
+
+/// Dòng món của một lần gọi (chụp lại tên + giá lúc gọi).
+model DineOrderItem {
+  id         String    @id @default(cuid())
+  orderId    String
+  order      DineOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId String?
+  name       String
+  price      Decimal   @db.Decimal(12, 0)
+  qty        Int
+  note       String?
+
+  @@index([orderId])
+  @@index([menuItemId])
+}
+
+/// Yêu cầu từ điện thoại khách: gọi nhân viên (staff) hoặc xin thanh toán (pay + method). doneAt = quán đã xử lý.
+model DineRequest {
+  id        String       @id @default(cuid())
+  venueId   String
+  venue     TicketVenue  @relation(fields: [venueId], references: [id], onDelete: Cascade)
+  tableId   String?
+  table     TicketTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
+  tableName String
+  kind      String // staff | pay
+  method    String? // pay: Tiền mặt | Chuyển khoản
+  createdAt DateTime     @default(now())
+  doneAt    DateTime?
+
+  @@index([venueId, doneAt])
 }

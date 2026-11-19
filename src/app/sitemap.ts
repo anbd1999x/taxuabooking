@@ -10,7 +10,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = SITE.url.replace(/\/$/, "");
 
   // Không đưa trang từng phòng (/phong/<id>) vào sitemap: gần như trùng nhau và đã noindex — dồn lượt thu thập của Google cho trang chính.
-  const [services, articles, places] = await Promise.all([
+  const [services, articles, places, venues] = await Promise.all([
     prisma.service.findMany({
       where: { published: true },
       select: { slug: true, category: true, updatedAt: true },
@@ -23,6 +23,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       where: { published: true, slug: { not: null }, kind: { in: ["RESTAURANT", "CAFE"] } },
       select: { slug: true, kind: true, updatedAt: true },
     }),
+    // Địa điểm bán vé / đặt bàn đang mở bán (/ve/<slug>).
+    prisma.ticketVenue.findMany({ where: { published: true }, select: { slug: true, updatedAt: true } }),
   ]);
 
   const staticRoutes: MetadataRoute.Sitemap = [
@@ -32,9 +34,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/kinh-nghiem`, changeFrequency: "weekly", priority: 0.6 },
     { url: `${base}/huong-dan`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/nha-hang`, changeFrequency: "weekly", priority: 0.6 },
+    ...(venues.length ? [{ url: `${base}/ve`, changeFrequency: "daily" as const, priority: 0.7 }] : []),
+    ...venues.map((v) => ({ url: `${base}/ve/${v.slug}`, lastModified: v.updatedAt, changeFrequency: "daily" as const, priority: 0.6 })),
     { url: `${base}/cafe`, changeFrequency: "weekly", priority: 0.6 },
     { url: `${base}/lien-he`, changeFrequency: "monthly", priority: 0.4 },
     { url: `${base}/gioi-thieu`, changeFrequency: "monthly", priority: 0.4 },
+    { url: `${base}/hop-tac`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/hop-tac/xe-may`, changeFrequency: "monthly", priority: 0.4 },
     { url: `${base}/gop-y`, changeFrequency: "daily", priority: 0.5 },
     { url: `${base}/cam-ket`, changeFrequency: "monthly", priority: 0.5 },

@@ -5,16 +5,19 @@ import { getDemoSession } from "@/lib/fleet-demo";
 import { prisma } from "@/lib/prisma";
 import { parseDateOnly } from "@/lib/dates";
 import { isVideoUrl } from "@/lib/utils";
-import { canManageFleet, fleetCode, loadConfig, loadFleet, lockFleet, pushFleetPayments, rentalVM, saveConfig, syncFleetForBooking, vehicleVM } from "@/lib/fleet";
+import { FLEET_STAFF_AREA, canManageFleet, fleetCode, loadConfig, loadFleet, lockFleet, pushFleetPayments, rentalVM, saveConfig, syncBookingLedger, syncFleetForBooking, vehicleVM } from "@/lib/fleet";
 import { hashPassword } from "@/lib/auth";
 import {
   FLEET_ACC,
   FLEET_DOCS,
   FUEL_LEVELS,
+  KEEP_FEE,
   addDaysKey,
   diffDays,
   feeSum,
+  isPayMethod,
   isVehicleFree,
+  shopHeld,
   normPlate,
   normalizeConfig,
   quoteRental,
@@ -39,7 +42,14 @@ const int = (v: unknown) => {
   const n = parseInt(String(v ?? "").replace(/\D/g, ""), 10);
   return Number.isFinite(n) ? n : 0;
 };
-const r10k = (n: number) => Math.round(n / 10000) * 10000;
+/** Số tiền nhập tay: số nguyên dương ≤ 100 triệu (chuỗi chỉ gồm chữ số hoặc number) — sai dạng ⇒ null. */
+const amountOf = (v: unknown): number | null => {
+  const n = typeof v === "number" ? v : typeof v === "string" && /^\s*\d{1,12}\s*$/.test(v) ? Number(v) : NaN;
+  return Number.isInteger(n) && n > 0 && n <= 100_000_000 ? n : null;
+};
+/** Ô tiền để trống / 0 = "không thu". */
+const blankAmt = (v: unknown) => v == null || v === "" || v === 0 || v === "0";
+const METHOD_ERR = "Chọn hình thức: Tiền mặt hoặc Chuyển khoản.";
 const fuelOk = (f: unknown) => ((FUEL_LEVELS as readonly string[]).includes(String(f)) ? String(f) : "Đầy");
 const dm = (k: string) => `${k.slice(8, 10)}/${k.slice(5, 7)}`;
 const vnd = (n: number) => n.toLocaleString("vi-VN") + "đ";
@@ -86,8 +96,6 @@ export async function POST(request: Request) {
   const ownVehicle = (id: string) => (id ? prisma.fleetVehicle.findFirst({ where: { id, serviceId } }) : null);
   const ownRental = (id: string) =>
     id ? prisma.fleetRental.findFirst({ where: { id, vehicle: { serviceId } }, include: { vehicle: true, payments: true } }) : null;
-  const vehicleRentals = async (vehicleId: string, from: string) =>
-    (await prisma.fleetRental.findMany({ where: { vehicleId, endDate: { gte: parseDateOnly(addDaysKey(from, -60)) } } })).map((r) => rentalVM(r));
 
   try {
     switch (op) {
@@ -136,7 +144,8 @@ export async function POST(request: Request) {
         const v = await ownVehicle(str(body.id, 40));
         if (!v) return bad("Không tìm thấy xe.");
         // Xe đã có lịch sử thuê ⇒ không xoá (xoá sẽ mất sổ thu chi / báo cáo) — chuyển "Ngừng cho thuê".
-        if (await prisma.fleetRental.count({ where: { vehicleId: v.id, OR: [{ state: null }, { state: { notIn: ["cancel", "reject"] } }] } }))
+        // Lượt đã huỷ nhưng có dòng thu chi (cọc mất, tiền sàn thu hộ) cũng chặn: xoá xe sẽ xoá dây chuyền sổ tiền.
+        if (await prisma.fleetRental.count({ where: { vehicleId: v.id, OR: [{ state: null }, { state: { notIn: ["cancel", "reject"] } }, { payments: { some: {} } }] } }))
           return bad('Xe đã có lịch thuê (giữ sổ thu chi, báo cáo) — hãy chuyển "Ngừng cho thuê" thay vì xoá.');
         await prisma.fleetVehicle.delete({ where: { id: v.id } });
         return done("Đã xoá xe");
@@ -173,8 +182,12 @@ export async function POST(request: Request) {
         if (!PHONE_RE.test(phone)) return bad("Số điện thoại chưa đúng (10 số).");
         const ids = Array.isArray(o.picks) ? [...new Set((o.picks as unknown[]).map(String))].slice(0, 20) : [];
         if (!ids.length) return bad("Chưa có xe nào được chọn.");
-        const dep = [0, 0.3, 0.5, 1].includes(Number(o.dep)) ? Number(o.dep) : 0;
-        const st = TIME_RE.test(str(o.st, 5)) ? str(o.st, 5) : "08:00";
+        // Tiền thu ngay khi tạo đơn: người dùng nhập (gợi ý cọc 30%) + chọn Tiền mặt / Chuyển khoản.
+        const depAmt = blankAmt(o.depAmt) ? 0 : amountOf(o.depAmt);
+        if (depAmt == null) return bad("Số tiền cọc phải là số nguyên lớn hơn 0.");
+        if (depAmt && !isPayMethod(o.depMethod)) return bad(METHOD_ERR);
+        const depMethod = String(o.depMethod);
+        const st =TIME_RE.test(str(o.st, 5)) ? str(o.st, 5) : "08:00";
         const et = TIME_RE.test(str(o.et, 5)) ? str(o.et, 5) : "17:00";
         const hourly = !!o.hourly && s === e;
         if (hourly && st >= et) return bad("Giờ trả phải sau giờ nhận.");
@@ -188,11 +201,18 @@ export async function POST(request: Request) {
           if (vs.length !== ids.length) throw new Error("Xe đã chọn không hợp lệ.");
           const rs = (await tx.fleetRental.findMany({ where: { vehicleId: { in: ids }, endDate: { gte: parseDateOnly(addDaysKey(s, -60)) } } })).map((r) => rentalVM(r));
           const out: string[] = [];
-          for (const [i, raw] of vs.entries()) {
+          const lines = vs.map((raw, i) => {
             const v = vehicleVM(raw);
             if (!isVehicleFree(v, s, e, rs, T, undefined, NOW, st, et)) throw new Error(`${v.plate} vừa có đơn khác trùng thời gian — bấm "Tự xếp lại".`);
-            const total = quoteRental(v, s, e, st, et, hourly, P).t + (i === 0 ? far : 0);
-            const paid = dep === 1 ? total : r10k(total * dep);
+            return { v, total: quoteRental(v, s, e, st, et, hourly, P).t + (i === 0 ? far : 0) };
+          });
+          const sumTotal = lines.reduce((a, l) => a + l.total, 0);
+          if (depAmt > sumTotal) throw new Error(`Tiền cọc vượt tổng tiền thuê (${vnd(sumTotal)}).`);
+          // Nhiều xe ⇒ chia số tiền đã thu theo tỉ lệ tiền thuê từng xe (xe cuối nhận phần lẻ).
+          let left = depAmt;
+          for (const [i, { v, total }] of lines.entries()) {
+            const paid = i === lines.length - 1 ? left : Math.min(total, Math.round((depAmt * total) / (sumTotal || 1)));
+            left -= paid;
             const r = await tx.fleetRental.create({
               data: {
                 code: fleetCode(),
@@ -210,7 +230,7 @@ export async function POST(request: Request) {
                 source: src,
                 ctvName: src === "CTV" ? str(o.ctvName, 80) || "CTV" : null,
                 note: str(o.note, 500) || null,
-                ...(paid > 0 ? { payments: { create: { amount: paid, method: "Chuyển khoản", kind: dep === 1 ? "Thu đủ" : "Cọc", by: who } } } : {}),
+                ...(paid > 0 ? { payments: { create: { amount: paid, method: depMethod, kind: paid >= total ? "Thu đủ" : "Cọc", by: who } } } : {}),
               },
             });
             out.push(r.id);
@@ -262,16 +282,21 @@ export async function POST(request: Request) {
         const v = vehicleVM(r.vehicle);
         const stNow = rentalStatus(vm, T, NOW);
         if (op === "webConfirm") {
+          // Chỉ duyệt lượt đang chờ duyệt (giao diện cũ có thể bấm lại trên lượt đã huỷ / từ chối).
+          if (vm.cancelled) return bad("Đơn đã huỷ / từ chối, không xác nhận được.");
+          if (!r.webPending) return bad("Đơn này đã được xác nhận trước đó.");
           await prisma.fleetRental.update({ where: { id: r.id }, data: { webPending: false } });
-          // Đơn web: mọi xe của đơn đã được nhà xe duyệt ⇒ báo cho sàn (cờ "đã giữ chỗ" + nhật ký đơn).
+          // Đơn web: ĐỦ số xe của đơn và mọi xe đã được nhà xe duyệt ⇒ báo cho sàn (cờ "đã giữ chỗ" + nhật ký đơn).
           if (r.bookingId) {
             const sib = await prisma.fleetRental.findMany({ where: { bookingId: r.bookingId, OR: [{ state: null }, { state: { notIn: ["cancel", "reject"] } }] }, include: { vehicle: { select: { plate: true } } } });
-            if (sib.every((x) => !x.webPending)) {
+            const bk = await prisma.bookingRequest.findUnique({ where: { id: r.bookingId }, select: { category: true, quantity: true, bikeCount: true } });
+            const need = bk ? (bk.category === "COMBO" ? bk.bikeCount ?? 0 : Math.max(1, bk.quantity)) : 0;
+            if (sib.length >= need && sib.every((x) => !x.webPending)) {
               await prisma.$transaction([
                 prisma.bookingRequest.update({ where: { id: r.bookingId }, data: { heldRoom: true } }),
                 prisma.bookingLog.create({ data: { bookingId: r.bookingId, kind: "SUPPLIER", title: "Nhà xe xác nhận có xe", body: "Đã giữ xe: " + sib.map((x) => x.vehicle.plate).join(", "), by: who } }),
               ]);
-            }
+            } else if (sib.length < need) return done(`Đã xác nhận ${vm.code} · đơn cần ${need} xe, mới xếp ${sib.length} — xếp thêm xe để báo sàn đã giữ đủ`);
           }
           return done(`Đã xác nhận ${vm.code} · nhắn Zalo khách để cọc`);
         }
@@ -281,15 +306,57 @@ export async function POST(request: Request) {
           if (vm.cancelled) return bad("Đơn đã huỷ trước đó.");
           // Lượt thuê sinh từ đơn web: chủ xe huỷ/từ chối ⇒ "reject" (không tự xếp lại) + báo sàn qua nhật ký đơn.
           const fromWeb = !!r.bookingId;
-          await prisma.fleetRental.update({ where: { id: r.id }, data: { state: fromWeb ? "reject" : "cancel", webPending: false } });
-          if (r.bookingId) {
-            const reason = str(body.reason, 200);
-            await prisma.$transaction([
-              prisma.bookingRequest.update({ where: { id: r.bookingId }, data: { heldRoom: false } }),
-              prisma.bookingLog.create({ data: { bookingId: r.bookingId, kind: "SUPPLIER", title: op === "webReject" ? "Nhà xe từ chối đơn (không có xe)" : "Nhà xe huỷ xe đã xếp", body: `Xe ${v.plate} · ${vm.code}${reason ? " · " + reason : ""}`, by: who } }),
-            ]);
-          }
-          return done(op === "webReject" ? `Đã từ chối ${vm.code} · đã báo sàn để xử lý với khách` : `Đã huỷ ${vm.code}, xe trống lại`);
+          // Tiền nhà xe đang giữ của khách ⇒ bắt buộc chọn: "refund" (hoàn, ghi dòng âm) | "keep" (giữ cọc = doanh thu).
+          const choice = body.money === "refund" ? "refund" : body.money === "keep" ? "keep" : null;
+          const res = await prisma.$transaction(async (tx) => {
+            await lockFleet(tx, serviceId);
+            // Đơn web: khớp khoản sàn đã thu vào sổ trước khi tính tiền nhà xe đang giữ.
+            if (r.bookingId) await syncBookingLedger(tx, r.bookingId);
+            const cur = await tx.fleetRental.findUniqueOrThrow({ where: { id: r.id }, include: { payments: true } });
+            const cvm = rentalVM(cur);
+            if (cvm.ret) throw new Error("Đơn đã trả xe, không huỷ được.");
+            if (cvm.hand) throw new Error("Xe đã giao cho khách — hãy “Nhận xe & quyết toán” để kết thúc đơn, không huỷ được.");
+            if (cvm.cancelled) throw new Error("Đơn đã huỷ trước đó.");
+            const sibs = r.bookingId ? (await tx.fleetRental.findMany({ where: { bookingId: r.bookingId }, include: { payments: true } })).map((x) => rentalVM(x)) : [cvm];
+            // Không gồm tiền "Sàn thu hộ" — tiền đó nằm ở sàn, sàn tự xử lý với khách.
+            const held = shopHeld(cvm, sibs);
+            let refund = 0, method = "";
+            if (held > 0) {
+              if (!choice) throw new Error(`Đơn đang giữ ${vnd(held)} của khách — chọn “Hoàn cọc” hoặc “Giữ cọc”.`);
+              if (choice === "refund") {
+                const a = blankAmt(body.refundAmt) ? held : amountOf(body.refundAmt);
+                if (a == null) throw new Error("Số tiền hoàn phải là số nguyên lớn hơn 0.");
+                if (a > held) throw new Error(`Chỉ hoàn được tối đa ${vnd(held)} (tiền nhà xe đã thu${r.bookingId ? ", không gồm tiền sàn thu hộ" : ""}).`);
+                if (!isPayMethod(body.method)) throw new Error(METHOD_ERR);
+                refund = a;
+                method = String(body.method);
+              }
+            }
+            // Phần không hoàn ⇒ nhà xe giữ lại (doanh thu của lượt đã huỷ, ghi thành phí "Giữ cọc khi huỷ").
+            const kept = held - refund;
+            const noteAdd = [refund ? `Hoàn cọc khi huỷ: ${vnd(refund)} (${method})` : "", kept ? `${KEEP_FEE}: ${vnd(kept)}` : ""].filter(Boolean).join(" · ");
+            await tx.fleetRental.update({
+              where: { id: r.id },
+              data: {
+                state: fromWeb ? "reject" : "cancel",
+                webPending: false,
+                ...(kept ? { fees: [...cvm.fees, { k: KEEP_FEE, amt: kept }] } : {}),
+                ...(noteAdd ? { note: [cur.note, noteAdd].filter(Boolean).join("\n").slice(0, 1000) } : {}),
+                ...(refund ? { deposit: { decrement: refund }, payments: { create: { amount: -refund, method, kind: "Hoàn cọc khi huỷ", by: who } } } : {}),
+              },
+            });
+            if (r.bookingId) {
+              const reason = str(body.reason, 200);
+              await tx.bookingRequest.update({ where: { id: r.bookingId }, data: { heldRoom: false } });
+              await tx.bookingLog.create({ data: { bookingId: r.bookingId, kind: "SUPPLIER", title: op === "webReject" ? "Nhà xe từ chối đơn (không có xe)" : "Nhà xe huỷ xe đã xếp", body: `Xe ${v.plate} · ${vm.code}${reason ? " · " + reason : ""}${noteAdd ? " · " + noteAdd : ""}`, by: who } });
+              // Hoàn ⇒ "đã thu" của đơn giảm theo sổ xe; giữ ⇒ tiền vẫn tính là đã thu (ghi nhật ký cho sàn).
+              if (refund || kept) await pushFleetPayments(tx, r.bookingId, who, { title: refund ? `Nhà xe hoàn cọc ${vnd(refund)} khi huỷ xe ${v.plate}` : `Nhà xe giữ cọc ${vnd(kept)} khi huỷ xe ${v.plate}`, body: noteAdd });
+            }
+            return { refund, kept };
+          });
+          const moneyMsg = res.refund ? ` · đã hoàn ${vnd(res.refund)}` : "";
+          const keptMsg = res.kept ? ` · giữ cọc ${vnd(res.kept)}` : "";
+          return done(op === "webReject" ? `Đã từ chối ${vm.code}${moneyMsg}${keptMsg} · đã báo sàn để xử lý với khách` : `Đã huỷ ${vm.code}${moneyMsg}${keptMsg}, xe trống lại`);
         }
         if (op === "changeVehicle") {
           if (vm.hand) return bad("Xe đã giao, không đổi được.");
@@ -307,11 +374,23 @@ export async function POST(request: Request) {
         if (op === "deposit") {
           if (stNow === "cancel" || stNow === "done") return bad("Đơn đã kết thúc, không ghi cọc được.");
           if (stNow === "web") return bad("Hãy xác nhận đơn web trước khi ghi cọc.");
-          if (vm.deposit >= vm.total) return bad("Đơn đã thu đủ tiền thuê.");
-          const amt = Math.min(r10k(vm.total * 0.3) || vm.total, vm.total - vm.deposit);
-          await prisma.$transaction(async (tx) => {
-            await tx.fleetRental.update({ where: { id: r.id }, data: { deposit: vm.deposit + amt, payments: { create: { amount: amt, method: "Chuyển khoản", kind: "Cọc", by: who } } } });
-            if (r.bookingId) await pushFleetPayments(tx, r.bookingId, who, { title: `Nhà xe ghi nhận cọc ${vnd(amt)}`, body: `Xe ${v.plate} · Chuyển khoản` });
+          const want = amountOf(body.amt);
+          if (want == null) return bad("Nhập số tiền cọc (số nguyên lớn hơn 0).");
+          if (!isPayMethod(body.method)) return bad(METHOD_ERR);
+          const method = String(body.method);
+          // Trong transaction: khớp khoản sàn đã thu trước, rồi đọc lại số đã thu MỚI NHẤT (bấm đúp / 2 máy cùng ghi
+          // trước đây đều đọc số cũ ⇒ ghi 2 lần cọc, số "đã thu" của lượt bị đè).
+          const amt = await prisma.$transaction(async (tx) => {
+            await lockFleet(tx, serviceId);
+            if (r.bookingId) await syncBookingLedger(tx, r.bookingId);
+            const cur = await tx.fleetRental.findUniqueOrThrow({ where: { id: r.id }, select: { deposit: true, total: true } });
+            const paid = Number(cur.deposit), total = Number(cur.total);
+            if (paid >= total) throw new Error("Đơn đã thu đủ tiền thuê.");
+            if (want > total - paid) throw new Error(`Số tiền vượt số còn phải thu (${vnd(total - paid)}).`);
+            const amt = want;
+            await tx.fleetRental.update({ where: { id: r.id }, data: { deposit: { increment: amt }, payments: { create: { amount: amt, method, kind: paid + amt >= total ? "Thu đủ" : "Cọc", by: who } } } });
+            if (r.bookingId) await pushFleetPayments(tx, r.bookingId, who, { title: `Nhà xe ghi nhận cọc ${vnd(amt)}`, body: `Xe ${v.plate} · ${method}` });
+            return amt;
           });
           return done(`Đã ghi nhận cọc ${vnd(amt)}`);
         }
@@ -325,8 +404,13 @@ export async function POST(request: Request) {
           // (khách trước chưa trả xe, hoặc còn đơn khác chen giữa ⇒ chặn, tránh giao trùng một xe).
           const early = vm.s > T || (vm.s === T && vm.st > NOW);
           const hs = early ? T : vm.s, hst = early ? NOW : vm.st;
-          const clash = (await vehicleRentals(v.id, hs)).find((x) => x.id !== r.id && !isVehicleFree(v, hs, vm.e, [x], T, r.id, NOW, hst, vm.et));
-          if (clash) return bad(clash.hand && !clash.ret ? `${v.plate} chưa được trả (đơn ${clash.code} · ${clash.name}) — nhận lại xe trước, hoặc đổi xe khác cho đơn này.` : `${v.plate} đang có đơn ${clash.code} (${clash.name}, ${dm(clash.s)} ${clash.st} → ${dm(clash.e)} ${clash.et}) trùng thời gian — đổi xe khác cho đơn này.`);
+          const findClash = async (db: Prisma.TransactionClient | typeof prisma) =>
+            (await db.fleetRental.findMany({ where: { vehicleId: v.id, endDate: { gte: parseDateOnly(addDaysKey(hs, -60)) } } }))
+              .map((x) => rentalVM(x))
+              .find((x) => x.id !== r.id && !isVehicleFree(v, hs, vm.e, [x], T, r.id, NOW, hst, vm.et));
+          const clashMsg = (clash: ReturnType<typeof rentalVM>) => (clash.hand && !clash.ret ? `${v.plate} chưa được trả (đơn ${clash.code} · ${clash.name}) — nhận lại xe trước, hoặc đổi xe khác cho đơn này.` : `${v.plate} đang có đơn ${clash.code} (${clash.name}, ${dm(clash.s)} ${clash.st} → ${dm(clash.e)} ${clash.et}) trùng thời gian — đổi xe khác cho đơn này.`);
+          const clash = await findClash(prisma);
+          if (clash) return bad(clashMsg(clash));
           const h = (body.hand ?? {}) as Record<string, unknown>;
           const odo = int(h.odo) || v.odo;
           const hand = {
@@ -341,10 +425,18 @@ export async function POST(request: Request) {
             at: `${T} ${NOW}`,
             by: who,
           };
-          await prisma.$transaction([
-            prisma.fleetRental.update({ where: { id: r.id }, data: { hand, ...(early ? { startDate: parseDateOnly(T), startTime: NOW } : {}) } }),
-            prisma.fleetVehicle.update({ where: { id: v.id }, data: { odo: Math.max(v.odo, odo) } }),
-          ]);
+          // Kiểm lại trong khoá đội xe (tránh đơn khác vừa được xếp vào xe này, hoặc bấm giao 2 lần).
+          await prisma.$transaction(async (tx) => {
+            await lockFleet(tx, serviceId);
+            const again = await tx.fleetRental.findUniqueOrThrow({ where: { id: r.id }, select: { hand: true, state: true, vehicleId: true } });
+            if (again.hand != null) throw new Error("Xe đã được giao.");
+            if (again.state === "cancel" || again.state === "reject") throw new Error("Đơn đã huỷ, không giao xe được.");
+            if (again.vehicleId !== v.id) throw new Error("Đơn vừa được đổi xe — tải lại trang.");
+            const c2 = await findClash(tx);
+            if (c2) throw new Error(clashMsg(c2));
+            await tx.fleetRental.update({ where: { id: r.id }, data: { hand, ...(early ? { startDate: parseDateOnly(T), startTime: NOW } : {}) } });
+            await tx.fleetVehicle.update({ where: { id: v.id }, data: { odo: Math.max(v.odo, odo) } });
+          });
           return done(`Đã giao ${v.plate} cho ${vm.name}`);
         }
         if (op === "return") {
@@ -361,17 +453,25 @@ export async function POST(request: Request) {
           };
           const newFees = returnFees(vm, v, rf, P, T, NOW);
           const allFees = [...vm.fees, ...newFees];
-          const finalDue = vm.total + feeSum({ fees: allFees }) - vm.deposit;
-          const method = str(f.method, 20) === "Chuyển khoản" ? "Chuyển khoản" : "Tiền mặt";
-          await prisma.$transaction(async (tx) => {
+          // Số tiền quyết toán do hệ thống tính (tiền thuê + phát sinh − đã thu); người dùng chọn thu / hoàn bằng gì.
+          const method = isPayMethod(f.method) ? String(f.method) : null;
+          const finalDue = await prisma.$transaction(async (tx) => {
+            await lockFleet(tx, serviceId);
+            // Đơn web: đưa khoản sàn đã thu vào sổ TRƯỚC khi tính tiền thu khi trả (không đòi khách lần hai).
+            if (r.bookingId) await syncBookingLedger(tx, r.bookingId);
+            const cur = await tx.fleetRental.findUniqueOrThrow({ where: { id: r.id }, select: { ret: true, deposit: true, total: true } });
+            if (cur.ret != null) throw new Error("Xe đã được nhận lại."); // bấm đúp / 2 máy cùng quyết toán
+            const due = Number(cur.total) + feeSum({ fees: allFees });
+            const finalDue = due - Number(cur.deposit);
+            if (finalDue && !method) throw new Error(METHOD_ERR);
             await tx.fleetRental.update({
               where: { id: r.id },
               data: {
                 ret: { odo, fuel: rf.fuel, at: `${T} ${NOW}`, by: who },
                 fees: allFees,
-                deposit: vm.total + feeSum({ fees: allFees }),
+                deposit: due,
                 ...(vm.e > T || (vm.e === T && vm.et > NOW) ? { endDate: parseDateOnly(T), endTime: NOW } : {}),
-                ...(finalDue ? { payments: { create: { amount: finalDue, method, kind: finalDue > 0 ? "Thu khi trả" : "Hoàn cọc", by: who } } } : {}),
+                ...(finalDue && method ? { payments: { create: { amount: finalDue, method, kind: finalDue > 0 ? "Thu khi trả" : "Hoàn cọc", by: who } } } : {}),
               },
             });
             await tx.fleetVehicle.update({ where: { id: v.id }, data: { odo: Math.max(v.odo, odo) } });
@@ -382,29 +482,64 @@ export async function POST(request: Request) {
                 body: newFees.length ? "Phát sinh: " + newFees.map((x) => `${x.k} ${vnd(x.amt)}`).join(", ") : undefined,
               }, newFees, v.plate);
             }
+            return finalDue;
           });
           const docBack = vm.hand.doc && vm.hand.doc !== "Không giữ" ? ` · Nhớ trả lại ${vm.hand.doc.replace(/^(B|C(?=ọc))/, (c) => c.toLowerCase())} cho khách` : "";
           return done((finalDue >= 0 ? "Đã thu " : "Đã hoàn ") + vnd(Math.abs(finalDue)) + docBack);
         }
         if (op === "extend") {
           if (vm.ret || vm.cancelled) return bad("Đơn đã kết thúc.");
-          const nx = addDaysKey(vm.e, 1);
-          // Gia hạn 24 giờ: xe phải rảnh từ giờ trả cũ tới cùng giờ ngày hôm sau.
-          if (!isVehicleFree({ ...v, mode: "ready" }, vm.e, nx, await vehicleRentals(v.id, vm.e), T, r.id, NOW, vm.et, vm.et)) return bad(`Ngày ${dm(nx)} xe đã có đơn khác.`);
-          await prisma.fleetRental.update({ where: { id: r.id }, data: { endDate: parseDateOnly(nx), total: vm.total + v.price } });
-          return done(`Đã gia hạn tới ${dm(nx)}`);
+          // Thu luôn tiền gia hạn (tuỳ chọn): số tiền người dùng nhập + Tiền mặt / Chuyển khoản; để trống = chưa thu.
+          const payAmt = blankAmt(body.payAmt) ? 0 : amountOf(body.payAmt);
+          if (payAmt == null) return bad("Số tiền thu phải là số nguyên lớn hơn 0.");
+          if (payAmt && !isPayMethod(body.method)) return bad(METHOD_ERR);
+          const payMethod = String(body.method);
+          // Gia hạn 24 giờ: xe phải rảnh từ giờ trả cũ tới cùng giờ ngày hôm sau. Kiểm + ghi trong khoá đội xe
+          // (trước đây không khoá ⇒ có thể chen với một đơn vừa xếp vào đúng ngày đó).
+          const nx = await prisma.$transaction(async (tx) => {
+            await lockFleet(tx, serviceId);
+            if (r.bookingId) await syncBookingLedger(tx, r.bookingId);
+            const cur = rentalVM(await tx.fleetRental.findUniqueOrThrow({ where: { id: r.id } }));
+            if (cur.ret || cur.cancelled) throw new Error("Đơn đã kết thúc.");
+            const nx = addDaysKey(cur.e, 1);
+            const rs = (await tx.fleetRental.findMany({ where: { vehicleId: v.id, endDate: { gte: parseDateOnly(addDaysKey(cur.e, -60)) } } })).map((x) => rentalVM(x));
+            if (!isVehicleFree({ ...v, mode: "ready" }, cur.e, nx, rs, T, r.id, NOW, cur.et, cur.et)) throw new Error(`Ngày ${dm(nx)} xe đã có đơn khác.`);
+            const newTotal = cur.total + v.price;
+            if (payAmt > newTotal + feeSum(cur) - cur.deposit) throw new Error(`Số tiền thu vượt số còn phải thu (${vnd(Math.max(0, newTotal + feeSum(cur) - cur.deposit))}).`);
+            await tx.fleetRental.update({
+              where: { id: r.id },
+              data: {
+                endDate: parseDateOnly(nx),
+                total: newTotal,
+                ...(payAmt ? { deposit: { increment: payAmt }, payments: { create: { amount: payAmt, method: payMethod, kind: "Thu gia hạn", by: who } } } : {}),
+              },
+            });
+            // Đơn web: tiền gia hạn ⇒ phụ thu của đơn (giá đơn tăng theo) — nếu không, đơn ở sàn báo "đã thu" vượt giá.
+            if (r.bookingId) await pushFleetPayments(tx, r.bookingId, who, { title: `Nhà xe gia hạn xe ${v.plate} tới ${dm(nx)}`, body: `Cộng ${vnd(v.price)} vào giá đơn${payAmt ? ` · đã thu ${vnd(payAmt)} (${payMethod})` : ""}` }, [{ k: `Gia hạn tới ${dm(nx)}`, amt: v.price }], v.plate);
+            return nx;
+          });
+          return done(`Đã gia hạn tới ${dm(nx)}${payAmt ? ` · thu ${vnd(payAmt)}` : ""}`);
         }
         // addPay
-        const a = int(body.amt);
-        if (!a) return bad("Nhập số tiền.");
+        const a = amountOf(body.amt);
+        if (a == null) return bad("Nhập số tiền (số nguyên lớn hơn 0, tối đa 100 triệu).");
+        if (!isPayMethod(body.method)) return bad(METHOD_ERR);
         const refund = body.kind === "Hoàn cọc";
-        if (refund && a > vm.deposit) return bad(`Chỉ hoàn được tối đa ${vnd(Math.max(0, vm.deposit))} (số đã thu của đơn).`);
         const amt = refund ? -a : a;
-        const method = body.method === "Chuyển khoản" ? "Chuyển khoản" : "Tiền mặt";
+        const method = String(body.method);
         await prisma.$transaction(async (tx) => {
+          await lockFleet(tx, serviceId);
+          if (r.bookingId) await syncBookingLedger(tx, r.bookingId);
+          if (refund) {
+            // Hoàn tối đa số NHÀ XE đã thu và còn giữ (không gồm tiền sàn thu hộ, phần đã giữ cọc khi huỷ).
+            const cur = rentalVM(await tx.fleetRental.findUniqueOrThrow({ where: { id: r.id }, include: { payments: true } }));
+            const sibs = r.bookingId ? (await tx.fleetRental.findMany({ where: { bookingId: r.bookingId }, include: { payments: true } })).map((x) => rentalVM(x)) : [cur];
+            const max = shopHeld(cur, sibs);
+            if (a > max) throw new Error(`Chỉ hoàn được tối đa ${vnd(max)} (số nhà xe đã thu của đơn${r.bookingId ? ", không gồm tiền sàn thu hộ" : ""}).`);
+          }
           await tx.fleetRental.update({
             where: { id: r.id },
-            data: { deposit: vm.deposit + amt, payments: { create: { amount: amt, method, kind: refund ? "Hoàn cọc" : "Thu thêm", by: who } } },
+            data: { deposit: { increment: amt }, payments: { create: { amount: amt, method, kind: refund ? "Hoàn cọc" : "Thu thêm", by: who } } },
           });
           if (r.bookingId) await pushFleetPayments(tx, r.bookingId, who, { title: `Nhà xe ghi ${refund ? "hoàn" : "thu"} ${vnd(a)}`, body: `Xe ${v.plate} · ${method}` });
         });
@@ -493,10 +628,11 @@ export async function POST(request: Request) {
           if (phone && !PHONE_RE.test(phone)) return bad("Số điện thoại chưa đúng (10 số).");
           if (password.length < 6) return bad("Mật khẩu tối thiểu 6 ký tự.");
           if (await prisma.adminUser.findUnique({ where: { username } })) return bad("Tên đăng nhập đã có người dùng.");
-          await prisma.adminUser.create({ data: { username, name, phone: phone || null, role: "STAFF", providerId: svc.ownerId, passwordHash: await hashPassword(password) } });
+          await prisma.adminUser.create({ data: { username, name, phone: phone || null, role: "STAFF", staffArea: "xe", providerId: svc.ownerId, passwordHash: await hashPassword(password) } });
           return done(`Đã tạo tài khoản ${username} — gửi tên đăng nhập + mật khẩu cho nhân viên`);
         }
-        const u = await prisma.adminUser.findFirst({ where: { id: str(body.id, 40), role: "STAFF", providerId: svc.ownerId } });
+        // Chỉ nhân viên đội xe — lễ tân homestay (staffArea "phong") quản lý ở trang Quản lý phòng.
+        const u = await prisma.adminUser.findFirst({ where: { id: str(body.id, 40), role: "STAFF", providerId: svc.ownerId, ...FLEET_STAFF_AREA } });
         if (!u) return bad("Không tìm thấy nhân viên.");
         if (op === "staffToggle") {
           await prisma.adminUser.update({ where: { id: u.id }, data: { active: !u.active } });

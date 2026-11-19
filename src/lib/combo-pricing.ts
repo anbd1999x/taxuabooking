@@ -245,8 +245,20 @@ export function cabinBerthLines(c: CabinBerths, busTotal: number | null | undefi
 
 /* ===================== Báo giá combo — MỘT NGUỒN cho server lẫn client ===================== */
 
-/** Giảm giá cố định cho mỗi khách CÓ VÉ XE trong combo. */
+/**
+ * Giảm giá combo MẶC ĐỊNH cho mỗi khách có vé xe — chỉ dùng khi admin chưa cấu hình.
+ * Số thật do admin nhập ở /admin/popup (SiteSetting `comboDiscount`), server đọc qua `getComboDiscount()`
+ * (combo.ts) rồi truyền xuống client (ComboSearchResult.comboDiscount).
+ */
 export const COMBO_DISCOUNT = 25000;
+/** Khoá SiteSetting giữ mức giảm combo / khách. */
+export const COMBO_DISCOUNT_KEY = "comboDiscount";
+/** Giá trị SiteSetting → số tiền giảm / khách (trống/lỗi ⇒ mặc định; 0 = tắt giảm combo). */
+export function parseComboDiscount(raw: string | null | undefined): number {
+  if (raw == null || raw.trim() === "") return COMBO_DISCOUNT;
+  const n = Number(raw.replace(/[^\d]/g, ""));
+  return Number.isFinite(n) && n >= 0 ? Math.round(n) : COMBO_DISCOUNT;
+}
 
 export interface ComboQuoteRoom {
   /** Tiền 1 phòng cả kỳ (giường cộng đồng: tiền 1 NGƯỜI cả kỳ). */
@@ -293,7 +305,7 @@ export interface ComboQuote {
  *   `extraFeeStay` (phụ thu CHUNG của homestay × số đêm) mỗi người.
  * - Giường cộng đồng (giá theo NGƯỜI): xếp khách vào giường rẻ trước; không ở ghép, không giảm combo.
  * - Vé: nằm ghép = fare/người, nằm riêng = 2 × fare/người.
- * - Giảm combo 25k × min(khách tính phí, số người có vé); bỏ khi có giường cộng đồng / phòng tick "không giảm".
+ * - Giảm combo `discountPerGuest` × min(khách tính phí, số người có vé); bỏ khi có giường cộng đồng / phòng tick "không giảm".
  */
 export function comboQuote(input: {
   rooms: ComboQuoteRoom[];
@@ -304,6 +316,8 @@ export function comboQuote(input: {
   fare: number;
   shared: number;
   solo: number;
+  /** Mức giảm combo / khách (cấu hình ở /admin/popup). Thiếu ⇒ mặc định COMBO_DISCOUNT. */
+  discountPerGuest?: number;
 }): ComboQuote {
   const { rooms } = input;
   const people = Math.max(0, Math.floor(input.people) || 0);
@@ -343,7 +357,8 @@ export function comboQuote(input: {
   const busAmount = cabinSeatTotal(input.fare, shared, solo);
   const noDiscount = communal || rooms.some((r) => r.noComboDiscount);
   const discountPeople = rooms.length > 0 ? Math.min(people, seatCount) : 0;
-  const discount = noDiscount ? 0 : COMBO_DISCOUNT * discountPeople;
+  const perGuest = Math.max(0, input.discountPerGuest ?? COMBO_DISCOUNT);
+  const discount = noDiscount ? 0 : perGuest * discountPeople;
   return {
     error, communal, capacityStd, capacityMax, extraGuests, extraCost, roomCost, roomCostOld,
     seatCount, busAmount, noDiscount, discountPeople, discount,

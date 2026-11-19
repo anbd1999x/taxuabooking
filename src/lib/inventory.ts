@@ -135,7 +135,8 @@ async function describeRoomConflicts(
       roomId: { in: rooms.map((r) => r.id) },
       date: { in: nights },
       status: { not: "AVAILABLE" },
-      NOT: { bookingId: ownBookingId },
+      // NOT {bookingId} sinh SQL loại luôn ô bookingId NULL (khoá tay / sheet / lượt ở) ⇒ phải tách OR.
+      OR: [{ bookingId: null }, { bookingId: { not: ownBookingId } }],
     },
     orderBy: [{ roomId: "asc" }, { date: "asc" }],
   });
@@ -202,11 +203,29 @@ export async function assignRoomsForBooking(
     ? await tx.room.findMany({ where: { id: { in: pinnedIds } } })
     : await tx.room.findMany({ where: { roomTypeId }, orderBy: { sortOrder: "asc" } });
   const need = pinnedIds ? pinnedIds.length : booking.quantity;
+  // Khoá cùng khoá `home:<serviceId>` của Quản lý phòng (stay.ts → lockHome) để sàn chốt đơn
+  // không chen đúng lúc chủ tạo lượt ở (cả hai cùng thấy trống rồi ghi đè ô của nhau).
+  // Sắp xếp theo id để nhiều homestay luôn khoá cùng thứ tự, tránh deadlock.
+  const homeIds = (
+    await tx.roomType.findMany({
+      where: { id: { in: [...new Set(rooms.map((r) => r.roomTypeId))] } },
+      select: { serviceId: true },
+    })
+  ).map((t) => t.serviceId);
+  for (const sid of [...new Set(homeIds)].sort()) {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${"home:" + sid}))::text AS ok`;
+  }
   const assigned: string[] = [];
   for (const room of rooms) {
     if (assigned.length >= need) break;
+    // Ô do CHÍNH đơn này giữ sẵn (chủ nhà đã "xác nhận còn phòng" ở Quản lý phòng trước khi sàn chốt) không tính là trùng.
     const conflict = await tx.roomDayStatus.count({
-      where: { roomId: room.id, date: { in: nights }, status: { not: "AVAILABLE" } },
+      where: {
+        roomId: room.id,
+        date: { in: nights },
+        status: { not: "AVAILABLE" },
+        OR: [{ bookingId: null }, { bookingId: { not: booking.id } }],
+      },
     });
     if (conflict === 0) assigned.push(room.id);
   }
@@ -232,7 +251,8 @@ export async function assignRoomsForBooking(
       await tx.roomDayStatus.upsert({
         where: { roomId_date: { roomId, date } },
         create: { roomId, date, status: "BOOKED", bookingId: booking.id },
-        update: { status: "BOOKED", bookingId: booking.id },
+        // Ghi đè (force) ô của Quản lý phòng / sheet ⇒ ô thuộc hẳn về đơn: bỏ stayId + note, để huỷ lượt ở / mở lại phòng không xoá mất đêm của đơn.
+        update: { status: "BOOKED", bookingId: booking.id, stayId: null, note: null },
       });
     }
   }

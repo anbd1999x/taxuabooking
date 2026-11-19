@@ -9,8 +9,6 @@ export const ARTICLE_REDIRECTS: Record<string, string> = {
   "ca-phe-san-may-ta-xua": "/kinh-nghiem/quan-ca-phe-san-may-ta-xua-theo-khu",
   "gia-ve-xe-cabin-ha-noi-ta-xua": "/kinh-nghiem/dat-xe-di-ta-xua",
   "duong-di-ta-xua-tu-ha-noi": "/kinh-nghiem/ta-xua-o-dau-cach-ha-noi-bao-nhieu-km",
-  "lich-trinh-ta-xua-2-ngay-1-dem": "/lich-trinh",
-  "lich-trinh-ta-xua-3-ngay-2-dem": "/lich-trinh",
   "ta-xua-cuoi-tuan-dan-van-phong": "/kinh-nghiem/48-gio-o-ta-xua-nhat-ky",
   "ta-xua-co-gi-choi": "/kinh-nghiem/ban-do-du-lich-ta-xua-diem-check-in",
   "san-may-ta-xua-thang-12-tet": "/kinh-nghiem/ta-xua-mua-dong-lanh-mac-gi",

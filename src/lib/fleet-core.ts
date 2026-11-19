@@ -363,6 +363,33 @@ export function returnFees(
 
 export const feeSum = (r: Pick<FleetRentalVM, "fees">) => r.fees.reduce((a, f) => a + f.amt, 0);
 
+/** Hình thức nhà xe tự thu / hoàn tiền (sổ thu chi tách theo đúng 2 nhãn này). */
+export const PAY_METHODS = ["Tiền mặt", "Chuyển khoản"] as const;
+export type PayMethod = (typeof PAY_METHODS)[number];
+export const isPayMethod = (m: unknown): m is PayMethod => (PAY_METHODS as readonly string[]).includes(String(m));
+/** Nhãn phí ghi vào `fees` của lượt ĐÃ HUỶ khi nhà xe giữ lại tiền cọc (doanh thu, không hoàn khách). */
+export const KEEP_FEE = "Giữ cọc khi huỷ";
+/** Số tiền nhà xe đã giữ lại khi huỷ lượt thuê. */
+export const keptOf = (r: Pick<FleetRentalVM, "fees">) => r.fees.filter((f) => f.k.startsWith(KEEP_FEE)).reduce((a, f) => a + f.amt, 0);
+/** Gợi ý cọc 30% (làm tròn 10.000đ), không vượt số còn phải thu. */
+export const suggestDeposit = (total: number, paid = 0) => Math.max(0, Math.min(Math.round((total * 0.3) / 10000) * 10000 || total, total - paid));
+
+/**
+ * Tiền NHÀ XE đang giữ của khách trên một lượt thuê (hoàn được): số đã thu trừ phần đã giữ cọc.
+ * Lượt của đơn web: không tính tiền "Sàn thu hộ" (tiền đó nằm ở sàn, sàn tự hoàn) — chỉ phần nhà xe tự thu
+ * (Tiền mặt / Chuyển khoản, cộng dồn trên mọi lượt của cùng đơn vì tiền có thể đã chuyển nội bộ giữa các lượt).
+ */
+export function shopHeld(
+  r: Pick<FleetRentalVM, "bookingId" | "deposit" | "fees">,
+  all: Pick<FleetRentalVM, "bookingId" | "fees" | "pays">[],
+): number {
+  const own = r.deposit - keptOf(r);
+  if (!r.bookingId) return Math.max(0, own);
+  const sib = all.filter((x) => x.bookingId === r.bookingId);
+  const shop = sib.reduce((a, x) => a + x.pays.filter((p) => isPayMethod(p.method)).reduce((c, p) => c + p.amt, 0) - keptOf(x), 0);
+  return Math.max(0, Math.min(own, shop));
+}
+
 /** Biển số chuẩn hoá: viết hoa, bỏ khoảng trắng thừa. */
 export function normPlate(p: string): string {
   return p.trim().toUpperCase().replace(/\s+/g, "");

@@ -7,6 +7,7 @@ import { TrustPopup } from "@/components/TrustPopup";
 import { CommitmentEnabledProvider } from "@/components/trust/CommitmentLink";
 import { BackgroundMusic } from "@/components/BackgroundMusic";
 import { getSettings } from "@/lib/queries";
+import { prisma } from "@/lib/prisma";
 import { getCustomer } from "@/lib/customer";
 import { parseTrustPopup, TRUST_POPUP_KEY, visiblePeople } from "@/lib/trust-popup";
 import { SiteContactProvider } from "@/components/SiteContact";
@@ -31,7 +32,12 @@ export default async function SiteLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [settings, customer] = await Promise.all([getSettings(), getCustomer()]);
+  const [settings, customer, hasTickets] = await Promise.all([
+    getSettings(),
+    getCustomer(),
+    // Mục "Vé & đặt bàn" trên menu chỉ hiện khi có địa điểm ĐANG MỞ BÁN (dữ liệu demo / mẫu chưa mở bán thì không lộ ra ngoài).
+    prisma.ticketVenue.count({ where: { published: true } }).then((n) => n > 0, () => false),
+  ]);
   const trustConfig = parseTrustPopup(settings[TRUST_POPUP_KEY]);
   const trustPopup = { ...trustConfig, people: visiblePeople(trustConfig) }; // người bị ẩn không hiện ở popup
 
@@ -41,7 +47,7 @@ export default async function SiteLayout({
       <VisitTracker />
       <TrustPopup config={trustPopup} />
       <SearchLoadingOverlay />
-      <Header customerName={customer?.name ?? null} showCommitment={trustPopup.showLinks} />
+      <Header customerName={customer?.name ?? null} showCommitment={trustPopup.showLinks} showTickets={hasTickets} />
       <main className="flex-1">
         <CommitmentEnabledProvider enabled={trustPopup.showLinks}>{children}</CommitmentEnabledProvider>
       </main>

@@ -52,7 +52,22 @@ export async function POST(request: Request) {
   const existing = await prisma.roomDayStatus.findUnique({
     where: { roomId_date: { roomId, date: d } },
   });
+  // Ô của "Quản lý phòng" (lượt ở chủ nhà tạo / ngày đóng phòng) — sửa ở đó để sổ sách khớp.
+  if (existing && (existing.stayId || existing.note?.startsWith("PMS"))) {
+    const stay = existing.stayId ? await prisma.roomStay.findUnique({ where: { id: existing.stayId }, select: { code: true, customerName: true } }) : null;
+    return NextResponse.json(
+      { error: `Phòng ${room.name} ngày ${dmyDate(date)} do Quản lý phòng giữ${stay ? ` (lượt ${stay.code} · ${stay.customerName})` : " (đóng phòng)"} — đổi/huỷ ở trang Quản lý phòng.` },
+      { status: 409 },
+    );
+  }
   if (existing?.bookingId) {
+    if (session.role === "PROVIDER") {
+      const bk = await prisma.bookingRequest.findUnique({ where: { id: existing.bookingId }, select: { code: true } });
+      return NextResponse.json(
+        { error: `Phòng ${room.name} ngày ${dmyDate(date)} đang do đơn ${bk?.code ?? ""} của sàn giữ — đổi phòng ở trang Quản lý phòng hoặc báo sàn.` },
+        { status: 409 },
+      );
+    }
     const bk = await prisma.bookingRequest.findUnique({
       where: { id: existing.bookingId },
       select: { id: true, code: true, customerName: true, phone: true },

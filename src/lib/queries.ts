@@ -38,6 +38,7 @@ import {
 import { checkWeekendPolicy } from "./weekend-policy";
 import { fleetFreeByWebType } from "./fleet";
 import { toNumber } from "./format";
+import { getHolidays } from "./holidays-server";
 
 /**
  * Cache tầng dữ liệu cho trang công khai (TTL ngắn): giảm tải DB khi đông
@@ -513,6 +514,7 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
 
   const hasDates = Boolean(fromKey && toKey && toKey > fromKey);
   const nights = hasDates ? enumerateNights(parseDateOnly(fromKey!), parseDateOnly(toKey!)) : [];
+  const holidays = hasDates ? await getHolidays() : []; // đêm ngày lễ ⇒ giá lễ của phòng
   const occupied = new Set<string>();
   if (hasDates && nights.length) {
     const roomIds = list.flatMap((s) => s.roomTypes.flatMap((rt) => rt.rooms.map((r) => r.id)));
@@ -538,7 +540,7 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
         // Giá gạch = giá-gạch-theo-thứ của chính đêm rẻ nhất ?? listPrice khi đang giảm.
         const { price, strike } = roomFromPrice(r); // price 0 = chưa nhập giá → hiện "Liên hệ"
         // Khi có ngày: tổng cả kỳ (giá bán & giá gạch) theo giá-theo-thứ của phòng.
-        const stay = hasDates && nights.length ? stayStrike(nights, r) : null;
+        const stay = hasDates && nights.length ? stayStrike(nights, r, holidays) : null;
         return {
           roomId: r.id,
           roomName: r.name,

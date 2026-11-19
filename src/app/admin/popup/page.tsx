@@ -3,7 +3,10 @@ import { parseTrustPopup, TRUST_POPUP_KEY } from "@/lib/trust-popup";
 import { ActionForm } from "@/components/admin/ActionForm";
 import { AvatarPicker } from "@/components/admin/AvatarPicker";
 import { SITE } from "@/lib/site";
-import { checkSmtp, saveLegalInfo, saveSmtpConfig, saveTrustPopup, sendDraftEmail, sendTestEmail } from "./actions";
+import { checkSmtp, saveComboDiscount, saveHolidays, saveLegalInfo, saveSmtpConfig, saveTrustPopup, sendDraftEmail, sendTestEmail } from "./actions";
+import { getComboDiscount } from "@/lib/combo";
+import { getHolidays } from "@/lib/holidays-server";
+import { HolidayEditor } from "@/components/admin/HolidayEditor";
 import { getMailLastResult, getSmtpView } from "@/lib/mail";
 import { vnDateTime } from "@/lib/date-format";
 
@@ -11,7 +14,7 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminPopupPage() {
   const settings = await getSettings();
-  const [smtp, mailLast] = await Promise.all([getSmtpView(), getMailLastResult()]);
+  const [smtp, mailLast, comboDiscount, holidays] = await Promise.all([getSmtpView(), getMailLastResult(), getComboDiscount(), getHolidays()]);
   const mailReady = smtp.hasPass;
   const config = parseTrustPopup(settings[TRUST_POPUP_KEY]);
   // SĐT toàn web: theo lựa chọn đã lưu; chưa lưu thì chọn sẵn người có số trùng số đang dùng.
@@ -172,6 +175,48 @@ export default async function AdminPopupPage() {
         </div>
         <button className="w-fit rounded-xl bg-forest-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-forest-700">
           Lưu thông tin pháp lý
+        </button>
+      </ActionForm>
+
+      <ActionForm action={saveComboDiscount} className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5" success="Đã lưu mức giảm combo.">
+        <div>
+          <h2 className="text-sm font-bold text-ink">Khuyến mãi combo</h2>
+          <p className="mt-0.5 text-xs text-gray-500">
+            Số tiền giảm cho <b>mỗi khách có vé xe</b> khi đặt combo (xe cabin + homestay). Áp dụng ngay cho giá trang
+            /combo, giá chốt đơn và form tạo/sửa đơn. Nhập <b>0</b> để tắt. Giường cộng đồng và phòng tick “Không giảm giá
+            combo” không được giảm. Đơn đã tạo giữ nguyên giá cũ.
+          </p>
+        </div>
+        <label className="flex max-w-xs flex-col gap-1">
+          <span className="text-[13px] font-semibold text-gray-600">Giảm / khách (đồng)</span>
+          <input
+            name="comboDiscount"
+            type="number"
+            min={0}
+            step={1000}
+            required
+            defaultValue={comboDiscount}
+            className="rounded-xl border border-gray-200 px-3 py-2 text-sm"
+          />
+        </label>
+        <button className="w-fit rounded-xl bg-forest-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-forest-700">
+          Lưu mức giảm combo
+        </button>
+      </ActionForm>
+
+      <ActionForm action={saveHolidays} className="flex scroll-mt-20 flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5" success="Đã lưu lịch ngày lễ.">
+        <div id="ngay-le">
+          <h2 className="text-sm font-bold text-ink">🎉 Lịch ngày lễ (giá lễ homestay)</h2>
+          <p className="mt-0.5 text-xs text-gray-500">
+            Các <b>đêm lưu trú</b> nằm trong khoảng dưới đây (tính theo ngày nhận phòng của đêm đó) được tính <b>giá ngày lễ</b> của
+            từng phòng — nhập ở form phòng, mục “Giá theo thứ &amp; giá ngày lễ”. Áp dụng cho trang homestay, tìm phòng, đặt phòng
+            và combo. Phòng không nhập giá lễ vẫn tính giá thường. <b>Lặp hằng năm</b> chỉ so ngày/tháng (hợp với lễ dương lịch);
+            lễ âm lịch (Tết, Giỗ Tổ) đổi ngày mỗi năm nên khai riêng từng năm. Đơn đã tạo giữ nguyên giá cũ.
+          </p>
+        </div>
+        <HolidayEditor initial={holidays} />
+        <button className="w-fit rounded-xl bg-forest-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-forest-700">
+          Lưu lịch ngày lễ
         </button>
       </ActionForm>
 

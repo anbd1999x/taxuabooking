@@ -1,14 +1,21 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import {
   FLEET_ACC,
   FLEET_CONDS,
   FLEET_DOCS,
   FLEET_KINDS,
   FUEL_LEVELS,
+  KEEP_FEE,
+  PAY_METHODS,
   SERVICE_PRESETS,
   autoPick,
+  keptOf,
+  shopHeld,
+  suggestDeposit,
+  type PayMethod,
   diffDays,
   addDaysKey,
   dowOf,
@@ -104,6 +111,78 @@ const Chips = ({ list, isOn, pick }: { list: readonly string[]; isOn: (n: string
 const Group = ({ label, children }: { label: string; children: ReactNode }) => (
   <div style={{ display: "flex", flexDirection: "column", gap: 6 }}><span style={{ fontSize: 12, fontWeight: 700, color: MUTED }}>{label}</span>{children}</div>
 );
+
+/** Hộp nhập tiền: số tiền (gợi ý sẵn) + Tiền mặt / Chuyển khoản; khi huỷ đơn có tiền thì hỏi Hoàn cọc / Giữ cọc. */
+export type MoneyAsk = {
+  title: string;
+  sub?: string;
+  /** Số tiền gợi ý sẵn. */
+  amount: number;
+  /** Tối đa được nhập (kiểm phía máy khách; máy chủ kiểm lại). */
+  max?: number;
+  /** Cho để trống = không thu (VD gia hạn chưa thu tiền). */
+  optional?: boolean;
+  okLabel: string;
+  /** Huỷ đơn đang giữ tiền của khách ⇒ bắt buộc chọn Hoàn cọc / Giữ cọc. */
+  held?: number;
+  onOk: (r: { amt: number; method: PayMethod | null; keep: boolean }) => Promise<unknown>;
+};
+export function MoneyDialog({ ask, busy, onClose }: { ask: MoneyAsk; busy: boolean; onClose: () => void }) {
+  const [amt, setAmt] = useState(ask.amount > 0 ? String(ask.amount) : "");
+  const [method, setMethod] = useState<PayMethod | null>(null);
+  const [mode, setMode] = useState<"refund" | "keep" | null>(null);
+  const [err, setErr] = useState("");
+  const isCancel = ask.held != null;
+  const needMoney = !isCancel || mode === "refund";
+  const n = digits(amt);
+  const submit = async () => {
+    if (isCancel && !mode) return setErr("Chọn “Hoàn cọc” hoặc “Giữ cọc”.");
+    if (needMoney) {
+      if (!n && !(ask.optional && !amt.trim())) return setErr("Nhập số tiền lớn hơn 0.");
+      if (ask.max != null && n > ask.max) return setErr("Tối đa " + money(ask.max) + ".");
+      if (n && !method) return setErr("Chọn Tiền mặt hoặc Chuyển khoản.");
+    }
+    setErr("");
+    await ask.onOk({ amt: needMoney ? n : 0, method: needMoney && n ? method : null, keep: mode === "keep" });
+  };
+  // Portal ra body: ngăn kéo có transform (hiệu ứng trượt) làm position:fixed bám theo ngăn kéo.
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <>
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 80, background: "oklch(0.15 0.03 165 / .4)" }} />
+      <div role="dialog" aria-modal="true" style={{ position: "fixed", zIndex: 81, left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: "min(420px,calc(100vw - 32px))", maxHeight: "calc(100vh - 32px)", overflowY: "auto", background: "white", borderRadius: 20, padding: 18, display: "flex", flexDirection: "column", gap: 12, boxShadow: "0 30px 60px -20px oklch(0.15 0.03 165 / .5)" }}>
+        <div style={{ fontSize: 17, fontWeight: 800 }}>{ask.title}</div>
+        {ask.sub && <div style={{ fontSize: 13, lineHeight: 1.5, color: "oklch(0.42 0.02 160)" }}>{ask.sub}</div>}
+        {isCancel && (
+          <>
+            <div style={{ fontSize: 14, fontWeight: 700, padding: "10px 12px", borderRadius: 12, background: "oklch(0.97 0.04 70)", color: "oklch(0.42 0.12 55)" }}>Nhà xe đang giữ {money(ask.held!)} của khách</div>
+            <div style={{ display: "flex", gap: 6 }}>
+              {([["refund", "Hoàn cọc"], ["keep", "Giữ cọc"]] as const).map(([k, name]) => <div key={k} onClick={() => { setMode(k); setErr(""); }} style={{ ...softPill(mode === k), flex: 1, justifyContent: "center" }}>{name}</div>)}
+            </div>
+            {mode === "keep" && <div style={{ fontSize: 13, color: MUTED }}>Giữ {money(ask.held!)} làm doanh thu (ghi “Giữ cọc khi huỷ”), không trả lại khách.</div>}
+          </>
+        )}
+        {needMoney && (
+          <>
+            <label style={lbl}>{isCancel ? "Số tiền hoàn" : "Số tiền"}{ask.max != null ? ` (tối đa ${money(ask.max)})` : ""}
+              <input value={amt} onChange={(e) => { setAmt(e.target.value); setErr(""); }} inputMode="numeric" placeholder={ask.optional ? "Để trống nếu chưa thu" : "0"} style={{ ...inputCls, fontSize: 18, fontWeight: 800 }} />
+            </label>
+            {n > 0 && <div style={{ fontSize: 13, fontWeight: 700, color: "oklch(0.42 0.11 155)", marginTop: -6 }}>{money(n)}{isCancel && n < ask.held! ? ` · giữ lại ${money(ask.held! - n)}` : ""}</div>}
+            <Group label={isCancel ? "Hoàn bằng" : "Hình thức"}>
+              <Chips list={PAY_METHODS} isOn={(m) => method === m} pick={(m) => { setMethod(m as PayMethod); setErr(""); }} />
+            </Group>
+          </>
+        )}
+        {err && <div style={{ fontSize: 13, fontWeight: 700, color: RED }}>{err}</div>}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button type="button" onClick={onClose} style={{ ...btn(), flex: 1, padding: "12px 14px" }}>Thôi</button>
+          <button type="button" disabled={busy} onClick={submit} style={{ ...btn(isCancel ? "danger" : "pri"), flex: 2, padding: "12px 14px", opacity: busy ? 0.7 : 1 }}>{ask.okLabel}</button>
+        </div>
+      </div>
+    </>,
+    document.body,
+  );
+}
 
 export function payOf(b: FleetRentalVM, T: string, NOW: string): [string, string] {
   const due = b.total + feeSum(b);
@@ -281,6 +360,9 @@ export function EditDrawer({ ctx, id, copyOf }: { ctx: Ctx; id?: string; copyOf?
 export type OrderState = {
   s: string; st: string; e: string; et: string; kind: FleetKind; qty: number; name: string; phone: string; cccd: string;
   place: "store" | "home" | "far"; src: string; dep: number; picks: string[] | null; hourly: boolean; ctvName: string; err: string; errKey?: string;
+  /** Số tiền thu ngay do người dùng sửa (null = theo mức gợi ý của nút %). */
+  depAmt?: string | null;
+  depMethod?: PayMethod | null;
 };
 export function OrderDrawer({ ctx, pre }: { ctx: Ctx; pre?: Partial<OrderState> }) {
   const { data, call, setDr } = ctx;
@@ -303,7 +385,8 @@ export function OrderDrawer({ ctx, pre }: { ctx: Ctx; pre?: Partial<OrderState> 
   const qs = ok ? sel.map((v) => quoteRental(v, o.s, o.e, o.st, o.et, hr, P)) : [];
   const far = o.place === "far" ? P.far : 0;
   const total = qs.reduce((a, q) => a + q.t, 0) + (sel.length ? far : 0);
-  const dep = o.dep === 1 ? total : Math.round((total * o.dep) / 10000) * 10000;
+  const depSuggest = o.dep === 1 ? total : Math.min(total, Math.round((total * o.dep) / 10000) * 10000);
+  const dep = o.depAmt != null ? digits(o.depAmt) : depSuggest;
   const phN = o.phone.replace(/\s/g, "");
   const known = phN.length >= 10 ? Bk.filter((b) => b.phone === phN && b.ret).length : 0;
   const black = P.black[phN];
@@ -329,9 +412,11 @@ export function OrderDrawer({ ctx, pre }: { ctx: Ctx; pre?: Partial<OrderState> 
     else if (!picks.length) err = "Chưa có xe nào được chọn";
     else if (o.name.trim().length < 2) { err = "Nhập họ tên người thuê"; errKey = "name"; }
     else if (!/^0\d{9}$/.test(phN)) { err = "Số điện thoại chưa đúng (10 số)"; errKey = "phone"; }
+    else if (dep > total) err = "Tiền thu ngay vượt tổng tiền thuê (" + money(total) + ")";
+    else if (dep > 0 && !o.depMethod) err = "Chọn hình thức thu: Tiền mặt hoặc Chuyển khoản";
     if (err) { setOrder((x) => ({ ...x, err, errKey })); return; }
     if (black && !confirm("Khách trong danh sách đen: " + black + ". Vẫn tạo đơn?")) return;
-    const j = await call({ op: "createRental", order: { ...o, phone: phN, picks, hourly: hr } });
+    const j = await call({ op: "createRental", order: { ...o, phone: phN, picks, hourly: hr, depAmt: dep, depMethod: dep > 0 ? o.depMethod : null } });
     if (j?.savedId) { ctx.afterCreate(o.s); setDr({ kind: "book", id: j.savedId }); }
   };
   const actions: Act[] = [{ name: "Huỷ", go: () => setDr(null) }, { name: picks.length ? `Tạo đơn · ${picks.length} xe` : "Tạo đơn", go: submit, kind: "orange", flex: 2 }];
@@ -419,10 +504,20 @@ export function OrderDrawer({ ctx, pre }: { ctx: Ctx; pre?: Partial<OrderState> 
         {brk && <div style={{ fontSize: 13, fontWeight: 600, color: "oklch(0.45 0.02 160)" }}>{brk}</div>}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {([[0, "Chưa cọc (giữ chỗ)"], [0.3, "Cọc 30%"], [0.5, "Cọc 50%"], [1, "Thu đủ"]] as const).map(([val, name]) => (
-            <div key={val} onClick={() => setO({ dep: val })} style={{ cursor: "pointer", fontSize: 13, fontWeight: 700, padding: "8px 12px", borderRadius: 999, whiteSpace: "nowrap", background: o.dep === val ? "oklch(0.97 0.04 70)" : "white", color: o.dep === val ? "oklch(0.45 0.14 50)" : "oklch(0.35 0.02 160)", border: `1.5px solid ${o.dep === val ? O : "oklch(0.9 0.01 160)"}` }}>{name}</div>
+            <div key={val} onClick={() => setO({ dep: val, depAmt: null })} style={{ cursor: "pointer", fontSize: 13, fontWeight: 700, padding: "8px 12px", borderRadius: 999, whiteSpace: "nowrap", background: o.dep === val ? "oklch(0.97 0.04 70)" : "white", color: o.dep === val ? "oklch(0.45 0.14 50)" : "oklch(0.35 0.02 160)", border: `1.5px solid ${o.dep === val ? O : "oklch(0.9 0.01 160)"}` }}>{name}</div>
           ))}
         </div>
-        <div style={{ fontSize: 13, color: "oklch(0.45 0.02 160)" }}>{o.dep ? `Ghi nhận ${money(dep)} · còn lại ${money(total - dep)} thu khi giao xe. Xe chuyển trạng thái "Đã cọc".` : 'Xe sẽ ở trạng thái "Giữ chỗ · chưa cọc" cho tới khi bạn ghi nhận cọc.'}</div>
+        {(o.dep > 0 || o.depAmt != null) && (
+          <>
+            <label style={lbl}>Số tiền thu ngay (sửa được{o.dep && o.dep < 1 ? ` · gợi ý ${Math.round(o.dep * 100)}% = ${money(depSuggest)}` : ""})
+              <input value={o.depAmt ?? (depSuggest ? String(depSuggest) : "")} onChange={(e) => setO({ depAmt: e.target.value })} inputMode="numeric" placeholder="0" style={{ ...inputCls, fontWeight: 800, borderColor: dep > total ? "oklch(0.6 0.19 28)" : "oklch(0.9 0.01 160)" }} />
+            </label>
+            <Group label="Hình thức thu">
+              <Chips list={PAY_METHODS} isOn={(m) => o.depMethod === m} pick={(m) => setO({ depMethod: m as PayMethod })} />
+            </Group>
+          </>
+        )}
+        <div style={{ fontSize: 13, color: "oklch(0.45 0.02 160)" }}>{dep > 0 ? `Ghi nhận ${money(dep)}${o.depMethod ? " · " + o.depMethod.toLowerCase() : ""} · còn lại ${money(Math.max(0, total - dep))} thu khi giao xe. Xe chuyển trạng thái "Đã cọc".` : 'Xe sẽ ở trạng thái "Giữ chỗ · chưa cọc" cho tới khi bạn ghi nhận cọc.'}</div>
       </div>
       {o.err && <div style={{ fontSize: 14, fontWeight: 700, color: RED }}>{o.err}</div>}
     </DrawerShell>
@@ -436,9 +531,10 @@ export function BookingDrawer({ ctx, id }: { ctx: Ctx; id: string }) {
   const b = data.rentals.find((x) => x.id === id);
   const v = b ? data.vehicles.find((x) => x.id === b.vid) : undefined;
   const [hf, setHFs] = useState(() => ({ odo: String(v?.odo ?? ""), fuel: "Đầy", acc: ["2 mũ bảo hiểm", "Áo mưa"] as string[], doc: "CCCD gốc", photos: ["", "", "", ""] }));
-  const [rf, setRFs] = useState(() => ({ odo: String((b?.hand?.odo ?? v?.odo ?? 0) + (b ? (diffDays(b.s, b.e) + 1) * 45 : 0)), fuel: "Đầy", accBack: [...(b?.hand?.acc ?? [])], dmg: "", dmgNote: "", method: "Tiền mặt" }));
-  const [pf, setPFs] = useState({ amt: "", method: "Tiền mặt", kind: "Thu" });
+  const [rf, setRFs] = useState(() => ({ odo: String((b?.hand?.odo ?? v?.odo ?? 0) + (b ? (diffDays(b.s, b.e) + 1) * 45 : 0)), fuel: "Đầy", accBack: [...(b?.hand?.acc ?? [])], dmg: "", dmgNote: "", method: null as PayMethod | null }));
+  const [pf, setPFs] = useState<{ amt: string; method: PayMethod | null; kind: string }>({ amt: "", method: null, kind: "Thu" });
   const [up, setUp] = useState(-1);
+  const [ask, setAsk] = useState<MoneyAsk | null>(null);
   if (!b || !v) return null;
   const setHF = (p: Partial<typeof hf>) => setHFs((x) => ({ ...x, ...p }));
   const setRF = (p: Partial<typeof rf>) => setRFs((x) => ({ ...x, ...p }));
@@ -492,23 +588,51 @@ export function BookingDrawer({ ctx, id }: { ctx: Ctx; id: string }) {
   };
   const handPhotos = b.hand ? demoShots.get(b.id) ?? b.hand.photos : [];
   const retForm = st === "renting" || st === "late";
+  // Tiền NHÀ XE đang giữ của khách (không gồm tiền sàn thu hộ, phần đã giữ cọc) — huỷ đơn thì phải chọn Hoàn / Giữ.
+  const held = shopHeld(b, data.rentals);
+  const kept = keptOf(b);
   const cancel = (msg: string, opName = "cancel") => () => {
+    let reason: string | undefined;
     if (b.bookingId) {
       // Đơn từ web: hỏi lý do để sàn báo lại khách.
-      const reason = prompt((opName === "webReject" ? "Từ chối" : "Huỷ") + " xe này? Lý do (gửi kèm cho sàn):", opName === "webReject" ? "Hết xe trong thời gian này" : "");
-      if (reason === null) return;
-      call({ op: opName, id: b.id, reason });
-      return;
-    }
-    if (msg && !confirm(msg)) return;
-    call({ op: opName, id: b.id });
+      const r0 = prompt((opName === "webReject" ? "Từ chối" : "Huỷ") + " xe này? Lý do (gửi kèm cho sàn):", opName === "webReject" ? "Hết xe trong thời gian này" : "");
+      if (r0 === null) return;
+      reason = r0;
+    } else if (!held && msg && !confirm(msg)) return;
+    if (!held) { call({ op: opName, id: b.id, reason }); return; }
+    setAsk({
+      title: (opName === "webReject" ? "Từ chối" : "Huỷ") + " đơn " + b.code,
+      sub: b.bookingId ? "Chỉ tính tiền nhà xe tự thu — tiền khách trả qua sàn (Sàn thu hộ) do sàn xử lý." : undefined,
+      amount: held, max: held, held, okLabel: opName === "webReject" ? "Từ chối đơn" : "Huỷ đơn",
+      onOk: async (r) => {
+        const j = await call(r.keep ? { op: opName, id: b.id, reason, money: "keep" } : { op: opName, id: b.id, reason, money: "refund", refundAmt: r.amt, method: r.method });
+        if (j) setAsk(null);
+      },
+    });
+  };
+  const remain = Math.max(0, b.total + feeSum(b) - b.deposit);
+  const askDeposit = () => setAsk({
+    title: "Ghi nhận cọc · " + b.code,
+    sub: `Tiền thuê ${money(b.total)} · đã thu ${money(b.deposit)} · gợi ý cọc 30%`,
+    amount: suggestDeposit(b.total + feeSum(b), b.deposit), max: remain, okLabel: "Ghi nhận cọc",
+    onOk: async (r) => { const j = await call({ op: "deposit", id: b.id, amt: r.amt, method: r.method }); if (j) setAsk(null); },
+  });
+  const askExtend = () => setAsk({
+    title: "Gia hạn +1 ngày · " + v.plate,
+    sub: `Cộng ${money(v.price)} vào tiền thuê. Thu luôn thì nhập số tiền, chưa thu thì để trống.`,
+    amount: v.price, max: remain + v.price, optional: true, okLabel: "Gia hạn",
+    onOk: async (r) => { const j = await call({ op: "extend", id: b.id, ...(r.amt ? { payAmt: r.amt, method: r.method } : {}) }); if (j) setAsk(null); },
+  });
+  const doReturn = () => {
+    if (finalDue !== 0 && !rf.method) return say("Chọn thu / hoàn bằng Tiền mặt hay Chuyển khoản");
+    call({ op: "return", id: b.id, ret: { ...rf, odo: digits(rf.odo), dmg: digits(rf.dmg) } });
   };
   const A: Act[] = [];
   const staffOnly = ctx.isStaff && ctx.viewerStaff;
   if (st === "web" && !staffOnly) A.push({ name: "Từ chối", kind: "danger", go: cancel("Từ chối đơn web này?", "webReject") }, { name: "Xác nhận đơn", kind: "pri", flex: 2, go: () => call({ op: "webConfirm", id: b.id }) });
-  if (st === "hold") A.push(...(staffOnly ? [] : [{ name: "Huỷ · nhả xe", kind: "danger" as const, go: cancel("") }]), { name: "Ghi nhận cọc 30%", kind: "orange", flex: 2, go: () => call({ op: "deposit", id: b.id }) });
-  if (st === "deposit" || st === "due") A.push(...(staffOnly ? [] : [{ name: "Huỷ", kind: "danger" as const, go: cancel("Huỷ đơn đã cọc?") }]), { name: "Xác nhận giao xe", kind: "pri", flex: 2, go: doHandover });
-  if (st === "renting" || st === "late") A.push({ name: "Gia hạn +1 ngày", go: () => call({ op: "extend", id: b.id }) }, { name: "Nhận xe & quyết toán", kind: "pri", flex: 2, go: () => call({ op: "return", id: b.id, ret: { ...rf, odo: digits(rf.odo), dmg: digits(rf.dmg) } }) });
+  if (st === "hold") A.push(...(staffOnly ? [] : [{ name: "Huỷ · nhả xe", kind: "danger" as const, go: cancel("") }]), { name: "Ghi nhận cọc", kind: "orange", flex: 2, go: askDeposit });
+  if (st === "deposit" || st === "due") A.push(...(staffOnly ? [] : [{ name: "Huỷ", kind: "danger" as const, go: cancel("Huỷ đơn này?") }]), { name: "Xác nhận giao xe", kind: "pri", flex: 2, go: doHandover });
+  if (st === "renting" || st === "late") A.push({ name: "Gia hạn +1 ngày", go: askExtend }, { name: "Nhận xe & quyết toán", kind: "pri", flex: 2, go: doReturn });
   if (st === "done" || st === "cancel") A.push({ name: "Đóng", kind: "pri", go: () => setDr(null) });
   const settle = [
     { k: "Tiền thuê", v: money(b.total) },
@@ -612,7 +736,7 @@ export function BookingDrawer({ ctx, id }: { ctx: Ctx; id: string }) {
             {settle.map((x) => <div key={x.k} style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 14, fontWeight: 600, color: "oklch(0.35 0.02 160)", padding: "3px 0" }}><span>{x.k}</span><span style={{ whiteSpace: "nowrap" }}>{x.v}</span></div>)}
             <div style={{ display: "flex", justifyContent: "space-between", gap: 10, fontSize: 14, fontWeight: 800, color: finalDue >= 0 ? "oklch(0.55 0.16 45)" : "oklch(0.42 0.11 155)", padding: "3px 0" }}><span>{finalDue >= 0 ? "Khách cần trả thêm" : "Hoàn lại khách"}</span><span>{money(Math.abs(finalDue))}</span></div>
           </div>
-          {finalDue !== 0 && <Group label="Thu / hoàn bằng"><Chips list={["Tiền mặt", "Chuyển khoản"]} isOn={(n) => rf.method === n} pick={(n) => setRF({ method: n })} /></Group>}
+          {finalDue !== 0 && <Group label={(finalDue > 0 ? "Thu " : "Hoàn ") + money(Math.abs(finalDue)) + " bằng"}><Chips list={PAY_METHODS} isOn={(n) => rf.method === n} pick={(n) => setRF({ method: n as PayMethod })} /></Group>}
           {docBack && <div style={{ fontSize: 13, fontWeight: 700, color: "oklch(0.48 0.14 50)" }}>{docBack}</div>}
         </div>
       )}
@@ -640,16 +764,26 @@ export function BookingDrawer({ ctx, id }: { ctx: Ctx; id: string }) {
             <b style={{ fontSize: 15, color: y.amt < 0 ? "oklch(0.5 0.16 28)" : "oklch(0.42 0.11 155)", whiteSpace: "nowrap" }}>{y.amt < 0 ? "−" : "+"}{money(Math.abs(y.amt))}</b>
           </div>
         ))}
-        {st === "cancel" && b.deposit > 0 && <div style={{ fontSize: 13, fontWeight: 700, color: "oklch(0.48 0.14 50)" }}>Đơn đã huỷ nhưng còn giữ {money(b.deposit)} của khách — ghi “Hoàn cọc” khi đã trả lại (hoặc giữ cọc theo chính sách).</div>}
-        {(st !== "cancel" || b.deposit > 0) && (
+        {kept > 0 && <div style={{ fontSize: 13, fontWeight: 700, color: "oklch(0.45 0.1 155)" }}>{KEEP_FEE}: {money(kept)} (doanh thu, không hoàn khách).</div>}
+        {st === "cancel" && held > 0 && <div style={{ fontSize: 13, fontWeight: 700, color: "oklch(0.48 0.14 50)" }}>Đơn đã huỷ nhưng nhà xe còn giữ {money(held)} của khách — ghi “Hoàn cọc” khi đã trả lại.</div>}
+        {(st !== "cancel" || held > 0) && (
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
             <input value={pf.amt} onChange={(e) => setPF({ amt: e.target.value })} inputMode="numeric" placeholder="Số tiền" style={{ ...inputCls, width: 130 }} />
-            {["Thu", "Hoàn cọc"].map((n) => <div key={n} onClick={() => setPF({ kind: n })} style={softPill(pf.kind === n)}>{n}</div>)}
-            {["Tiền mặt", "Chuyển khoản"].map((n) => <div key={n} onClick={() => setPF({ method: n })} style={softPill(pf.method === n)}>{n}</div>)}
-            <button type="button" disabled={ctx.busy} onClick={async () => { if (!digits(pf.amt)) return say("Nhập số tiền"); const j = await call({ op: "addPay", id: b.id, amt: digits(pf.amt), kind: pf.kind, method: pf.method }); if (j) setPF({ amt: "" }); }} style={btn("pri")}>Ghi</button>
+            {(st === "cancel" ? ["Hoàn cọc"] : ["Thu", "Hoàn cọc"]).map((n) => <div key={n} onClick={() => setPF({ kind: n })} style={softPill(pf.kind === n || st === "cancel")}>{n}</div>)}
+            {PAY_METHODS.map((n) => <div key={n} onClick={() => setPF({ method: n })} style={softPill(pf.method === n)}>{n}</div>)}
+            <button type="button" disabled={ctx.busy} onClick={async () => {
+              const kind = st === "cancel" ? "Hoàn cọc" : pf.kind;
+              const a = digits(pf.amt);
+              if (!a) return say("Nhập số tiền");
+              if (kind === "Hoàn cọc" && a > held) return say("Chỉ hoàn được tối đa " + money(held) + (b.bookingId ? " (không gồm tiền sàn thu hộ)" : ""));
+              if (!pf.method) return say("Chọn Tiền mặt hoặc Chuyển khoản");
+              const j = await call({ op: "addPay", id: b.id, amt: a, kind, method: pf.method });
+              if (j) setPF({ amt: "" });
+            }} style={btn("pri")}>Ghi</button>
           </div>
         )}
       </div>
+      {ask && <MoneyDialog ask={ask} busy={ctx.busy} onClose={() => setAsk(null)} />}
     </DrawerShell>
   );
 }

@@ -5,6 +5,7 @@ import { ensureServiceSheetFresh } from "./sheet-sync";
 import { autoAssignFleetForBooking, fleetFreeByWebType } from "./fleet";
 import type { ServiceCategory } from "@prisma/client";
 import { prisma } from "./prisma";
+import { getHolidays } from "./holidays-server";
 import { CATEGORIES } from "./constants";
 import {
   parseDateOnly,
@@ -133,10 +134,11 @@ export async function computeAvailability(
       set.add(toDateKey(s.date));
     }
 
+    const holidays = await getHolidays(); // đêm ngày lễ ⇒ giá lễ của phòng (nếu có)
     const stayOptions: StayOption[] = rooms.map((room) => {
       const occ = occupied.get(room.id);
       const free = nights.length > 0 && (!occ || nights.every((d) => !occ.has(toDateKey(d))));
-      const pricing = roomPricing(room);
+      const pricing = roomPricing(room, holidays);
       let total = 0;
       let hasIbNight = false; // đêm nào không công khai giá (≤ 0) → giá tham khảo = null
       for (const d of nights) {
@@ -152,7 +154,7 @@ export async function computeAvailability(
         bookable: free,
         availableUnits: free ? 1 : 0,
         pricePerUnit: nights.length > 0 && !hasIbNight ? total : null,
-        strikePerUnit: nights.length > 0 && !hasIbNight ? stayStrike(nights, room).strikeTotal : null,
+        strikePerUnit: nights.length > 0 && !hasIbNight ? stayStrike(nights, room, holidays).strikeTotal : null,
         count: nights.length,
         commission: roomCommissionForNights(room, nights, toNumber(service.roomCommission)),
       };

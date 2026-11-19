@@ -189,7 +189,7 @@ export function ComboCustom({
   const nRooms = picked.length;
   const extraFee = home?.rooms[0]?.extraFeeStay ?? 0; // phụ thu ở ghép CHUNG của homestay (cả kỳ / khách)
   const fare = bus?.farePerPerson ?? 0;
-  const quote = comboQuote({ rooms: picked.map(toQuoteRoom), people: billable, extraFeeStay: extraFee, fare, shared, solo });
+  const quote = comboQuote({ rooms: picked.map(toQuoteRoom), people: billable, extraFeeStay: extraFee, fare, shared, solo, discountPerGuest: result.comboDiscount });
   const { capacityStd: capStd, capacityMax: capMax, extraGuests, extraCost, busAmount: busTotal, discountPeople: comboPeople, discount: comboKm, total } = quote;
   const communalAll = quote.communal;
   const mixed = quote.error === "MIXED";
@@ -802,7 +802,7 @@ export function ComboCustom({
                   )}
                   {comboKm > 0 && (
                     <div className="flex justify-between gap-2.5 font-extrabold" style={{ color: "oklch(0.52 0.15 45)" }}>
-                      <span>{t("Khuyến mãi combo (25k × {0} người)", [comboPeople])}</span>
+                      <span>{t("Khuyến mãi combo ({0} × {1} người)", [vnd(result.comboDiscount), comboPeople])}</span>
                       <span className="whitespace-nowrap">− {vnd(comboKm)}</span>
                     </div>
                   )}

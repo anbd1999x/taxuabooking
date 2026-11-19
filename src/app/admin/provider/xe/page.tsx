@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { fleetServicesFor, loadFleet, syncFleetBookings } from "@/lib/fleet";
+import { homeServicesFor } from "@/lib/stay";
 import { FleetManager } from "@/components/admin/fleet/FleetManager";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +13,10 @@ export default async function FleetPage({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   const session = (await getSession())!;
   const services = await fleetServicesFor(session);
+  // Nhân viên của chủ địa điểm bán vé (không có đội xe) ⇒ việc của họ là soát vé.
+  // Lễ tân homestay (staffArea "phong" — fleetOwnerOf từ chối) ⇒ về Quản lý phòng.
+  if (!services.length && session.role === "STAFF" && (await homeServicesFor(session)).length) redirect("/admin/provider/phong");
+  if (!services.length && session.role === "STAFF") redirect("/admin/provider/soat-ve");
   if (!services.length) {
     return (
       <div className="mx-auto max-w-xl rounded-2xl border border-dashed border-forest-200 bg-white p-8 text-center">

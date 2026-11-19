@@ -33,7 +33,11 @@ async function adminGuard(request: NextRequest) {
 
   // Nhân viên giao xe: CHỈ trang quản lý xe.
   if (role === "STAFF" || role === "DEMO") {
-    if (!pathname.startsWith("/admin/provider/xe")) return NextResponse.redirect(new URL(home(role), request.url));
+    // (STAFF còn vào được trang soát vé của module Vé & đặt bàn.)
+    // (STAFF của chủ homestay: lễ tân / buồng phòng ở Quản lý phòng — phân khu thật theo AdminUser.staffArea
+    //  kiểm ở trang + API: stayOwnerOf chỉ nhận "phong", fleetOwnerOf từ chối "phong".)
+    const scan = role === "STAFF" && (pathname.startsWith("/admin/provider/soat-ve") || pathname.startsWith("/admin/provider/phong"));
+    if (!scan && !pathname.startsWith("/admin/provider/xe")) return NextResponse.redirect(new URL(home(role), request.url));
     return NextResponse.next();
   }
 

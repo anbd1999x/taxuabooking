@@ -7,6 +7,7 @@ import type { SessionPayload } from "@/lib/auth-token";
 import {
   autoPick,
   isVehicleFree,
+  keptOf,
   poolFor,
   normalizeConfig,
   vnNow,
@@ -119,8 +120,9 @@ export async function fleetOwnerOf(session: SessionPayload | null): Promise<stri
     return u?.username === "demo-nha-xe" ? session.sub : null;
   }
   if (session.role === "STAFF") {
-    const u = await prisma.adminUser.findUnique({ where: { id: session.sub }, select: { providerId: true, active: true, role: true } });
-    return u?.active && u.role === "STAFF" && u.providerId ? u.providerId : null;
+    // Lễ tân homestay (staffArea "phong") KHÔNG được vào đội xe — chỉ nhân viên xe (staffArea "xe" / null cũ).
+    const u = await prisma.adminUser.findUnique({ where: { id: session.sub }, select: { providerId: true, active: true, role: true, staffArea: true } });
+    return u?.active && u.role === "STAFF" && u.staffArea !== "phong" && u.providerId ? u.providerId : null;
   }
   return null;
 }
@@ -156,11 +158,14 @@ export async function canManageFleet(session: SessionPayload | null, serviceId: 
   });
 }
 
+/** Nhân viên thuộc đội xe (staffArea "xe" hoặc null — tài khoản cũ); lễ tân homestay ("phong") không tính. */
+export const FLEET_STAFF_AREA: Prisma.AdminUserWhereInput = { OR: [{ staffArea: null }, { staffArea: { not: "phong" } }] };
+
 /** Tài khoản nhân viên giao xe của chủ dịch vụ. */
 export async function loadStaff(ownerId: string | null) {
   if (!ownerId) return [];
   const rows = await prisma.adminUser.findMany({
-    where: { role: "STAFF", providerId: ownerId },
+    where: { role: "STAFF", providerId: ownerId, ...FLEET_STAFF_AREA },
     select: { id: true, name: true, username: true, phone: true, active: true },
     orderBy: { createdAt: "asc" },
   });
@@ -252,6 +257,12 @@ type BookingRow = Prisma.BookingRequestGetPayload<{ select: typeof bookingSelect
 const locked = (r: { hand: Prisma.JsonValue | null; ret: Prisma.JsonValue | null }) => r.hand != null || r.ret != null;
 const addDaysKeyLocal = (k: string, n: number) => new Date(Date.parse(`${k}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 const ALIVE = { OR: [{ state: null }, { state: { notIn: ["cancel", "reject"] } }] };
+/**
+ * Lượt thuê KHÔNG thuộc đơn `id` — GỒM CẢ lượt tạo tay (bookingId null). Không dùng `NOT: { bookingId }`:
+ * SQL `NOT ("bookingId" = $1)` loại luôn dòng NULL ⇒ trước đây tự xếp / đổi ngày đơn web bỏ qua mọi đơn tại quầy
+ * ⇒ xếp trùng xe đang cho khách thuê tại quầy.
+ */
+const notBooking = (id: string) => ({ OR: [{ bookingId: null }, { bookingId: { not: id } }] });
 
 /** Nhu cầu xe của một đơn: đơn xe máy (đặt lẻ) hoặc xe máy THUÊ KÈM combo. */
 type Demand = {
@@ -292,8 +303,23 @@ function demandOf(b: BookingRow): Demand | null {
  */
 async function mirrorBookingPayments(tx: Tx, b: BookingRow): Promise<void> {
   if (b.category !== "MOTORBIKE") return;
-  const rentals = await tx.fleetRental.findMany({ where: { bookingId: b.id }, include: { payments: true }, orderBy: { createdAt: "asc" } });
+  let rentals = await tx.fleetRental.findMany({ where: { bookingId: b.id }, include: { payments: true }, orderBy: { createdAt: "asc" } });
   if (!rentals.length) return;
+  const alive0 = rentals.filter((r) => r.state !== "cancel" && r.state !== "reject");
+  // Lượt bị huỷ (đổi ngày phải đổi xe, giảm số xe, nhà xe huỷ 1 xe…) mà đang giữ tiền của đơn ⇒ chuyển số tiền
+  // đó sang lượt còn hiệu lực của CÙNG đơn — nếu không, lúc trả xe quyết toán sẽ đòi khách trả lại lần nữa.
+  // Phần nhà xe đã GIỮ CỌC khi huỷ (phí "Giữ cọc khi huỷ") là doanh thu của lượt đã huỷ — không chuyển đi.
+  const strandedAmt = (r: (typeof rentals)[number]) => Math.round(r.payments.reduce((c, p) => c + Number(p.amount), 0) - keptOf(rentalVM(r)));
+  const stranded = rentals.filter((r) => !alive0.includes(r) && strandedAmt(r) !== 0);
+  if (stranded.length && alive0.length) {
+    const to = alive0[0];
+    for (const r of stranded) {
+      const amt = strandedAmt(r);
+      await tx.fleetRental.update({ where: { id: r.id }, data: { deposit: { decrement: amt }, payments: { create: { amount: -amt, method: "Chuyển nội bộ", kind: `Chuyển sang ${to.code}`, by: "Hệ thống" } } } });
+      await tx.fleetRental.update({ where: { id: to.id }, data: { deposit: { increment: amt }, payments: { create: { amount: amt, method: "Chuyển nội bộ", kind: `Chuyển từ ${r.code} (đã huỷ)`, by: "Hệ thống" } } } });
+    }
+    rentals = await tx.fleetRental.findMany({ where: { bookingId: b.id }, include: { payments: true }, orderBy: { createdAt: "asc" } });
+  }
   const ledger = rentals.reduce((a, r) => a + r.payments.reduce((c, p) => c + Number(p.amount), 0), 0);
   const delta = Math.round((toNumber(b.amountCollected) ?? 0) - ledger);
   if (!delta) return;
@@ -313,6 +339,18 @@ async function mirrorBookingPayments(tx: Tx, b: BookingRow): Promise<void> {
       },
     });
   }
+}
+
+/**
+ * Gọi ĐẦU transaction trước khi nhà xe ghi tiền vào lượt thuê của đơn web: khoá dòng đơn (chặn sàn ghi thu
+ * chen giữa) rồi đưa khoản sàn đã thu mà sổ xe chưa có vào sổ. Nếu bỏ bước này, trang xe đang mở từ trước
+ * (chưa đồng bộ) ghi cọc ⇒ `pushFleetPayments` đặt "đã thu" = sổ xe ⇒ MẤT khoản sàn vừa thu; quyết toán
+ * khi trả xe cũng đòi khách khoản đã trả cho sàn.
+ */
+export async function syncBookingLedger(tx: Tx, bookingId: string): Promise<void> {
+  await tx.$queryRaw`SELECT id FROM "BookingRequest" WHERE id = ${bookingId} FOR UPDATE`;
+  const b = await tx.bookingRequest.findUnique({ where: { id: bookingId }, select: bookingSelect });
+  if (b) await mirrorBookingPayments(tx, b);
 }
 
 /** Sau khi nhà xe ghi thu / hoàn / phí phát sinh ở trang xe ⇒ cập nhật đơn web (đã thu, tình trạng, phụ thu, nhật ký). */
@@ -360,7 +398,7 @@ async function pickComboService(tx: Tx, d: Demand): Promise<string | null> {
     const vs = (await tx.fleetVehicle.findMany({ where: { serviceId: s.id } })).map((v) => vehicleVM(v));
     const names = new Map(s.rentalVehicles.map((r) => [r.id, r.vehicleType]));
     const rs = (await tx.fleetRental.findMany({ where: { vehicle: { serviceId: s.id }, endDate: { gte: parseDateOnly(addDaysKeyLocal(d.s < T ? d.s : T, -60)) }, ...ALIVE } })).map((r) => rentalVM(r));
-    const free = autoPick(d.pool(vs, (id) => (id ? names.get(id) ?? "" : "")), d.s, d.e, d.qty, rs, T, d.st, d.et).length;
+    const free = autoPick(d.pool(vs, (id) => (id ? names.get(id) ?? "" : "")), d.s, d.e, d.qty, rs, T, d.st, d.et, vnNow().now).length;
     if (free >= d.qty) return s.id;
     if (free > 0 && (!best || free > best.free)) best = { id: s.id, free };
   }
@@ -378,6 +416,7 @@ async function reconcileBooking(tx: Tx, b: BookingRow, forceSvcId?: string): Pro
   const rentals = await tx.fleetRental.findMany({ where: { bookingId: b.id }, include: { vehicle: true }, orderBy: { createdAt: "asc" } });
   const alive = rentals.filter((r) => r.state !== "cancel" && r.state !== "reject");
   const T = toDateKey(today());
+  const NOW = vnNow().now; // giờ VN: xe giao chưa trả quá giờ hẹn hôm nay ⇒ coi là quá hạn, vẫn đang bận
   const d = demandOf(b);
   // Nhà xe phục vụ: đơn xe máy ⇒ dịch vụ của đơn; combo ⇒ nhà xe admin chỉ định (forceSvcId), không thì
   // nhà xe đang giữ xe, chưa có thì chọn nhà xe còn xe.
@@ -400,7 +439,7 @@ async function reconcileBooking(tx: Tx, b: BookingRow, forceSvcId?: string): Pro
   const vehicles = vehiclesRaw.map((v) => vehicleVM(v));
   const names = new Map((await tx.rentalVehicle.findMany({ where: { serviceId: svcId }, select: { id: true, vehicleType: true } })).map((r) => [r.id, r.vehicleType]));
   const others = (await tx.fleetRental.findMany({
-    where: { vehicle: { serviceId: svcId }, endDate: { gte: parseDateOnly(addDaysKeyLocal(T, -60)) }, NOT: { bookingId: b.id } },
+    where: { vehicle: { serviceId: svcId }, endDate: { gte: parseDateOnly(addDaysKeyLocal(T, -60)) }, ...notBooking(b.id) },
   })).map((r) => rentalVM(r));
 
   // 2) Đổi ngày/giờ ⇒ cập nhật lượt chưa giao; xe bận ⇒ huỷ để xếp xe khác.
@@ -409,7 +448,7 @@ async function reconcileBooking(tx: Tx, b: BookingRow, forceSvcId?: string): Pro
     const changed = toDateKey(r.startDate) !== d.s || toDateKey(r.endDate) !== d.e || r.startTime !== d.st || r.endTime !== d.et;
     if (!changed) continue;
     const v = vehicles.find((x) => x.id === r.vehicleId);
-    if (v && v.mode !== "off" && isVehicleFree({ id: v.id, mode: "ready" }, d.s, d.e, others, T, undefined, undefined, d.st, d.et)) {
+    if (v && v.mode !== "off" && isVehicleFree({ id: v.id, mode: "ready" }, d.s, d.e, others, T, undefined, NOW, d.st, d.et)) {
       await tx.fleetRental.update({ where: { id: r.id }, data: { startDate: parseDateOnly(d.s), endDate: parseDateOnly(d.e), startTime: d.st, endTime: d.et } });
     } else {
       await tx.fleetRental.update({ where: { id: r.id }, data: { state: "cancel", webPending: false } });
@@ -430,7 +469,7 @@ async function reconcileBooking(tx: Tx, b: BookingRow, forceSvcId?: string): Pro
   // Admin chỉ định nhà xe (forceSvcId) ⇒ xếp lại kể cả khi đơn từng bị một nhà xe từ chối.
   if (need > 0 && (forceSvcId || !rentals.some((r) => r.state === "reject"))) {
     const busy = [...others, ...keep.map((r) => rentalVM(r))];
-    const picks = autoPick(d.pool(vehicles, (id) => (id ? names.get(id) ?? "" : "")), d.s, d.e, need, busy, T, d.st, d.et);
+    const picks = autoPick(d.pool(vehicles, (id) => (id ? names.get(id) ?? "" : "")), d.s, d.e, need, busy, T, d.st, d.et, NOW);
     const days = Math.max(1, Math.round((Date.parse(d.e) - Date.parse(d.s)) / 86_400_000) + 1);
     for (const v of picks) {
       await tx.fleetRental.create({
@@ -522,7 +561,7 @@ export async function comboBikeAssignInfo(bookingId: string): Promise<ComboBikeA
     where: {
       vehicle: { serviceId: { in: svcs.map((s) => s.id) } },
       endDate: { gte: parseDateOnly(addDaysKeyLocal(d.s < T ? d.s : T, -60)) },
-      NOT: { bookingId },
+      AND: [notBooking(bookingId)],
       ...ALIVE,
     },
   });
@@ -534,7 +573,7 @@ export async function comboBikeAssignInfo(bookingId: string): Promise<ComboBikeA
     return {
       id: s.id,
       title: s.title,
-      free: autoPick(pool, d.s, d.e, pool.length, rs, T, d.st, d.et).length,
+      free: autoPick(pool, d.s, d.e, pool.length, rs, T, d.st, d.et, vnNow().now).length,
       webSync: normalizeConfig(s.fleetConfig?.data).webSync,
     };
   });
@@ -687,7 +726,7 @@ export async function fleetFreeByWebType(
     const vs = vehiclesRaw.filter((v) => v.serviceId === t.serviceId).map((v) => vehicleVM(v));
     if (!vs.length) continue;
     const pool = poolFor(vs, t.id).filter((v) => v.mode !== "off");
-    out.set(t.id, { free: pool.filter((v) => isVehicleFree(v, fromKey, toKey, rentals, T, undefined, undefined, st, et)).length, total: pool.length });
+    out.set(t.id, { free: pool.filter((v) => isVehicleFree(v, fromKey, toKey, rentals, T, undefined, vnNow().now, st, et)).length, total: pool.length });
   }
   return out;
 }

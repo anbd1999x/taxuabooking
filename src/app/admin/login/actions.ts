@@ -43,5 +43,7 @@ export async function loginAction(
   });
   await setSessionCookie(token);
   // CTV & chủ dịch vụ về khu vực riêng; admin về trang quản trị.
-  redirect(user.role === "CTV" ? "/admin/ctv" : user.role === "PROVIDER" ? "/admin/provider" : user.role === "STAFF" ? "/admin/provider/xe" : "/admin");
+  // Nhân viên: lễ tân homestay (staffArea "phong") về Quản lý phòng, còn lại về trang xe (tự chuyển sang soát vé nếu chủ không có xe).
+  const staffHome = user.staffArea === "phong" ? "/admin/provider/phong" : "/admin/provider/xe";
+  redirect(user.role === "CTV" ? "/admin/ctv" : user.role === "PROVIDER" ? "/admin/provider" : user.role === "STAFF" ? staffHome : "/admin");
 }

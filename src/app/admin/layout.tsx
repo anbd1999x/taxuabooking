@@ -51,6 +51,26 @@ export default async function AdminLayout({
     if (count > 0) badges["/admin/provider/don"] = count;
     // Menu "Quản lý xe máy" chỉ hiện cho chủ có dịch vụ thuê xe máy.
     if (!(await prisma.service.count({ where: { ownerId: sub, category: "MOTORBIKE" } }))) hideNav.push("/admin/provider/xe");
+    // Menu "Vé & đặt bàn" chỉ hiện cho chủ có địa điểm bán vé / nhận đặt bàn.
+    if (!(await prisma.ticketVenue.count({ where: { ownerId: sub } }))) hideNav.push("/admin/provider/ve");
+    // Menu "Quản lý phòng" chỉ hiện cho chủ có homestay.
+    if (!(await prisma.service.count({ where: { ownerId: sub, category: { in: ["HOMESTAY", "BUNGALOW"] } } }))) hideNav.push("/admin/provider/phong");
+  } else if (session.role === "STAFF") {
+    // Nhân viên: chỉ hiện việc mà chủ của mình có (giao xe / soát vé).
+    const me = await prisma.adminUser.findUnique({ where: { id: session.sub }, select: { providerId: true, staffArea: true } });
+    const ownerId = me?.providerId ?? "-";
+    // Lễ tân (staffArea "phong") chỉ vào Quản lý phòng; nhân viên xe (xe/null) vào đội xe + soát vé, không vào phòng.
+    if (me?.staffArea === "phong") {
+      hideNav.push("/admin/provider/xe", "/admin/provider/soat-ve");
+    } else {
+      hideNav.push("/admin/provider/phong");
+      const [venues, motos] = await Promise.all([
+        prisma.ticketVenue.count({ where: { ownerId, kind: { not: "RESTAURANT" } } }),
+        prisma.service.count({ where: { ownerId, category: "MOTORBIKE" } }),
+      ]);
+      if (!venues) hideNav.push("/admin/provider/soat-ve");
+      if (!motos && venues) hideNav.push("/admin/provider/xe");
+    }
   }
 
   return (
