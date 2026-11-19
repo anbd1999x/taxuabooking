@@ -457,9 +457,18 @@ export async function updateService(
 }
 
 export async function deleteService(formData: FormData): Promise<void> {
-  await requireServiceEditor(s(formData.get("id")));
+  const ed = await requireServiceEditor(s(formData.get("id")));
   const id = s(formData.get("id"));
   if (id) {
+    // Chủ tự đăng ký: không xoá homestay còn đơn chưa huỷ hoặc còn lượt ở sắp tới (xoá kéo theo phòng / lịch / lượt ở,
+    // đơn mất liên kết phòng). Muốn ngừng bán thì liên hệ sàn ẩn bài.
+    if (!ed.isAdmin) {
+      const [orders, stays] = await Promise.all([
+        prisma.bookingRequest.count({ where: { serviceId: id, status: { not: "CANCELLED" } } }),
+        prisma.roomStay.count({ where: { serviceId: id, checkOut: { gte: today() }, OR: [{ state: null }, { state: { notIn: ["cancel", "noshow", "reject"] } }] } }),
+      ]);
+      if (orders || stays) throw new Error("Homestay đang có đơn hoặc lượt ở chưa xong — không xoá được. Huỷ các đơn đó trước, hoặc liên hệ Tà Xùa Booking để ẩn homestay.");
+    }
     await prisma.service.delete({ where: { id } });
     revalidatePath("/admin/services");
   }

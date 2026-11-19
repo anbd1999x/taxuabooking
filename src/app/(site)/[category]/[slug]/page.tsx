@@ -721,7 +721,9 @@ async function ServiceDetailBody({
 
         {/* Panel đặt dịch vụ */}
         <div className="min-w-0">
-          {service.category === "CABIN" && service.contactOnly ? (
+          {/* Cabin chỉ đặt qua CabinBooking (createBooking từ chối vé cabin) ⇒ nhà xe chưa dựng được dải ngày
+              (thiếu mẫu chuyến / lộ trình) thì hiện khung liên hệ, không rơi xuống BookingPanel bấm đặt là lỗi. */}
+          {service.category === "CABIN" && (service.contactOnly || !cabinOutbound) ? (
             <CabinContactPanel
               operatorName={service.title}
               phone={phone}

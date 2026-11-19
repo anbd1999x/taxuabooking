@@ -17,10 +17,14 @@ function s(v: FormDataEntryValue | null): string {
 
 /** Lưu (hoặc xoá) link Google Sheet lịch phòng của một homestay. */
 export async function saveSheetUrl(_prev: SheetActionState, formData: FormData): Promise<SheetActionState> {
-  await guard(s(formData.get("serviceId")));
+  const ed = await guard(s(formData.get("serviceId")));
   const serviceId = s(formData.get("serviceId"));
   const url = s(formData.get("sheetUrl"));
   if (!serviceId) return { error: "Thiếu homestay." };
+  // Chủ tự đăng ký: CHỈ link Google Sheet (API lịch là địa chỉ tuỳ ý ⇒ server sẽ tự gọi tới — chống SSRF).
+  if (url && !ed.isAdmin && (!/^https:\/\/docs\.google\.com\//i.test(url) || !sheetCsvUrl(url))) {
+    return { error: "Link không phải Google Sheet hợp lệ (cần dạng https://docs.google.com/spreadsheets/d/...). Cần đồng bộ từ phần mềm khác thì liên hệ Tà Xùa Booking." };
+  }
   if (url && !isCalendarApiUrl(url) && (!/^https:\/\/docs\.google\.com\//i.test(url) || !sheetCsvUrl(url))) {
     return { error: "Link không phải Google Sheet hợp lệ (cần dạng https://docs.google.com/spreadsheets/d/...) hoặc API lịch (…/api/calendar/all, hoặc https://<tên>.hotelss.vn/?building_id=…)." };
   }

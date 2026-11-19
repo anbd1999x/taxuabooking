@@ -205,15 +205,30 @@ export function TicketBooking({ venue: v, avail: a0, initialDay, base = "/ve" }:
     return j as { hold?: string; holdUntil?: number; token?: string };
   };
   const ticketsBody = () => (T === "GATE" ? gateTiers : standTiers).map((x) => ({ tierId: x.id, qty: tq(x.id) }));
-  const toTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
+  // Hành trình cuộn: vào trang ⇒ ở đầu trang; đổi bước ⇒ cuộn tới ĐẦU VÙNG của bước mới (chọn chỗ → đồ ăn uống → liên hệ),
+  // chừa chỗ cho header dính của site. Trước đây mỗi bước đều cuộn về đầu trang ⇒ khách phải tự kéo xuống tìm.
+  const stepRef = useRef<HTMLDivElement>(null);
+  const firstStep = useRef(true);
+  useEffect(() => {
+    if (firstStep.current) {
+      firstStep.current = false;
+      window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior }); // Next có thể giữ / tự đặt vị trí cuộn khi chuyển từ danh sách
+      return;
+    }
+    const el = stepRef.current;
+    if (!el) return;
+    const header = document.querySelector("header");
+    const hb = header && getComputedStyle(header).position !== "static" ? header.getBoundingClientRect().bottom : 0;
+    window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - Math.max(0, hb) - 12), behavior: "smooth" });
+  }, [step]);
 
   async function next() {
     const e = valid();
     if (e) return setErr(e);
     if (busy) return;
     setErr("");
-    if (step === 1) return setStep(T === "GATE" ? (hasFood ? 3 : 4) : 2), toTop();
-    if (step === 3) return setStep(4), toTop();
+    if (step === 1) return setStep(T === "GATE" ? (hasFood ? 3 : 4) : 2);
+    if (step === 3) return setStep(4);
     setBusy(true);
     try {
       if (step === 2) {
@@ -221,7 +236,6 @@ export function TicketBooking({ venue: v, avail: a0, initialDay, base = "/ve" }:
         const j = await post({ op: "hold", replace: hold?.token, date: T === "SHOW" ? show.date : day, time: T === "SHOW" ? show.time : slot, seats, tableIds: tables, tickets: ticketsBody(), guests });
         setHold({ token: j.hold!, until: j.holdUntil!, keys });
         setStep(hasFood ? 3 : 4);
-        toTop();
       } else {
         const j = await post({
           op: "book", hold: hold?.token, date: day, tickets: ticketsBody(), guests, expectedTotal: total,
@@ -249,6 +263,11 @@ export function TicketBooking({ venue: v, avail: a0, initialDay, base = "/ve" }:
     return { k, name, sub: skip ? t("Không cần") : k === 3 ? t("Tuỳ chọn") : "", done, cur, skip };
   });
   const stLabel = show ? `${t(wdOf(show.date))} ${dm(show.date)} · ${show.time}` : "";
+  // Dòng tên show / địa điểm + ngày giờ ở đầu các bước sau — cuộn xuống vẫn thấy mình đang đặt cho show nào.
+  const ctxLine = [t(v.name), T === "SHOW" ? stLabel : T === "RESTAURANT" ? [`${t(wdOf(day))} ${dm(day)}`, slot].filter(Boolean).join(" · ") : `${t(wdOf(day))} ${dm(day)}`].filter(Boolean).join(" · ");
+  const ctxStyle: React.CSSProperties = { fontSize: 12, fontWeight: 800, letterSpacing: ".02em", color: "oklch(0.45 0.1 158)", marginBottom: 2 };
+  const ctx = <div style={ctxStyle}>{ctxLine}</div>;
+  const ctxName = <div style={ctxStyle}>{t(v.name)}</div>; // bước chọn chỗ: tiêu đề đã có ngày giờ
   const when = T === "GATE" ? [`${t(wdOf(day))}, ${dm(day)}/${day.slice(0, 4)}`, v.hours].filter(Boolean).join(" · ") : T === "SHOW" ? [stLabel, t(v.area)].filter(Boolean).join(" · ") : `${t(wdOf(day))}, ${dm(day)}${slot ? " · " + slot : ""} · ${t("{0} khách", [guests])}`;
   const cta = step === 4 ? (payNow ? t("Gửi đơn & thanh toán") : t("Gửi yêu cầu")) : step === 2 ? t("Giữ chỗ & tiếp tục") : t("Tiếp tục");
   const ctaNote = step === 2 ? t("Bấm tiếp tục, ghế/bàn được giữ riêng cho bạn {0} phút.", [DRAFT_HOLD_MIN]) : step === 4 ? (payNow ? t("Sau khi gửi, quét VietQR để thanh toán trong {0} phút (quá hạn đơn tự huỷ). Vé QR phát khi xác nhận thu tiền.", [WEB_CONFIRM_MIN]) : voice(t("Tụi mình gọi xác nhận, vé QR gửi về email.")) + " " + t("Đơn giữ chỗ {0} phút chờ xác nhận, quá hạn tự huỷ.", [WEB_CONFIRM_MIN])) : t("Giá tính lại ở máy chủ trước khi tạo đơn.");
@@ -299,7 +318,7 @@ export function TicketBooking({ venue: v, avail: a0, initialDay, base = "/ve" }:
           ))}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: two ? "minmax(0,1fr) 380px" : "1fr", gap: 18, alignItems: "start" }}>
+        <div ref={stepRef} style={{ display: "grid", gridTemplateColumns: two ? "minmax(0,1fr) 380px" : "1fr", gap: 18, alignItems: "start", scrollMarginTop: 80 }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 16, minWidth: 0 }}>
             {/* ---------- BƯỚC 1: VÉ CỔNG ---------- */}
             {step === 1 && T === "GATE" && (
@@ -431,6 +450,7 @@ export function TicketBooking({ venue: v, avail: a0, initialDay, base = "/ve" }:
               <section style={{ ...section, gap: 14 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                   <div>
+                    {ctxName}
                     <div style={h2}>{isTable ? t("Chọn bàn") : t("Chọn ghế")} · {stLabel}</div>
                     <div style={hint}>{isTable ? t("Bấm vào bàn trống để chọn, bấm lại để bỏ · mỗi bàn 2–4 người") : t("Bấm vào ghế trống để chọn, bấm lại để bỏ")}</div>
                   </div>
@@ -502,6 +522,7 @@ export function TicketBooking({ venue: v, avail: a0, initialDay, base = "/ve" }:
             {step === 2 && T === "RESTAURANT" && (
               <section style={{ ...section, gap: 14 }}>
                 <div>
+                  {ctxName}
                   <div style={h2}>{t("Chọn bàn")} · {dm(day)} · {slot} · {t("{0} khách", [guests])}</div>
                   <div style={hint}>{t("Đoàn đông có thể chọn nhiều bàn gần nhau")}</div>
                 </div>
@@ -559,6 +580,7 @@ export function TicketBooking({ venue: v, avail: a0, initialDay, base = "/ve" }:
               <section style={{ ...section, gap: 14 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
                   <div>
+                    {ctx}
                     <div style={h2}>{T === "RESTAURANT" ? t("Đặt món trước") : t("Đồ ăn uống kèm")}</div>
                     <div style={hint}>{T === "RESTAURANT" ? t("Bếp chuẩn bị sẵn, lên món ngay khi bạn tới") : t("Nhận tại quầy bằng mã QR, không phải xếp hàng")}</div>
                   </div>
@@ -603,6 +625,7 @@ export function TicketBooking({ venue: v, avail: a0, initialDay, base = "/ve" }:
             {step === 4 && (
               <section style={{ ...section, gap: 12 }}>
                 <div>
+                  {ctx}
                   <div style={h2}>{t("Thông tin liên hệ")}</div>
                   <div style={hint}>{t("Vé QR gửi về email này, kèm tin nhắn Zalo")}</div>
                 </div>

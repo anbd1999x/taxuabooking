@@ -66,7 +66,19 @@ export async function POST(request: Request) {
     // ---- Soát vé: nhân viên cũng dùng được; không cần chọn địa điểm ----
     if (op === "scan") {
       if (venueId && !(await canManageVenue(session, venueId))) return bad("Không có quyền.", 403);
-      const result = await scanTicket(owner, who, str(body.code, 300), { venueId: venueId || undefined, sessionId: str(body.sessionId, 40) || undefined, deliver: body.deliver === true });
+      const scanOpts = { venueId: venueId || undefined, sessionId: str(body.sessionId, 40) || undefined, deliver: body.deliver === true };
+      const result = await scanTicket(owner, who, str(body.code, 300), scanOpts);
+      // Soát CHUNG (không chọn địa điểm) trong bản demo khi trình duyệt cũng đang đăng nhập một tài khoản thật (vd chủ
+      // dịch vụ): phiên thường không thấy vé của địa điểm demo ⇒ báo "Không tìm thấy mã". Thử lại bằng phiên demo —
+      // lần quét "none" không ghi gì nên thử lại an toàn; chỉ dùng kết quả demo khi nó thật sự tìm ra vé.
+      if (result.kind === "none" && !venueId && session.role !== "DEMO") {
+        const demo = await getDemoSession();
+        const demoOwner = demo ? await ticketOwnerOf(demo) : null;
+        if (demo && demoOwner && demoOwner !== owner) {
+          const r2 = await scanTicket(demoOwner, demo.name || demo.username, str(body.code, 300), scanOpts);
+          if (r2.kind !== "none") return NextResponse.json({ result: r2, stats: await scanStats(demoOwner) });
+        }
+      }
       return NextResponse.json({ result, stats: await scanStats(owner, venueId || undefined) });
     }
     if (session.role === "STAFF") return bad("Tài khoản nhân viên chỉ dùng được trang soát vé.", 403);

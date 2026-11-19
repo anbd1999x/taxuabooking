@@ -3,6 +3,7 @@ import { prisma } from "./prisma";
 import { parseDateOnly, toDateKey, today } from "./dates";
 import { parseIcsBusyNights } from "./ical";
 import { syncRoomTypeAvailability } from "./room-availability";
+import { safeFetch } from "./safe-url";
 
 export interface IcalSyncResult {
   sourceId: string;
@@ -21,7 +22,8 @@ export async function syncIcalSource(sourceId: string): Promise<IcalSyncResult> 
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 15000);
-    const res = await fetch(src.url, { redirect: "follow", signal: ctrl.signal, headers: { "User-Agent": "TaXuaBooking/1.0 iCal sync" }, cache: "no-store" });
+    // safeFetch: mỗi bước chuyển hướng phải là địa chỉ công khai (chủ tự đăng ký nhập được link — chống SSRF vào mạng nội bộ).
+    const res = await safeFetch(src.url, { signal: ctrl.signal, headers: { "User-Agent": "TaXuaBooking/1.0 iCal sync" }, cache: "no-store" });
     clearTimeout(timer);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const text = await res.text();

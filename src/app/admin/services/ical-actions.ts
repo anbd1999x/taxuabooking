@@ -1,6 +1,7 @@
 "use server";
 
 import { guard, serviceIdOfIcalSource, serviceIdOfRoom } from "@/lib/partner-access";
+import { publicUrlError } from "@/lib/safe-url";
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
@@ -31,13 +32,16 @@ export async function enableRoomIcal(formData: FormData): Promise<void> {
 
 /** Thêm một nguồn iCal từ OTA (link .ics) cho phòng. */
 export async function addIcalSource(_prev: IcalActionState, formData: FormData): Promise<IcalActionState> {
-  await guard(await serviceIdOfRoom(s(formData.get("roomId"))));
+  const ed = await guard(await serviceIdOfRoom(s(formData.get("roomId"))));
   const roomId = s(formData.get("roomId"));
   const serviceId = s(formData.get("serviceId"));
   const label = s(formData.get("label")) || "OTA";
   const url = s(formData.get("url"));
   if (!roomId) return { error: "Thiếu phòng." };
   if (!/^https?:\/\/.+/i.test(url)) return { error: "Link iCal không hợp lệ (phải bắt đầu http/https)." };
+  // Chống SSRF: link phải là địa chỉ công khai (chủ tự đăng ký: bắt buộc https).
+  const bad = await publicUrlError(url, { requireHttps: !ed.isAdmin });
+  if (bad) return { error: bad };
   try {
     await prisma.roomIcalSource.create({ data: { roomId, label, url } });
   } catch {

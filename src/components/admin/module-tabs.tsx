@@ -55,31 +55,39 @@ export function ModuleSubNav({ onPick, depth = 0 }: { onPick?: () => void; depth
     onPick?.();
     window.scrollTo({ top: 0 });
   };
-  const row = (on: boolean) =>
-    `flex w-full items-center justify-between gap-2 rounded-lg py-2 pr-3 text-left text-[13px] transition ${on ? "bg-white/10 font-semibold text-white" : "text-forest-200/90 hover:bg-white/5 hover:text-white"}`;
+  // `open` = tab đang chọn mà đang mở mục con cấp 2 ⇒ KHÔNG tô nền (chỉ chữ đậm), để chỉ mục con đang chọn có nền —
+  // tránh 3 khối nền (module · tab · mục con) xếp sát nhau trông như đè lên nhau trên điện thoại.
+  const row = (on: boolean, open = false) =>
+    `flex w-full items-center justify-between gap-2 rounded-lg py-2 pr-3 text-left text-[13px] leading-snug transition [-webkit-tap-highlight-color:transparent] focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 ${
+      on && open ? "font-semibold text-white" : on ? "bg-white/15 font-semibold text-white" : "text-forest-200/90 hover:bg-white/5 hover:text-white"
+    }`;
   const badge = (n?: number) =>
     n ? <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1.5 text-xs font-bold text-white">{n > 99 ? "99+" : n}</span> : null;
   return (
-    <div className="mb-1 mt-0.5 space-y-0.5 border-l border-white/10" style={{ marginLeft: 20 + depth * 12 }}>
+    <div className="mb-1.5 mt-1 space-y-1 border-l border-white/10" style={{ marginLeft: 20 + depth * 12 }}>
       {main.tabs.map((t) => {
         const on = t.key === main.active;
+        const open = on && !!sub && sub.parent === t.key && sub.tabs.length > 0;
         return (
           <div key={t.key}>
-            <button type="button" onClick={() => go(main, t.key)} className={row(on)} style={{ paddingLeft: 12 }}>
-              <span className="flex items-center gap-2">
+            <button type="button" onClick={() => go(main, t.key)} className={row(on, open)} style={{ paddingLeft: 12 }}>
+              <span className="flex min-w-0 items-center gap-2">
                 <span className={`h-1.5 w-1.5 flex-none rounded-full ${on ? "bg-orange-400" : "bg-white/25"}`} />
-                {t.label}
+                <span className="min-w-0">{t.label}</span>
               </span>
               {badge(t.badge)}
             </button>
-            {on && sub && sub.parent === t.key && sub.tabs.length > 0 && (
-              <div className="mb-1 ml-5 space-y-0.5 border-l border-white/10">
-                {sub.tabs.map((s) => (
-                  <button key={s.key} type="button" onClick={() => go(sub, s.key)} className={row(s.key === sub.active)} style={{ paddingLeft: 12 }}>
-                    <span>{s.label}</span>
-                    {badge(s.badge)}
-                  </button>
-                ))}
+            {open && sub && (
+              <div className="mb-1 ml-4 mt-1 space-y-1 border-l border-white/10 pl-1">
+                {sub.tabs.map((s) => {
+                  const sOn = s.key === sub.active;
+                  return (
+                    <button key={s.key} type="button" onClick={() => go(sub, s.key)} className={`${row(sOn)} ${sOn ? "shadow-[inset_2px_0_0_0_var(--color-orange-400)]" : ""}`} style={{ paddingLeft: 10 }}>
+                      <span className="min-w-0">{s.label}</span>
+                      {badge(s.badge)}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
