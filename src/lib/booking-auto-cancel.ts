@@ -1,6 +1,7 @@
 import type { BookingRequest, Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
-import { adjustInventory, assignRoomsForBooking } from "./inventory";
+import { adjustInventory, assignRoomsForBooking, lockBooking } from "./inventory";
+import { today as vnToday } from "./dates";
 import { AUTO_CANCEL_HOURS_KEY, hoursLabel, parseAutoCancelHours } from "./auto-cancel-config";
 import { soldOutReason } from "./cancel-reason";
 
@@ -32,6 +33,8 @@ const NEVER_AUTO_CANCELLED = { logs: { none: { title: AUTO_TITLE } } };
 
 /** Huỷ một đơn (trả tồn nếu lỡ đã giữ) + ghi nhật ký. Trả false nếu đơn vừa đổi trạng thái/đã thu tiền. */
 async function cancelOne(tx: Prisma.TransactionClient, id: string, reason: string): Promise<boolean> {
+  // Khoá đơn: admin xác nhận đúng lúc này ⇒ không cùng đọc inventoryApplied cũ rồi trả/trừ tồn lệch (BK-3).
+  await lockBooking(tx, id);
   const b: BookingRequest | null = await tx.bookingRequest.findUnique({ where: { id } });
   if (!b || (b.status !== "NEW" && b.status !== "CONTACTING") || b.paymentStatus !== "UNPAID") return false;
   if (b.inventoryApplied) {
@@ -100,7 +103,8 @@ export async function cancelExpiredUnpaidBookingsLocked(now = new Date()): Promi
  * Bỏ qua đơn đã đánh dấu "nhà cung cấp đã giữ phòng" (ô sheet khi đó chính là của đơn này).
  */
 export async function cancelBookingsBlockedBySheet(serviceId: string, syncTag: string): Promise<string[]> {
-  const today = new Date(new Date().toISOString().slice(0, 10));
+  // Ngày hôm nay theo giờ VN (ngày UTC lệch 7 tiếng ⇒ 0h–7h sáng bỏ sót đơn nhận phòng hôm nay).
+  const today = vnToday();
   const pending = await prisma.bookingRequest.findMany({
     where: {
       ...PENDING,
@@ -129,7 +133,31 @@ export async function cancelBookingsBlockedBySheet(serviceId: string, syncTag: s
     if (!hit) continue;
     const d = hit.date.toISOString().slice(0, 10).split("-").reverse().join("/");
     const ok = await tryCancel(b.id, soldOutReason(nameOf.get(hit.roomId) ?? "", d));
-    if (ok) done.push(b.code);
+    if (ok) {
+      done.push(b.code);
+      await syncAfterAutoCancel(b.id);
+    }
   }
   return done;
+}
+
+/**
+ * Đơn vừa tự huỷ ⇒ nhả xe máy kèm combo (đội xe) + ô giữ hộ / lượt ở ở Quản lý phòng ngay, như
+ * mọi luồng huỷ khác (BK-9). Nạp động: stay.ts import ngược file này (vòng import), và script
+ * thuần dùng file này không cần kéo theo đội xe. Lỗi đồng bộ không chặn lượt huỷ (trang quản lý
+ * tự đồng bộ lại khi mở).
+ */
+async function syncAfterAutoCancel(id: string): Promise<void> {
+  try {
+    const { syncFleetForBooking } = await import("./fleet");
+    await syncFleetForBooking(id);
+  } catch (err) {
+    console.error("[auto-cancel] không đồng bộ được đội xe", id, err);
+  }
+  try {
+    const { syncStaysForBooking } = await import("./stay");
+    await syncStaysForBooking(id);
+  } catch (err) {
+    console.error("[auto-cancel] không đồng bộ được lượt ở", id, err);
+  }
 }

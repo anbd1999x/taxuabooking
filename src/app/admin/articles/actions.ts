@@ -39,11 +39,13 @@ export async function setArticleFeaturedOrder(_prev: ActionState, formData: Form
   const id = s(formData.get("id"));
   if (!id) return { error: "Thiếu bài viết." };
   const featuredOrder = featuredOrderOf(formData.get("featuredOrder"));
-  const a = await prisma.article.update({ where: { id }, data: { featuredOrder } }).catch(() => null);
+  // Ô "thứ tự trong chủ đề" (có thì lưu cùng lúc).
+  const topicOrder = formData.has("topicOrder") ? featuredOrderOf(formData.get("topicOrder")) : undefined;
+  const a = await prisma.article.update({ where: { id }, data: { featuredOrder, ...(topicOrder !== undefined ? { topicOrder } : {}) } }).catch(() => null);
   if (!a) return { error: "Không tìm thấy bài viết." };
   revalidate(a.slug);
   revalidatePath("/admin/articles");
-  return { ok: true, message: featuredOrder ? `Đã đặt nổi bật · STT ${featuredOrder}` : "Đã bỏ nổi bật" };
+  return { ok: true, message: `${featuredOrder ? `Nổi bật · STT ${featuredOrder}` : "Không nổi bật"}${topicOrder ? ` · thứ tự trong chủ đề ${topicOrder}` : ""}` };
 }
 
 function revalidate(slug?: string) {
@@ -76,6 +78,7 @@ export async function upsertArticle(_prev: ActionState, formData: FormData): Pro
     content,
     coverImage: s(formData.get("coverImage")) ?? null,
     featuredOrder: featuredOrderOf(formData.get("featuredOrder")),
+    topicOrder: featuredOrderOf(formData.get("topicOrder")),
     published: formData.get("published") === "on",
   };
 

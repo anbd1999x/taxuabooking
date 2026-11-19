@@ -7,7 +7,7 @@ import { parseDateOnly, toDateKey } from "./dates";
 import { dmy, wdShort } from "./date-format";
 import { generateBookingCode, slugify } from "./utils";
 import {
-  DATE_RE, DEFAULT_COLS, DEFAULT_ROWS, DRAFT_HOLD_MIN, isSeatItem, seatName, unitWord, TIME_RE, WEB_CONFIRM_MIN, WEB_MAX, addDaysKey, cellType, mealOverlap, mealRange, normalizeConfig, normalizeLayout, seatClassOf, seatKey, slotPassed, vnNow,
+  DATE_RE, PUBLIC_VENUE, asReview, normPhone, isPublicVenue, DEFAULT_COLS, DEFAULT_ROWS, DRAFT_HOLD_MIN, isSeatItem, seatName, unitWord, TIME_RE, WEB_CONFIRM_MIN, WEB_MAX, addDaysKey, cellType, mealOverlap, mealRange, normalizeConfig, normalizeLayout, scanSessionTime, scanCandidateTimes, seatClassOf, seatKey, slotPassed, vnNow, webHoldCap,
   type OrderStatus, type PubAvail, type PubCard, type PubShow, type PubVenue, type ScanResult, type SeatLayout, type TkData, type TkOrder, type TkVenueRef, type VenueConfig, type VenueKind,
 } from "./ticket-core";
 
@@ -49,15 +49,15 @@ export async function venuesFor(session: SessionPayload | null): Promise<TkVenue
   const rows = await prisma.ticketVenue.findMany({
     where: owner === "all" ? {} : { ownerId: owner },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-    select: { id: true, kind: true, name: true },
+    select: { id: true, kind: true, name: true, review: true, published: true },
   });
-  return rows.map((r) => ({ id: r.id, kind: r.kind as VenueKind, name: r.name }));
+  return rows.map((r) => ({ id: r.id, kind: r.kind as VenueKind, name: r.name, review: asReview(r.review), published: r.published }));
 }
 
 export async function canManageVenue(session: SessionPayload | null, venueId: string) {
   const owner = await ticketOwnerOf(session);
   if (!owner || !venueId) return null;
-  return prisma.ticketVenue.findFirst({ where: { id: venueId, ...(owner === "all" ? {} : { ownerId: owner }) }, select: { id: true, kind: true, name: true, ownerId: true } });
+  return prisma.ticketVenue.findFirst({ where: { id: venueId, ...(owner === "all" ? {} : { ownerId: owner }) }, select: { id: true, kind: true, name: true, ownerId: true, review: true, published: true } });
 }
 
 // ----------------------------- Nạp dữ liệu -----------------------------
@@ -68,7 +68,8 @@ const hhmm = (d: Date) => vnNow(d.getTime()).now;
 export function orderVM(o: OrderRow): TkOrder {
   return {
     id: o.id, code: o.code, token: o.token, sessionId: o.sessionId,
-    name: o.customerName, phone: o.phone, guests: o.guests, note: o.note ?? "", source: o.source,
+    // Đơn nháp: note chỉ chứa khoá giữ chỗ theo IP (HOLD_NOTE), không phải ghi chú của khách.
+    name: o.customerName, phone: o.phone, guests: o.guests, note: o.status === "draft" ? "" : (o.note ?? ""), source: o.source,
     status: o.status as OrderStatus,
     ticketAmount: num(o.ticketAmount), foodAmount: num(o.foodAmount), total: num(o.total), deposit: num(o.deposit), paid: num(o.paid),
     payMethod: o.payMethod, holdUntil: o.holdUntil ? o.holdUntil.getTime() : null, createdBy: o.createdBy, createdAt: o.createdAt.getTime(),
@@ -85,6 +86,11 @@ export async function loadTicketData(venueId: string): Promise<TkData> {
   await releaseExpiredTicketHolds(venueId).catch(() => 0);
   const { today } = vnNow();
   const from = parseDateOnly(addDaysKey(today, -1));
+  // Màn quản trị nạp lại 20 giây/lần ⇒ không kéo mọi đơn tương lai (PERF-3). Vé cổng / nhà hàng chỉ xem 7 ngày tới (lấy 14),
+  // show xem theo từng suất (lấy 180 ngày). Đơn đang chờ (wait/draft) luôn lấy hết — danh sách chờ gọi / chờ thu không bị sót.
+  const kindRow = await prisma.ticketVenue.findUniqueOrThrow({ where: { id: venueId }, select: { kind: true } });
+  const until = parseDateOnly(addDaysKey(today, kindRow.kind === "SHOW" ? 180 : 14));
+  const near = { date: { gte: from, lte: until } };
   const [v, sessions, orders, locks] = await Promise.all([
     prisma.ticketVenue.findUniqueOrThrow({
       where: { id: venueId },
@@ -94,15 +100,28 @@ export async function loadTicketData(venueId: string): Promise<TkData> {
         tables: { orderBy: [{ floor: "asc" }, { sortOrder: "asc" }, { name: "asc" }] },
       },
     }),
-    prisma.ticketSession.findMany({ where: { venueId, date: { gte: from } }, orderBy: [{ date: "asc" }, { time: "asc" }] }),
-    prisma.ticketOrder.findMany({ where: { venueId, status: { not: "cancel" }, session: { date: { gte: from } } }, include: orderInclude, orderBy: { createdAt: "asc" } }),
+    // Suất show giữ đủ (dòng nhẹ; "+ Tạo suất nhanh" nối tiếp suất cuối). Vé cổng / bàn tạo suất khi cần ⇒ chỉ cần khoảng gần.
+    prisma.ticketSession.findMany({ where: { venueId, date: kindRow.kind === "SHOW" ? { gte: from } : near.date }, orderBy: [{ date: "asc" }, { time: "asc" }] }),
+    prisma.ticketOrder.findMany({
+      where: { venueId, OR: [{ status: { in: ["wait", "draft"] }, session: { date: { gte: from } } }, { status: { not: "cancel" }, session: near }] },
+      include: orderInclude, orderBy: { createdAt: "asc" },
+    }),
     prisma.ticketSeat.findMany({ where: { orderId: null, session: { venueId, date: { gte: from } } }, select: { sessionId: true, key: true } }),
   ]);
+  // Đơn chờ ở ngày xa hơn cửa sổ suất ⇒ nạp thêm đúng các suất đó (RestTab/GateTab không thiếu giờ / ngày).
+  const haveIds = new Set(sessions.map((s) => s.id));
+  const missIds = [...new Set(orders.map((o) => o.sessionId).filter((id) => !haveIds.has(id)))];
+  if (missIds.length) {
+    const extra = await prisma.ticketSession.findMany({ where: { id: { in: missIds }, venueId } });
+    sessions.push(...extra);
+    sessions.sort((a, b) => a.date.getTime() - b.date.getTime() || a.time.localeCompare(b.time));
+  }
   const owner = v.ownerId ? await prisma.adminUser.findUnique({ where: { id: v.ownerId }, select: { name: true } }) : null;
   return {
     venue: {
       id: v.id, kind: v.kind as VenueKind, slug: v.slug, name: v.name, area: v.area ?? "", description: v.description ?? "", coverImage: v.coverImage, published: v.published, placeId: v.placeId,
       config: normalizeConfig(v.config), layout: normalizeLayout(v.layout), ownerId: v.ownerId, ownerName: owner?.name ?? "",
+      review: asReview(v.review), reviewNote: v.reviewNote ?? "", submittedAt: v.submittedAt ? v.submittedAt.getTime() : null,
     },
     tiers: v.tiers.map((t) => ({ id: t.id, name: t.name, price: num(t.price), listPrice: t.listPrice == null ? null : num(t.listPrice), seatClass: t.seatClass === "vip" || t.seatClass === "norm" ? t.seatClass : null, quota: t.quota, active: t.active })),
     menu: v.menu.map((m) => ({ id: m.id, name: m.name, group: m.group ?? "", price: num(m.price), active: m.active, images: m.images.length ? m.images : m.imageUrl ? [m.imageUrl] : [] })),
@@ -246,7 +265,11 @@ export interface NewTicketOrder {
   staff?: boolean;
   /** Khách xem BẢN DEMO đặt thử trên địa điểm demo (chưa mở bán) — bỏ điều kiện "đã mở bán", các kiểm tra khác giữ nguyên. */
   preview?: boolean;
+  /** Đơn nháp của khách web: khoá thiết bị (băm IP) để giới hạn số chỗ giữ cùng lúc (webHoldCap). */
+  holdKey?: string;
 }
+/** Tiền tố ghi chú của đơn nháp mang khoá giữ chỗ — finalizeDraft ghi đè note bằng ghi chú thật của khách. */
+const HOLD_NOTE = "#hold:";
 
 async function newOrderCode(tx: Tx): Promise<string> {
   for (let i = 0; i < 6; i++) {
@@ -259,7 +282,7 @@ const newToken = () => randomBytes(12).toString("base64url");
 
 export async function createTicketOrder(input: NewTicketOrder): Promise<{ id: string; code: string; token: string }> {
   const name = input.name.trim().slice(0, 80);
-  const phone = input.phone.replace(/[^\d+]/g, "").slice(0, 15);
+  const phone = normPhone(input.phone);
   if (name.length < 2 && input.mode !== "draft") fail("Nhập tên khách.");
   // Nhả các đơn đã quá hạn giữ chỗ trước (tác vụ định kỳ chỉ chạy 5 phút/lần) ⇒ ghế / quota của đơn hết hạn không chặn người mua kế tiếp.
   await releaseExpiredTicketHolds(input.venueId).catch(() => 0);
@@ -273,14 +296,17 @@ export async function createTicketOrder(input: NewTicketOrder): Promise<{ id: st
       const vn = vnNow();
       if (dateKey < vn.today) fail("Ngày đã qua.");
       const time = kind === "GATE" ? "" : input.time;
+      let webUnits = 0;
       if (!input.staff) {
-        if (!v.published && !input.preview) fail("Địa điểm này chưa mở bán.");
+        if (!isPublicVenue(v) && !input.preview) fail("Địa điểm này chưa mở bán.");
         // Khách web chỉ đặt trước tối đa 1 năm (vé cổng / bàn tạo suất khi cần — không để API tạo suất vô hạn về sau).
         if (dateKey > addDaysKey(vn.today, 365)) fail("Chỉ nhận đặt trước tối đa 1 năm.");
         if (kind !== "GATE" && slotPassed(dateKey, time, vn.today, vn.now)) fail("Khung giờ này đã qua.");
         const n = (input.tickets ?? []).reduce((a, t) => a + Math.max(0, Math.round(t.qty)), 0) + (kind === "SHOW" ? new Set(input.seats ?? []).size : kind === "RESTAURANT" ? new Set(input.tableIds ?? []).size : 0);
         if (n > WEB_MAX[kind]) fail(kind === "RESTAURANT" ? `Mỗi đơn tối đa ${WEB_MAX[kind]} bàn — đoàn lớn hơn vui lòng gọi quán.` : `Mỗi đơn tối đa ${WEB_MAX[kind]} vé.`);
+        webUnits = n;
       }
+      if (input.mode === "draft" && input.holdKey && !input.staff) await capWebHolds(tx, v.id, kind, input.holdKey, webUnits);
       if (kind !== "GATE" && !TIME_RE.test(time)) fail("Giờ không hợp lệ.");
       if (kind === "RESTAURANT" && !cfg.slots.includes(time)) fail("Khung giờ này quán không nhận đặt.");
       if (kind === "RESTAURANT") await lockRestVenue(tx, v.id);
@@ -368,7 +394,7 @@ export async function createTicketOrder(input: NewTicketOrder): Promise<{ id: st
           phone,
           email: input.email?.trim().slice(0, 120) || null,
           guests: Math.min(500, Math.max(1, Math.round(input.guests ?? (qtyNew + seats.length || 1)))),
-          note: input.note?.trim().slice(0, 500) || null,
+          note: input.mode === "draft" && input.holdKey ? HOLD_NOTE + input.holdKey : input.note?.trim().slice(0, 500) || null,
           source: input.source.slice(0, 30),
           ctvId: input.ctvId ?? null,
           createdBy: input.createdBy ?? null,
@@ -395,6 +421,36 @@ export async function createTicketOrder(input: NewTicketOrder): Promise<{ id: st
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") throw new TicketError("Chỗ vừa được người khác giữ — tải lại và thử lại.");
     throw e;
   }
+}
+
+/**
+ * TK-7 / SEC-7: một IP chỉ giữ nháp tối đa webHoldCap(kind) chỗ cùng lúc tại một địa điểm (đếm trong DB ⇒ đúng cả khi chạy nhiều replica).
+ * Vượt mức ⇒ nhả các nháp CŨ NHẤT của chính IP đó (khách tải lại trang / quên gửi `replace` vẫn giữ được lựa chọn mới),
+ * nên một máy không chiếm quá một đơn tối đa trên sơ đồ. Khoá advisory theo (địa điểm, IP) chống hai lượt giữ song song.
+ */
+async function capWebHolds(tx: Tx, venueId: string, kind: VenueKind, holdKey: string, want: number): Promise<void> {
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${"ticket-ip:" + venueId + ":" + holdKey}))::text AS ok`;
+  const mine = await tx.ticketOrder.findMany({
+    where: { venueId, status: "draft", note: HOLD_NOTE + holdKey, holdUntil: { gt: new Date() } },
+    select: { id: true, seats: { select: { id: true } }, items: { where: { kind: "ticket" }, select: { qty: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+  const units = (x: (typeof mine)[number]) => (kind === "RESTAURANT" ? x.seats.length : x.items.reduce((a, i) => a + i.qty, 0));
+  const cap = webHoldCap(kind);
+  let held = mine.reduce((a, x) => a + units(x), 0);
+  const drop: string[] = [];
+  for (const x of mine) {
+    if (held + want <= cap) break;
+    drop.push(x.id);
+    held -= units(x);
+  }
+  if (!drop.length) return;
+  // SKIP LOCKED: nháp đang được chốt / nhả ở giao dịch khác thì không chờ (tránh khoá chéo) — báo khách thử lại.
+  const locked = await tx.$queryRaw<{ id: string }[]>`SELECT id FROM "TicketOrder" WHERE id = ANY(${drop}) AND status = 'draft' FOR UPDATE SKIP LOCKED`;
+  if (locked.length < drop.length) fail("Bạn đang giữ chỗ ở một cửa sổ khác — thử lại sau ít giây.");
+  const ids = locked.map((l) => l.id);
+  await tx.ticketSeat.deleteMany({ where: { orderId: { in: ids } } });
+  await tx.ticketOrder.updateMany({ where: { id: { in: ids } }, data: { status: "cancel", holdUntil: null } });
 }
 
 /** Phát vé điện tử cho đơn đã xác nhận (mỗi người / mỗi ghế 1 mã; mỗi dòng món 1 voucher). Nhà hàng không phát vé. */
@@ -532,7 +588,8 @@ export async function saveLayout(venueId: string, raw: unknown): Promise<SeatLay
 }
 
 // ----------------------------- Thiết lập -----------------------------
-export async function createVenue(input: { kind: VenueKind; name: string; ownerId?: string | null; placeId?: string | null }): Promise<string> {
+/** `review`: "approved" khi admin tạo (mặc định); đối tác tự tạo truyền "draft" ⇒ phải gửi admin duyệt mới mở bán được. */
+export async function createVenue(input: { kind: VenueKind; name: string; ownerId?: string | null; placeId?: string | null; review?: "approved" | "draft" }): Promise<string> {
   // Tạo từ một quán có sẵn ở danh mục Nhà hàng / Cafe / Check-in: lấy tên, khu vực, ảnh bìa, giờ mở cửa của quán đó.
   const place = input.placeId ? await prisma.place.findUnique({ where: { id: input.placeId }, select: { id: true, name: true, area: true, coverImage: true, hours: true, desc: true } }) : null;
   const name = (input.name.trim() || place?.name || "").slice(0, 100);
@@ -549,7 +606,7 @@ export async function createVenue(input: { kind: VenueKind; name: string; ownerI
         : [];
   const v = await prisma.ticketVenue.create({
     data: {
-      kind: input.kind, name, slug, ownerId: input.ownerId || null,
+      kind: input.kind, name, slug, ownerId: input.ownerId || null, review: input.review ?? "approved",
       placeId: place?.id ?? null, area: place?.area ?? null, description: place?.desc ?? null,
       coverImage: place?.coverImage && /^\/uploads\/[\w.-]+$/.test(place.coverImage) ? place.coverImage : null,
       config: place?.hours ? { hours: place.hours } : {},
@@ -562,7 +619,7 @@ export async function createVenue(input: { kind: VenueKind; name: string; ownerI
 
 /** Địa điểm đang mở bán gắn với một quán (Place) — để trang quán hiện nút "Đặt bàn online" / "Mua vé". */
 export async function venueForPlace(placeId: string): Promise<{ slug: string; kind: VenueKind } | null> {
-  const v = await prisma.ticketVenue.findFirst({ where: { placeId, published: true }, select: { slug: true, kind: true }, orderBy: { createdAt: "asc" } });
+  const v = await prisma.ticketVenue.findFirst({ where: { placeId, ...PUBLIC_VENUE }, select: { slug: true, kind: true }, orderBy: { createdAt: "asc" } });
   return v ? { slug: v.slug, kind: v.kind as VenueKind } : null;
 }
 
@@ -604,7 +661,7 @@ export async function scanStats(owner: "all" | string, venueId?: string): Promis
  * Quét một mã: nội dung QR (token hoặc URL chứa token), mã vé (TX-VE-XXXXX-2) hoặc mã đơn (TX-VE-XXXXX ⇒ vé kế tiếp chưa dùng).
  * `deliver` = xác nhận đã giao voucher đồ ăn uống.
  */
-export async function scanTicket(owner: "all" | string, by: string, raw: string, opts: { venueId?: string; deliver?: boolean } = {}): Promise<ScanResult> {
+export async function scanTicket(owner: "all" | string, by: string, raw: string, opts: { venueId?: string; sessionId?: string; deliver?: boolean } = {}): Promise<ScanResult> {
   const input = raw.trim().split(/[/?#=]/).filter(Boolean).pop()?.trim() ?? "";
   const none: ScanResult = { kind: "none", title: "Không tìm thấy mã", sub: "Kiểm tra lại mã hoặc tra cứu theo số điện thoại" };
   if (input.length < 6 || input.length > 60) return none;
@@ -626,19 +683,35 @@ export async function scanTicket(owner: "all" | string, by: string, raw: string,
   if (o.status === "cancel" || o.status === "wait" || o.status === "draft") return { kind: "wrong", title: "Vé không hợp lệ", sub: o.status === "cancel" ? `Đơn ${o.code} đã huỷ` : `Đơn ${o.code} chưa thanh toán` };
   if (opts.venueId && o.venue.id !== opts.venueId) return { kind: "wrong", title: "Sai địa điểm", sub: `Vé của ${o.venue.name}` };
   if (toDateKey(o.session.date) !== vnNow().today) return { kind: "wrong", title: o.session.time ? "Sai suất diễn" : "Sai ngày", sub: `Vé của ${sessionLabel(o.session.date, o.session.time)}, không phải hôm nay` };
+  // TK-5: show nhiều suất / ngày — vé phải đúng SUẤT. Máy soát chọn suất (sessionId) ⇒ so thẳng; không chọn ⇒ so với suất đang mở cổng.
+  if (o.session.time) {
+    if (opts.sessionId) {
+      if (o.sessionId !== opts.sessionId) return { kind: "wrong", title: "Sai suất diễn", sub: `Vé suất ${o.session.time} · ${o.venue.name}` };
+    } else {
+      // Suất tạm dừng không có đơn (chưa bán vé nào) không được coi là suất đang soát.
+      const rows = await prisma.ticketSession.findMany({
+        where: { venueId: o.venue.id, date: o.session.date },
+        select: { time: true, status: true, _count: { select: { orders: { where: { status: { notIn: ["cancel", "draft"] } } } } } },
+      });
+      const cur = scanSessionTime(scanCandidateTimes(rows.map((x) => ({ time: x.time, status: x.status, orders: x._count.orders }))), vnNow().now);
+      if (cur && cur !== o.session.time) return { kind: "wrong", title: "Sai suất diễn", sub: `Vé suất ${o.session.time}, đang soát suất ${cur} · ${o.venue.name}` };
+    }
+  }
+  // Máy soát không chọn địa điểm (soát chung các địa điểm của chủ) ⇒ ghi rõ vé thuộc địa điểm nào.
+  const at = opts.venueId ? "" : ` · ${o.venue.name}`;
 
   const usedSub = () => `Đã quét lúc ${t.usedAt ? hhmm(t.usedAt) : ""}${t.usedBy ? " bởi " + t.usedBy : ""} · ${t.label}`;
   if (t.kind === "food") {
     if (t.usedAt) return { kind: "used", title: "Voucher đã nhận", sub: usedSub() };
-    if (!opts.deliver) return { kind: "food", title: "Voucher đồ ăn uống", sub: `${t.label} · chưa nhận · bấm để đánh dấu đã giao`, ticketId: t.id };
+    if (!opts.deliver) return { kind: "food", title: "Voucher đồ ăn uống", sub: `${t.label} · chưa nhận · bấm để đánh dấu đã giao${at}`, ticketId: t.id };
     const r = await prisma.ticket.updateMany({ where: { id: t.id, usedAt: null }, data: { usedAt: new Date(), usedBy: by } });
-    return r.count ? { kind: "ok", title: "Đã giao voucher", sub: `${t.label} · ${o.customerName} · đơn ${o.code}` } : { kind: "used", title: "Voucher đã nhận", sub: t.label };
+    return r.count ? { kind: "ok", title: "Đã giao voucher", sub: `${t.label} · ${o.customerName} · đơn ${o.code}${at}` } : { kind: "used", title: "Voucher đã nhận", sub: t.label };
   }
   if (t.usedAt) return { kind: "used", title: "Vé đã dùng", sub: usedSub() };
   const r = await prisma.ticket.updateMany({ where: { id: t.id, usedAt: null }, data: { usedAt: new Date(), usedBy: by } });
   if (!r.count) return { kind: "used", title: "Vé đã dùng", sub: t.label };
   const entries = o.tickets.filter((x) => x.kind === "entry").sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
-  return { kind: "ok", title: "Hợp lệ · mời vào", sub: `${t.label} · ${o.customerName} · vé ${entries.findIndex((x) => x.id === t.id) + 1}/${entries.length} của đơn ${o.code}${o.session.time ? ` · suất ${o.session.time}` : ""}` };
+  return { kind: "ok", title: "Hợp lệ · mời vào", sub: `${t.label} · ${o.customerName} · vé ${entries.findIndex((x) => x.id === t.id) + 1}/${entries.length} của đơn ${o.code}${o.session.time ? ` · suất ${o.session.time}` : ""}${at}` };
 }
 
 /** Vé điện tử của một đơn (trang công khai /ve/don/<token>). */
@@ -747,13 +820,23 @@ async function pubAvail(v: PubVenueRow, cfg: VenueConfig): Promise<PubAvail> {
   return out;
 }
 
+const RELEASE_EVERY_MS = 30_000;
+const lastRelease = new Map<string, number>();
+
 /** Trang đặt của một địa điểm đang mở bán. */
 export async function publicVenue(slug: string, demoOwnerId?: string): Promise<{ venue: PubVenue; avail: PubAvail } | null> {
   if (!/^[a-z0-9-]{1,120}$/.test(slug)) return null;
   // demoOwnerId = khách đang xem bản demo: thấy thêm các địa điểm (chưa mở bán) của chủ demo.
-  const v = await prisma.ticketVenue.findFirst({ where: { slug, ...(demoOwnerId ? { OR: [{ published: true }, { ownerId: demoOwnerId }] } : { published: true }) }, include: pubInclude });
+  const v = await prisma.ticketVenue.findFirst({ where: { slug, ...(demoOwnerId ? { OR: [{ ...PUBLIC_VENUE }, { ownerId: demoOwnerId }] } : PUBLIC_VENUE) }, include: pubInclude });
   if (!v) return null;
-  await releaseExpiredTicketHolds(v.id).catch(() => 0);
+  // PERF-3: trang khách nạp lại 20 giây/lần ⇒ dọn đơn hết hạn tối đa 1 lần / RELEASE_EVERY_MS / địa điểm (mỗi tiến trình).
+  // Đặt chỗ (createTicketOrder) vẫn dọn ngay trước khi đếm, nên ghế hết hạn không chặn người mua; chậm nhất ~30 giây hiện "trống".
+  const last = lastRelease.get(v.id) ?? 0;
+  if (Date.now() - last > RELEASE_EVERY_MS) {
+    lastRelease.set(v.id, Date.now());
+    if (lastRelease.size > 2000) lastRelease.clear();
+    await releaseExpiredTicketHolds(v.id).catch(() => 0);
+  }
   return { venue: pubVenue(v), avail: await pubAvail(v, normalizeConfig(v.config)) };
 }
 
@@ -762,7 +845,7 @@ export async function publicVenueCards(demoOwnerId?: string): Promise<{ today: s
   const vn = vnNow();
   const days = Array.from({ length: 7 }, (_, i) => addDaysKey(vn.today, i));
   // Trang /ve: chỉ địa điểm đã mở bán. Màn "Trang khách" của bản demo (demoOwnerId): chỉ các địa điểm của chủ demo.
-  const rows = await prisma.ticketVenue.findMany({ where: demoOwnerId ? { ownerId: demoOwnerId } : { published: true }, include: pubInclude, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] });
+  const rows = await prisma.ticketVenue.findMany({ where: demoOwnerId ? { ownerId: demoOwnerId } : PUBLIC_VENUE, include: pubInclude, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] });
   const cards = await Promise.all(
     rows.map(async (v): Promise<PubCard> => {
       const cfg = normalizeConfig(v.config);
@@ -811,11 +894,15 @@ export async function releaseDraft(token: string): Promise<void> {
 export async function finalizeDraft(input: {
   token: string; slug: string; name: string; phone: string; email?: string | null; note?: string; guests?: number;
   food?: { menuId: string; qty: number; note?: string }[]; expectedTotal?: number; source?: string; ctvId?: string | null;
+  /** Khách bản demo đặt thử trên địa điểm demo — bỏ điều kiện "đang mở bán" như createTicketOrder. */
+  preview?: boolean;
 }): Promise<{ id: string; code: string; token: string }> {
   const name = input.name.trim().slice(0, 80);
   if (name.length < 2) fail("Nhập họ tên.");
   if (!/^[\w-]{10,40}$/.test(input.token)) fail(`Hết ${DRAFT_HOLD_MIN} phút giữ chỗ nên ghế / bàn đã được nhả. Bạn chọn lại giúp mình nhé.`);
-  return prisma.$transaction(async (tx) => {
+  // TK-9: suất tạm dừng / giờ đã qua / địa điểm vừa gỡ ⇒ nhả nháp (ghi trong giao dịch) rồi mới báo lỗi, không để đơn treo.
+  let reject = "";
+  const res = await prisma.$transaction(async (tx) => {
     const ref = await tx.ticketOrder.findUnique({ where: { token: input.token }, select: { id: true } });
     if (ref) await lockOrder(tx, ref.id);
     const o = await tx.ticketOrder.findUnique({ where: { token: input.token }, include: { seats: true, session: true, venue: { include: { menu: true, tables: { select: { id: true, name: true } } } } } });
@@ -823,6 +910,17 @@ export async function finalizeDraft(input: {
       return fail(`Hết ${DRAFT_HOLD_MIN} phút giữ chỗ nên ghế / bàn đã được nhả. Bạn chọn lại giúp mình nhé.`);
     const kind = o.venue.kind as VenueKind;
     const cfg = normalizeConfig(o.venue.config);
+    const vn = vnNow();
+    reject =
+      !isPublicVenue(o.venue) && !input.preview ? "Địa điểm này vừa ngừng bán — chỗ đã được nhả."
+      : o.session.status === "paused" ? "Suất này vừa tạm dừng bán — chỗ đã được nhả, bạn chọn suất / giờ khác giúp mình nhé."
+      : kind !== "GATE" && slotPassed(toDateKey(o.session.date), o.session.time, vn.today, vn.now) ? "Khung giờ này đã qua — chỗ đã được nhả, bạn chọn suất / giờ khác giúp mình nhé."
+      : "";
+    if (reject) {
+      await tx.ticketSeat.deleteMany({ where: { orderId: o.id } });
+      await tx.ticketOrder.update({ where: { id: o.id }, data: { status: "cancel", holdUntil: null } });
+      return null;
+    }
     if (kind === "RESTAURANT") {
       // Kiểm lại chồng giờ (quán có thể vừa tăng thời lượng giữ bàn sau lúc khách giữ nháp).
       await lockRestVenue(tx, o.venueId);
@@ -846,7 +944,7 @@ export async function finalizeDraft(input: {
       where: { id: o.id },
       data: {
         customerName: name,
-        phone: input.phone.replace(/[^\d+]/g, "").slice(0, 15),
+        phone: normPhone(input.phone),
         email: input.email?.trim().slice(0, 120) || null,
         note: input.note?.trim().slice(0, 500) || null,
         ...(input.guests ? { guests: Math.min(500, Math.max(1, Math.round(input.guests))) } : {}),
@@ -861,6 +959,7 @@ export async function finalizeDraft(input: {
     });
     return { id: o.id, code: o.code, token: o.token };
   }, TX_OPTS);
+  return res ?? fail(reject || "Không chốt được đơn, thử lại.");
 }
 
 // ----------------------------- Email vé -----------------------------
@@ -872,8 +971,11 @@ const escHtml = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<":
  */
 export async function sendTicketEmail(orderId: string, kind: "received" | "confirmed"): Promise<void> {
   try {
-    const o = await prisma.ticketOrder.findUnique({ where: { id: orderId }, include: { session: true, venue: { select: { name: true, kind: true, config: true } }, tickets: { select: { id: true } } } });
+    const o = await prisma.ticketOrder.findUnique({ where: { id: orderId }, include: { session: true, venue: { select: { name: true, kind: true, config: true, published: true, review: true } }, tickets: { select: { id: true } } } });
     if (!o?.email || !/^\S+@\S+\.\S+$/.test(o.email)) return;
+    // TK-4: địa điểm chưa mở bán (địa điểm demo, bản nháp chưa duyệt) không bao giờ gửi thư — chặn ngay tại đây để mọi
+    // chỗ gọi (đặt web, xác nhận, ghi thu, phiên demo) đều an toàn: người lạ không mượn SMTP của site gửi tới email bất kỳ.
+    if (!isPublicVenue(o.venue)) return;
     const { mailConfigured, sendMail } = await import("./mail");
     if (!(await mailConfigured())) return;
     const { SITE } = await import("./site");

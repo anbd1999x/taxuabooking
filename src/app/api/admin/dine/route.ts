@@ -3,8 +3,8 @@ import { getSession } from "@/lib/auth";
 import { getDemoSession } from "@/lib/fleet-demo";
 import { prisma } from "@/lib/prisma";
 import { TicketError, canManageVenue, deleteTable } from "@/lib/ticket";
-import { DINE_MAX_IMAGES } from "@/lib/dine-core";
-import { addDineTable, advanceDineOrder, cancelDineOrder, closeDineRequest, loadDine, payDineTable, rotateDineQr } from "@/lib/dine";
+import { DINE_DESC_MAX, DINE_MAX_IMAGES } from "@/lib/dine-core";
+import { addDineFee, addDineTable, advanceDineOrder, cancelDineOrder, rejectDineClaim, removeDineFee, saveDineBank, closeDineRequest, loadDine, payDineTable, rotateDineQr } from "@/lib/dine";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -19,7 +19,7 @@ const int = (v: unknown) => {
 /**
  * Màn hình quán của "Gọi món QR" (tab trong /admin/provider/ve) — theo mẫu "Nha hang QR Order".
  * Mọi op trả lại toàn bộ dữ liệu (`loadDine`); giao diện gọi `load` vài giây một lần để thấy đơn mới.
- * op: load | advance | cancelOrder | reqDone | pay | menuPatch | menuAdd | menuDelete | tableAdd | rotateQr | tableDelete
+ * op: load | advance | cancelOrder | reqDone | pay | feeAdd | feeRemove | claimReject | bank | menuPatch | menuAdd | menuDelete | tableAdd | rotateQr | tableDelete
  */
 export async function POST(request: Request) {
   let session = await getSession();
@@ -64,6 +64,22 @@ export async function POST(request: Request) {
         return done(`Đã thu ${total.toLocaleString("vi-VN")}đ · bàn trống lại.`);
       }
 
+      // ---------- Phụ thu · chuyển khoản ----------
+      case "feeAdd":
+        await addDineFee(venueId, str(body.tableId, 40), str(body.reason, 60), int(body.amount));
+        return done("Đã thêm phụ thu vào hoá đơn.");
+      case "feeRemove":
+        await removeDineFee(venueId, id);
+        return done("Đã bỏ phụ thu.");
+      case "claimReject":
+        await rejectDineClaim(venueId, id, str(body.note, 200));
+        return done("Đã báo khách: quán chưa nhận được tiền.");
+      case "bank":
+        // TK-6: dữ liệu demo dùng chung cho mọi khách demo ⇒ không cho đổi tài khoản nhận tiền (VietQR trên trang /qr thật của site).
+        if (session.role === "DEMO") return bad("Bản demo không đổi được tài khoản nhận chuyển khoản.", 403);
+        await saveDineBank(venueId, str(body.bin, 10), str(body.acc, 30), str(body.holder, 60));
+        return done(str(body.acc, 30) ? "Đã lưu tài khoản nhận chuyển khoản." : "Đã tắt nhận chuyển khoản.");
+
       // ---------- Thực đơn ----------
       case "menuPatch": {
         if (!(await prisma.ticketMenuItem.findFirst({ where: { id, venueId } }))) return bad("Món không tồn tại.");
@@ -73,7 +89,7 @@ export async function POST(request: Request) {
         if ("avail" in body) data.active = body.avail === true;
         if ("name" in body && str(body.name, 80)) data.name = str(body.name, 80);
         if ("group" in body) data.group = str(body.group, 40) || null;
-        if ("desc" in body) data.description = str(body.desc, 160) || null;
+        if ("desc" in body) data.description = str(body.desc, DINE_DESC_MAX) || null;
         // Ảnh của món: danh sách (ảnh đầu là bìa), chỉ nhận tệp đã tải lên /uploads.
         if ("images" in body) {
           const list = Array.isArray(body.images) ? [...new Set(body.images.map((u) => str(u, 300)).filter(Boolean))] : [];
@@ -90,7 +106,7 @@ export async function POST(request: Request) {
         const name = str(body.name, 80);
         const price = int(body.price);
         if (!name || price <= 0) return bad("Nhập tên món và giá.");
-        await prisma.ticketMenuItem.create({ data: { venueId, name, price, group: str(body.group, 40) || null, description: str(body.desc, 160) || null } });
+        await prisma.ticketMenuItem.create({ data: { venueId, name, price, group: str(body.group, 40) || null, description: str(body.desc, DINE_DESC_MAX) || null } });
         return done("Đã thêm món.");
       }
       case "menuDelete":

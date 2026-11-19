@@ -11,6 +11,7 @@ import { ProviderOrders, type ProviderOrderVM, type POStatus } from "@/component
 import { durationLabel, bookingCountLabel } from "@/lib/occupancy";
 import { rentalOriginalTotal } from "@/lib/rental-days";
 import { rentalListPriceMap } from "@/lib/rental-list-price";
+import { ownerBookingIds } from "@/lib/stats";
 
 export const dynamic = "force-dynamic";
 
@@ -35,20 +36,13 @@ export default async function ProviderOrdersPage({ searchParams }: { searchParam
   const sub = session!.sub;
   const isAdmin = session!.role === "ADMIN";
 
-  // Nhà xe cabin: đơn COMBO gắn serviceId homestay nhưng đi qua CHUYẾN của nhà xe.
-  const myTrips = await prisma.cabinTrip.findMany({
-    where: { service: { ownerId: sub, category: "CABIN" } },
-    select: { id: true },
-  });
-  const tripIds = myTrips.map((t) => t.id);
+  // Nhà xe cabin: đơn COMBO gắn serviceId homestay nhưng đi qua CHUYẾN của nhà xe — lọc trong DB (subquery chuyến).
+  const ids = await ownerBookingIds(sub, { limit: 300 });
 
   const [bookings, myServices] = await Promise.all([
     prisma.bookingRequest.findMany({
-      where: tripIds.length
-        ? { OR: [{ service: { ownerId: sub } }, { cabinTripId: { in: tripIds } }, { cabinReturnTripId: { in: tripIds } }] }
-        : { service: { ownerId: sub } },
+      where: { id: { in: ids } },
       orderBy: { createdAt: "desc" },
-      take: 300,
       include: { service: { select: { title: true, ownerId: true, originalPrice: true } }, ctv: { select: { name: true } } },
     }),
     prisma.service.findMany({ where: { ownerId: sub }, select: { title: true } }),

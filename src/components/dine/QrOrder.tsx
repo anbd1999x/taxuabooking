@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { DINE_CATS, hm, money, type DineCustomer, type DineStatus } from "@/lib/dine-core";
+import { DINE_CATS, hm, isFee, money, type DineCustomer, type DineStatus } from "@/lib/dine-core";
 
 const G = "oklch(0.29 0.055 160)";
 const O = "oklch(0.68 0.18 45)";
@@ -125,7 +125,7 @@ export function QrOrder({ initial, q }: { initial: DineCustomer; q: { v: string;
             <div style={{ fontSize: 19, fontWeight: 800 }}>Bàn {d.table}</div>
           </div>
           <div style={{ display: "flex", gap: 4, padding: 3, borderRadius: 12, background: "oklch(1 0 0 / .12)" }}>
-            {([["menu", "Thực đơn"], ["status", `Món đã gọi${d.orders.length ? " · " + d.orders.length : ""}`]] as const).map(([k, name]) => {
+            {([["menu", "Thực đơn"], ["status", `Món đã gọi${d.orders.filter((o) => !isFee(o)).length ? " · " + d.orders.filter((o) => !isFee(o)).length : ""}`]] as const).map(([k, name]) => {
               const on = k === "menu" ? onMenu : tab === "status";
               return <div key={k} onClick={() => setTab(k)} style={{ flex: 1, textAlign: "center", cursor: "pointer", fontSize: 13, fontWeight: 800, padding: 7, borderRadius: 9, background: on ? "white" : "transparent", color: on ? G : "white" }}>{name}</div>;
             })}
@@ -149,7 +149,8 @@ export function QrOrder({ initial, q }: { initial: DineCustomer; q: { v: string;
                     </div>
                     <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
                       <div style={{ fontSize: 14, fontWeight: 800, lineHeight: 1.3 }}>{m.name}</div>
-                      {m.desc && <div style={{ fontSize: 11, lineHeight: 1.35, color: DIM }}>{m.desc}</div>}
+                      {/* Mô tả chi tiết: thẻ chỉ hiện 2 dòng, bấm để xem đầy đủ (kèm ảnh). */}
+                      {m.desc && <div onClick={() => setZoom({ id: m.id, i: 0 })} style={{ cursor: "pointer", fontSize: 11, lineHeight: 1.35, color: DIM, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", whiteSpace: "pre-line" }}>{m.desc}</div>}
                       <div style={{ flex: 1 }} />
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6 }}>
                         <b style={{ fontSize: 14, color: "oklch(0.58 0.17 45)" }}>{money(m.price)}</b>
@@ -214,7 +215,7 @@ export function QrOrder({ initial, q }: { initial: DineCustomer; q: { v: string;
               </div>
             )}
             {!d.orders.length && !showPaid && <div style={{ padding: "24px 14px", textAlign: "center", border: "1.5px dashed oklch(0.86 0.02 160)", borderRadius: 16, fontSize: 14, color: DIM }}>Bàn chưa gọi món nào.</div>}
-            {d.orders.map((o, i) => {
+            {d.orders.filter((o) => !isFee(o)).map((o, i) => {
               const S = SS[o.status as keyof typeof SS] ?? SS.new;
               return (
                 <div key={o.id} style={{ display: "flex", flexDirection: "column", gap: 8, padding: 12, borderRadius: 16, background: "white", border: `1.5px solid ${o.status === "served" ? "oklch(0.85 0.06 155)" : "oklch(0.92 0.01 160)"}`, animation: "qrUp .3s ease both" }}>
@@ -237,42 +238,47 @@ export function QrOrder({ initial, q }: { initial: DineCustomer; q: { v: string;
                     </div>
                   ))}
                   {o.note && <div style={{ fontSize: 12, padding: "6px 8px", borderRadius: 8, background: "oklch(0.97 0.03 80)", color: "oklch(0.42 0.08 55)" }}>{o.note}</div>}
+                  {/* Bếp chưa bấm "Đang làm" ⇒ khách tự huỷ được lần gọi này. */}
+                  {o.status === "new" && (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, paddingTop: 8, borderTop: "1px dashed oklch(0.9 0.01 160)" }}>
+                      <span style={{ fontSize: 11, color: DIM }}>Bếp chưa bắt đầu làm — còn huỷ được</span>
+                      <button type="button" disabled={busy} onClick={() => window.confirm(`Huỷ lần gọi ${i + 1} (${o.items.reduce((a, it) => a + it.qty, 0)} món)?`) && post({ op: "cancel", orderId: o.id })} style={{ cursor: "pointer", fontSize: 12, fontWeight: 800, padding: "7px 12px", borderRadius: 999, border: "1.5px solid oklch(0.85 0.08 28)", color: "oklch(0.52 0.18 28)", background: "white", fontFamily: "inherit", whiteSpace: "nowrap" }}>Huỷ lần gọi</button>
+                    </div>
+                  )}
                 </div>
               );
             })}
+            {/* Phụ thu quán thêm vào hoá đơn (phí phục vụ, ngày lễ…) — không phải lần gọi món. */}
+            {d.orders.some(isFee) && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: 12, borderRadius: 16, background: "white", border: "1.5px solid oklch(0.92 0.01 160)" }}>
+                <b style={{ fontSize: 14 }}>Phụ thu</b>
+                {d.orders.filter(isFee).flatMap((o) => o.items).map((it, n) => (
+                  <div key={n} style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 13 }}>
+                    <span>{it.name}</span>
+                    <span style={{ whiteSpace: "nowrap" }}>{money(it.price * it.qty)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             {d.orders.length > 0 && (
               <>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "12px 14px", borderRadius: 14, background: "oklch(0.96 0.02 155)" }}>
                   <span style={{ fontWeight: 800 }}>Tạm tính cả bàn</span>
                   <span style={{ fontSize: 22, fontWeight: 800, color: "oklch(0.58 0.17 45)" }}>{money(d.bill)}</span>
                 </div>
-                {d.payReq && <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.5, padding: "10px 12px", borderRadius: 12, background: "oklch(0.97 0.04 75)", color: "oklch(0.45 0.12 50)" }}>Đã báo nhân viên · thanh toán {d.payReq.toLowerCase()}. Nhân viên mang hoá đơn ra bàn.</div>}
-                {d.payReq === "Chuyển khoản" && (d.bank ? (
-                  <div style={{ display: "flex", gap: 12, alignItems: "center", padding: 12, borderRadius: 14, background: "white", border: `1.5px solid ${O}` }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {payQr ? <img src={payQr} alt="VietQR" width={110} height={110} style={{ flex: "none" }} /> : <div style={{ width: 110, height: 110, flex: "none" }} />}
-                    <div style={{ fontSize: 12, lineHeight: 1.55, minWidth: 0 }}>
-                      <b style={{ fontSize: 14 }}>Quét VietQR</b><br />
-                      {d.bank.name} · {d.bank.holder}<br />
-                      <span style={{ fontFamily: "ui-monospace,monospace" }}>{d.bank.account}</span><br />
-                      Số tiền <b style={{ color: "oklch(0.58 0.17 45)" }}>{money(d.bill)}</b><br />
-                      Nội dung <b>{d.bank.memo}</b>
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ fontSize: 13, lineHeight: 1.5, padding: "10px 12px", borderRadius: 12, background: "white", border: "1.5px solid oklch(0.9 0.01 160)" }}>Nhân viên sẽ mang mã chuyển khoản ra bàn.</div>
-                ))}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
-                  <button type="button" disabled={busy || d.staffAsked} onClick={() => post({ op: "staff" })} style={{ cursor: "pointer", textAlign: "center", fontSize: 13, fontWeight: 800, padding: 11, borderRadius: 999, border: "1.5px solid oklch(0.85 0.04 158)", color: "oklch(0.3 0.06 158)", background: "white", fontFamily: "inherit", opacity: d.staffAsked ? 0.6 : 1 }}>{d.staffAsked ? "Đã gọi nhân viên" : "Gọi nhân viên"}</button>
-                  <button type="button" onClick={() => setPayPick(!payPick)} style={{ cursor: "pointer", textAlign: "center", fontSize: 13, fontWeight: 800, padding: 11, borderRadius: 999, background: G, color: "white", border: "none", fontFamily: "inherit" }}>{d.payReq ? "Đổi cách thanh toán" : "Yêu cầu thanh toán"}</button>
-                </div>
-                {payPick && (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, animation: "qrUp .2s ease both" }}>
-                    {([["Tiền mặt", "Tiền mặt tại bàn", "oklch(0.95 0.04 155)", "oklch(0.36 0.1 155)"], ["Chuyển khoản", "Chuyển khoản QR", "oklch(0.95 0.04 250)", "oklch(0.42 0.12 250)"]] as const).map(([method, name, bg, fg]) => (
-                      <button key={method} type="button" disabled={busy} onClick={async () => (await post({ op: "pay", method })) && setPayPick(false)} style={{ cursor: "pointer", textAlign: "center", fontSize: 13, fontWeight: 800, padding: 11, borderRadius: 12, background: bg, color: fg, border: "none", fontFamily: "inherit" }}>{name}</button>
-                    ))}
+                {/* Đã chọn cách thanh toán: chỉ báo trạng thái — hoá đơn chi tiết (+ mã QR nếu chuyển khoản) mở bằng nút "Xem hoá đơn". */}
+                {d.payReq && (
+                  <div onClick={() => setPayPick(true)} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 10, fontSize: 13, lineHeight: 1.45, padding: "10px 12px", borderRadius: 12, background: d.claimNote ? "oklch(0.96 0.03 28)" : d.payClaim ? "oklch(0.95 0.05 155)" : "oklch(0.97 0.04 75)", color: d.claimNote ? "oklch(0.48 0.17 28)" : d.payClaim ? "oklch(0.32 0.09 155)" : "oklch(0.45 0.12 50)" }}>
+                    <span style={{ flex: 1, minWidth: 0, fontWeight: 700 }}>
+                      {d.claimNote ? `Quán chưa nhận được tiền chuyển khoản — mở hoá đơn để xem` : d.payClaim ? `Đã gửi xác nhận chuyển khoản · chờ quán kiểm tra` : d.payReq === "Chuyển khoản" ? "Đã chọn chuyển khoản · mở hoá đơn để quét mã QR" : "Đã báo nhân viên · thanh toán tiền mặt tại bàn"}
+                    </span>
+                    <span style={{ flex: "none", fontSize: 12, fontWeight: 800, padding: "6px 10px", borderRadius: 999, background: "white" }}>Xem hoá đơn</span>
                   </div>
                 )}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                  <button type="button" disabled={busy || d.staffAsked} onClick={() => post({ op: "staff" })} style={{ cursor: "pointer", textAlign: "center", fontSize: 13, fontWeight: 800, padding: 11, borderRadius: 999, border: "1.5px solid oklch(0.85 0.04 158)", color: "oklch(0.3 0.06 158)", background: "white", fontFamily: "inherit", opacity: d.staffAsked ? 0.6 : 1 }}>{d.staffAsked ? "Đã gọi nhân viên" : "Gọi nhân viên"}</button>
+                  <button type="button" onClick={() => setPayPick(true)} style={{ cursor: "pointer", textAlign: "center", fontSize: 13, fontWeight: 800, padding: 11, borderRadius: 999, background: G, color: "white", border: "none", fontFamily: "inherit" }}>{d.payReq ? "Xem hoá đơn" : "Thanh toán"}</button>
+                </div>
               </>
             )}
             {!d.orders.length && (
@@ -290,6 +296,7 @@ export function QrOrder({ initial, q }: { initial: DineCustomer; q: { v: string;
             <button type="button" disabled={busy} onClick={() => (tab === "cart" ? send() : setTab("cart"))} style={{ cursor: "pointer", fontSize: 14, fontWeight: 800, padding: "11px 18px", borderRadius: 999, background: O, color: "white", whiteSpace: "nowrap", border: "none", fontFamily: "inherit", opacity: busy ? 0.6 : 1 }}>{tab === "cart" ? (busy ? "Đang gửi…" : "Gửi order cho bếp") : "Xem giỏ →"}</button>
           </div>
         )}
+        {payPick && d.orders.length > 0 && <BillSheet d={d} payQr={payQr} busy={busy} q={q} post={post} say={say} onClose={() => setPayPick(false)} />}
         {zoom && zm && (
             <div style={{ position: "absolute", inset: 0, zIndex: 8, background: "oklch(0.15 0.02 160 / .96)", display: "flex", flexDirection: "column", animation: "qrUp .2s ease both" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "14px 16px", color: "white" }}>
@@ -301,7 +308,7 @@ export function QrOrder({ initial, q }: { initial: DineCustomer; q: { v: string;
               </div>
               <div style={{ padding: "12px 16px calc(16px + env(safe-area-inset-bottom))", color: "white", display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  {zm.desc && <div style={{ fontSize: 13, lineHeight: 1.45, opacity: 0.85 }}>{zm.desc}</div>}
+                  {zm.desc && <div style={{ fontSize: 13, lineHeight: 1.45, opacity: 0.85, whiteSpace: "pre-line", maxHeight: "32vh", overflowY: "auto", marginBottom: 4 }}>{zm.desc}</div>}
                   <b style={{ fontSize: 18, color: "oklch(0.82 0.13 70)" }}>{money(zm.price)}</b>
                 </div>
                 {zm.avail ? (
@@ -354,5 +361,193 @@ function Slides({ images, alt, onTap, start = 0, big }: { images: string[]; alt:
         </>
       )}
     </>
+  );
+}
+
+/**
+ * Trả bằng CHUYỂN KHOẢN: mã VietQR đã kèm đúng số tiền hoá đơn (quét bằng app ngân hàng là ra số tiền), nút lưu ảnh QR / chép
+ * thông tin (khách đang xem trên chính điện thoại nên thường mở app ngân hàng rồi chọn ảnh QR), rồi "Tôi đã chuyển khoản"
+ * kèm ảnh bill ⇒ quán xem bill và xác thực. Quán báo chưa nhận được tiền ⇒ hiện lý do, gửi lại được.
+ */
+function TransferBox({ d, bank, payQr, busy, q, post, say }: {
+  d: DineCustomer;
+  bank: NonNullable<DineCustomer["bank"]>;
+  payQr: string;
+  busy: boolean;
+  q: { v: string; t: string; k: string };
+  post: (body: Record<string, unknown>) => Promise<boolean>;
+  say: (m: string) => void;
+}) {
+  const [proof, setProof] = useState("");
+  const [up, setUp] = useState(false);
+  const claim = d.payClaim;
+  const changed = claim && claim.amount !== d.bill;
+  const copy = (text: string, what: string) => {
+    void navigator.clipboard?.writeText(text).then(() => say(`Đã chép ${what}`), () => say(text));
+  };
+  async function upload(file: File | undefined) {
+    if (!file) return;
+    setUp(true);
+    try {
+      const fd = new FormData();
+      fd.set("v", q.v);
+      fd.set("t", q.t);
+      fd.set("k", q.k);
+      fd.set("file", file);
+      const r = await fetch("/api/qr/proof", { method: "POST", body: fd });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) say(j.error ?? "Không tải được ảnh, thử lại.");
+      else setProof(j.url);
+    } catch {
+      say("Mất kết nối, thử lại.");
+    } finally {
+      setUp(false);
+    }
+  }
+  const chip: React.CSSProperties = { cursor: "pointer", fontSize: 11, fontWeight: 800, padding: "5px 9px", borderRadius: 999, border: "1px solid oklch(0.88 0.02 160)", background: "white", color: G, fontFamily: "inherit", whiteSpace: "nowrap" };
+  const row = (k: string, v: React.ReactNode, copyText?: string, what?: string) => (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: 13 }}>
+      <span style={{ color: DIM, flex: "none" }}>{k}</span>
+      <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+        <b style={{ minWidth: 0, overflowWrap: "anywhere", textAlign: "right" }}>{v}</b>
+        {copyText && <button type="button" onClick={() => copy(copyText, what ?? k)} style={chip}>Chép</button>}
+      </span>
+    </div>
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 14, borderRadius: 16, background: "white", border: `1.5px solid ${O}` }}>
+      <b style={{ fontSize: 15, textAlign: "center" }}>Quét mã VietQR — app ngân hàng tự điền số tiền</b>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {payQr ? <img src={payQr} alt="Mã VietQR chuyển khoản" width={200} height={200} style={{ borderRadius: 10 }} /> : <div style={{ width: 200, height: 200 }} />}
+        {payQr && <a href={payQr} download={`VietQR-${bank.memo.replace(/\s+/g, "-")}.png`} style={{ ...chip, textDecoration: "none", padding: "7px 12px", fontSize: 12 }}>Lưu ảnh QR (mở app ngân hàng → quét ảnh)</a>}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "10px 12px", borderRadius: 12, background: "oklch(0.975 0.006 160)" }}>
+        {row("Ngân hàng", bank.name)}
+        {row("Số tài khoản", <span style={{ fontFamily: "ui-monospace,monospace" }}>{bank.account}</span>, bank.account, "số tài khoản")}
+        {row("Chủ tài khoản", bank.holder)}
+        {row("Số tiền", <span style={{ color: "oklch(0.58 0.17 45)", fontSize: 16 }}>{money(d.bill)}</span>, String(d.bill), "số tiền")}
+        {row("Nội dung", bank.memo, bank.memo, "nội dung")}
+      </div>
+
+      {claim ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "10px 12px", borderRadius: 12, background: "oklch(0.95 0.05 155)", color: "oklch(0.32 0.09 155)", fontSize: 13, lineHeight: 1.5 }}>
+          <b>Đã gửi xác nhận chuyển khoản {money(claim.amount)} lúc {hm(claim.at)}</b>
+          <span>Quán đang kiểm tra tài khoản, xác nhận xong bàn sẽ được đóng hoá đơn.</span>
+          {changed && <span style={{ color: "oklch(0.5 0.15 45)", fontWeight: 700 }}>Hoá đơn vừa thay đổi thành {money(d.bill)} — chuyển thêm phần chênh lệch rồi gửi lại xác nhận.</span>}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {claim.proof && <img src={claim.proof} alt="Ảnh bill đã gửi" style={{ width: 90, borderRadius: 8, border: "1px solid oklch(0.85 0.04 155)" }} />}
+        </div>
+      ) : (
+        <>
+          {d.claimNote && (
+            <div style={{ fontSize: 13, lineHeight: 1.5, padding: "10px 12px", borderRadius: 12, background: "oklch(0.96 0.03 28)", color: "oklch(0.48 0.17 28)" }}>
+              <b>Quán chưa nhận được tiền:</b> {d.claimNote}. Kiểm tra lại giao dịch rồi gửi xác nhận lại.
+            </div>
+          )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, paddingTop: 4, borderTop: "1px dashed oklch(0.9 0.01 160)" }}>
+            <b style={{ fontSize: 14 }}>Chuyển xong? Gửi ảnh bill để quán xác nhận</b>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {proof && <img src={proof} alt="Ảnh bill" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: 8, flex: "none" }} />}
+              <label style={{ cursor: "pointer", flex: 1, textAlign: "center", fontSize: 13, fontWeight: 800, padding: 11, borderRadius: 12, border: "1.5px dashed oklch(0.8 0.04 158)", color: "oklch(0.35 0.07 158)" }}>
+                {up ? "Đang tải ảnh…" : proof ? "Đổi ảnh bill" : "📷 Chọn ảnh bill chuyển khoản"}
+                <input type="file" accept="image/*" hidden disabled={up} onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ""; }} />
+              </label>
+            </div>
+            <button type="button" disabled={busy || up} onClick={async () => { if (proof || window.confirm("Gửi xác nhận mà không kèm ảnh bill? Quán sẽ tự kiểm tra tài khoản.")) if (await post({ op: "claim", proof })) setProof(""); }} style={{ cursor: "pointer", textAlign: "center", fontSize: 14, fontWeight: 800, padding: 13, borderRadius: 999, background: O, color: "white", border: "none", fontFamily: "inherit", opacity: busy || up ? 0.6 : 1 }}>
+              Tôi đã chuyển khoản {money(d.bill)}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * HOÁ ĐƠN (mở bằng nút "Thanh toán" / "Xem hoá đơn" ở tab Món đã gọi): chưa chọn cách trả ⇒ chọn Tiền mặt / Chuyển khoản;
+ * đã chọn ⇒ hoá đơn chi tiết (gộp món, phụ thu, tổng). Tiền mặt: báo nhân viên tới thu, KHÔNG có mã QR.
+ * Chuyển khoản: kèm mã VietQR đúng số tiền + gửi ảnh bill (TransferBox).
+ */
+function BillSheet({ d, payQr, busy, q, post, say, onClose }: {
+  d: DineCustomer;
+  payQr: string;
+  busy: boolean;
+  q: { v: string; t: string; k: string };
+  post: (body: Record<string, unknown>) => Promise<boolean>;
+  say: (m: string) => void;
+  onClose: () => void;
+}) {
+  const [choosing, setChoosing] = useState(!d.payReq);
+  const pick = choosing || !d.payReq;
+  // Gộp món giống nhau (cùng tên + giá) qua các lần gọi; phụ thu tách riêng.
+  const lines = new Map<string, { name: string; price: number; qty: number }>();
+  for (const o of d.orders) if (!isFee(o)) for (const it of o.items) {
+    const k = `${it.name}|${it.price}`;
+    lines.set(k, { name: it.name, price: it.price, qty: (lines.get(k)?.qty ?? 0) + it.qty });
+  }
+  const fees = d.orders.filter(isFee).flatMap((o) => o.items);
+  const food = [...lines.values()].reduce((a, l) => a + l.price * l.qty, 0);
+  const choose = async (method: string) => {
+    if (await post({ op: "pay", method })) setChoosing(false);
+  };
+  const methodBtn = (method: string, title: string, sub: string, bg: string, fg: string) => (
+    <button key={method} type="button" disabled={busy} onClick={() => void choose(method)} style={{ cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2, textAlign: "left", padding: "14px 16px", borderRadius: 16, background: bg, color: fg, border: d.payReq === method ? `2px solid ${fg}` : "2px solid transparent", fontFamily: "inherit" }}>
+      <b style={{ fontSize: 15 }}>{title}</b>
+      <span style={{ fontSize: 12, opacity: 0.85 }}>{sub}</span>
+    </button>
+  );
+
+  return (
+    <div style={{ position: "absolute", inset: 0, zIndex: 8, background: "oklch(0.2 0.03 160 / .55)", display: "flex", flexDirection: "column", justifyContent: "flex-end", animation: "qrUp .2s ease both" }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ maxHeight: "92%", overflowY: "auto", background: "oklch(0.985 0.004 160)", borderRadius: "22px 22px 0 0", padding: "14px 16px calc(18px + env(safe-area-inset-bottom))", display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+          <b style={{ fontSize: 18 }}>Hoá đơn · bàn {d.table}</b>
+          <button type="button" onClick={onClose} aria-label="Đóng" style={{ ...round, width: 34, height: 34, background: "oklch(0.93 0.008 160)", color: G, fontSize: 18, flex: "none" }}>×</button>
+        </div>
+
+        {/* Hoá đơn chi tiết */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: 14, borderRadius: 16, background: "white", border: "1.5px solid oklch(0.92 0.01 160)" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: DIM }}>{d.venue}</div>
+          {[...lines.values()].map((l, i) => (
+            <div key={i} style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 8, fontSize: 14 }}>
+              <span><b>{l.qty}×</b> {l.name}<span style={{ display: "block", fontSize: 11, color: DIM }}>{money(l.price)} / phần</span></span>
+              <b style={{ whiteSpace: "nowrap" }}>{money(l.price * l.qty)}</b>
+            </div>
+          ))}
+          {fees.length > 0 && (
+            <>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: DIM, paddingTop: 6, borderTop: "1px dashed oklch(0.9 0.01 160)" }}><span>Tiền món</span><span>{money(food)}</span></div>
+              {fees.map((f, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 13 }}><span>Phụ thu · {f.name}</span><span style={{ whiteSpace: "nowrap" }}>{money(f.price * f.qty)}</span></div>
+              ))}
+            </>
+          )}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", paddingTop: 8, borderTop: "1.5px solid oklch(0.9 0.01 160)" }}>
+            <b style={{ fontSize: 15 }}>Tổng thanh toán</b>
+            <b style={{ fontSize: 24, color: "oklch(0.58 0.17 45)" }}>{money(d.bill)}</b>
+          </div>
+        </div>
+
+        {pick ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <b style={{ fontSize: 15 }}>Chọn hình thức thanh toán</b>
+            {methodBtn("Tiền mặt", "💵 Tiền mặt tại bàn", "Báo nhân viên mang hoá đơn ra bàn thu tiền", "oklch(0.95 0.04 155)", "oklch(0.36 0.1 155)")}
+            {methodBtn("Chuyển khoản", "🏦 Chuyển khoản QR", d.bank ? "Hiện mã QR có sẵn số tiền — quét bằng app ngân hàng" : "Nhân viên mang mã chuyển khoản ra bàn", "oklch(0.95 0.04 250)", "oklch(0.42 0.12 250)")}
+            {d.payReq && <button type="button" onClick={() => setChoosing(false)} style={{ cursor: "pointer", alignSelf: "center", fontSize: 13, fontWeight: 700, color: DIM, background: "none", border: "none", fontFamily: "inherit" }}>Giữ cách đang chọn ({d.payReq.toLowerCase()})</button>}
+          </div>
+        ) : d.payReq === "Chuyển khoản" ? (
+          d.bank ? <TransferBox d={d} bank={d.bank} payQr={payQr} busy={busy} q={q} post={post} say={say} /> : <div style={{ fontSize: 13, lineHeight: 1.5, padding: "12px 14px", borderRadius: 14, background: "white", border: "1.5px solid oklch(0.9 0.01 160)" }}>Quán chưa cài mã chuyển khoản — nhân viên sẽ mang mã ra bàn.</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "12px 14px", borderRadius: 14, background: "oklch(0.95 0.04 155)", color: "oklch(0.32 0.09 155)", fontSize: 13, lineHeight: 1.5 }}>
+            <b style={{ fontSize: 14 }}>💵 Thanh toán tiền mặt</b>
+            <span>Đã báo nhân viên — nhân viên sẽ mang hoá đơn ra bàn. Bạn chuẩn bị <b>{money(d.bill)}</b> nhé.</span>
+          </div>
+        )}
+        {!pick && <button type="button" onClick={() => setChoosing(true)} style={{ cursor: "pointer", alignSelf: "center", fontSize: 13, fontWeight: 800, padding: "8px 14px", borderRadius: 999, border: "1.5px solid oklch(0.88 0.015 160)", background: "white", color: G, fontFamily: "inherit" }}>Đổi hình thức thanh toán</button>}
+      </div>
+    </div>
   );
 }

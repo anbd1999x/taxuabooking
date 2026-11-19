@@ -8,6 +8,9 @@ const nextConfig: NextConfig = {
   // sang cùng đường dẫn với tham số tìm khác nhau luôn lấy dữ liệu mới (không reload).
   // `static` tối thiểu 30 (Next báo invalid config nếu nhỏ hơn và bỏ qua cả khối).
   experimental: { staleTimes: { dynamic: 0, static: 30 } },
+  // Chỉ có tác dụng khi `next dev`: cho phép mở bằng IP mạng LAN (thử trên điện thoại) — thiếu dòng này Next chặn
+  // kết nối HMR từ địa chỉ khác localhost ⇒ trang tự tải lại liên tục.
+  allowedDevOrigins: ["192.168.*.*", "10.*.*.*"],
   images: {
     // Không tối ưu ảnh phía server: ảnh /uploads do nginx phục vụ tĩnh, còn ảnh
     // Unsplash tải thẳng từ trình duyệt (container không có DNS ra ngoài cho bộ

@@ -9,7 +9,7 @@ import { AUTH_COOKIE_NAME, createSessionToken, type Role } from "@/lib/auth-toke
 import { parseDateOnly } from "@/lib/dates";
 import { assignRoomsForBooking } from "@/lib/inventory";
 import { holKeysFor, loadHome, releaseExpiredStayHolds, syncHomeBookings, syncStaysForBooking } from "@/lib/stay";
-import { addDaysKey, billOf, cancelMoney, nightPrice, normalizeHomeConfig, paidOf, quoteStay, vnNow, type HomeRoomVM, type StayVM } from "@/lib/stay-core";
+import { MOVE_SPLIT_TAG, addDaysKey, billOf, cancelMoney, isMoveSplit, moveSplitCarry, nightPrice, normalizeHomeConfig, paidOf, quoteStay, shopHeldStay, vnNow, type HomeRoomVM, type StayVM } from "@/lib/stay-core";
 import { getHolidays } from "@/lib/holidays-server";
 import { holidayKeysBetween } from "@/lib/holidays";
 import { POST as stayPOST } from "@/app/api/admin/stay/route";
@@ -50,7 +50,9 @@ async function main() {
     const R2 = await prisma.room.create({ data: { roomTypeId: tDouble.id, name: "102", capacity: 2, listPrice: 500000, priceSat: 700000, sortOrder: 1 } });
     const R3 = await prisma.room.create({ data: { roomTypeId: tFam.id, name: "201", capacity: 4, maxCapacity: 5, listPrice: 900000 } });
     const S = svc.id;
-    await as("ADMIN", owner.id);
+    // Phiên ADMIN phải là tài khoản ADMIN THẬT: getSession kiểm lại tài khoản trong DB (còn active + đúng vai trò).
+    const adminId = (await prisma.adminUser.findFirstOrThrow({ where: { role: "ADMIN", active: true }, select: { id: true } })).id;
+    await as("ADMIN", adminId);
 
     console.log("\n1. Đặt phòng tạo tay");
     let r = await api(S, { op: "createStay", name: "Nguyễn Thử", phone: "0912000001", ci: addDaysKey(T, 5), co: addDaysKey(T, 7), guests: 2, src: "Gọi điện", rooms: [R1.id] });
@@ -414,7 +416,7 @@ async function main() {
     r = await api(S, { op: "createStay", name: "Sửa Thử", phone: "0912000037", ci: addDaysKey(T, 220), co: addDaysKey(T, 222), guests: 2, rooms: [R4.id] });
     const ed = r.stays.find((s) => s.name === "Sửa Thử")!;
     r = await api(S, { op: "edit", id: ed.id, name: "Sửa Rồi", phone: "0912000038", cccd: "001099000111", guests: 3, note: "ghi chú mới", src: "Zalo", ci: addDaysKey(T, 221), co: addDaysKey(T, 224) });
-    let e1 = r.stays?.find((s) => s.id === ed.id);
+    const e1 = r.stays?.find((s) => s.id === ed.id);
     const ec = await prisma.roomDayStatus.findMany({ where: { stayId: ed.id }, orderBy: { date: "asc" } });
     ok(r.status === 200 && e1?.name === "Sửa Rồi" && e1.phone === "0912000038" && e1.guests === 3 && e1.src === "Zalo" && e1.note === "ghi chú mới" && e1.guestList[0]?.cccd === "001099000111", "sửa tên / SĐT / CCCD / số khách / nguồn / ghi chú", [r.error, e1]);
     ok(e1?.ci === addDaysKey(T, 221) && e1.co === addDaysKey(T, 224) && ec.length === 3 && ec[0].date.toISOString().slice(0, 10) === addDaysKey(T, 221), "đổi ngày ⇒ ghi lại ô lịch đúng 3 đêm mới", ec.map((c) => c.date.toISOString().slice(0, 10)));
@@ -475,6 +477,60 @@ async function main() {
     ok(r.status === 400 && (await prisma.adminUser.findUnique({ where: { id: fleetStaff.id } }))?.active === true, "không khoá được nhân viên xe từ Quản lý phòng", r.error);
     r = await api(S, { op: "staffDelete", id: fleetStaff.id });
     ok(r.status === 400 && !!(await prisma.adminUser.findUnique({ where: { id: fleetStaff.id } })), "không xoá được nhân viên xe từ Quản lý phòng", r.error);
+
+    console.log("\n17. Rà soát 19/11: hoàn có trần (ST-2), đổi phòng khi đang ở (ST-3), ghi phí / trả phòng trong khoá (ST-1)");
+    // Phòng riêng cho mục này để không vướng lịch của các mục trên.
+    const R5 = await prisma.room.create({ data: { roomTypeId: tDouble.id, name: "105", capacity: 2, listPrice: 500000, sortOrder: 5 } });
+    const R6 = await prisma.room.create({ data: { roomTypeId: tDouble.id, name: "106", capacity: 2, listPrice: 500000, sortOrder: 6 } });
+    // ST-2: hoàn không vượt số chủ nhà đã thu; không tính "Sàn thu hộ".
+    r = await api(S, { op: "createStay", name: "Hoàn Trần", phone: "0912000051", ci: addDaysKey(T, 240), co: addDaysKey(T, 241), guests: 2, rooms: [R5.id], dep: 300000 });
+    const rf = r.stays.find((s) => s.name === "Hoàn Trần")!;
+    r = await api(S, { op: "addPay", id: rf.id, kind: "Hoàn", amt: 500000, method: "Tiền mặt" });
+    ok(r.status === 400 && /300\.000đ/.test(r.error ?? ""), "ST-2: hoàn 500k khi mới thu 300k ⇒ chặn", r.error);
+    r = await api(S, { op: "addPay", id: rf.id, kind: "Thu", amt: 200_000_000, method: "Tiền mặt" });
+    ok(r.status === 400, "ST-2: một khoản ghi tay quá 100 triệu ⇒ chặn", r.error);
+    r = await api(S, { op: "addPay", id: rf.id, kind: "Hoàn", amt: 300000, method: "Tiền mặt" });
+    ok(r.status === 200 && Number((await prisma.stayPayment.aggregate({ where: { stayId: rf.id }, _sum: { amount: true } }))._sum.amount) === 0, "ST-2: hoàn đúng số đã thu ⇒ được, sổ = 0", r.error);
+    ok(shopHeldStay([{ pays: [{ amt: 1000000, method: "Sàn thu hộ" }, { amt: 200000, method: "Tiền mặt" }] }]) === 200000, "ST-2: số chủ nhà đang giữ không gồm Sàn thu hộ");
+    await api(S, { op: "cancel", id: rf.id });
+
+    // ST-3: khách ở R5 từ hôm qua, R6 có khách đêm hôm qua (đã đi) ⇒ đổi sang R6 từ hôm nay được.
+    const Y = addDaysKey(T, -1);
+    r = await api(S, { op: "createStay", name: "Đổi Đang Ở", phone: "0912000052", ci: Y, co: addDaysKey(T, 2), guests: 2, rooms: [R5.id], dep: 200000 });
+    const mv = r.stays.find((s) => s.name === "Đổi Đang Ở")!;
+    const mvTotal = mv.total;
+    await api(S, { op: "checkIn", id: mv.id, time: "15:00", guests: [] });
+    r = await api(S, { op: "createStay", name: "Khách Đêm Trước", phone: "0912000053", ci: Y, co: T, guests: 2, rooms: [R6.id] });
+    ok(r.status === 200, "dựng: R6 có khách đêm hôm qua", r.error);
+    r = await api(S, { op: "move", id: mv.id, to: R6.id });
+    const moved = r.stays?.find((s) => s.id === mv.id);
+    const past = r.stays?.find((s) => s.roomId === R5.id && s.name === "Đổi Đang Ở" && s.id !== mv.id);
+    ok(r.status === 200 && moved?.roomId === R6.id && moved.ci === T && moved.co === addDaysKey(T, 2), "ST-3: đổi phòng khi đang ở ⇒ chỉ dời các đêm từ hôm nay (R6 bận đêm qua vẫn đổi được)", [r.error, moved?.roomId, moved?.ci]);
+    ok(!!past && past.ci === Y && past.co === T && !!past.outAt && !!moved?.groupId && past.groupId === moved.groupId && past.total + (moved?.total ?? 0) === mvTotal, "ST-3: đêm đã ở tách thành lượt lịch sử ở phòng cũ (đã trả), cùng đoàn, tổng tiền giữ nguyên", past);
+    const c5 = await cells(R5.id), c6 = await cells(R6.id);
+    ok(c5.length === 1 && c5[0].stayId === past?.id && c5[0].date.toISOString().slice(0, 10) === Y, "ST-3: ô đêm đã ở giữ ở R5 (gắn lượt lịch sử), R5 từ hôm nay được nhả", c5.map((c) => [c.date.toISOString().slice(0, 10), c.stayId]));
+    ok(c6.filter((c) => c.stayId === mv.id).length === 2, "ST-3: R6 giữ 2 đêm từ hôm nay cho lượt đã đổi", c6.map((c) => [c.date.toISOString().slice(0, 10), c.stayId]));
+    // ST-3 (vòng 2): lượt tách được đánh dấu; Sửa ngày trả lượt chính giữ phần tiền đêm đã ở chưa thu.
+    const carry = moveSplitCarry(past?.note, mv.code);
+    ok(!!past && isMoveSplit(past) && past.note.startsWith(MOVE_SPLIT_TAG) && carry > 0 && past.total === 200000, "ST-3: lượt tách có thẻ đổi phòng + ghi phần đêm đã ở chưa thu", [past?.note, carry]);
+    const R6vm = r.rooms.find((x) => x.id === R6.id)!;
+    r = await api(S, { op: "edit", id: mv.id, co: addDaysKey(T, 3) });
+    const ext3 = r.stays?.find((s) => s.id === mv.id);
+    const q3 = quoteStay([R6vm], T, addDaysKey(T, 3), 2, await holKeysFor(T, addDaysKey(T, 3)), 100000).total;
+    ok(r.status === 200 && ext3?.co === addDaysKey(T, 3) && ext3.total === q3 + carry, "ST-3: sửa ngày trả lượt chính ⇒ báo giá từ ngày đổi + phần đêm đã ở chưa thu (không mất)", [r.error, ext3?.total, q3, carry]);
+    r = await api(S, { op: "edit", id: mv.id, co: addDaysKey(T, 2) });
+    ok(r.status === 200 && r.stays?.find((s) => s.id === mv.id)?.total === (moved?.total ?? -1), "ST-3: sửa ngày trả về như cũ ⇒ tiền lượt chính trở lại đúng số sau đổi phòng", r.error);
+
+    // ST-1: 2 lễ tân ghi dịch vụ cùng lúc ⇒ không mất khoản nào.
+    await Promise.all([api(S, { op: "charge", id: mv.id, name: "Lẩu gà đen", amt: 450000 }), api(S, { op: "charge", id: mv.id, name: "Đốt lửa trại", amt: 200000 })]);
+    const feesNow = ((await prisma.roomStay.findUniqueOrThrow({ where: { id: mv.id } })).fees as { name: string; amt: number }[]) ?? [];
+    ok(feesNow.length === 2 && feesNow.reduce((a, f) => a + f.amt, 0) === 650000, "ST-1: 2 dịch vụ ghi song song ⇒ đủ cả 2", feesNow);
+    // Ghi thu đúng lúc trả phòng ⇒ sổ thu cả đoàn = đúng tổng phải trả (không thu trùng).
+    await Promise.all([api(S, { op: "addPay", id: mv.id, kind: "Thu", amt: 100000, method: "Tiền mặt" }), api(S, { op: "checkOut", id: mv.id, method: "Tiền mặt" })]);
+    const grpRows = await prisma.roomStay.findMany({ where: { id: { in: [mv.id, past!.id] } }, include: { payments: true } });
+    const billSum = grpRows.reduce((a, s) => a + Number(s.total) + ((s.fees as { amt: number }[]) ?? []).reduce((b, f) => b + f.amt, 0), 0);
+    const paySum = grpRows.reduce((a, s) => a + s.payments.reduce((b, p) => b + Number(p.amount), 0), 0);
+    ok(paySum === billSum, "ST-1: thu + trả phòng song song ⇒ sổ thu = tổng phải trả (không đòi khách 2 lần)", { paySum, billSum });
   } finally {
     // ---------- dọn ----------
     if (made.bookings.length) {

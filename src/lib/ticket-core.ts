@@ -106,8 +106,17 @@ export const unitWord = (u: SeatUnit) => (u === "table" ? "Bàn" : "Ghế");
 export const isSeatItem = (name: string) => /^(Ghế|Bàn) /.test(name);
 /** Ngân hàng hỗ trợ dựng VietQR: [BIN napas, tên]. */
 export const BANKS: [string, string][] = [
-  ["970422", "MB Bank"], ["970436", "Vietcombank"], ["970415", "VietinBank"], ["970418", "BIDV"], ["970405", "Agribank"],
-  ["970407", "Techcombank"], ["970416", "ACB"], ["970432", "VPBank"], ["970423", "TPBank"], ["970403", "Sacombank"],
+  // Ngân hàng hay dùng lên đầu, còn lại theo ABC. Mã BIN theo danh sách thành viên VietQR (NAPAS) — dùng trong chuỗi EMVCo.
+  ["970436", "Vietcombank"], ["970422", "MB Bank"], ["970407", "Techcombank"], ["970418", "BIDV"], ["970415", "VietinBank"],
+  ["970405", "Agribank"], ["970416", "ACB"], ["970432", "VPBank"], ["970423", "TPBank"], ["970403", "Sacombank"],
+  ["970425", "ABBANK"], ["970409", "Bac A Bank"], ["970438", "BaoViet Bank"], ["970454", "BVBank (Viet Capital)"], ["546034", "CAKE by VPBank"],
+  ["970444", "CB Bank"], ["422589", "CIMB"], ["970446", "Co-opBank"], ["970406", "DongA Bank"], ["970431", "Eximbank"],
+  ["970408", "GPBank"], ["970437", "HDBank"], ["970442", "Hong Leong Bank"], ["458761", "HSBC"], ["970434", "Indovina Bank (IVB)"],
+  ["970452", "KienlongBank"], ["970449", "LPBank (LienVietPostBank)"], ["970414", "MBV (OceanBank)"], ["970426", "MSB"], ["970428", "Nam A Bank"],
+  ["970419", "NCB"], ["970448", "OCB"], ["970430", "PG Bank"], ["970439", "Public Bank"], ["970412", "PVcomBank"],
+  ["970400", "Saigonbank"], ["970429", "SCB"], ["970440", "SeABank"], ["970443", "SHB"], ["970424", "Shinhan Bank"],
+  ["970410", "Standard Chartered"], ["963388", "Timo"], ["546035", "Ubank by VPBank"], ["970458", "UOB"], ["970441", "VIB"],
+  ["970427", "VietABank"], ["970433", "VietBank"], ["970421", "VRB"], ["970457", "Woori Bank"],
 ];
 export const bankName = (bin: string) => BANKS.find((b) => b[0] === bin)?.[1] ?? "";
 /** Khách web: số vé / bàn tối đa mỗi đơn + số phút giữ ghế / bàn trong lúc điền thông tin + hạn chuyển cọc bàn. */
@@ -214,6 +223,7 @@ export interface TkVenue {
   /** Quán tương ứng ở danh mục Nhà hàng / Cafe / Check-in (bảng Place) — trang quán hiện nút đặt bàn / mua vé khi đã mở bán. */
   placeId: string | null;
   config: VenueConfig; layout: SeatLayout; ownerId: string | null; ownerName: string;
+  review: VenueReview; reviewNote: string; submittedAt: number | null;
 }
 export interface TkData {
   venue: TkVenue;
@@ -228,7 +238,18 @@ export interface TkData {
   today: string;
   now: number;
 }
-export interface TkVenueRef { id: string; kind: VenueKind; name: string }
+export interface TkVenueRef { id: string; kind: VenueKind; name: string; review: VenueReview; published: boolean }
+
+/**
+ * Duyệt địa điểm: đối tác (PROVIDER) tự tạo ⇒ "draft" → bấm Gửi duyệt ⇒ "pending" → admin Duyệt ⇒ "approved" (mở bán)
+ * hoặc Từ chối ⇒ "rejected" (kèm lý do, sửa rồi gửi lại). Địa điểm admin tạo là "approved" ngay.
+ */
+export type VenueReview = "approved" | "draft" | "pending" | "rejected";
+export const REVIEW_LABEL: Record<VenueReview, string> = { approved: "Đã duyệt", draft: "Nháp", pending: "Chờ duyệt", rejected: "Bị từ chối" };
+export const asReview = (s: string | null | undefined): VenueReview => (s === "draft" || s === "pending" || s === "rejected" ? s : "approved");
+/** Điều kiện để khách thấy / đặt được một địa điểm: chủ bật mở bán VÀ admin đã duyệt. */
+export const PUBLIC_VENUE = { published: true, review: "approved" } as const;
+export const isPublicVenue = (v: { published: boolean; review: string }) => v.published && v.review === "approved";
 
 /** Kết quả quét vé. */
 export type ScanKind = "ok" | "used" | "wrong" | "food" | "none";
@@ -295,3 +316,41 @@ export interface PubCard {
 }
 /** Giờ đã qua trong hôm nay (không nhận đặt nữa). */
 export const slotPassed = (date: string, time: string, today: string, now: string) => date < today || (date === today && !!time && time <= now);
+
+/** Cổng soát vé show mở trước giờ diễn ngần này phút (TK-5). */
+export const SCAN_OPEN_MIN = 60;
+/**
+ * Suất đang soát vé trong ngày: suất muộn nhất đã tới giờ mở cổng (giờ diễn − openMin), chưa tới suất nào thì suất đầu.
+ * Ngày chỉ có 1 suất ⇒ luôn là suất đó (giữ hành vi cũ). Vé suất khác ⇒ "Sai suất diễn", tránh hai người tranh một ghế.
+ */
+export function scanSessionTime(times: string[], now: string, openMin = SCAN_OPEN_MIN): string {
+  const list = [...new Set(times.filter((t) => TIME_RE.test(t)))].sort();
+  if (!list.length) return "";
+  const m = (t: string) => +t.slice(0, 2) * 60 + +t.slice(3, 5);
+  let pick = list[0];
+  for (const t of list) if (m(t) - openMin <= m(now)) pick = t;
+  return pick;
+}
+
+/** Giờ các suất được tính khi tự chọn suất đang soát: bỏ suất TẠM DỪNG không có đơn nào (không ai cầm vé suất đó). */
+export function scanCandidateTimes(rows: { time: string; status: string; orders: number }[]): string[] {
+  return rows.filter((r) => !(r.status === "paused" && r.orders === 0)).map((r) => r.time);
+}
+
+/**
+ * Số chỗ một thiết bị / IP được GIỮ NHÁP cùng lúc tại một địa điểm (TK-7 / SEC-7) = một đơn tối đa của loại.
+ * Giữ mới vượt mức ⇒ nhả các nháp cũ nhất của chính IP đó (khách tải lại trang / mở tab mới vẫn đặt được).
+ */
+export const webHoldCap = (kind: VenueKind) => WEB_MAX[kind];
+
+/**
+ * Chuẩn hoá SĐT (TK-7): bỏ ký tự không phải số; số VN dạng 84… / +84… ⇒ 0…. Số nước ngoài giữ "+" như cũ.
+ * Dùng trước khi đếm trần đơn chờ / lưu ⇒ "+84 90.123.4567" và "0901234567" là cùng một số.
+ */
+export function normPhone(raw: string): string {
+  const s = String(raw ?? "").replace(/[^\d+]/g, "");
+  const d = s.replace(/\D/g, "");
+  if (/^84\d{9}$/.test(d)) return "0" + d.slice(2);
+  if (/^0\d{9}$/.test(d)) return d;
+  return s.slice(0, 15);
+}

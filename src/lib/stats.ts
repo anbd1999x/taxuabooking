@@ -1,6 +1,7 @@
 import { rentalOriginalTotal } from "./rental-days";
 import { rentalListPriceMap } from "./rental-list-price";
 import "server-only";
+import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import { parseDateOnly, addDays } from "./dates";
 import { toNumber } from "./format";
@@ -133,6 +134,31 @@ function accumulate(row: StatRow, b: Bk, net = false) {
 }
 
 /**
+ * Id các đơn THUỘC một chủ dịch vụ: đơn của dịch vụ họ sở hữu + đơn (vd COMBO gắn serviceId homestay) đi qua
+ * CHUYẾN cabin của nhà xe họ. Lọc hẳn trong DB bằng subquery (BookingRequest.cabinTripId không có relation
+ * Prisma) — không nạp toàn bộ id CabinTrip rồi IN(...) như trước (danh sách chuyến lớn dần theo ngày).
+ * Kết quả sắp createdAt giảm dần; `limit` để lấy N đơn mới nhất.
+ */
+export async function ownerBookingIds(
+  ownerId: string,
+  opts: { from?: Date; toExclusive?: Date; statuses?: string[]; limit?: number } = {},
+): Promise<string[]> {
+  const trips = Prisma.sql`SELECT t.id FROM "CabinTrip" t JOIN "Service" s ON s.id = t."serviceId" WHERE s."ownerId" = ${ownerId} AND s."category" = 'CABIN'`;
+  const conds: Prisma.Sql[] = [
+    Prisma.sql`(b."serviceId" IN (SELECT id FROM "Service" WHERE "ownerId" = ${ownerId}) OR b."cabinTripId" IN (${trips}) OR b."cabinReturnTripId" IN (${trips}))`,
+  ];
+  if (opts.from) conds.push(Prisma.sql`b."createdAt" >= ${opts.from}`);
+  if (opts.toExclusive) conds.push(Prisma.sql`b."createdAt" < ${opts.toExclusive}`);
+  if (opts.statuses?.length) conds.push(Prisma.sql`b."status"::text IN (${Prisma.join(opts.statuses)})`);
+  const rows = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT b.id FROM "BookingRequest" b
+    WHERE ${Prisma.join(conds, " AND ")}
+    ORDER BY b."createdAt" DESC
+    ${opts.limit ? Prisma.sql`LIMIT ${opts.limit}` : Prisma.empty}`;
+  return rows.map((r) => r.id);
+}
+
+/**
  * Thống kê theo mốc thời gian (lọc theo ngày tạo đơn).
  * ownerId != null ⇒ phạm vi một chủ dịch vụ (chỉ đơn của dịch vụ họ sở hữu, không trả bảng theo chủ).
  */
@@ -140,30 +166,13 @@ export async function computeStats(fromKey: string, toKey: string, ownerId?: str
   const from = parseDateOnly(fromKey);
   const toExclusive = addDays(parseDateOnly(toKey), 1);
 
-  // Nhà xe: đơn COMBO gắn serviceId homestay nhưng đi qua CHUYẾN của nhà xe.
-  const ownerTripIds = ownerId
-    ? (
-        await prisma.cabinTrip.findMany({
-          where: { service: { ownerId, category: "CABIN" } },
-          select: { id: true },
-        })
-      ).map((t) => t.id)
-    : [];
+  // Nhà xe: đơn COMBO gắn serviceId homestay nhưng đi qua CHUYẾN của nhà xe ⇒ lọc phạm vi chủ trong DB.
+  const ownerIds = ownerId ? await ownerBookingIds(ownerId, { from, toExclusive }) : null;
 
   const bookings = await prisma.bookingRequest.findMany({
     where: {
       createdAt: { gte: from, lt: toExclusive },
-      ...(ownerId
-        ? ownerTripIds.length
-          ? {
-              OR: [
-                { service: { ownerId } },
-                { cabinTripId: { in: ownerTripIds } },
-                { cabinReturnTripId: { in: ownerTripIds } },
-              ],
-            }
-          : { service: { ownerId } }
-        : {}),
+      ...(ownerIds ? { id: { in: ownerIds } } : {}),
     },
     select: {
       id: true,

@@ -29,7 +29,7 @@ export interface HomestayCard {
   area: string;
   distanceKm: number | null; // cách trung tâm Tà Xùa (km); null = chưa nhập
   amen: Record<AmenKey, boolean>; // tiện ích (hạng phòng + dịch vụ) để lọc
-  desc: string;
+  desc: string; // mô tả riêng của phòng; rỗng ⇒ hiện tóm tắt nhà (homeInfo) — server không lặp tóm tắt trên từng thẻ
   capacity: number;
   childFreeUnderAge: number; // trẻ dưới tuổi này miễn phí (không tính sức chứa)
   count: number; // số phòng giống nhau trong nhóm
@@ -924,7 +924,7 @@ export function HomestayList({
                     </div>
                   );
                 })()}
-                <div className="line-clamp-2 text-[13px] leading-[1.5] text-gray-500 sm:line-clamp-3 sm:text-sm sm:leading-[1.55]">{tr(s.desc)}</div>
+                <div className="line-clamp-2 text-[13px] leading-[1.5] text-gray-500 sm:line-clamp-3 sm:text-sm sm:leading-[1.55]">{tr(s.desc || homeInfo?.[s.slug]?.desc || s.homeDesc || "")}</div>
                 <div className="flex-1" />
                 <div className="mt-1 flex flex-wrap items-end justify-between gap-x-2 gap-y-2 border-t border-[oklch(0.94_0.01_230)] pt-2 sm:mt-1.5 sm:pt-3">
                   <div className="min-w-0">

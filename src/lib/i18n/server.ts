@@ -69,6 +69,23 @@ export async function getContentMap(locale: Locale): Promise<Dict> {
   return contentMapCached(locale).catch(() => ({}));
 }
 
+/** Phiên bản của map bản dịch (hash nội dung) — đổi khi admin sửa bản dịch; dùng làm khoá cache phía trình duyệt. */
+export function contentVersionOf(map: Dict): string {
+  return hashSource(JSON.stringify(map)).slice(0, 12);
+}
+
+const contentVersionCached = unstable_cache(
+  async (locale: string): Promise<string> => contentVersionOf(await contentMapCached(locale)),
+  ["i18n-content-version"],
+  { revalidate: 300, tags: [TRANSLATIONS_TAG] },
+);
+
+/** Phiên bản map bản dịch nội dung (cache, không hash lại mỗi request). Lỗi DB ⇒ phiên bản của map rỗng. */
+export async function getContentVersion(locale: Locale): Promise<string> {
+  if (locale === DEFAULT_LOCALE) return "";
+  return contentVersionCached(locale).catch(() => contentVersionOf({}));
+}
+
 /** Hàm dịch cho Server Component / generateMetadata / server action: `const t = await getT()`. */
 export const getT = cache(async (): Promise<TFunc> => {
   const locale = await getLocale();

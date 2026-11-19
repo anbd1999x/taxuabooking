@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { BANKS, MEAL_MIN_DEFAULT, MEAL_MIN_RANGE, VENUE_KINDS, WEB_CONFIRM_MIN, type TkMenu, type TkTable, type TkTier, type VenueKind } from "@/lib/ticket-core";
+import { BANKS, MEAL_MIN_DEFAULT, MEAL_MIN_RANGE, REVIEW_LABEL, VENUE_KINDS, WEB_CONFIRM_MIN, type TkMenu, type TkTable, type TkTier, type VenueKind } from "@/lib/ticket-core";
 import { showToast } from "@/components/admin/Toast";
-import { Act, Head, MUTED, O, RED, card, inputCls, lbl, type Ctx } from "./ui";
+import { Act, Badge, Head, MUTED, O, RED, card, inputCls, lbl, type Ctx } from "./ui";
 
 const digits = (s: string) => s.replace(/\D/g, "");
 type PlaceRef = { id: string; name: string; kind: string };
@@ -23,12 +23,12 @@ function Money({ value, onChange, placeholder }: { value: string; onChange: (v: 
   return <input style={small} inputMode="numeric" value={vnd(value)} placeholder={placeholder} onChange={(e) => onChange(digits(e.target.value))} />;
 }
 
-/** Tab THIẾT LẬP: thông tin địa điểm, hạng vé, thực đơn kèm, bàn; quản trị viên tạo địa điểm mới. */
+/** Tab THIẾT LẬP: thông tin địa điểm, hạng vé, thực đơn kèm, bàn; tạo địa điểm mới (admin: duyệt sẵn; đối tác: bản nháp → gửi duyệt). */
 export function SetupTab({ ctx, providers, places, onCreated }: { ctx: Ctx | null; providers: { id: string; name: string }[]; places: PlaceRef[]; onCreated: (id: string) => void; }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <Head title="Thiết lập vé & đặt bàn" note="Địa điểm, hạng vé & giá, đồ ăn uống kèm, bàn và khung giờ" />
-      {ctx && <VenueSetup key={ctx.data.venue.id} ctx={ctx} providers={providers} places={places} />}
+      {ctx && <VenueSetup key={`${ctx.data.venue.id}:${ctx.data.venue.review}:${ctx.data.venue.published}`} ctx={ctx} providers={providers} places={places} />}
       <NewVenue providers={providers} places={places} onCreated={onCreated} isAdmin={ctx ? ctx.isAdmin : true} />
     </div>
   );
@@ -38,10 +38,14 @@ function NewVenue({ providers, places, onCreated, isAdmin }: { providers: { id: 
   const [f, setF] = useState({ kind: "GATE" as VenueKind, name: "", ownerId: "", placeId: "" });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  if (!isAdmin) return <div style={{ fontSize: 13, color: MUTED }}>Cần thêm địa điểm bán vé mới? Liên hệ quản trị viên Tà Xùa Booking.</div>;
   return (
     <div style={{ ...card, border: `2px dashed ${O}` }}>
-      <div style={{ fontSize: 16, fontWeight: 800 }}>+ Tạo địa điểm bán vé mới</div>
+      <div style={{ fontSize: 16, fontWeight: 800 }}>+ Tạo địa điểm bán vé / nhận đặt bàn mới</div>
+      {!isAdmin && (
+        <div style={{ fontSize: 13, color: MUTED, lineHeight: 1.55 }}>
+          Tạo vé cổng, show hoặc nhà hàng nhận đặt bàn của bạn → thiết lập giá vé / bàn / thực đơn → bấm <b>Gửi duyệt</b>. Quản trị viên Tà Xùa Booking duyệt xong, địa điểm tự hiện ở trang Vé &amp; đặt bàn cho khách.
+        </div>
+      )}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}>
         <label style={{ ...lbl, flex: "1 1 150px" }}>Loại
           <select style={small} value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value as VenueKind, placeId: "" })}>
@@ -55,12 +59,14 @@ function NewVenue({ providers, places, onCreated, isAdmin }: { providers: { id: 
           </select>
         </label>
         <label style={{ ...lbl, flex: "2 1 220px" }}>Tên địa điểm / show<input style={small} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="VD: Mỏm Cá Heo, Đêm nhạc Mây…" /></label>
-        <label style={{ ...lbl, flex: "1 1 170px" }}>Chủ địa điểm
-          <select style={small} value={f.ownerId} onChange={(e) => setF({ ...f, ownerId: e.target.value })}>
-            <option value="">Sàn tự vận hành</option>
-            {providers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-        </label>
+        {isAdmin && (
+          <label style={{ ...lbl, flex: "1 1 170px" }}>Chủ địa điểm
+            <select style={small} value={f.ownerId} onChange={(e) => setF({ ...f, ownerId: e.target.value })}>
+              <option value="">Sàn tự vận hành</option>
+              {providers.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          </label>
+        )}
         <Act kind="orange" disabled={busy} onClick={async () => {
           setBusy(true);
           setErr("");
@@ -75,6 +81,45 @@ function NewVenue({ providers, places, onCreated, isAdmin }: { providers: { id: 
         }}>Tạo</Act>
       </div>
       {err && <div style={{ fontSize: 13, fontWeight: 700, color: RED }}>{err}</div>}
+    </div>
+  );
+}
+
+/**
+ * Trạng thái duyệt của địa điểm. Đối tác: Gửi duyệt / Rút lại / Gửi lại sau khi sửa. Admin: Duyệt & mở bán / Từ chối (kèm lý do).
+ * Địa điểm đã duyệt không hiện khung này (chỉ còn ô "Hiển thị & mở bán").
+ */
+function ReviewBox({ ctx }: { ctx: Ctx }) {
+  const { data, busy, isAdmin } = ctx;
+  const router = useRouter();
+  const v = data.venue;
+  // Sau mỗi thao tác duyệt: làm mới danh sách địa điểm (banner "chờ duyệt", nhãn trong ô chọn địa điểm).
+  const call = async (op: string, payload?: Record<string, unknown>) => { if (await ctx.call(op, payload)) router.refresh(); };
+  if (v.review === "approved") return null;
+  const tone = v.review === "pending" ? ["oklch(0.96 0.05 85)", "oklch(0.45 0.12 70)"] : v.review === "rejected" ? ["oklch(0.95 0.04 28)", "oklch(0.5 0.17 28)"] : ["oklch(0.95 0.008 160)", "oklch(0.4 0.02 160)"];
+  const when = v.submittedAt ? new Date(v.submittedAt).toLocaleString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", year: "numeric" }) : "";
+  const note =
+    v.review === "pending"
+      ? isAdmin ? `Đối tác ${v.ownerName || ""} gửi duyệt${when ? " lúc " + when : ""}. Kiểm tra thông tin, giá vé / bàn bên dưới rồi duyệt.` : `Đã gửi duyệt${when ? " lúc " + when : ""}. Quản trị viên duyệt xong địa điểm sẽ tự hiện cho khách đặt.`
+      : v.review === "rejected"
+        ? `Lý do: ${v.reviewNote || "—"}. ${isAdmin ? "Chờ đối tác sửa và gửi lại." : "Sửa theo góp ý rồi bấm Gửi duyệt lại."}`
+        : isAdmin ? "Đối tác đang thiết lập, chưa gửi duyệt." : "Bản nháp — khách chưa thấy. Thêm hạng vé / bàn, giá, ảnh bìa… rồi bấm Gửi duyệt.";
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "12px 14px", borderRadius: 14, background: tone[0] }}>
+      <Badge big bg="white" fg={tone[1]}>{REVIEW_LABEL[v.review]}</Badge>
+      <div style={{ flex: "1 1 240px", fontSize: 13, lineHeight: 1.5, color: "oklch(0.3 0.03 160)" }}>{note}</div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        {isAdmin ? (
+          <>
+            <Act kind="pri" disabled={busy} onClick={() => window.confirm(`Duyệt và mở bán "${v.name}"?`) && call("approveVenue")}>Duyệt &amp; mở bán</Act>
+            <Act kind="warn" disabled={busy} onClick={() => { const note = window.prompt("Lý do từ chối (đối tác sẽ thấy để sửa):", v.reviewNote); if (note && note.trim()) void call("rejectVenue", { note: note.trim() }); }}>Từ chối</Act>
+          </>
+        ) : v.review === "pending" ? (
+          <Act disabled={busy} onClick={() => call("withdrawReview")}>Rút lại để sửa</Act>
+        ) : (
+          <Act kind="orange" disabled={busy} onClick={() => call("submitReview")}>{v.review === "rejected" ? "Gửi duyệt lại" : "Gửi duyệt"}</Act>
+        )}
+      </div>
     </div>
   );
 }
@@ -123,8 +168,9 @@ function VenueSetup({ ctx, providers, places }: { ctx: Ctx; providers: { id: str
       <div style={card}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <div style={{ fontSize: 16, fontWeight: 800 }}>{VENUE_KINDS[v.kind]} · {v.name}</div>
-          <label style={{ ...chk, paddingBottom: 0 }}><input type="checkbox" checked={f.published} onChange={(e) => setF({ ...f, published: e.target.checked })} style={{ width: 16, height: 16 }} />Hiển thị & mở bán trên web</label>
+          {(isAdmin || v.review === "approved") && <label style={{ ...chk, paddingBottom: 0 }}><input type="checkbox" checked={f.published} onChange={(e) => setF({ ...f, published: e.target.checked })} style={{ width: 16, height: 16 }} />Hiển thị & mở bán trên web</label>}
         </div>
+        <ReviewBox ctx={ctx} />
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,220px),1fr))", gap: 10 }}>
           <label style={lbl}>Tên<input style={small} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></label>
           <label style={lbl}>Khu vực<input style={small} value={f.area} onChange={(e) => setF({ ...f, area: e.target.value })} placeholder="Trung tâm, Đỉnh Gió…" /></label>
@@ -194,8 +240,8 @@ function VenueSetup({ ctx, providers, places }: { ctx: Ctx; providers: { id: str
         )}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <Act kind="pri" disabled={busy} onClick={save}>Lưu thông tin</Act>
-          {isAdmin && <Act kind="warn" disabled={busy} onClick={async () => { if (window.confirm(`Xoá địa điểm "${v.name}"? (chỉ xoá được khi chưa có đơn)`) && (await call("deleteVenue"))) router.push("/admin/provider/ve?tab=setup"); }}>Xoá địa điểm</Act>}
-          <a href={`/ve/${v.slug}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontWeight: 700, color: "oklch(0.4 0.08 160)" }}>Trang đặt của khách: /ve/{v.slug} ↗{v.published ? "" : " (chưa mở bán nên khách chưa vào được)"}</a>
+          {(isAdmin || v.review !== "approved") && <Act kind="warn" disabled={busy} onClick={async () => { if (window.confirm(`Xoá địa điểm "${v.name}"? (chỉ xoá được khi chưa có đơn)`) && (await call("deleteVenue"))) router.push("/admin/provider/ve?tab=setup"); }}>Xoá địa điểm</Act>}
+          <a href={`/ve/${v.slug}`} target="_blank" rel="noreferrer" style={{ fontSize: 12, fontWeight: 700, color: "oklch(0.4 0.08 160)" }}>Trang đặt của khách: /ve/{v.slug} ↗{v.published && v.review === "approved" ? "" : " (chưa mở bán nên khách chưa vào được)"}</a>
         </div>
       </div>
 

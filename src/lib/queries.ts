@@ -34,7 +34,22 @@ import {
   toDateKey,
   addDays,
   today,
+  isValidDateKey,
+  nightsBetween,
 } from "./dates";
+
+/**
+ * Khoảng ngày lấy từ URL (from/to) phải được kẹp TRƯỚC khi liệt kê đêm: không kẹp thì
+ * ?from=1000-01-01&to=9999-12-31 sinh hàng triệu Date + câu IN khổng lồ (treo/OOM tiến trình).
+ * Giống /api/availability: tối đa 60 đêm/ngày; ngày sai định dạng / quá dài ⇒ bỏ ngày (coi như chưa chọn).
+ */
+const MAX_RANGE_DAYS = 60;
+
+/** Kỳ ở [from, to): hợp lệ khi cả hai đúng yyyy-mm-dd, to > from và ≤ MAX_RANGE_DAYS đêm; sai ⇒ null. */
+function safeStayRange(fromKey?: string | null, toKey?: string | null): { from: string; to: string } | null {
+  if (!fromKey || !toKey || !isValidDateKey(fromKey) || !isValidDateKey(toKey) || toKey <= fromKey) return null;
+  return nightsBetween(parseDateOnly(fromKey), parseDateOnly(toKey)) > MAX_RANGE_DAYS ? null : { from: fromKey, to: toKey };
+}
 import { checkWeekendPolicy } from "./weekend-policy";
 import { fleetFreeByWebType } from "./fleet";
 import { toNumber } from "./format";
@@ -121,9 +136,12 @@ export async function listServicesByCategory(
     if (filters.priceMax != null) where.basePrice.lte = filters.priceMax;
   }
 
-  const wantAvailability = Boolean(filters.from);
-  const from = filters.from ? parseDateOnly(filters.from) : null;
-  const to = filters.to ? parseDateOnly(filters.to) : from ? addDays(from, 1) : null;
+  // Ngày từ URL: sai định dạng / to ≤ from / quá MAX_RANGE_DAYS ⇒ bỏ lọc theo ngày (không liệt kê vô hạn).
+  const fromOk = filters.from && isValidDateKey(filters.from) ? filters.from : null;
+  let from = fromOk ? parseDateOnly(fromOk) : null;
+  let to = from ? (filters.to && isValidDateKey(filters.to) && filters.to > fromOk! ? parseDateOnly(filters.to) : addDays(from, 1)) : null;
+  if (from && to && nightsBetween(from, to) > MAX_RANGE_DAYS) from = to = null;
+  const wantAvailability = Boolean(from);
 
   const services = await prisma.service.findMany({
     where,
@@ -420,8 +438,9 @@ async function getHomestayCardsImpl(fromKey?: string | null, toKey?: string | nu
     },
   });
 
-  const hasDates = Boolean(fromKey && toKey && toKey > fromKey);
-  const nights = hasDates ? enumerateNights(parseDateOnly(fromKey!), parseDateOnly(toKey!)) : [];
+  const range = safeStayRange(fromKey, toKey); // kẹp khoảng ngày từ URL (chống DoS)
+  const hasDates = Boolean(range);
+  const nights = range ? enumerateNights(parseDateOnly(range.from), parseDateOnly(range.to)) : [];
   const occupied = new Set<string>();
   if (hasDates && nights.length) {
     const roomIds = list.flatMap((s) => s.roomTypes.flatMap((rt) => rt.rooms.map((r) => r.id)));
@@ -480,7 +499,12 @@ async function getHomestayCardsImpl(fromKey?: string | null, toKey?: string | nu
   });
 }
 
-export const getHomestayCards = unstable_cache(getHomestayCardsImpl, ["homestay-cards"], { revalidate: TTL_AVAIL });
+const getHomestayCardsCached = unstable_cache(getHomestayCardsImpl, ["homestay-cards"], { revalidate: TTL_AVAIL });
+/** Chuẩn hoá ngày TRƯỚC khoá cache: ngày rác trên URL dùng chung bản "không ngày", không sinh mục cache mới. */
+export const getHomestayCards = (fromKey?: string | null, toKey?: string | null) => {
+  const r = safeStayRange(fromKey, toKey);
+  return getHomestayCardsCached(r?.from ?? null, r?.to ?? null);
+};
 
 /** File video (mp4/webm/mov...) không dùng được làm ảnh thẻ (next/image sẽ lỗi). */
 const VIDEO_URL_RE = /\.(mp4|webm|mov|m4v|ogg)(\?|$)/i;
@@ -512,8 +536,9 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
     },
   });
 
-  const hasDates = Boolean(fromKey && toKey && toKey > fromKey);
-  const nights = hasDates ? enumerateNights(parseDateOnly(fromKey!), parseDateOnly(toKey!)) : [];
+  const range = safeStayRange(fromKey, toKey); // kẹp khoảng ngày từ URL (chống DoS)
+  const hasDates = Boolean(range);
+  const nights = range ? enumerateNights(parseDateOnly(range.from), parseDateOnly(range.to)) : [];
   const holidays = hasDates ? await getHolidays() : []; // đêm ngày lễ ⇒ giá lễ của phòng
   const occupied = new Set<string>();
   if (hasDates && nights.length) {
@@ -544,7 +569,9 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
         return {
           roomId: r.id,
           roomName: r.name,
-          desc: r.description || s.summary,
+          // Không lặp tóm tắt homestay trên từng thẻ phòng (≈400 thẻ ⇒ payload phình): client tự lấy
+          // tóm tắt nhà (gửi 1 lần/nhà qua homeInfo) khi phòng không có mô tả riêng.
+          desc: r.description || "",
           capacity: r.capacity,
           price,
           priceOld: strike,
@@ -620,7 +647,11 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
   });
 }
 
-export const getHomestayRoomCards = unstable_cache(getHomestayRoomCardsImpl, ["homestay-room-cards"], { revalidate: TTL_AVAIL });
+const getHomestayRoomCardsCached = unstable_cache(getHomestayRoomCardsImpl, ["homestay-room-cards"], { revalidate: TTL_AVAIL });
+export const getHomestayRoomCards = (fromKey?: string | null, toKey?: string | null) => {
+  const r = safeStayRange(fromKey, toKey);
+  return getHomestayRoomCardsCached(r?.from ?? null, r?.to ?? null);
+};
 
 async function getCabinPriceRowsImpl() {
   // Hiển thị bảng giá của nhà xe đang được tick "nổi bật"; nếu nhà xe đó chưa có
@@ -859,11 +890,13 @@ export async function getRentalBikes(from: string | null, to: string | null): Pr
   let start: Date | null = null;
   let end: Date | null = null;
   let days: Date[] = [];
-  if (from) {
+  // Ngày từ URL: sai định dạng ⇒ bỏ; to sai / trước from ⇒ = from; quá MAX_RANGE_DAYS ngày ⇒ bỏ ngày (chống DoS).
+  if (from && isValidDateKey(from)) {
     start = parseDateOnly(from);
-    end = to ? parseDateOnly(to) : start;
+    end = to && isValidDateKey(to) ? parseDateOnly(to) : start;
     if (end < start) end = start;
-    days = enumerateDays(start, end);
+    if (nightsBetween(start, end) >= MAX_RANGE_DAYS) start = end = null;
+    else days = enumerateDays(start, end);
   }
 
   const vehicleIds = services.flatMap((s) => s.rentalVehicles.map((v) => v.id));

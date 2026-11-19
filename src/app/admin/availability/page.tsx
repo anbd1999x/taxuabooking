@@ -163,6 +163,7 @@ export default async function AvailabilityPage({
         status: (b.status === "CANCELLED" ? "cancel" : b.status === "NEW" ? "new" : "ok") as "new" | "ok" | "cancel",
         isCtv: Boolean(b.ctvId),
         srcLabel: b.ctvId ? b.ctv?.name ?? "CTV" : "Khách",
+        isCombo: b.category === "COMBO",
       }));
       // "Đã đặt" theo tồn kho thực (tổng − còn trống), nhất quán với web khách.
       const booked = Math.max(0, t.seatsTotal - t.seatsAvailable);
@@ -356,6 +357,7 @@ export default async function AvailabilityPage({
             todayKey={todayInMonth}
             prevMonth={shiftMonth(month, -1)}
             nextMonth={shiftMonth(month, 1)}
+            isProvider={isProvider}
           />
         </div>
       )}

@@ -10,6 +10,7 @@ import {
   keptOf,
   poolFor,
   normalizeConfig,
+  quoteRental,
   vnNow,
   type FleetCond,
   type FleetConfig,
@@ -405,6 +406,23 @@ async function pickComboService(tx: Tx, d: Demand): Promise<string | null> {
   return best?.id ?? null;
 }
 
+/** Nhật ký ghi kèm mốc "· N xe" (số xe của đơn lúc đội xe xếp / tính lại) — dùng làm mốc so số xe lần trước. */
+const FLEET_ASSIGN_TITLE = "Đội xe: đã xếp xe theo đơn";
+const FLEET_REPRICE_TITLE = "Đội xe: tính lại tiền thuê theo lịch / số xe mới";
+const COMBO_ASSIGN_TITLE = "Xe máy kèm combo: đã xếp xe";
+/** Số xe của đơn ở lần đội xe xếp / tính lại gần nhất (null = đơn cũ chưa có mốc). */
+async function lastQtyMark(tx: Tx, bookingId: string): Promise<number | null> {
+  const logs = await tx.bookingLog.findMany({
+    where: { bookingId, title: { in: [FLEET_ASSIGN_TITLE, FLEET_REPRICE_TITLE, COMBO_ASSIGN_TITLE] } },
+    orderBy: { createdAt: "desc" }, take: 5, select: { body: true },
+  });
+  for (const l of logs) {
+    const m = /· (\d+) xe(?=\s|$)/m.exec(l.body ?? "");
+    if (m) return Number(m[1]);
+  }
+  return null;
+}
+
 /**
  * Đối chiếu MỘT đơn với đội xe (trong transaction đã khoá dịch vụ):
  *  - đơn huỷ / đổi sang dịch vụ khác / không còn nhu cầu xe ⇒ huỷ lượt chưa giao;
@@ -444,9 +462,12 @@ async function reconcileBooking(tx: Tx, b: BookingRow, forceSvcId?: string): Pro
 
   // 2) Đổi ngày/giờ ⇒ cập nhật lượt chưa giao; xe bận ⇒ huỷ để xếp xe khác.
   let keep = alive.filter((r) => r.vehicle.serviceId === svcId);
+  const keep0 = keep.length;
+  let datesChanged = false;
   for (const r of keep.filter((x) => !locked(x))) {
     const changed = toDateKey(r.startDate) !== d.s || toDateKey(r.endDate) !== d.e || r.startTime !== d.st || r.endTime !== d.et;
     if (!changed) continue;
+    datesChanged = true;
     const v = vehicles.find((x) => x.id === r.vehicleId);
     if (v && v.mode !== "off" && isVehicleFree({ id: v.id, mode: "ready" }, d.s, d.e, others, T, undefined, NOW, d.st, d.et)) {
       await tx.fleetRental.update({ where: { id: r.id }, data: { startDate: parseDateOnly(d.s), endDate: parseDateOnly(d.e), startTime: d.st, endTime: d.et } });
@@ -463,6 +484,26 @@ async function reconcileBooking(tx: Tx, b: BookingRow, forceSvcId?: string): Pro
     keep = keep.filter((x) => !extra.includes(x));
   }
 
+  // 3b) Đơn đã có xe mà đổi ngày / đổi số xe ⇒ TÍNH LẠI tiền thuê từng lượt CHƯA giao theo giá hiện tại của xe
+  // (phụ thu cuối tuần / lễ, giảm thuê dài — `quoteRental`). Trước đây chỉ dời ngày, `total` giữ giá cũ ⇒ quyết toán
+  // khi trả xe (total − đã thu) ra số hoàn / thu sai. Lượt đã giao xe giữ nguyên giá (đã chốt với khách).
+  // Số xe của ĐƠN đổi so với mốc lần trước (nhật ký "· N xe"); đơn cũ chưa có mốc ⇒ chỉ nhận biết khi giảm xe.
+  // KHÔNG so keep0 với d.qty: đơn thiếu xe (chưa xếp đủ) sẽ bị tính lại giá ở mọi lần đồng bộ.
+  const mark = keep0 > 0 ? await lastQtyMark(tx, b.id) : null;
+  const qtyChanged = keep0 > 0 && (mark != null ? mark !== d.qty : keep0 > d.qty);
+  const reprice = keep0 > 0 && (datesChanged || qtyChanged);
+  const P = reprice ? normalizeConfig((await tx.fleetConfig.findUnique({ where: { serviceId: svcId }, select: { data: true } }))?.data) : null;
+  const quote = (v: FleetVehicleVM) => quoteRental(v, d.s, d.e, d.st, d.et, false, P!).t;
+  const priceLog: string[] = [];
+  if (P) {
+    for (const r of keep.filter((x) => !locked(x))) {
+      const t = quote(vehicleVM(r.vehicle));
+      if (t === Number(r.total)) continue;
+      await tx.fleetRental.update({ where: { id: r.id }, data: { total: t } });
+      priceLog.push(`${r.code} (${r.vehicle.plate}): ${Number(r.total).toLocaleString("vi-VN")}đ → ${t.toLocaleString("vi-VN")}đ`);
+    }
+  }
+
   // 4) Thiếu xe ⇒ tự xếp thêm (chủ xe đã từ chối đơn này thì thôi).
   const need = d.qty - keep.length;
   let added = 0;
@@ -476,18 +517,40 @@ async function reconcileBooking(tx: Tx, b: BookingRow, forceSvcId?: string): Pro
         data: {
           code: fleetCode(), vehicleId: v.id, bookingId: b.id, customerName: b.customerName, phone: b.phone,
           startDate: parseDateOnly(d.s), endDate: parseDateOnly(d.e), startTime: d.st, endTime: d.et,
-          total: d.total != null ? Math.round(d.total / d.qty) : v.price * days,
+          // Đơn đổi ngày / số xe ⇒ lượt mới cùng cách tính với lượt đã tính lại (giá hiện tại của xe);
+          // chỉ xếp thêm cho đơn thiếu xe ⇒ giữ cách tính cũ (theo giá đơn).
+          total: P ? quote(v) : d.total != null ? Math.round(d.total / d.qty) : v.price * days,
           deposit: 0, place: d.place, source: d.source, ctvName: b.ctv?.name ?? null, note: b.note, webPending: true,
         },
       });
     }
     added = picks.length;
+    if (P) for (const v of picks) priceLog.push(`Xe thêm ${v.plate}: ${quote(v).toLocaleString("vi-VN")}đ`);
     if (d.combo) {
-      const title = picks.length ? "Xe máy kèm combo: đã xếp xe" : "Xe máy kèm combo: chưa có xe trống";
+      const title = picks.length ? COMBO_ASSIGN_TITLE : "Xe máy kèm combo: chưa có xe trống";
       if (picks.length || !(await tx.bookingLog.count({ where: { bookingId: b.id, title } }))) {
-        await tx.bookingLog.create({ data: { bookingId: b.id, kind: "SYSTEM", title, body: picks.length ? picks.map((v) => `${v.name} ${v.plate}`).join(", ") + ` · chờ nhà xe xác nhận` : `Cần ${d.qty} xe ${b.bikeType ?? ""} ${d.s} → ${d.e}`, by: "Hệ thống" } });
+        await tx.bookingLog.create({ data: { bookingId: b.id, kind: "SYSTEM", title, body: picks.length ? picks.map((v) => `${v.name} ${v.plate}`).join(", ") + ` · ${d.qty} xe · chờ nhà xe xác nhận` : `Cần ${d.qty} xe ${b.bikeType ?? ""} ${d.s} → ${d.e}`, by: "Hệ thống" } });
       }
+    } else if (picks.length && !P) {
+      // Mốc số xe của đơn (để lần sau biết đơn đổi số xe hay chỉ đang thiếu xe).
+      await tx.bookingLog.create({
+        data: {
+          bookingId: b.id, kind: "SYSTEM", by: "Hệ thống", title: FLEET_ASSIGN_TITLE,
+          body: `${d.s} → ${d.e} · ${d.qty} xe\n${picks.map((v) => `${v.name} ${v.plate}`).join(", ")} · chờ nhà xe xác nhận`,
+        },
+      });
     }
+  }
+  // Đổi số xe mà giá không đổi vẫn ghi MỘT lần để cập nhật mốc số xe (lần sau mốc khớp ⇒ không lặp).
+  if (priceLog.length || qtyChanged) {
+    const handed = keep.filter(locked).map((r) => r.code);
+    await tx.bookingLog.create({
+      data: {
+        bookingId: b.id, kind: "SYSTEM", by: "Hệ thống",
+        title: FLEET_REPRICE_TITLE,
+        body: [`${d.s} → ${d.e} · ${d.qty} xe`, ...priceLog, handed.length ? `Xe đã giao giữ nguyên giá: ${handed.join(", ")}` : ""].filter(Boolean).join("\n"),
+      },
+    });
   }
   await mirrorBookingPayments(tx, b);
   return added;
@@ -511,9 +574,31 @@ export async function syncFleetForBooking(bookingId: string): Promise<void> {
     if (!withFleet.length) return;
   }
   await prisma.$transaction(async (tx) => {
-    for (const id of [...svcIds].sort()) await lockFleet(tx, id);
-    await reconcileBooking(tx, b);
+    await syncBookingTx(tx, bookingId);
   });
+}
+
+/**
+ * Đối chiếu MỘT đơn trong transaction, theo thứ tự khoá cố định: khoá theo ĐƠN → khoá các nhà xe liên quan
+ * (đọc lại SAU khoá đơn) → khoá dòng đơn + đọc lại đơn → `reconcileBooking`.
+ *  - Khoá theo đơn: hai lần đồng bộ cùng đơn chạy song song (vd đổi giai đoạn gọi sync 2 lần, combo chưa có xe nên
+ *    chưa có nhà xe để khoá) phải nối đuôi nhau — lần sau đọc lượt thuê lần trước vừa tạo, không xếp trùng xe.
+ *  - Đọc lại đơn bên trong khoá: `mirrorBookingPayments` so "đã thu" của đơn với sổ xe — dùng bản đọc trước khoá
+ *    thì nhà xe vừa ghi cọc chen giữa sẽ bị ghi thành dòng "Sàn ghi nhận hoàn" sai.
+ */
+async function syncBookingTx(tx: Tx, bookingId: string, extraSvcIds: string[] = [], forceSvcId?: string): Promise<number | null> {
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${"fleet-booking:" + bookingId}))::text AS ok`;
+  const pre = await tx.bookingRequest.findUnique({ where: { id: bookingId }, select: { serviceId: true, category: true } });
+  if (!pre) return null;
+  const svcIds = new Set(extraSvcIds);
+  if (pre.serviceId && pre.category === "MOTORBIKE") svcIds.add(pre.serviceId);
+  for (const r of await tx.fleetRental.findMany({ where: { bookingId }, select: { vehicle: { select: { serviceId: true } } } })) svcIds.add(r.vehicle.serviceId);
+  for (const id of [...svcIds].sort()) await lockFleet(tx, id);
+  // Cùng thứ tự với route đội xe (khoá nhà xe → FOR UPDATE dòng đơn trong syncBookingLedger) ⇒ không khoá chéo.
+  await tx.$queryRaw`SELECT id FROM "BookingRequest" WHERE id = ${bookingId} FOR UPDATE`;
+  const b = await tx.bookingRequest.findUnique({ where: { id: bookingId }, select: bookingSelect });
+  if (!b) return null;
+  return reconcileBooking(tx, b, forceSvcId);
 }
 
 /** Thông tin để admin PHÂN xe máy kèm combo cho một nhà xe (form sửa đơn). */
@@ -607,8 +692,8 @@ export async function assignComboBikeService(bookingId: string, serviceId: strin
   const from = [...new Set(old.filter((r) => r.vehicle.serviceId !== svc.id).map((r) => r.vehicle.service.title))];
   try {
     const assigned = await prisma.$transaction(async (tx) => {
-      for (const id of [...new Set([svc.id, ...old.map((r) => r.vehicle.serviceId)])].sort()) await lockFleet(tx, id);
-      await reconcileBooking(tx, b, svc.id);
+      // Khoá + đọc lại đơn bên trong transaction (xem syncBookingTx) — `b` ở trên chỉ dùng để kiểm tra sơ bộ.
+      if ((await syncBookingTx(tx, bookingId, [svc.id], svc.id)) == null) throw new Error("Không tìm thấy đơn.");
       const n = await tx.fleetRental.count({ where: { bookingId, vehicle: { serviceId: svc.id }, ...ALIVE } });
       if (!n) throw new Error(`${svc.title} không còn xe ${comboBikeName(b.bikeType)} trống trong khoảng ngày thuê.`);
       await tx.bookingLog.create({
@@ -650,13 +735,13 @@ export async function syncFleetBookings(serviceId: string): Promise<void> {
         { id: { in: [...new Set(linked.map((l) => l.bookingId!))] } },
       ],
     },
-    select: bookingSelect,
+    select: { id: true },
     orderBy: { createdAt: "asc" },
   });
+  // Danh sách đơn đọc ngoài khoá chỉ để biết cần đối chiếu đơn nào; dữ liệu đơn đọc lại trong khoá (syncBookingTx).
   for (const b of bookings) {
     await prisma.$transaction(async (tx) => {
-      await lockFleet(tx, serviceId);
-      await reconcileBooking(tx, b);
+      await syncBookingTx(tx, b.id, [serviceId]);
     });
   }
 }

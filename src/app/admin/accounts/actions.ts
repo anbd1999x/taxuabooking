@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { hashPassword, requireAdmin } from "@/lib/auth";
+import { hashPassword, invalidateSessionCache, requireAdmin } from "@/lib/auth";
 
 export interface AccountState {
   ok?: boolean;
@@ -68,6 +68,7 @@ export async function toggleAccountActive(formData: FormData): Promise<void> {
   const u = await prisma.adminUser.findUnique({ where: { id } });
   if (!u || u.role === "ADMIN") return; // không khoá admin
   await prisma.adminUser.update({ where: { id }, data: { active: !u.active } });
+  invalidateSessionCache(id); // khoá/mở có hiệu lực ngay, không chờ cache phiên
   revalidatePath("/admin/accounts");
 }
 
@@ -170,6 +171,7 @@ export async function updateAccount(_prev: AccountState, formData: FormData): Pr
   } catch {
     return { error: "Lưu tài khoản thất bại." };
   }
+  invalidateSessionCache(id); // đổi vai trò / khoá có hiệu lực ngay
   revalidatePath("/admin/accounts");
   revalidatePath("/admin/services");
   return { ok: true, message: `Đã lưu tài khoản ${name}` };
@@ -182,5 +184,6 @@ export async function deleteAccount(formData: FormData): Promise<void> {
   const u = await prisma.adminUser.findUnique({ where: { id } });
   if (!u || u.role === "ADMIN") return;
   await prisma.adminUser.delete({ where: { id } });
+  invalidateSessionCache(id);
   revalidatePath("/admin/accounts");
 }

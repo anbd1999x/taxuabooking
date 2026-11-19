@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { isSelfSignupProvider } from "@/lib/partner-access";
 import { toNumber, formatPrice } from "@/lib/format";
 import { comboSideCollected } from "@/lib/combo-pricing";
 import { resolveBusCommissions, resolveRoomCommissions } from "@/lib/provider-commission";
@@ -8,34 +10,33 @@ import { effectiveDiscounts } from "@/lib/supplier-payout";
 import { OrdersTable } from "../ctv/page";
 import { rentalOriginalTotal } from "@/lib/rental-days";
 import { rentalListPriceMap } from "@/lib/rental-list-price";
+import { ownerBookingIds } from "@/lib/stats";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProviderHome() {
   const session = await getSession();
   const ownerId = session!.sub;
+  // Chủ homestay tự đăng ký chưa tạo homestay nào ⇒ đưa thẳng tới bước tạo homestay.
+  if (!(await prisma.service.count({ where: { ownerId } })) && (await isSelfSignupProvider(session))) redirect("/admin/services");
 
   // Nhà xe: đơn COMBO gắn serviceId homestay nhưng đi qua CHUYẾN của nhà xe → vẫn là đơn của mình.
-  const myTrips = await prisma.cabinTrip.findMany({
-    where: { service: { ownerId, category: "CABIN" } },
-    select: { id: true },
-  });
-  const tripIds = myTrips.map((t) => t.id);
-  const mine = tripIds.length
-    ? { OR: [{ service: { ownerId } }, { cabinTripId: { in: tripIds } }, { cabinReturnTripId: { in: tripIds } }] }
-    : { service: { ownerId } };
+  // Lọc phạm vi trong DB (subquery chuyến), không nạp toàn bộ id CabinTrip.
+  const [recentIds, allIds] = await Promise.all([
+    ownerBookingIds(ownerId, { limit: 10 }),
+    // Doanh thu chỉ tính đơn đã chốt (xác nhận / hoàn thành).
+    ownerBookingIds(ownerId, { statuses: ["CONFIRMED", "COMPLETED"] }),
+  ]);
 
   const [services, recent, all] = await Promise.all([
     prisma.service.findMany({ where: { ownerId }, select: { title: true } }),
     prisma.bookingRequest.findMany({
-      where: mine,
+      where: { id: { in: recentIds } },
       orderBy: { createdAt: "desc" },
-      take: 10,
       include: { service: { select: { title: true, ownerId: true, originalPrice: true } } },
     }),
     prisma.bookingRequest.findMany({
-      // Doanh thu chỉ tính đơn đã chốt (xác nhận / hoàn thành).
-      where: { AND: [mine, { status: { in: ["CONFIRMED", "COMPLETED"] } }] },
+      where: { id: { in: allIds } },
       include: { service: { select: { ownerId: true, originalPrice: true } } },
     }),
   ]);

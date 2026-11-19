@@ -4,6 +4,16 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSession, requireAdmin } from "@/lib/auth";
+import {
+  guard,
+  requireServiceEditor,
+  requireServiceManager,
+  serviceIdOfRoom,
+  serviceIdOfRoomImage,
+  serviceIdOfRoomType,
+  serviceIdOfRoomTypeImage,
+  serviceIdOfServiceImage,
+} from "@/lib/partner-access";
 import { serviceInputSchema, availabilityBulkSchema } from "@/lib/validation";
 import { slugify } from "@/lib/utils";
 import { CATEGORIES } from "@/lib/constants";
@@ -149,7 +159,7 @@ export async function createServiceFull(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireAdmin();
+  const ed = await requireServiceManager();
   const parsed = serviceInputSchema.safeParse({
     category: formData.get("category"),
     title: formData.get("title"),
@@ -188,6 +198,14 @@ export async function createServiceFull(
     return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ." };
   }
   const d = parsed.data;
+  // Chủ tự đăng ký: chỉ tạo homestay của chính mình, ẩn khỏi website tới khi admin duyệt.
+  if (!ed.isAdmin) {
+    if (d.category !== "HOMESTAY") return { error: "Tài khoản dùng thử chỉ tạo được homestay." };
+    Object.assign(d, {
+      ownerId: ed.session.sub, published: false, featured: false, priorityOrder: 0,
+      ctvCommission: undefined, roomCommission: undefined, busCommission: undefined,
+    });
+  }
 
   // Gom các dòng chi tiết theo cột (mỗi cột là mảng cùng độ dài).
   const col = (name: string) => formData.getAll(name).map((v) => String(v));
@@ -338,7 +356,7 @@ export async function updateService(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
-  await requireAdmin();
+  const ed = await requireServiceEditor(s(formData.get("id")));
   const id = s(formData.get("id"));
   if (!id) return { error: "Thiếu id." };
   const parsed = serviceInputSchema.safeParse({
@@ -379,6 +397,17 @@ export async function updateService(
     return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ." };
   }
   const d = parsed.data;
+  // Chủ tự đăng ký: giữ nguyên các trường do SÀN quyết định (hiển thị = admin duyệt, nổi bật, chủ, chiết khấu, ưu tiên, loại).
+  if (!ed.isAdmin) {
+    const cur = await prisma.service.findUnique({ where: { id } });
+    if (!cur) return { error: "Không tìm thấy dịch vụ." };
+    const n = (v: unknown) => (v == null ? undefined : Number(v));
+    Object.assign(d, {
+      category: cur.category, featured: cur.featured, published: cur.published, ownerId: cur.ownerId ?? undefined,
+      ctvCommission: n(cur.ctvCommission), roomCommission: n(cur.roomCommission), busCommission: n(cur.busCommission),
+      priorityOrder: cur.priorityOrder,
+    });
+  }
   const slug = await uniqueSlug(d.slug || d.title, id);
   await prisma.service.update({
     where: { id },
@@ -428,7 +457,7 @@ export async function updateService(
 }
 
 export async function deleteService(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await requireServiceEditor(s(formData.get("id")));
   const id = s(formData.get("id"));
   if (id) {
     await prisma.service.delete({ where: { id } });
@@ -468,7 +497,7 @@ export async function toggleField(formData: FormData): Promise<void> {
 
 // ---------------- Ảnh ----------------
 export async function addImage(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(s(formData.get("serviceId")));
   const serviceId = s(formData.get("serviceId"));
   const url = s(formData.get("url"));
   if (!serviceId || !url) return;
@@ -480,7 +509,7 @@ export async function addImage(formData: FormData): Promise<void> {
 }
 
 export async function deleteImage(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(await serviceIdOfServiceImage(s(formData.get("id"))));
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   if (!id) return;
@@ -489,7 +518,7 @@ export async function deleteImage(formData: FormData): Promise<void> {
 }
 
 export async function setCover(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(s(formData.get("serviceId")), await serviceIdOfServiceImage(s(formData.get("id"))));
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   if (!id || !serviceId) return;
@@ -523,7 +552,7 @@ async function swapOrder(
 }
 
 export async function moveServiceImage(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(s(formData.get("serviceId")), await serviceIdOfServiceImage(s(formData.get("id"))));
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   if (!id || !serviceId) return;
@@ -539,7 +568,7 @@ export async function moveServiceImage(formData: FormData): Promise<void> {
 }
 
 export async function moveRoomTypeImage(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(await serviceIdOfRoomType(s(formData.get("roomTypeId"))), await serviceIdOfRoomTypeImage(s(formData.get("id"))));
   const id = s(formData.get("id"));
   const roomTypeId = s(formData.get("roomTypeId"));
   const serviceId = s(formData.get("serviceId"));
@@ -557,7 +586,7 @@ export async function moveRoomTypeImage(formData: FormData): Promise<void> {
 }
 
 export async function moveRoomImage(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(await serviceIdOfRoom(s(formData.get("roomId"))), await serviceIdOfRoomImage(s(formData.get("id"))));
   const id = s(formData.get("id"));
   const roomId = s(formData.get("roomId"));
   const serviceId = s(formData.get("serviceId"));
@@ -585,7 +614,7 @@ function idList(formData: FormData): string[] {
 }
 
 export async function reorderServiceImages(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(s(formData.get("serviceId")));
   const serviceId = s(formData.get("serviceId"));
   const ids = idList(formData);
   if (!serviceId || ids.length === 0) return;
@@ -598,7 +627,7 @@ export async function reorderServiceImages(formData: FormData): Promise<void> {
 }
 
 export async function reorderRoomTypeImages(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(await serviceIdOfRoomType(s(formData.get("roomTypeId"))));
   const roomTypeId = s(formData.get("roomTypeId"));
   const serviceId = s(formData.get("serviceId"));
   const ids = idList(formData);
@@ -613,7 +642,7 @@ export async function reorderRoomTypeImages(formData: FormData): Promise<void> {
 }
 
 export async function reorderRoomImages(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(await serviceIdOfRoom(s(formData.get("roomId"))));
   const roomId = s(formData.get("roomId"));
   const serviceId = s(formData.get("serviceId"));
   const ids = idList(formData);
@@ -631,7 +660,7 @@ export async function reorderRoomImages(formData: FormData): Promise<void> {
  * Gán sortOrder = 0..n đúng theo thứ tự nhận được — ổn định, không "nhảy".
  */
 export async function reorderRooms(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(s(formData.get("serviceId")));
   const serviceId = s(formData.get("serviceId"));
   const ids = idList(formData);
   if (!serviceId || ids.length === 0) return;
@@ -664,18 +693,18 @@ async function moveRoomTypeDir(formData: FormData, dir: "left" | "right"): Promi
 }
 
 export async function moveRoomTypeUp(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(s(formData.get("serviceId")), await serviceIdOfRoomType(s(formData.get("id"))));
   await moveRoomTypeDir(formData, "left");
 }
 
 export async function moveRoomTypeDown(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(s(formData.get("serviceId")), await serviceIdOfRoomType(s(formData.get("id"))));
   await moveRoomTypeDir(formData, "right");
 }
 
 // ---------------- Loại phòng ----------------
 export async function upsertRoomType(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  await requireAdmin();
+  { const rtId = s(formData.get("id")); await guard(s(formData.get("serviceId")), ...(rtId ? [await serviceIdOfRoomType(rtId)] : [])); }
   const serviceId = s(formData.get("serviceId"));
   const id = s(formData.get("id"));
   if (!serviceId) return { error: "Thiếu dịch vụ." };
@@ -718,7 +747,7 @@ export async function upsertRoomType(_prev: ActionState, formData: FormData): Pr
  * Giá trị trong form được áp nguyên trạng: ô thứ bỏ trống = xoá ghi đè ngày đó.
  */
 export async function applyRoomTypePrices(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  await requireAdmin();
+  await guard(await serviceIdOfRoomType(s(formData.get("roomTypeId"))));
   const roomTypeId = s(formData.get("roomTypeId"));
   const serviceId = s(formData.get("serviceId"));
   if (!roomTypeId) return { error: "Thiếu hạng phòng." };
@@ -756,7 +785,7 @@ export async function applyRoomTypePrices(_prev: ActionState, formData: FormData
 }
 
 export async function deleteRoomType(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(await serviceIdOfRoomType(s(formData.get("id"))));
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   if (id) {
@@ -798,7 +827,8 @@ async function normalizeServiceRoomOrder(serviceId: string, preferId?: string): 
 }
 
 export async function upsertRoom(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  await requireAdmin();
+  const rmId = s(formData.get("id"));
+  const ed = await guard(await serviceIdOfRoomType(s(formData.get("roomTypeId"))), ...(rmId ? [await serviceIdOfRoom(rmId)] : []));
   const serviceId = s(formData.get("serviceId"));
   const roomTypeId = s(formData.get("roomTypeId"));
   const id = s(formData.get("id"));
@@ -851,6 +881,12 @@ export async function upsertRoom(_prev: ActionState, formData: FormData): Promis
     commissionSat: num(formData.get("commissionSat")) ?? null,
     commissionSun: num(formData.get("commissionSun")) ?? null,
   };
+  // Chủ tự đăng ký: không đổi chiết khấu sàn / phòng nổi bật / khuyến mãi combo (giữ giá trị cũ, phòng mới = mặc định).
+  if (!ed.isAdmin) {
+    for (const k of ["featured", "noComboDiscount", "commission", "commissionMon", "commissionTue", "commissionWed", "commissionThu", "commissionFri", "commissionSat", "commissionSun"]) {
+      delete (data as Record<string, unknown>)[k];
+    }
+  }
   try {
     const svcId =
       serviceId ||
@@ -897,7 +933,7 @@ function nextRoomName(base: string, taken: string[]): string {
 
 /** Nhân bản một phòng: copy toàn bộ giá/sức chứa/tiện ích + ảnh (dùng chung file). */
 export async function duplicateRoom(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(await serviceIdOfRoom(s(formData.get("id"))));
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   if (!id) return;
@@ -989,17 +1025,17 @@ async function moveRoomDir(formData: FormData, dir: "left" | "right"): Promise<v
 }
 
 export async function moveRoomUp(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(await serviceIdOfRoom(s(formData.get("id"))));
   await moveRoomDir(formData, "left");
 }
 
 export async function moveRoomDown(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(await serviceIdOfRoom(s(formData.get("id"))));
   await moveRoomDir(formData, "right");
 }
 
 export async function deleteRoom(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(await serviceIdOfRoom(s(formData.get("id"))));
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   const roomTypeId = s(formData.get("roomTypeId"));
@@ -1045,7 +1081,7 @@ async function syncRoomThumbnail(roomTypeId: string): Promise<void> {
 }
 
 export async function deleteRoomImage(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(await serviceIdOfRoomTypeImage(s(formData.get("id"))));
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   if (!id) return;
@@ -1067,7 +1103,7 @@ export async function deleteRoomImage(formData: FormData): Promise<void> {
 }
 
 export async function setRoomImageCover(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(await serviceIdOfRoomType(s(formData.get("roomTypeId"))), await serviceIdOfRoomTypeImage(s(formData.get("id"))));
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   const roomTypeId = s(formData.get("roomTypeId"));
@@ -1082,7 +1118,7 @@ export async function setRoomImageCover(formData: FormData): Promise<void> {
 
 // ---------------- Ảnh phòng riêng lẻ ----------------
 export async function deleteRoomPhoto(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(await serviceIdOfRoomImage(s(formData.get("id"))));
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   if (!id) return;
@@ -1101,7 +1137,7 @@ export async function deleteRoomPhoto(formData: FormData): Promise<void> {
 }
 
 export async function setRoomPhotoCover(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(await serviceIdOfRoom(s(formData.get("roomId"))), await serviceIdOfRoomImage(s(formData.get("id"))));
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   const roomId = s(formData.get("roomId"));
@@ -1194,6 +1230,13 @@ async function syncRentalServicePrice(serviceId: string): Promise<void> {
 }
 
 // ---------------- Chuyến cabin ----------------
+/** Lỗi trùng unique của Prisma (CabinTrip: mỗi nhà xe 1 chuyến / ngày / chiều). */
+function isUniqueViolation(err: unknown): boolean {
+  return typeof err === "object" && err !== null && (err as { code?: unknown }).code === "P2002";
+}
+const dupTripMsg = (dir: "OUTBOUND" | "RETURN") =>
+  `Ngày này đã có chuyến ${dir === "RETURN" ? "chiều về" : "chiều đi"} — sửa chuyến hiện có.`;
+
 export async function upsertTrip(_prev: ActionState, formData: FormData): Promise<ActionState> {
   await requireAdmin();
   const serviceId = s(formData.get("serviceId"));
@@ -1225,7 +1268,8 @@ export async function upsertTrip(_prev: ActionState, formData: FormData): Promis
   try {
     if (id) await prisma.cabinTrip.update({ where: { id }, data });
     else await prisma.cabinTrip.create({ data: { serviceId, ...data } });
-  } catch {
+  } catch (err) {
+    if (isUniqueViolation(err)) return { error: dupTripMsg(data.direction) };
     return { error: "Lưu chuyến thất bại." };
   }
   revalidatePath(`/admin/services/${serviceId}`);
@@ -1539,14 +1583,20 @@ export async function applyCabinSchedule(
       });
       updated++;
     } else {
-      await prisma.cabinTrip.create({
-        data: {
-          serviceId, operatorName, route, direction, departureDate: date, departureTime,
-          pickupPoint, dropoffPoint, price, seatsTotal, seatsAvailable, status,
-          priceDouble, seatsDoubleTotal, seatsDoubleAvailable,
-        },
-      });
-      created++;
+      try {
+        await prisma.cabinTrip.create({
+          data: {
+            serviceId, operatorName, route, direction, departureDate: date, departureTime,
+            pickupPoint, dropoffPoint, price, seatsTotal, seatsAvailable, status,
+            priceDouble, seatsDoubleTotal, seatsDoubleAvailable,
+          },
+        });
+        created++;
+      } catch (err) {
+        // Chuyến vừa được tạo song song (đặt vé / admin khác) ⇒ coi như đã có, không ghi đè.
+        if (!isUniqueViolation(err)) throw err;
+        skipped++;
+      }
     }
   }
 

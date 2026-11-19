@@ -15,6 +15,10 @@ import { partyLabel } from "@/lib/occupancy";
 import { rentalDaysLabel } from "@/lib/rental-days";
 import { TraCuuLookup, type LookupOrder, type LookupPart, type LookupStatus } from "@/components/TraCuuLookup";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { normalizeVnPhone } from "@/lib/phone";
+import { requestIp } from "@/lib/ip-block";
+import { rateLimit, underLimit } from "@/lib/rate-limit";
 import { getT, lp } from "@/lib/i18n/server";
 import { i18nMeta } from "@/lib/i18n/meta";
 
@@ -74,30 +78,35 @@ export default async function LookupPage({
   const tr = await getT();
   const sp = await searchParams;
   const q = str(sp.q).trim();
-  const digits = q.replace(/\D/g, "");
   const code = q.toUpperCase();
+  // SĐT phải KHỚP ĐÚNG số di động 10 số (chuẩn hoá +84/84 → 0) — trước đây khớp chuỗi con 8 số ⇒ dò được đơn người khác.
+  const ph = normalizeVnPhone(q);
+  const phoneVariants = /^0\d{9}$/.test(ph) ? [ph, `84${ph.slice(1)}`, `+84${ph.slice(1)}`] : [];
+
+  // Chống dò mã đơn (5 ký tự) / SĐT: mọi lượt tra ≤ 30 / 10 phút / IP; tra KHÔNG ra kết quả ≤ 10 / giờ / IP
+  // (khách thật hiếm khi gõ sai nhiều lần, kẻ dò thì trượt gần như mọi lượt).
+  const ip = requestIp(await headers()) ?? "unknown";
+  const searching = q.length >= 4;
+  const limited = searching && (!underLimit(`tracuu-miss:${ip}`, 10, 60 * 60_000) || !rateLimit(`tracuu:${ip}`, 30, 10 * 60_000));
+  const miss = () => rateLimit(`tracuu-miss:${ip}`, 10, 60 * 60_000);
 
   // Mã đơn vé / đặt bàn (TX-VE-XXXXX, module Vé & đặt bàn) ⇒ mở thẳng trang vé điện tử của đơn.
-  if (/^TX-VE-[A-Z0-9]{5}$/.test(code)) {
+  if (!limited && /^TX-VE-[A-Z0-9]{5}$/.test(code)) {
     const tk = await prisma.ticketOrder.findFirst({ where: { code, status: { not: "draft" } }, select: { token: true } });
     if (tk) redirect(await lp(`/ve/don/${tk.token}`));
   }
 
-  // Tra theo SĐT (đủ 8+ số) hoặc theo mã đơn (TX-...). Tránh trả toàn bộ khi để trống.
+  // Tra theo SĐT (đúng số) hoặc theo mã đơn (TX-...). Tránh trả toàn bộ khi để trống.
   const bookings =
-    q.length >= 4
+    searching && !limited
       ? await prisma.bookingRequest.findMany({
-          where: {
-            OR: [
-              ...(digits.length >= 8 ? [{ phone: digits }, { phone: { contains: digits } }] : []),
-              { code },
-            ],
-          },
+          where: { OR: [...(phoneVariants.length ? [{ phone: { in: phoneVariants } }] : []), { code }] },
           orderBy: { createdAt: "desc" },
           take: 30,
           include: { service: { select: { slug: true, category: true, title: true } } },
         })
       : [];
+  if (searching && !limited && !bookings.length) miss();
 
   // Phòng cụ thể của các đơn combo (để hiện từng hạng phòng trên một dòng riêng).
   const comboRoomIds = [...new Set(bookings.filter((b) => b.category === "COMBO").flatMap((b) => (b.roomIds.length ? b.roomIds : b.roomId ? [b.roomId] : [])))];
@@ -232,5 +241,14 @@ export default async function LookupPage({
     };
   });
 
-  return <TraCuuLookup initialQ={q} orders={orders} phone={phone} zalo={zalo} autoCancelHours={parseAutoCancelHours(settings[AUTO_CANCEL_HOURS_KEY])} />;
+  return (
+    <>
+      {limited && (
+        <div role="alert" className="mx-auto mt-4 max-w-3xl rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {tr("Bạn tra cứu quá nhiều lần. Vui lòng thử lại sau ít phút hoặc gọi {0} để được hỗ trợ.", [phone])}
+        </div>
+      )}
+      <TraCuuLookup initialQ={q} orders={orders} phone={phone} zalo={zalo} autoCancelHours={parseAutoCancelHours(settings[AUTO_CANCEL_HOURS_KEY])} />
+    </>
+  );
 }

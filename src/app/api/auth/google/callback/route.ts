@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { loginWithOAuth } from "@/lib/customer";
+import { loginPartnerWithGoogle } from "@/lib/partner-auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,15 +27,18 @@ export async function GET(req: Request) {
   const raw = store.get("g_oauth")?.value ?? "";
   store.delete("g_oauth");
   const [savedState, next = "/"] = raw.split("|");
+  // Chủ homestay đăng nhập khu quản trị (route.ts ?mode=partner) ⇒ lỗi quay về trang dùng thử.
+  const partner = next === "partner";
+  const fail = (code: string) => NextResponse.redirect(new URL(partner ? `/hop-tac/dang-ky?err=${code}` : `/tai-khoan?err=${code}`, origin));
 
   if (!code || !returnedState || !savedState || returnedState !== savedState) {
-    return NextResponse.redirect(new URL("/tai-khoan?err=oauth", origin));
+    return fail("oauth");
   }
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
   if (!clientId || !clientSecret) {
-    return NextResponse.redirect(new URL("/tai-khoan?err=google_off", origin));
+    return fail("google_off");
   }
 
   try {
@@ -49,16 +53,24 @@ export async function GET(req: Request) {
         grant_type: "authorization_code",
       }),
     });
-    if (!tokenRes.ok) return NextResponse.redirect(new URL("/tai-khoan?err=token", origin));
+    if (!tokenRes.ok) return fail("token");
     const tokens = (await tokenRes.json()) as { access_token?: string };
-    if (!tokens.access_token) return NextResponse.redirect(new URL("/tai-khoan?err=token", origin));
+    if (!tokens.access_token) return fail("token");
 
     const uRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
-    if (!uRes.ok) return NextResponse.redirect(new URL("/tai-khoan?err=userinfo", origin));
-    const info = (await uRes.json()) as { sub?: string; email?: string; name?: string };
-    if (!info.sub) return NextResponse.redirect(new URL("/tai-khoan?err=userinfo", origin));
+    if (!uRes.ok) return fail("userinfo");
+    const info = (await uRes.json()) as { sub?: string; email?: string; name?: string; email_verified?: boolean };
+    if (!info.sub) return fail("userinfo");
+
+    if (partner) {
+      // Khu quản trị: chỉ nhận email Google ĐÃ XÁC MINH (email là khoá khớp tài khoản).
+      if (!info.email || info.email_verified === false) return fail("email");
+      const r = await loginPartnerWithGoogle({ email: info.email, name: info.name || "" });
+      if ("error" in r) return fail(r.error);
+      return NextResponse.redirect(new URL(r.next, origin));
+    }
 
     await loginWithOAuth({
       provider: "google",
@@ -68,6 +80,6 @@ export async function GET(req: Request) {
     });
     return NextResponse.redirect(new URL(safeNext(next), origin));
   } catch {
-    return NextResponse.redirect(new URL("/tai-khoan?err=oauth", origin));
+    return fail("oauth");
   }
 }

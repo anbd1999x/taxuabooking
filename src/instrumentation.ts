@@ -20,6 +20,8 @@ export async function register() {
 
   const { runBookingRemindersLocked } = await import("./lib/booking-reminders");
   const { cancelExpiredUnpaidBookingsLocked } = await import("./lib/booking-auto-cancel");
+  const BILL_CLEANUP_MS = 6 * 60 * 60_000;
+  let lastBillCleanup = 0; // 0 ⇒ lượt đầu (sau 1 phút) dọn luôn
   const tick = async () => {
     // Tự huỷ đơn chờ quá 6 giờ chưa ghi nhận thanh toán (src/lib/booking-auto-cancel.ts).
     try {
@@ -61,6 +63,17 @@ export async function register() {
       if (n) console.log("[ticket] tự huỷ đơn hết hạn giữ chỗ:", n);
     } catch (err) {
       console.error("[ticket] lỗi nhả chỗ", err);
+    }
+    // Gọi món QR: xoá ảnh bill chuyển khoản cũ hơn 30 ngày — chạy thưa (6 giờ/lần) theo nhịp 5 phút này.
+    if (Date.now() - lastBillCleanup >= BILL_CLEANUP_MS) {
+      lastBillCleanup = Date.now();
+      try {
+        const { cleanupOldDineProofs } = await import("./lib/dine-proof");
+        const n = await cleanupOldDineProofs();
+        if (n) console.log("[dine] xoá ảnh bill cũ:", n);
+      } catch (err) {
+        console.error("[dine] lỗi xoá ảnh bill", err);
+      }
     }
     try {
       const res = await runBookingRemindersLocked();

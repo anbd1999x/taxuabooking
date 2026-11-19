@@ -54,11 +54,14 @@ export function ServiceForm({
   initial = {},
   submitLabel,
   providers = [],
+  partner = false,
 }: {
   action: Action;
   initial?: Initial;
   submitLabel: string;
   providers?: { id: string; name: string }[];
+  /** Chủ homestay tự đăng ký: ẩn các trường do sàn quyết định (chủ, chiết khấu, hiển thị, nổi bật, ưu tiên). */
+  partner?: boolean;
 }) {
   const [state, formAction, pending] = useActionState(action, {});
   const [cat, setCat] = useState<ServiceCategory>(initial.category ?? "HOMESTAY");
@@ -98,6 +101,7 @@ export function ServiceForm({
           <select
             ref={catRef}
             value={cat}
+            disabled={partner}
             onChange={(e) => setCat(e.target.value as ServiceCategory)}
             className={inputCls}
             required
@@ -245,6 +249,7 @@ export function ServiceForm({
         </>
       )}
 
+      {!partner && (<>
       <label className="block sm:max-w-sm">
         <span className="text-sm font-medium text-gray-600">Chủ dịch vụ (nhà xe / homestay)</span>
         <select name="ownerId" defaultValue={initial.ownerId ?? ""} className={inputCls}>
@@ -291,6 +296,8 @@ export function ServiceForm({
           <span className="mt-1 block text-xs text-gray-400">Mọi phòng của home dùng chung mức này, TRỪ phòng có khai chiết khấu riêng (theo thứ) ở mục Phòng. Tiền chủ nhà thực nhận = giá bán − chiết khấu. Để trống = chỉ dùng mức khai riêng ở từng phòng.</span>
         </label>
       )}
+
+      </>)}
 
       {/* Ngưỡng miễn phí trẻ em (homestay): dưới tuổi này không tính người/phụ thu. */}
       {(cat === "HOMESTAY" || cat === "BUNGALOW") && (
@@ -352,6 +359,7 @@ export function ServiceForm({
       )}
 
       <div className="flex flex-wrap gap-6">
+        {!partner && (<>
         <label className="flex items-center gap-2">
           <input type="checkbox" name="published" defaultChecked={initial.published ?? true} className="accent-forest-600 h-4 w-4" />
           <span className="text-sm text-gray-700">Hiển thị trên website</span>
@@ -360,6 +368,7 @@ export function ServiceForm({
           <input type="checkbox" name="featured" defaultChecked={initial.featured ?? false} className="accent-forest-600 h-4 w-4" />
           <span className="text-sm text-gray-700">Dịch vụ nổi bật</span>
         </label>
+        </>)}
         {!isTransport && (<>
         <label className="flex items-center gap-2">
           <input type="checkbox" name="easyRoad" defaultChecked={initial.easyRoad ?? false} className="accent-forest-600 h-4 w-4" />
@@ -391,6 +400,7 @@ export function ServiceForm({
         <SoldOutDatesField initial={initial.soldOutDates ?? []} />
       )}
 
+      {!partner && (
       <label className="block sm:max-w-sm">
         <span className="text-sm font-medium text-gray-600">Thứ tự ưu tiên khi tìm kiếm</span>
         <input
@@ -402,6 +412,7 @@ export function ServiceForm({
         />
         <span className="mt-1 block text-xs text-gray-400">Chỉ áp dụng khi tick “Dịch vụ nổi bật”. Trong kết quả tìm combo/homestay (khi còn chỗ/khớp tiêu chí), dịch vụ nổi bật được đẩy lên đầu — số càng lớn càng lên trước. 0 = không ưu tiên riêng.</span>
       </label>
+      )}
 
       {state.error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{state.error}</p>}
       {state.ok && <p className="rounded-lg bg-forest-50 px-3 py-2 text-sm text-forest-700">Đã lưu thành công.</p>}

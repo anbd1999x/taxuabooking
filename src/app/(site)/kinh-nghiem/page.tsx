@@ -36,7 +36,8 @@ export default async function ArticlesPage({
   const articles = await prisma.article.findMany({
     where: { published: true, ...(topic ? { topic } : {}) },
     // Bài nổi bật (STT > 0) lên đầu theo STT to → bé, còn lại theo ngày đăng.
-    orderBy: [{ featuredOrder: "desc" }, { createdAt: "desc" }],
+    // Đang lọc một chủ đề ⇒ "thứ tự trong chủ đề" (topicOrder) xếp trước — VD tab Review homestay đưa home đối tác lên đầu.
+    orderBy: topic ? [{ topicOrder: "desc" }, { featuredOrder: "desc" }, { createdAt: "desc" }] : [{ featuredOrder: "desc" }, { createdAt: "desc" }],
   });
 
   return (

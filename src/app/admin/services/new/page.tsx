@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ServiceCategory } from "@prisma/client";
 import { CATEGORY_LIST, CATEGORIES } from "@/lib/constants";
 import { ServiceCreateWizard } from "@/components/admin/ServiceCreateWizard";
+import { servicePageAccess } from "@/lib/partner-access";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,9 @@ export default async function NewServicePage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const sp = await searchParams;
-  const type = str(sp.type) as ServiceCategory | undefined;
+  // Chủ homestay tự đăng ký chỉ tạo được homestay.
+  const access = await servicePageAccess();
+  const type = access.isAdmin ? (str(sp.type) as ServiceCategory | undefined) : "HOMESTAY";
   const category = type && VALID.has(type) ? type : null;
 
   return (
@@ -53,10 +56,10 @@ export default async function NewServicePage({
             <h1 className="text-2xl font-bold text-ink">
               {category === "CABIN" ? "Thêm nhà xe" : category === "MOTORBIKE" ? "Thêm bên cho thuê xe" : `Thêm ${CATEGORIES[category].shortLabel}`}
             </h1>
-            <Link href="/admin/services/new" className="text-sm font-medium text-forest-700 hover:underline">← Đổi loại</Link>
+            {access.isAdmin && <Link href="/admin/services/new" className="text-sm font-medium text-forest-700 hover:underline">← Đổi loại</Link>}
           </div>
           <p className="mb-5 mt-1 text-sm text-gray-500">{CATEGORIES[category].label}</p>
-          <ServiceCreateWizard category={category} />
+          <ServiceCreateWizard category={category} partner={!access.isAdmin} />
         </>
       )}
     </div>

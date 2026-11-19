@@ -102,10 +102,14 @@ model AdminUser {
   /// Với STAFF: khu làm việc — "phong" = lễ tân Quản lý phòng; "xe"/null = nhân viên giao xe (+ soát vé).
   staffArea    String?
   commissionPerOrder Decimal? @db.Decimal(12, 0) // với CTV: hoa hồng cố định/đơn (mặc định)
+  /// Chủ homestay TỰ ĐĂNG KÝ dùng thử (/hop-tac/dang-ky): PROVIDER được tự tạo / sửa homestay của mình ở
+  /// /admin/services (chờ admin duyệt = bật Service.published). username = email (chữ thường) hoặc SĐT.
+  selfSignup   Boolean  @default(false)
+  email        String?  @unique
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  provider      AdminUser?       @relation("ProviderCtv", fields: [providerId], references: [id], onDelete: SetNull)
+  provider      AdminUser?      @relation("ProviderCtv", fields: [providerId], references: [id], onDelete: SetNull)
   ctvs          AdminUser[]      @relation("ProviderCtv")
   ownedServices Service[]        @relation("ServiceOwner")
   ctvBookings   BookingRequest[] @relation("BookingCtv")
@@ -425,7 +429,8 @@ model CabinTrip {
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 
-  @@index([serviceId, departureDate, direction])
+  // Mỗi nhà xe chỉ 1 chuyến thật / ngày / chiều (ensureTripOnDate khoá advisory + bắt P2002).
+  @@unique([serviceId, departureDate, direction])
   @@index([departureDate])
 }
 
@@ -632,6 +637,9 @@ model BookingRequest {
   @@index([serviceId])
   @@index([ctvId])
   @@index([paymentStatus])
+  @@index([cabinTripId])
+  @@index([cabinReturnTripId])
+  @@index([useDate])
 }
 
 /// Nhật ký xử lý một đơn đặt: đổi trạng thái, thu tiền, ghi chú nội bộ…
@@ -659,6 +667,9 @@ model Article {
   topic      String? // chủ đề (key trong ARTICLE_TOPICS): diem-den, lich-trinh, di-chuyen, an-uong, cam-nang
   // Bài NỔI BẬT: STT > 0 ⇒ nổi bật, xếp lên đầu theo STT TO → BÉ; 0 = bài thường (xếp theo ngày đăng).
   featuredOrder Int   @default(0)
+  // Thứ tự TRONG CHỦ ĐỀ (tab lọc theo chủ đề, VD Review homestay — xếp home đối tác lên đầu): số TO → BÉ, 0 = theo mặc định.
+  // Không ảnh hưởng tab "Tất cả" và không gắn nhãn nổi bật.
+  topicOrder Int      @default(0)
   published  Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -1115,6 +1126,11 @@ model TicketVenue {
   ownerId     String? // chủ địa điểm (AdminUser PROVIDER); null = sàn tự vận hành
   placeId     String? // gắn với Place (nhà hàng / điểm check-in) nếu có
   published   Boolean  @default(false)
+  // Duyệt của admin: approved (admin tạo / đã duyệt) | draft (đối tác tự tạo, chưa gửi) | pending (đã gửi duyệt) | rejected.
+  // Khách chỉ thấy địa điểm published = true VÀ review = "approved" (PUBLIC_VENUE trong ticket-core).
+  review      String   @default("approved")
+  reviewNote  String? // lý do từ chối
+  submittedAt DateTime?
   // GATE: { quota } · SHOW: { holdMin } · RESTAURANT: { policy: none|deposit|min, amount, slots[], floors[{name,sub}] }
   config      Json     @default("{}")
   // SHOW: sơ đồ ghế { rows, cols, cells: { "r-c": vip|norm|aisle|broken|empty } }
@@ -1415,6 +1431,8 @@ model DineOrder {
   paidAt    DateTime?
   payMethod String? // Tiền mặt | Chuyển khoản
   paidBy    String?
+  cancelledAt DateTime?
+  cancelledBy String? // "guest" = khách tự huỷ trên điện thoại (bếp chưa làm) | null = quán huỷ
 
   items DineOrderItem[]
 
@@ -1450,6 +1468,11 @@ model DineRequest {
   method    String? // pay: Tiền mặt | Chuyển khoản
   createdAt DateTime     @default(now())
   doneAt    DateTime?
+  // Khách báo ĐÃ CHUYỂN KHOẢN (kèm ảnh bill) ⇒ quán xem bill rồi xác thực (thu tiền, đóng bàn) hoặc từ chối (claimNote).
+  claimedAt   DateTime?
+  claimAmount Decimal?  @db.Decimal(12, 0) // tổng hoá đơn lúc khách báo đã chuyển
+  proofUrl    String? // ảnh bill chuyển khoản khách gửi
+  claimNote   String? // quán từ chối: "chưa nhận được tiền…" — khách thấy để kiểm tra / gửi lại
 
   @@index([venueId, doneAt])
 }

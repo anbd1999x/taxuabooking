@@ -84,6 +84,9 @@ export const CATEGORIES: Record<ServiceCategory, CategoryMeta> = {
 };
 
 /** Danh sách danh mục theo thứ tự hiển thị. (Bungalow đã gộp vào Homestay.) */
+/** Slug danh mục CHUẨN trong URL của một dịch vụ: BUNGALOW đã gộp vào homestay ⇒ /homestay/<slug> (route /bungalow chỉ chuyển 308). */
+export const serviceCatSlug = (category: ServiceCategory): string => CATEGORIES[category === "BUNGALOW" ? "HOMESTAY" : category].slug;
+
 export const CATEGORY_LIST: CategoryMeta[] = [
   CATEGORIES.COMBO,
   CATEGORIES.CABIN,

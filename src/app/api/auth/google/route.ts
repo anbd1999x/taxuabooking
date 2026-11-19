@@ -13,10 +13,14 @@ function originOf(req: Request): string {
 
 export async function GET(req: Request) {
   const origin = originOf(req);
+  const sp = new URL(req.url).searchParams;
+  // mode=partner: chủ homestay đăng nhập / dùng thử khu quản trị (tự tạo tài khoản lần đầu) — dùng CHUNG
+  // redirect_uri với đăng nhập khách (không phải khai thêm trên Google Console), callback rẽ nhánh theo cookie.
+  const partner = sp.get("mode") === "partner";
   const clientId = process.env.GOOGLE_CLIENT_ID;
-  if (!clientId) return NextResponse.redirect(new URL("/tai-khoan?err=google_off", origin));
+  if (!clientId) return NextResponse.redirect(new URL(partner ? "/hop-tac/dang-ky?err=google_off" : "/tai-khoan?err=google_off", origin));
 
-  const next = new URL(req.url).searchParams.get("next") || "/";
+  const next = partner ? "partner" : sp.get("next") || "/";
   const redirectUri = `${origin}/api/auth/google/callback`;
   const state = crypto.randomBytes(16).toString("hex");
 

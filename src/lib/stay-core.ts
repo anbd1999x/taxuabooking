@@ -154,6 +154,25 @@ export const hh = (h: number) => String(h).padStart(2, "0") + ":00";
 export const normPhone = (p: string) => String(p || "").replace(/[\s.-]/g, "");
 
 export const isLive = (x: { state: string | null }) => x.state !== "cancel" && x.state !== "noshow" && x.state !== "reject";
+
+/**
+ * Lượt LỊCH SỬ tách ra khi đổi phòng khách đang ở (các đêm đã ở giữ ở phòng cũ): ghi chú mở đầu bằng thẻ này.
+ * Không phải lượt trả phòng / lượt khách mới thật ⇒ bỏ khỏi đếm lượt khách. Lượt đã trả phòng nên không sửa được ghi chú.
+ */
+export const MOVE_SPLIT_TAG = "[Tách khi đổi phòng]";
+export const isMoveSplit = (x: { note?: string | null }) => !!x.note?.startsWith(MOVE_SPLIT_TAG);
+/** Ghi chú lượt tách; `carry` = tiền đêm đã ở chưa thu, dồn vào lượt chính `code`. */
+export function moveSplitNote(toName: string, fromLabel: string, code: string, carry: number): string {
+  const c = Math.max(0, Math.round(carry));
+  return `${MOVE_SPLIT_TAG} Đã đổi sang ${toName} từ ${fromLabel} (tách từ ${code})${c > 0 ? ` · ${c.toLocaleString("vi-VN")}đ tiền đêm đã ở chưa thu tính ở ${code}` : ""}`;
+}
+/** Đọc lại phần tiền đêm đã ở chưa thu mà lượt tách dồn sang lượt chính `code` (0 nếu không có). */
+export function moveSplitCarry(note: string | null | undefined, code: string): number {
+  if (!note?.startsWith(MOVE_SPLIT_TAG)) return 0;
+  const m = /· ([\d.,\s]+)đ tiền đêm đã ở chưa thu tính ở (\S+)/.exec(note);
+  if (!m || m[2] !== code) return 0;
+  return Number(m[1].replace(/\D/g, "")) || 0;
+}
 export const feesOf = (x: { fees: StayFee[] }) => x.fees.reduce((a, f) => a + f.amt, 0);
 /**
  * Số chủ nhà phải thu của lượt ở. Đơn COMBO: tiền phòng do sàn thu & trả lại cho nhà ⇒ chủ nhà chỉ thu dịch vụ phát sinh / phụ thu
@@ -255,6 +274,16 @@ export function cancelMoney(selfId: string, members: { id: string; state: string
   if (members.some((m) => m.id !== selfId && isLive(m))) return 0;
   return Math.max(0, Math.round(members.reduce((a, m) => a + m.pays.reduce((b, p) => b + (p.method === "Sàn thu hộ" ? 0 : p.amt), 0), 0)));
 }
+
+/**
+ * Tiền chủ nhà ĐANG GIỮ của lượt ở / cả đoàn (trần cho một lần ghi "Hoàn"): tổng sổ thu của mọi lượt cùng đoàn,
+ * KHÔNG tính dòng "Sàn thu hộ" (tiền nằm ở sàn, sàn tự hoàn) — cùng quy tắc với `cancelMoney`.
+ */
+export function shopHeldStay(members: { pays: { amt: number; method?: string }[] }[]): number {
+  return Math.max(0, Math.round(members.reduce((a, m) => a + m.pays.reduce((b, p) => b + (p.method === "Sàn thu hộ" ? 0 : p.amt), 0), 0)));
+}
+/** Trần một khoản thu / hoàn ghi tay (chặn gõ nhầm thêm số 0). */
+export const MAX_PAY = 100_000_000;
 
 /** Chia tổng tiền (đã sửa tay hoặc theo báo giá) về từng phòng theo tỉ lệ giá, làm tròn 1.000đ, phòng cuối nhận phần lẻ. */
 export function splitTotal(total: number, parts: number[]): number[] {

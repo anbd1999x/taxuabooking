@@ -20,6 +20,8 @@ export interface CabinTicket {
   status: TicketStatus;
   srcLabel: string; // "CTV Hằng" | "Khách" | "Web"
   isCtv: boolean;
+  /** Đơn combo: sàn điều phối — chủ nhà xe không xác nhận / huỷ. */
+  isCombo?: boolean;
 }
 export interface CabinDir {
   tripId: string | null; // null = chưa có chuyến ⇒ đang bán mặc định (lịch luôn mở bán)
@@ -64,6 +66,7 @@ export function CabinMonth({
   todayKey,
   prevMonth,
   nextMonth,
+  isProvider = false,
 }: {
   serviceId: string;
   month: string;
@@ -74,6 +77,8 @@ export function CabinMonth({
   todayKey: string | null;
   prevMonth: string;
   nextMonth: string;
+  /** Chủ nhà xe: server không cho xác nhận vé (chỉ huỷ vé cabin lẻ) ⇒ ẩn nút tương ứng. */
+  isProvider?: boolean;
 }) {
   const router = useRouter();
   const [w, setW] = useState(1440);
@@ -270,6 +275,7 @@ export function CabinMonth({
               ctvOptions={ctvOptions}
               call={call}
               closeDay={closeDay}
+              isProvider={isProvider}
             />
           </div>
         )}
@@ -284,7 +290,7 @@ const navBtn: React.CSSProperties = {
 };
 
 function DayPanel({
-  dk, dirKeys, day, mobile, busy, adding, setAdding, form, setForm, ctvOptions, call, closeDay,
+  dk, dirKeys, day, mobile, busy, adding, setAdding, form, setForm, ctvOptions, call, closeDay, isProvider,
 }: {
   dk: string;
   dirKeys: ("di" | "ve")[];
@@ -298,6 +304,7 @@ function DayPanel({
   ctvOptions: { id: string; name: string }[];
   call: (p: Record<string, unknown>) => Promise<boolean>;
   closeDay: () => void;
+  isProvider: boolean;
 }) {
   const dName = ["Chủ nhật", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"][dow(dk)];
   const dayBooked = dirKeys.reduce((a, k) => a + (day[k]?.booked ?? 0), 0);
@@ -439,10 +446,16 @@ function DayPanel({
                           <span style={{ fontSize: 11, fontWeight: 700, padding: "4px 8px", borderRadius: 999, whiteSpace: "nowrap", background: ST_META[b.status][1], color: ST_META[b.status][2] }}>{ST_META[b.status][0]}</span>
                         </div>
                         {b.status === "new" && (
-                          <div style={{ gridColumn: "1 / -1", display: "flex", gap: 6 }}>
-                            <div onClick={() => !busy && call({ op: "confirm", bookingId: b.id })} style={{ cursor: "pointer", flex: 1, textAlign: "center", fontSize: 13, fontWeight: 700, padding: 8, borderRadius: 9, background: G, color: "white" }}>Xác nhận</div>
+                          <div style={{ gridColumn: "1 / -1", display: "flex", gap: 6, alignItems: "center" }}>
+                            {!isProvider && (
+                              <div onClick={() => !busy && call({ op: "confirm", bookingId: b.id })} style={{ cursor: "pointer", flex: 1, textAlign: "center", fontSize: 13, fontWeight: 700, padding: 8, borderRadius: 9, background: G, color: "white" }}>Xác nhận</div>
+                            )}
                             <a href={`tel:${b.phone}`} style={{ flex: 1, textAlign: "center", fontSize: 13, fontWeight: 700, padding: 8, borderRadius: 9, background: "oklch(0.955 0.006 150)", color: G }}>Gọi khách</a>
-                            <div onClick={() => !busy && call({ op: "cancel", bookingId: b.id })} style={{ cursor: "pointer", textAlign: "center", fontSize: 13, fontWeight: 700, padding: "8px 12px", borderRadius: 9, color: "oklch(0.5 0.15 28)" }}>Huỷ</div>
+                            {isProvider && b.isCombo ? (
+                              <span style={{ fontSize: 12, fontWeight: 600, color: "oklch(0.5 0.02 160)", whiteSpace: "nowrap" }}>Combo do sàn điều phối</span>
+                            ) : (
+                              <div onClick={() => !busy && call({ op: "cancel", bookingId: b.id })} style={{ cursor: "pointer", textAlign: "center", fontSize: 13, fontWeight: 700, padding: "8px 12px", borderRadius: 9, color: "oklch(0.5 0.15 28)" }}>Huỷ</div>
+                            )}
                           </div>
                         )}
                       </div>

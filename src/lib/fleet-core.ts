@@ -337,6 +337,17 @@ export function quoteRental(
   };
 }
 
+/**
+ * Phí trả muộn theo số giờ trễ: ≤ 5 giờ tính theo giờ; quá 5 giờ tính theo ngày (làm tròn lên) nhưng KHÔNG thấp hơn
+ * mức 5 giờ — trước đây trễ 6 giờ (1 ngày giá xe) có thể rẻ hơn trễ 5 giờ (5 × phí giờ), khách trễ nhiều trả ít hơn.
+ * Hàm không giảm theo `lateH`.
+ */
+export function lateFeeOf(lateH: number, perHour: number, dayPrice: number): number {
+  if (lateH <= 0) return 0;
+  if (lateH <= 5) return lateH * perHour;
+  return Math.max(5 * perHour, Math.ceil(lateH / 24) * dayPrice);
+}
+
 /** Phí phát sinh khi nhận lại xe: trả muộn, thiếu xăng, mất phụ kiện, hư hỏng. */
 export function returnFees(
   r: FleetRentalVM,
@@ -349,7 +360,7 @@ export function returnFees(
   const st = rentalStatus(r, today, now);
   const lateMin = st === "late" ? diffDays(r.e, today) * 1440 + tmin(now) - tmin(r.et) : 0;
   const lateH = Math.max(0, Math.ceil(lateMin / 60));
-  const lateFee = lateH ? (lateH <= 5 ? lateH * P.late : Math.ceil(lateH / 24) * v.price) : 0;
+  const lateFee = lateFeeOf(lateH, P.late, v.price);
   const fi = (f: string) => FUEL_LEVELS.indexOf(f as (typeof FUEL_LEVELS)[number]);
   const fuelGap = r.hand ? Math.max(0, fi(r.hand.fuel) - fi(rf.fuel || "Đầy")) : 0;
   const missing = (r.hand?.acc ?? []).filter((a) => !rf.accBack.includes(a));

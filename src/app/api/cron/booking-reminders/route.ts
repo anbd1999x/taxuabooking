@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cronDenied } from "@/lib/cron-auth";
 import { runBookingReminders, runBookingRemindersLocked } from "@/lib/booking-reminders";
 
 export const dynamic = "force-dynamic";
@@ -11,11 +12,9 @@ export const runtime = "nodejs";
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const secret = process.env.CRON_SECRET;
-  if (secret) {
-    const key = url.searchParams.get("key") ?? request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-    if (key !== secret) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  // Thiếu CRON_SECRET ⇒ đóng hẳn (không còn mở cho mọi người).
+  const denied = cronDenied(request);
+  if (denied) return denied;
   const dry = url.searchParams.get("dry") === "1";
   const atRaw = url.searchParams.get("at");
   const at = dry && atRaw ? new Date(atRaw) : new Date();

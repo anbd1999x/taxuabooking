@@ -133,7 +133,7 @@ export default function MotoPartnerLanding() {
             Bỏ sổ tay và tin nhắn Zalo rời rạc. Mọi xe, mọi đơn, mọi khoản cọc nằm trên một màn hình, mở bằng điện thoại là dùng.
           </p>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <a href={DEMO} className="mp-btn" style={{ fontSize: 16, fontWeight: 800, padding: "15px 24px", borderRadius: 999, background: G, color: "white", whiteSpace: "nowrap" }}>Mở bản demo →</a>
+            <a href={DEMO} rel="nofollow" className="mp-btn" style={{ fontSize: 16, fontWeight: 800, padding: "15px 24px", borderRadius: 999, background: G, color: "white", whiteSpace: "nowrap" }}>Mở bản demo →</a>
             <a href="#cach-dung" className="mp-btn" style={{ fontSize: 16, fontWeight: 800, padding: "15px 22px", borderRadius: 999, border: "1.5px solid oklch(0.82 0.02 160)", color: "oklch(0.25 0.03 160)", whiteSpace: "nowrap" }}>Xem hướng dẫn sử dụng ↓</a>
           </div>
           <div style={{ display: "flex", gap: "8px 20px", flexWrap: "wrap", fontSize: 14, fontWeight: 600, color: "oklch(0.42 0.02 160)" }}>
@@ -393,7 +393,7 @@ export default function MotoPartnerLanding() {
                 );
               })}
             </div>
-            <a href={DEMO} className="mp-btn" style={{ alignSelf: "flex-start", fontSize: 15, fontWeight: 800, padding: "13px 22px", borderRadius: 999, background: "white", color: G }}>Mở bản demo →</a>
+            <a href={DEMO} rel="nofollow" className="mp-btn" style={{ alignSelf: "flex-start", fontSize: 15, fontWeight: 800, padding: "13px 22px", borderRadius: 999, background: "white", color: G }}>Mở bản demo →</a>
           </div>
           <div style={{ minHeight: 320, position: "relative" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}

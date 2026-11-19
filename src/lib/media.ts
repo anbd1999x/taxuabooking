@@ -14,19 +14,12 @@ export const MAX_IMAGE_BYTES = 25 * 1024 * 1024; // 25MB (ảnh gốc; sẽ nén
 export const MAX_VIDEO_BYTES = 200 * 1024 * 1024; // 200MB
 const MAX_IMAGE_WIDTH = 2400; // thu nhỏ ảnh quá lớn cho nhẹ web
 
-// Đuôi file theo MIME (đặt tên file lưu).
-const EXT: Record<string, string> = {
-  "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/avif": "avif",
-  "image/gif": "gif", "image/svg+xml": "svg", "image/bmp": "bmp", "image/tiff": "tiff",
-  "image/heic": "heic", "image/heif": "heif",
-  "video/mp4": "mp4", "video/webm": "webm", "video/quicktime": "mov",
-  "video/x-m4v": "m4v", "video/x-matroska": "mkv", "video/x-msvideo": "avi",
-};
-// Suy MIME từ đuôi file khi không có content-type rõ (iPhone hay gửi rỗng cho HEIC).
+// Suy MIME từ đuôi file khi không có content-type rõ (iPhone hay gửi rỗng cho HEIC). CHỈ dùng để phân
+// loại ảnh/video — định dạng thật luôn xác định lại bằng magic bytes, đuôi lưu KHÔNG BAO GIỜ lấy từ tên tệp.
 const EXT_TO_MIME: Record<string, string> = {
   jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp",
-  avif: "image/avif", gif: "image/gif", svg: "image/svg+xml", bmp: "image/bmp",
-  tif: "image/tiff", tiff: "image/tiff", heic: "image/heic", heif: "image/heif",
+  avif: "image/avif", gif: "image/gif", tif: "image/tiff", tiff: "image/tiff",
+  heic: "image/heic", heif: "image/heif",
   mp4: "video/mp4", m4v: "video/x-m4v", webm: "video/webm", mov: "video/quicktime",
   mkv: "video/x-matroska", avi: "video/x-msvideo",
 };
@@ -38,13 +31,52 @@ export function resolveMediaType(mime: string | null | undefined, filename: stri
   return (m && EXT_TO_MIME[m[1].toLowerCase()]) || t || "";
 }
 
-function extFor(effType: string, name: string): string {
-  if (EXT[effType]) return EXT[effType];
-  const m = /\.([a-z0-9]+)$/i.exec(name || "");
-  if (m) return m[1].toLowerCase();
-  const sub = effType.split("/")[1];
-  return sub ? sub.replace(/[^a-z0-9]/g, "") || "bin" : "bin";
+type ImgKind = "jpeg" | "png" | "gif" | "webp" | "tiff" | "avif" | "heif";
+const HEIF_BRANDS = new Set(["heic", "heix", "hevc", "hevx", "heim", "heis", "hevm", "hevs", "mif1", "msf1", "heif"]);
+
+/** Các brand trong hộp `ftyp` (ISO-BMFF: mp4/mov/heic/avif) — null nếu không phải. */
+function ftypBrands(b: Buffer): string[] | null {
+  if (b.length < 12 || b.toString("latin1", 4, 8) !== "ftyp") return null;
+  const size = Math.min(b.readUInt32BE(0), b.length, 256);
+  const out = [b.toString("latin1", 8, 12)];
+  for (let i = 16; i + 4 <= size; i += 4) out.push(b.toString("latin1", i, i + 4));
+  return out;
 }
+
+/**
+ * Nhận diện ảnh RASTER theo magic bytes (không tin MIME/tên tệp client gửi — chống lưu SVG/HTML giả ảnh rồi
+ * chạy script trên cùng origin). Không khớp ⇒ null ⇒ từ chối.
+ */
+export function sniffImage(b: Buffer): ImgKind | null {
+  if (b.length < 12) return null;
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "jpeg";
+  if (b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "png";
+  const g = b.toString("latin1", 0, 6);
+  if (g === "GIF87a" || g === "GIF89a") return "gif";
+  if (b.toString("latin1", 0, 4) === "RIFF" && b.toString("latin1", 8, 12) === "WEBP") return "webp";
+  if ((b[0] === 0x49 && b[1] === 0x49 && b[2] === 0x2a && b[3] === 0) || (b[0] === 0x4d && b[1] === 0x4d && b[2] === 0 && b[3] === 0x2a)) return "tiff";
+  const brands = ftypBrands(b);
+  if (brands) {
+    if (brands.some((x) => x === "avif" || x === "avis")) return "avif";
+    if (brands.some((x) => HEIF_BRANDS.has(x))) return "heif";
+  }
+  return null;
+}
+
+/** Nhận diện video theo magic bytes → đuôi lưu CỐ ĐỊNH (mp4/mov/m4v/webm/mkv/avi); không khớp ⇒ null. */
+export function sniffVideoExt(b: Buffer, mime: string): string | null {
+  if (b.length < 12) return null;
+  const box = b.toString("latin1", 4, 8);
+  if (box === "ftyp" || (mime === "video/quicktime" && ["moov", "mdat", "wide", "free", "skip"].includes(box))) {
+    if (box !== "ftyp" || mime === "video/quicktime" || ftypBrands(b)?.[0] === "qt  ") return "mov";
+    return mime === "video/x-m4v" ? "m4v" : "mp4";
+  }
+  if (b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3) return mime === "video/x-matroska" ? "mkv" : "webm";
+  if (b.toString("latin1", 0, 4) === "RIFF" && b.toString("latin1", 8, 12) === "AVI ") return "avi";
+  return null;
+}
+
+const BAD_IMAGE = "Tệp không phải ảnh hợp lệ — chỉ nhận JPG, PNG, WebP, AVIF, HEIC hoặc GIF.";
 
 export interface SaveMediaInput {
   buf: Buffer;
@@ -55,6 +87,10 @@ export interface SaveMediaInput {
   roomId?: string | null;
   /** true = chỉ lưu file & trả url, không gắn bản ghi DB (vd ảnh bìa bài viết). */
   standalone?: boolean;
+  /** Tiền tố tên tệp lưu (a-z0-9-) — để route kiểm được url do chính nó cấp (vd ảnh bill "dinebill-…"). */
+  prefix?: string;
+  /** true = ảnh tĩnh: GIF cũng chuyển thành JPG (không giữ ảnh động). */
+  stillOnly?: boolean;
 }
 
 export type SaveMediaResult = { url: string } | { error: string; status: number };
@@ -65,7 +101,7 @@ export type SaveMediaResult = { url: string } | { error: string; status: number 
  * và nhập từ Google Drive.
  */
 export async function processAndSaveMedia(input: SaveMediaInput): Promise<SaveMediaResult> {
-  const { buf, filename } = input;
+  const { buf } = input;
   const serviceId = input.serviceId ?? null;
   const roomTypeId = input.roomTypeId ?? null;
   const roomId = input.roomId ?? null;
@@ -103,12 +139,19 @@ export async function processAndSaveMedia(input: SaveMediaInput): Promise<SaveMe
   await mkdir(uploadDir, { recursive: true });
 
   let data: Buffer = buf;
-  let ext = extFor(effType, filename);
+  let ext: string;
 
-  // Ảnh: gif (giữ động) & svg (vector) lưu nguyên; HEIC/HEIF chuyển qua heif-convert;
-  // còn lại xử lý bằng sharp (xoay/thu nhỏ/nén).
-  if (isImage && effType !== "image/gif" && effType !== "image/svg+xml") {
-    if (effType === "image/heic" || effType === "image/heif") {
+  if (isVideo) {
+    // Video không chuyển mã — bắt buộc đúng magic bytes container, đuôi cố định theo bảng (không lấy từ tên tệp).
+    const vext = sniffVideoExt(buf, effType);
+    if (!vext) return { error: "Tệp không phải video hợp lệ (MP4, MOV, WebM).", status: 400 };
+    ext = vext;
+  } else {
+    // Ảnh: luôn giải mã + mã hoá lại (sharp) ⇒ tệp lưu chắc chắn là ảnh thật, đuôi theo định dạng ĐẦU RA.
+    // Không lưu nguyên bản bất kỳ tệp nào (SVG/HTML giả ảnh từng chạy được script trên domain chính).
+    const kind = sniffImage(buf);
+    if (!kind) return { error: BAD_IMAGE, status: 400 };
+    if (kind === "heif") {
       const base = path.join(os.tmpdir(), crypto.randomBytes(8).toString("hex"));
       const tmpIn = `${base}.heic`;
       const tmpOut = `${base}.jpg`;
@@ -137,35 +180,43 @@ export async function processAndSaveMedia(input: SaveMediaInput): Promise<SaveMe
         await rm(`${base}-1.jpg`, { force: true }).catch(() => {});
       }
     } else {
+      const animated = kind === "gif" && !input.stillOnly;
       try {
-        let pipe = sharp(buf, { failOn: "none" }).rotate();
+        let pipe = sharp(buf, { failOn: "none", animated }).rotate();
         const meta = await pipe.metadata();
+        // sharp tự nhận diện lại định dạng — phải là ảnh raster (chặn SVG/PDF… lọt qua).
+        if (!meta.format || !["jpeg", "png", "gif", "webp", "tiff", "heif"].includes(meta.format)) {
+          return { error: BAD_IMAGE, status: 400 };
+        }
         if (meta.width && meta.width > MAX_IMAGE_WIDTH) {
           pipe = pipe.resize({ width: MAX_IMAGE_WIDTH, withoutEnlargement: true });
         }
-        if (effType === "image/png") {
+        if (animated) {
+          data = await pipe.gif().toBuffer();
+          ext = "gif";
+        } else if (kind === "png") {
           data = await pipe.png({ compressionLevel: 9 }).toBuffer();
           ext = "png";
-        } else if (effType === "image/webp") {
+        } else if (kind === "webp") {
           data = await pipe.webp({ quality: 82 }).toBuffer();
           ext = "webp";
-        } else if (effType === "image/avif") {
+        } else if (kind === "avif") {
           data = await pipe.avif({ quality: 60 }).toBuffer();
           ext = "avif";
         } else {
-          // jpeg, bmp, tiff, hoặc không rõ → JPEG
+          // jpeg, tiff, gif tĩnh → JPEG
           data = await pipe.jpeg({ quality: 82 }).toBuffer();
           ext = "jpg";
         }
       } catch {
-        // sharp không đọc được → lưu nguyên gốc.
-        data = buf;
-        ext = extFor(effType, filename);
+        // sharp không đọc được ⇒ TỪ CHỐI (trước đây lưu nguyên gốc kèm đuôi lấy từ tên tệp ⇒ lỗ XSS).
+        return { error: BAD_IMAGE, status: 400 };
       }
     }
   }
 
-  const name = `${Date.now()}-${crypto.randomBytes(6).toString("hex")}.${ext}`;
+  const prefix = input.prefix && /^[a-z0-9-]{1,40}$/.test(input.prefix) ? `${input.prefix}-` : "";
+  const name = `${prefix}${Date.now()}-${crypto.randomBytes(6).toString("hex")}.${ext}`;
   await writeFile(path.join(uploadDir, name), data);
   const url = `/uploads/${name}`;
 

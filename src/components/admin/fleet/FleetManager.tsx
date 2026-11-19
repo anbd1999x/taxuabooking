@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { usePublishTabs } from "@/components/admin/module-tabs";
 import {
   FLEET_KINDS,
   addDaysKey,
@@ -199,6 +200,8 @@ export function FleetManager({
     ? [["overview", "Việc hôm nay"]]
     : [["overview", "Tổng quan"], ["web", "Đơn web", webP.length], ["ledger", "Thu chi"], ["fleet", "Đội xe · " + V.length], ["maint", "Bảo dưỡng", maintAl.length], ["cust", "Khách hàng"], ["report", "Báo cáo"], ["settings", "Cài đặt"]];
   const curTab = isStaff ? "overview" : tab;
+  // Tab hiện thành MỤC CON ở menu trái (không còn thanh tab cuộn ngang); nhân viên chỉ có 1 màn ⇒ không cần mục con.
+  usePublishTabs(isStaff ? [] : tabs.map(([key, label, badge]) => ({ key, label, badge })), curTab, (k) => setTab(k as Tab));
 
   const typeChips = () => (
     <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -210,7 +213,7 @@ export function FleetManager({
 
   return (
     <div ref={rootRef} className="fleet-root -m-4 lg:-m-6" style={{ color: "oklch(0.22 0.03 160)", minHeight: "100%", background: "oklch(0.975 0.004 160)" }}>
-      <style>{`@keyframes fleetSlide{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}@keyframes fleetUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}.fleet-root *{box-sizing:border-box}.fleet-tabs::-webkit-scrollbar{display:none}`}</style>
+      <style>{`@keyframes fleetSlide{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}@keyframes fleetUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}.fleet-root *{box-sizing:border-box}`}</style>
       {/* top bar (không dính — thanh tab bên dưới mới dính khi cuộn) */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "12px clamp(14px,2.5vw,28px)", background: "white", borderBottom: "1px solid oklch(0.93 0.008 160)", flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
@@ -251,18 +254,6 @@ export function FleetManager({
             {stats.map((s) => <StatCard key={s.k} k={s.k} v={s.v} sub={s.sub} c={s.c} onClick={s.pick} />)}
           </div>
         )}
-
-        {/* Thanh tab: nằm DƯỚI số liệu tổng quan, ngay trên nội dung, và DÍNH khi cuộn (mobile không phải cuộn ngược lên để đổi tab).
-            --fleet-sticky-top = chiều cao thanh đầu trang bên ngoài (AdminShell 64px; trang demo đặt riêng). */}
-        <div style={{ position: "sticky", top: "var(--fleet-sticky-top, 64px)", zIndex: 6, margin: "-6px 0", padding: "6px 0", background: "oklch(0.975 0.004 160)" }}>
-          <div className="fleet-tabs" style={{ display: "flex", gap: 4, padding: 4, borderRadius: 14, background: "oklch(0.93 0.008 160)", overflowX: "auto", maxWidth: "100%", width: "fit-content", scrollbarWidth: "none" }}>
-            {tabs.map(([k2, name, badge]) => (
-              <div key={k2} onClick={() => setTab(k2)} style={{ cursor: "pointer", flex: "none", display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 800, padding: "9px 14px", borderRadius: 11, whiteSpace: "nowrap", background: curTab === k2 ? "white" : "transparent", color: curTab === k2 ? G : "oklch(0.42 0.02 160)", boxShadow: curTab === k2 ? "0 1px 4px oklch(0.2 0.03 160 / .15)" : "none" }}>
-                {name}{badge ? <span style={{ fontSize: 11, fontWeight: 800, padding: "2px 7px", borderRadius: 999, background: O, color: "white" }}>{badge}</span> : null}
-              </div>
-            ))}
-          </div>
-        </div>
 
         {/* Đơn web chưa đủ xe */}
         {!isStaff && data.pending.length > 0 && (

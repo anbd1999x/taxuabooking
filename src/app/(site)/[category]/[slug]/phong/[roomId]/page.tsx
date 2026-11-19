@@ -35,7 +35,7 @@ export async function generateMetadata({
   const own = ((await tLong(room.description)) ?? "").trim().replace(/[.\s]+$/, "");
   const tail = t(" Phòng {0} khách tại {1}, Tà Xùa. Xem ảnh, giá từng đêm, lịch trống và đặt phòng tại Tà Xùa Booking.", [room.capacity, t(svc.title)]);
   const description = own.length >= 120 ? own + "." : `${own ? own + "." : `${t(room.name)} (${t(room.roomType.name)}).`}${tail}`;
-  const path = `/${CATEGORIES[svc.category].slug}/${svc.slug}/phong/${room.id}`;
+  const path = `/${CATEGORIES[svc.category === "BUNGALOW" ? "HOMESTAY" : svc.category].slug}/${svc.slug}/phong/${room.id}`;
   const cover = room.images[0]?.url ?? room.roomType.images.find((i) => !/\.(mp4|webm|mov)$/i.test(i.url))?.url;
   return {
     title,
@@ -73,7 +73,8 @@ async function RoomDetailBody({
 
   const rt = room.roomType;
   const svc = rt.service;
-  const cat = CATEGORIES[svc.category];
+  // Bungalow đã gộp vào homestay: link dùng slug /homestay (route /bungalow trả 404 cho dịch vụ BUNGALOW).
+  const cat = CATEGORIES[svc.category === "BUNGALOW" ? "HOMESTAY" : svc.category];
   // Đơn đặt do Tà Xùa Booking gọi xác nhận → dùng số nền tảng (settings), không dùng số riêng của cơ sở.
   const phone = settings.contactPhone || SITE.defaultPhone;
   const zalo = settings.contactZalo || SITE.defaultZalo;

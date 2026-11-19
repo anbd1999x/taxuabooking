@@ -62,6 +62,7 @@ import {
 } from "../ical-actions";
 import { saveSheetUrl, syncServiceSheetNow } from "../sheet-actions";
 import { SITE } from "@/lib/site";
+import { servicePageAccess } from "@/lib/partner-access";
 
 export const dynamic = "force-dynamic";
 
@@ -79,6 +80,8 @@ export default async function EditServicePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  // Chủ homestay tự đăng ký: chỉ mở được homestay của mình (không có quyền ⇒ chuyển hướng).
+  const access = await servicePageAccess(id);
   const service = await prisma.service.findUnique({
     where: { id },
     include: {
@@ -108,7 +111,7 @@ export default async function EditServicePage({
   // Điểm cố định cho bảng giá chặng taxi / xe ôm.
   const transportPoints = await prisma.transportPoint.findMany({ orderBy: [{ sortOrder: "asc" }, { name: "asc" }], select: { id: true, name: true, active: true } });
 
-  const providers = await prisma.adminUser.findMany({
+  const providers = !access.isAdmin ? [] : await prisma.adminUser.findMany({
     where: { role: "PROVIDER" },
     orderBy: { name: "asc" },
     select: { id: true, name: true },
@@ -406,7 +409,7 @@ export default async function EditServicePage({
           <div className="min-w-0">
             <h1 className="text-2xl font-extrabold tracking-tight text-ink sm:text-[28px]">{service.title}</h1>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-[13px]">
-              <span className={`rounded-full px-2.5 py-1 font-bold ${service.published ? "bg-forest-50 text-forest-700" : "bg-gray-100 text-gray-500"}`}>{service.published ? "Đang hiển thị" : "Đang ẩn"}</span>
+              <span className={`rounded-full px-2.5 py-1 font-bold ${service.published ? "bg-forest-50 text-forest-700" : "bg-gray-100 text-gray-500"}`}>{service.published ? "Đang hiển thị" : access.isAdmin ? "Đang ẩn" : "Chờ duyệt hiển thị"}</span>
               <span className="text-gray-500">{cat.label} · {roomTotal} phòng · {typeTotal} hạng</span>
               <Link href={`/${cat.slug}/${service.slug}`} target="_blank" className="font-bold text-forest-700 hover:underline">Xem trên website ↗</Link>
               {canSchedule && (
@@ -431,6 +434,7 @@ export default async function EditServicePage({
                   action={updateService}
                   submitLabel="Lưu thay đổi"
                   providers={providers}
+                  partner={!access.isAdmin}
                   initial={{
                     id: service.id, category: service.category, title: service.title, slug: service.slug,
                     summary: service.summary, description: service.description, area: service.area, distanceKm: service.distanceKm, mapUrl: service.mapUrl, policy: service.policy,
@@ -472,7 +476,7 @@ export default async function EditServicePage({
                   </div>
                   <div className="flex flex-wrap items-center justify-end gap-1.5">
                     <ImageUploader serviceId={service.id} />
-                    <DriveImport serviceId={service.id} />
+                    {access.isAdmin && <DriveImport serviceId={service.id} />}
                   </div>
                 </div>
                 <SortableImages
@@ -536,7 +540,7 @@ export default async function EditServicePage({
                         <div className="mt-3 border-t border-gray-100 pt-3">
                           <div className="mb-2 flex items-center justify-between">
                             <span className="text-xs font-medium text-gray-500">Ảnh / video hạng phòng ({rt.images.length})</span>
-                            <div className="flex flex-wrap items-center justify-end gap-1.5"><ImageUploader roomTypeId={rt.id} label="📤 Thêm ảnh / video" compact accept="image/*,video/*" /><DriveImport roomTypeId={rt.id} compact /></div>
+                            <div className="flex flex-wrap items-center justify-end gap-1.5"><ImageUploader roomTypeId={rt.id} label="📤 Thêm ảnh / video" compact accept="image/*,video/*" />{access.isAdmin && <DriveImport roomTypeId={rt.id} compact />}</div>
                           </div>
                           {rt.images.length > 0 && (
                             <SortableImages
@@ -631,13 +635,13 @@ export default async function EditServicePage({
                                       </p>
                                       <L label="Tối đa (người)" cls="sm:col-span-3"><input name="maxCapacity" type="number" min={0} defaultValue={room.maxCapacity ?? ""} placeholder="= sức chứa" className={inp} /></L>
                                       <L label="Tên khác trong sheet lịch" cls="sm:col-span-5"><input name="sheetAlias" defaultValue={room.sheetAlias ?? ""} placeholder="VD: Vip Xoay 1, Vip360 1" className={inp} /></L>
-                                      <label className="flex items-center gap-2 self-end pb-2 text-sm font-semibold text-sunset-700 sm:col-span-4"><input type="checkbox" name="featured" defaultChecked={room.featured} className="h-4 w-4 accent-sunset-500" /> ⭐ Phòng nổi bật (lên đầu khi tìm)</label>
-                                      <label className="flex items-center gap-2 self-end pb-2 text-sm font-semibold text-gray-700 sm:col-span-12"><input type="checkbox" name="noComboDiscount" defaultChecked={room.noComboDiscount} className="h-4 w-4 accent-forest-600" /> 🚫 Không giảm giá combo (phòng này không hưởng khuyến mãi combo)</label>
+                                      {access.isAdmin && <label className="flex items-center gap-2 self-end pb-2 text-sm font-semibold text-sunset-700 sm:col-span-4"><input type="checkbox" name="featured" defaultChecked={room.featured} className="h-4 w-4 accent-sunset-500" /> ⭐ Phòng nổi bật (lên đầu khi tìm)</label>}
+                                      {access.isAdmin && <label className="flex items-center gap-2 self-end pb-2 text-sm font-semibold text-gray-700 sm:col-span-12"><input type="checkbox" name="noComboDiscount" defaultChecked={room.noComboDiscount} className="h-4 w-4 accent-forest-600" /> 🚫 Không giảm giá combo (phòng này không hưởng khuyến mãi combo)</label>}
                                       <p className="self-center text-[11px] leading-relaxed text-gray-400 sm:col-span-12">Phụ thu <b>người thêm / check-in sớm / check-out muộn</b> cấu hình <b>chung cho cả homestay</b> ở tab Thông tin.</p>
                                       <L label="Tiện ích (cách nhau dấu phẩy)" cls="sm:col-span-7"><input name="amenities" defaultValue={room.amenities ?? ""} placeholder="Wifi, Nóng lạnh, Ban công" className={inp} /></L>
                                       <L label="Mô tả ngắn" cls="sm:col-span-5"><input name="description" defaultValue={room.description ?? ""} className={inp} /></L>
                                       <RoomConDayPrices room={room} />
-                                      <RoomConCommission room={room} />
+                                      {access.isAdmin && <RoomConCommission room={room} />}
                                       <div className="flex gap-1 sm:col-span-12">
                                         <button className="rounded-lg bg-forest-600 px-3 py-2 text-sm text-white">Lưu</button>
                                         <OrderBtn action={moveRoomUp} label="↑" title="Chuyển phòng lên trên" />
@@ -649,7 +653,7 @@ export default async function EditServicePage({
                                     <div className="mt-2 rounded-xl border border-gray-200 bg-white p-2">
                                       <div className="mb-2 flex items-center justify-between gap-2">
                                         <span className="text-xs font-medium text-gray-500">Ảnh của phòng <b className="text-forest-800">{room.name}</b> ({room.images.length})</span>
-                                        <div className="flex flex-wrap items-center justify-end gap-1.5"><ImageUploader roomId={room.id} label="📤 Thêm ảnh / video cho phòng này" compact accept="image/*,video/*" /><DriveImport roomId={room.id} compact /></div>
+                                        <div className="flex flex-wrap items-center justify-end gap-1.5"><ImageUploader roomId={room.id} label="📤 Thêm ảnh / video cho phòng này" compact accept="image/*,video/*" />{access.isAdmin && <DriveImport roomId={room.id} compact />}</div>
                                       </div>
                                       {room.images.length > 0 && (
                                         <SortableImages

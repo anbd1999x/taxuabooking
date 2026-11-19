@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { getSession } from "@/lib/auth";
+import { getSession, invalidateSessionCache } from "@/lib/auth";
 import { getDemoSession } from "@/lib/fleet-demo";
 import { prisma } from "@/lib/prisma";
 import { parseDateOnly } from "@/lib/dates";
@@ -636,15 +636,18 @@ export async function POST(request: Request) {
         if (!u) return bad("Không tìm thấy nhân viên.");
         if (op === "staffToggle") {
           await prisma.adminUser.update({ where: { id: u.id }, data: { active: !u.active } });
+          invalidateSessionCache(u.id); // khoá / mở khoá có hiệu lực ngay
           return done(u.active ? `Đã khoá ${u.username}` : `Đã mở khoá ${u.username}`);
         }
         if (op === "staffReset") {
           const password = typeof body.password === "string" ? body.password : "";
           if (password.length < 6) return bad("Mật khẩu tối thiểu 6 ký tự.");
           await prisma.adminUser.update({ where: { id: u.id }, data: { passwordHash: await hashPassword(password) } });
+          invalidateSessionCache(u.id);
           return done(`Đã đổi mật khẩu ${u.username}`);
         }
         await prisma.adminUser.delete({ where: { id: u.id } });
+        invalidateSessionCache(u.id); // xoá ⇒ phiên cũ hết hiệu lực ngay
         return done(`Đã xoá tài khoản ${u.username}`);
       }
       default:

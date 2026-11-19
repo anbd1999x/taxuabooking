@@ -2,7 +2,7 @@
 
 import Link from "@/components/Link";
 import type { ServiceCard as ServiceCardData } from "@/lib/queries";
-import { CATEGORIES } from "@/lib/constants";
+import { CATEGORIES, serviceCatSlug } from "@/lib/constants";
 import { formatPrice } from "@/lib/format";
 import { Badge } from "./ui/Badge";
 import { AvailabilityBadge } from "./AvailabilityBadge";
@@ -12,7 +12,7 @@ import { useT } from "@/components/i18n/I18nProvider";
 export function ServiceCard({ service }: { service: ServiceCardData }) {
   const t = useT();
   const cat = CATEGORIES[service.category];
-  const href = `/${cat.slug}/${service.slug}`;
+  const href = `/${serviceCatSlug(service.category)}/${service.slug}`;
   const price = service.availability?.fromPrice ?? service.basePrice;
   // Giá gốc gạch ngang: chỉ hiện khi cao hơn giá bán → khách thấy đang khuyến mãi.
   const original = service.originalPrice != null && price != null && service.originalPrice > price ? service.originalPrice : null;

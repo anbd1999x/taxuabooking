@@ -8,11 +8,14 @@ import { CommitmentEnabledProvider } from "@/components/trust/CommitmentLink";
 import { BackgroundMusic } from "@/components/BackgroundMusic";
 import { getSettings } from "@/lib/queries";
 import { prisma } from "@/lib/prisma";
+import { PUBLIC_VENUE } from "@/lib/ticket-core";
 import { getCustomer } from "@/lib/customer";
 import { parseTrustPopup, TRUST_POPUP_KEY, visiblePeople } from "@/lib/trust-popup";
 import { SiteContactProvider } from "@/components/SiteContact";
 import { SITE } from "@/lib/site";
-import { getContentMap, getLocale } from "@/lib/i18n/server";
+import { preload } from "react-dom";
+import { getContentMap, getContentVersion, getLocale } from "@/lib/i18n/server";
+import { contentUrl, ssrContentStore } from "@/lib/i18n/content-store";
 import { I18nProvider } from "@/components/i18n/I18nProvider";
 import { I18nLocaleEn } from "@/components/i18n/I18nLocaleEn";
 import { I18nLocaleZh } from "@/components/i18n/I18nLocaleZh";
@@ -22,9 +25,13 @@ import { I18nLocaleKo } from "@/components/i18n/I18nLocaleKo";
 async function LocaleProvider({ children }: { children: React.ReactNode }) {
   const locale = await getLocale();
   if (locale === "vi") return <I18nProvider locale="vi" dict={{}}>{children}</I18nProvider>;
-  const content = await getContentMap(locale);
+  // KHÔNG truyền cả map bản dịch nội dung làm prop (bị nhúng vào RSC payload MỌI trang, ≈270KB):
+  // ghi map vào bộ nhớ tiến trình cho SSR, client tải 1 file JSON cache theo phiên bản (preload sớm).
+  const [content, v] = await Promise.all([getContentMap(locale), getContentVersion(locale)]);
+  ssrContentStore()[locale] = content;
+  preload(contentUrl(locale, v), { as: "fetch", crossOrigin: "anonymous" });
   const P = locale === "en" ? I18nLocaleEn : locale === "zh" ? I18nLocaleZh : I18nLocaleKo;
-  return <P content={content}>{children}</P>;
+  return <P contentVersion={v}>{children}</P>;
 }
 
 export default async function SiteLayout({
@@ -36,7 +43,7 @@ export default async function SiteLayout({
     getSettings(),
     getCustomer(),
     // Mục "Vé & đặt bàn" trên menu chỉ hiện khi có địa điểm ĐANG MỞ BÁN (dữ liệu demo / mẫu chưa mở bán thì không lộ ra ngoài).
-    prisma.ticketVenue.count({ where: { published: true } }).then((n) => n > 0, () => false),
+    prisma.ticketVenue.count({ where: PUBLIC_VENUE }).then((n) => n > 0, () => false),
   ]);
   const trustConfig = parseTrustPopup(settings[TRUST_POPUP_KEY]);
   const trustPopup = { ...trustConfig, people: visiblePeople(trustConfig) }; // người bị ẩn không hiện ở popup

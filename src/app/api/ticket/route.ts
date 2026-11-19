@@ -1,10 +1,11 @@
+import { createHash } from "crypto";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getDemoSession } from "@/lib/fleet-demo";
 import { prisma } from "@/lib/prisma";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { TicketError, createTicketOrder, finalizeDraft, publicVenue, releaseDraft, sendTicketEmail } from "@/lib/ticket";
-import { DRAFT_HOLD_MIN } from "@/lib/ticket-core";
+import { DRAFT_HOLD_MIN, PUBLIC_VENUE, isPublicVenue, normPhone } from "@/lib/ticket-core";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -47,19 +48,21 @@ export async function POST(request: Request) {
     }
     // Địa điểm đã mở bán — hoặc địa điểm demo (chưa mở bán) khi khách đang trong bản demo: đặt thử được, không gửi email.
     const demo = await getDemoSession();
-    const v = await prisma.ticketVenue.findFirst({ where: { slug, ...(demo ? { OR: [{ published: true }, { ownerId: demo.sub }] } : { published: true }) }, select: { id: true, kind: true, published: true } });
+    const v = await prisma.ticketVenue.findFirst({ where: { slug, ...(demo ? { OR: [{ ...PUBLIC_VENUE }, { ownerId: demo.sub }] } : PUBLIC_VENUE) }, select: { id: true, kind: true, published: true, review: true } });
     if (!v) return bad("Địa điểm này chưa mở bán.", 404);
-    const preview = !v.published;
+    const preview = !isPublicVenue(v);
     const date = str(body.date, 10);
     const time = str(body.time, 5);
 
     if (op === "hold") {
       if (v.kind === "GATE") return bad("Vé cổng không cần giữ chỗ.");
-      // Mỗi lần giữ là một lượt chiếm ghế 10 phút ⇒ giới hạn chặt theo IP.
-      if (!rateLimit(`tk-hold:${ip}`, 8, 10 * 60_000)) return bad("Bạn giữ chỗ quá nhiều lần liên tiếp. Chờ vài phút rồi thử lại.", 429);
+      // Tần suất theo IP (bộ nhớ từng tiến trình) + giới hạn TỔNG chỗ đang giữ của IP tại địa điểm (đếm trong DB, xem capWebHolds):
+      // một máy giữ tối đa một đơn tối đa — đổi lựa chọn (replace) hay tải lại trang thì nháp cũ của chính máy đó được nhả.
+      if (!rateLimit(`tk-hold:${ip}`, 12, 10 * 60_000)) return bad("Bạn giữ chỗ quá nhiều lần liên tiếp. Chờ vài phút rồi thử lại.", 429);
       await releaseDraft(str(body.replace, 40));
+      const holdKey = createHash("sha256").update(`tk-hold:${ip}`).digest("base64url").slice(0, 16);
       const o = await createTicketOrder({
-        venueId: v.id, date, time, name: "", phone: "", source: "Web", mode: "draft", preview, guests: int(body.guests) || undefined,
+        venueId: v.id, date, time, name: "", phone: "", source: "Web", mode: "draft", preview, holdKey, guests: int(body.guests) || undefined,
         seats: Array.isArray(body.seats) ? body.seats.slice(0, 20).map((k) => str(k, 4)) : [],
         tableIds: Array.isArray(body.tableIds) ? body.tableIds.slice(0, 20).map((k) => str(k, 40)) : [],
         tickets: arr(body.tickets).map((t) => ({ tierId: str(t.tierId, 40), qty: int(t.qty) })),
@@ -69,8 +72,10 @@ export async function POST(request: Request) {
 
     if (op === "book") {
       if (!rateLimit(`tk-book:${ip}`, 5, 60_000)) return bad("Bạn gửi quá nhiều yêu cầu. Vui lòng thử lại sau ít phút.", 429);
+      // TK-7: mỗi đơn chờ giữ quota / chỗ WEB_CONFIRM_MIN phút ⇒ thêm trần theo giờ, một IP không ôm hết quota vé cổng.
+      if (!rateLimit(`tk-book-h:${ip}`, 12, 60 * 60_000)) return bad("Bạn đã gửi nhiều đơn trong giờ qua. Vui lòng gọi địa điểm hoặc thử lại sau.", 429);
       const name = str(body.name, 80);
-      const phone = str(body.phone, 20).replace(/\s/g, "");
+      const phone = normPhone(str(body.phone, 24)); // TK-7: 84/+84/dấu chấm ⇒ cùng dạng 0xxxxxxxxx
       const email = str(body.email, 120);
       if (name.length < 2) return bad("Nhập họ tên.");
       if (!/^0\d{9}$/.test(phone)) return bad("Số điện thoại chưa đúng (10 số).");
@@ -83,11 +88,14 @@ export async function POST(request: Request) {
       const food = arr(body.food).map((f) => ({ menuId: str(f.menuId, 40), qty: int(f.qty), note: str(f.note, 120) }));
       const expectedTotal = body.expectedTotal == null ? undefined : int(body.expectedTotal);
       const common = { name, phone, email, note, food, expectedTotal, ctvId, source: ctvId ? "CTV" : "Web" };
+      // TK-7: một SĐT chỉ có tối đa 2 đơn web đang chờ xác nhận tại một địa điểm (đơn chờ giữ quota / chỗ tới khi hết hạn). Bản demo đặt thử thoải mái.
+      if (!ctvId && !preview && (await prisma.ticketOrder.count({ where: { venueId: v.id, phone, status: "wait", createdBy: null, holdUntil: { gt: new Date() } } })) >= 2)
+        return bad("Số điện thoại này đang có 2 đơn chờ xác nhận ở đây — đợi địa điểm gọi lại hoặc gọi trực tiếp giúp mình nhé.", 429);
       const o =
         v.kind === "GATE"
           ? await createTicketOrder({ ...common, venueId: v.id, date, time: "", mode: "request", preview, tickets: arr(body.tickets).map((t) => ({ tierId: str(t.tierId, 40), qty: int(t.qty) })) })
-          : await finalizeDraft({ ...common, token: str(body.hold, 40), slug, guests: int(body.guests) || undefined });
-      if (!preview) void sendTicketEmail(o.id, "received"); // đơn đặt thử ở bản demo không gửi thư
+          : await finalizeDraft({ ...common, token: str(body.hold, 40), slug, preview, guests: int(body.guests) || undefined });
+      if (!preview) void sendTicketEmail(o.id, "received"); // đơn đặt thử ở bản demo không gửi thư (sendTicketEmail cũng tự chặn địa điểm chưa mở bán)
       return NextResponse.json({ token: o.token, code: o.code });
     }
     return bad("Thao tác không hợp lệ.");

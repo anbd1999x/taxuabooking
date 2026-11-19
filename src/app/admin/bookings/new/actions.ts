@@ -11,7 +11,7 @@ import { computeAvailability } from "@/lib/booking";
 import { cabinJourneyFare, getCabinFareOptions } from "@/lib/cabin";
 import { cabinSeatTotal, bookingBusSeats } from "@/lib/combo-pricing";
 import { resolveCommission } from "@/lib/commission";
-import { adjustInventory, assignRoomsForBooking, statusHoldsInventory } from "@/lib/inventory";
+import { adjustInventory, assignRoomsForBooking, lockBooking, statusHoldsInventory } from "@/lib/inventory";
 import { isValidDateKey, parseDateOnly, toDateKey } from "@/lib/dates";
 import { formatPrice, toNumber } from "@/lib/format";
 import { generateBookingCode, normalizeFacebookUrl } from "@/lib/utils";
@@ -664,6 +664,13 @@ export async function updateAdminBooking(
 
   try {
     if (changes.length) await prisma.$transaction(async (tx) => {
+      // Khoá đơn + kiểm đơn chưa đổi từ lúc đọc: `old.inventoryApplied` đọc NGOÀI transaction, đơn vừa
+      // được xác nhận / huỷ ở tab khác ⇒ trả/giữ tồn theo bản cũ sẽ trừ đôi hoặc mất chỗ (BK-3).
+      await lockBooking(tx, id, newRooms); // khoá cả homestay của phòng MỚI trước khi ghi dòng đơn (tránh khoá vòng)
+      const cur = await tx.bookingRequest.findUnique({ where: { id }, select: { updatedAt: true } });
+      if (!cur || cur.updatedAt.getTime() !== old.updatedAt.getTime()) {
+        throw new Error("Đơn vừa được cập nhật ở nơi khác — tải lại trang rồi sửa lại.");
+      }
       if (old.inventoryApplied) {
         // Trả chỗ theo thông tin CŨ…
         if (old.roomTypeId) await assignRoomsForBooking(tx, old, false);

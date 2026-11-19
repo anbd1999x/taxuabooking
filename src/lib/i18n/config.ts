@@ -12,6 +12,12 @@ export type TargetLocale = (typeof TARGET_LOCALES)[number];
 
 export const LOCALE_HEADER = "x-locale";
 
+/**
+ * Trang khách CHỈ có tiếng Việt (dành cho chủ dịch vụ): canonical về bản vi, không khai hreflang,
+ * sitemap chỉ liệt kê bản vi — tránh Google thấy 4 bản "en/zh/ko" trùng nội dung tiếng Việt.
+ */
+export const VI_ONLY_PATHS: readonly string[] = ["/hop-tac", "/hop-tac/xe-may"];
+
 export const LOCALE_META: Record<Locale, { label: string; short: string; htmlLang: string; og: string; flag: string }> = {
   vi: { label: "Tiếng Việt", short: "VI", htmlLang: "vi", og: "vi_VN", flag: "🇻🇳" },
   en: { label: "English", short: "EN", htmlLang: "en", og: "en_US", flag: "🇬🇧" },

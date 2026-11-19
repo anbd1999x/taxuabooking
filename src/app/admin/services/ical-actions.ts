@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAdmin } from "@/lib/auth";
+import { guard, serviceIdOfIcalSource, serviceIdOfRoom } from "@/lib/partner-access";
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
@@ -18,7 +18,7 @@ function s(v: FormDataEntryValue | null): string {
 
 /** Bật đồng bộ iCal cho một phòng: sinh token bí mật cho link xuất lịch. */
 export async function enableRoomIcal(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(await serviceIdOfRoom(s(formData.get("roomId"))));
   const roomId = s(formData.get("roomId"));
   const serviceId = s(formData.get("serviceId"));
   if (!roomId) return;
@@ -31,7 +31,7 @@ export async function enableRoomIcal(formData: FormData): Promise<void> {
 
 /** Thêm một nguồn iCal từ OTA (link .ics) cho phòng. */
 export async function addIcalSource(_prev: IcalActionState, formData: FormData): Promise<IcalActionState> {
-  await requireAdmin();
+  await guard(await serviceIdOfRoom(s(formData.get("roomId"))));
   const roomId = s(formData.get("roomId"));
   const serviceId = s(formData.get("serviceId"));
   const label = s(formData.get("label")) || "OTA";
@@ -48,7 +48,7 @@ export async function addIcalSource(_prev: IcalActionState, formData: FormData):
 }
 
 export async function deleteIcalSource(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(await serviceIdOfIcalSource(s(formData.get("id"))));
   const id = s(formData.get("id"));
   const serviceId = s(formData.get("serviceId"));
   if (!id) return;
@@ -63,7 +63,7 @@ export async function deleteIcalSource(formData: FormData): Promise<void> {
 
 /** Kéo lịch ngay cho tất cả nguồn của một phòng. */
 export async function syncRoomIcalNow(formData: FormData): Promise<void> {
-  await requireAdmin();
+  await guard(await serviceIdOfRoom(s(formData.get("roomId"))));
   const roomId = s(formData.get("roomId"));
   const serviceId = s(formData.get("serviceId"));
   if (!roomId) return;

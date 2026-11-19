@@ -14,6 +14,48 @@ function statusFromCount(count: number): AvailabilityStatus {
   return "AVAILABLE";
 }
 
+/** Khoá advisory `home:<serviceId>` (cùng khoá với stay.ts → lockHome) cho các homestay chứa các phòng; sắp theo id. */
+async function lockHomesOfRooms(tx: Tx, roomIds: string[], extraServiceIds: string[] = []): Promise<void> {
+  const ids = [...new Set(roomIds)];
+  const sids = new Set(extraServiceIds);
+  if (ids.length) {
+    for (const r of await tx.room.findMany({ where: { id: { in: ids } }, select: { roomType: { select: { serviceId: true } } } })) {
+      sids.add(r.roomType.serviceId);
+    }
+  }
+  for (const sid of [...sids].sort()) {
+    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${"home:" + sid}))::text AS ok`;
+  }
+}
+
+/**
+ * Tuần tự hoá MỌI lần đổi trạng thái / áp-trả tồn của CÙNG một đơn, gọi đầu transaction trước khi đọc
+ * `inventoryApplied` (hai lần xác nhận song song cùng đọc false ⇒ trừ tồn 2 lần — BK-3).
+ * Thứ tự khoá CỐ ĐỊNH để không chờ vòng với Quản lý phòng (lockHome → UPDATE dòng đơn) và đội xe
+ * (lockFleet → FOR UPDATE dòng đơn):
+ *   1. advisory `booking:<id>` — chỉ các luồng đơn lấy, stay/fleet không bao giờ lấy;
+ *   2. advisory `home:<id>` của mọi homestay đơn đang/ sẽ chiếm (phòng hiện tại + `extraRoomIds` + lượt ở cũ);
+ *   3. cuối cùng mới khoá dòng đơn FOR UPDATE.
+ * Dòng đơn luôn là khoá lấy SAU CÙNG ⇒ không ai giữ dòng đơn mà đi chờ home/fleet do luồng đơn giữ.
+ * `extraRoomIds`: phòng MỚI khi sửa đơn đổi phòng (khoá trước cả homestay mới).
+ */
+export async function lockBooking(tx: Tx, id: string, extraRoomIds: string[] = []): Promise<void> {
+  await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${"booking:" + id}))::text AS ok`;
+  const b = await tx.bookingRequest.findUnique({ where: { id }, select: { roomId: true, roomIds: true, roomTypeId: true } });
+  const stays = await tx.roomStay.findMany({ where: { bookingId: id }, select: { serviceId: true } });
+  const roomIds = [...(b?.roomIds ?? []), ...(b?.roomId ? [b.roomId] : []), ...extraRoomIds];
+  const sids = stays.map((s) => s.serviceId);
+  // Đơn theo hạng (không chỉ định phòng): khoá homestay của hạng.
+  if (b?.roomTypeId && roomIds.length === 0) {
+    const t = await tx.roomType.findUnique({ where: { id: b.roomTypeId }, select: { serviceId: true } });
+    if (t) sids.push(t.serviceId);
+  }
+  // Ô lịch còn gắn đơn (ghi đè force / phòng đã đổi) cũng phải nằm trong khoá home trước khi xoá.
+  const cellRooms = await tx.roomDayStatus.findMany({ where: { bookingId: id }, select: { roomId: true }, distinct: ["roomId"] });
+  await lockHomesOfRooms(tx, [...roomIds, ...cellRooms.map((c) => c.roomId)], sids);
+  await tx.$queryRaw`SELECT id FROM "BookingRequest" WHERE id = ${id} FOR UPDATE`;
+}
+
 /**
  * Điều chỉnh tồn kho theo một yêu cầu đặt.
  * direction = -1: trừ (khi xác nhận giữ chỗ). direction = +1: cộng lại (khi huỷ/mở lại).
@@ -22,13 +64,15 @@ function statusFromCount(count: number): AvailabilityStatus {
  * LƯU Ý: số còn trống là giá trị quản trị viên tự đặt theo ngày (có thể lớn hơn
  * totalUnits/totalRooms/seatsTotal), nên KHÔNG kẹp theo tổng — chỉ không cho âm.
  * Việc trừ rồi cộng lại luôn đối xứng nên không bị vượt quá giá trị ban đầu.
+ * Mọi cộng/trừ là increment/decrement NGUYÊN TỬ (không đọc-rồi-ghi) để hai đơn xác nhận
+ * song song không ghi đè số của nhau; trừ xe/phòng có điều kiện "đủ tồn" ngay trong câu UPDATE.
  */
 export async function adjustInventory(
   tx: Tx,
   booking: BookingRequest,
   direction: 1 | -1,
 ): Promise<void> {
-  const delta = direction * booking.quantity;
+  const qty = booking.quantity;
 
   // ----- Xe cabin: theo chuyến (đi + về, pool đơn + đôi) -----
   if (booking.cabinTripId) {
@@ -39,16 +83,15 @@ export async function adjustInventory(
       (x): x is string => Boolean(x),
     );
     for (const tripId of tripIds) {
-      const trip = await tx.cabinTrip.findUnique({ where: { id: tripId } });
-      if (!trip) continue;
       // Lịch cabin LUÔN CÒN CHỖ: số ghế chỉ để thống kê "đã đặt" — không chặn xác nhận và
       // không tự đổi trạng thái (SOLD_OUT = admin đánh dấu HẾT VÉ, chỉ admin bật/tắt).
       // Cho phép âm (đặt vượt tổng chỗ khai báo) để trừ/cộng luôn đối xứng khi huỷ.
-      await tx.cabinTrip.update({
-        where: { id: trip.id },
+      // updateMany: chuyến đã bị xoá ⇒ count 0, bỏ qua như trước.
+      await tx.cabinTrip.updateMany({
+        where: { id: tripId },
         data: {
-          seatsAvailable: trip.seatsAvailable + direction * nSingle,
-          seatsDoubleAvailable: trip.seatsDoubleAvailable + direction * nDouble,
+          seatsAvailable: { increment: direction * nSingle },
+          seatsDoubleAvailable: { increment: direction * nDouble },
         },
       });
     }
@@ -59,43 +102,46 @@ export async function adjustInventory(
   if (booking.rentalVehicleId) {
     // Nhà xe dùng ĐỘI XE THẬT (quản lý xe) ⇒ tồn tính theo xe rảnh, không trừ lịch tồn nhập tay nữa.
     if (booking.serviceId && (await fleetWebServices([booking.serviceId], tx)).length > 0) return;
+    const rentalVehicleId = booking.rentalVehicleId;
     const end = booking.endDate ?? booking.useDate;
     const days = enumerateDays(booking.useDate, end);
     for (const date of days) {
-      const row = await tx.rentalAvailability.findUnique({
-        where: { rentalVehicleId_date: { rentalVehicleId: booking.rentalVehicleId, date } },
-      });
-      if (!row) continue; // ngày chưa cập nhật -> bỏ qua
+      const key = { rentalVehicleId_date: { rentalVehicleId, date } };
       // Trừ xe: phải đủ xe thật — kẹp âm thầm sẽ làm lệch tồn khi huỷ (cộng lại dư).
-      if (direction === -1 && row.availableUnits < booking.quantity) {
-        throw new Error(`Ngày ${dmy(date)} chỉ còn ${row.availableUnits} xe — không đủ ${booking.quantity} xe để xác nhận.`);
-      }
-      const next = Math.max(0, row.availableUnits + delta);
-      await tx.rentalAvailability.update({
-        where: { id: row.id },
-        data: { availableUnits: next, status: statusFromCount(next) },
+      const res = await tx.rentalAvailability.updateMany({
+        where: { rentalVehicleId, date, ...(direction === -1 ? { availableUnits: { gte: qty } } : {}) },
+        data: { availableUnits: direction === -1 ? { decrement: qty } : { increment: qty } },
       });
+      if (res.count === 0) {
+        const row = await tx.rentalAvailability.findUnique({ where: key });
+        if (!row) continue; // ngày chưa cập nhật -> bỏ qua
+        throw new Error(`Ngày ${dmy(date)} chỉ còn ${row.availableUnits} xe — không đủ ${qty} xe để xác nhận.`);
+      }
+      // Dòng đã bị khoá bởi UPDATE trên ⇒ đọc lại số mới để suy tình trạng là nhất quán.
+      const row = await tx.rentalAvailability.findUnique({ where: key });
+      if (row) await tx.rentalAvailability.update({ where: { id: row.id }, data: { status: statusFromCount(row.availableUnits) } });
     }
     return;
   }
 
   // ----- Homestay / Bungalow: theo từng đêm -----
   if (booking.roomTypeId) {
+    const roomTypeId = booking.roomTypeId;
     const checkout = booking.endDate ?? addDays(booking.useDate, 1);
     const nights = enumerateNights(booking.useDate, checkout);
     for (const date of nights) {
-      const row = await tx.roomAvailability.findUnique({
-        where: { roomTypeId_date: { roomTypeId: booking.roomTypeId, date } },
+      const key = { roomTypeId_date: { roomTypeId, date } };
+      const res = await tx.roomAvailability.updateMany({
+        where: { roomTypeId, date, ...(direction === -1 ? { availableRooms: { gte: qty } } : {}) },
+        data: { availableRooms: direction === -1 ? { decrement: qty } : { increment: qty } },
       });
-      if (!row) continue;
-      if (direction === -1 && row.availableRooms < booking.quantity) {
-        throw new Error(`Đêm ${dmy(date)} chỉ còn ${row.availableRooms} phòng — không đủ ${booking.quantity} phòng để xác nhận.`);
+      if (res.count === 0) {
+        const row = await tx.roomAvailability.findUnique({ where: key });
+        if (!row) continue;
+        throw new Error(`Đêm ${dmy(date)} chỉ còn ${row.availableRooms} phòng — không đủ ${qty} phòng để xác nhận.`);
       }
-      const next = Math.max(0, row.availableRooms + delta);
-      await tx.roomAvailability.update({
-        where: { id: row.id },
-        data: { availableRooms: next, status: statusFromCount(next) },
-      });
+      const row = await tx.roomAvailability.findUnique({ where: key });
+      if (row) await tx.roomAvailability.update({ where: { id: row.id }, data: { status: statusFromCount(row.availableRooms) } });
     }
   }
 }
@@ -175,6 +221,8 @@ export async function assignRoomsForBooking(
     // Trả phòng: xoá các ô gắn với đơn này, rồi tính lại số trống.
     const rows = await tx.roomDayStatus.findMany({ where: { bookingId: booking.id } });
     if (rows.length === 0) return;
+    // Khoá home TRƯỚC khi xoá ô (như nhánh giữ chỗ): không giữ khoá dòng ô rồi mới chờ lockHome.
+    await lockHomesOfRooms(tx, rows.map((r) => r.roomId));
     await tx.roomDayStatus.deleteMany({ where: { bookingId: booking.id } });
     const uniqueDates = Array.from(
       new Map(rows.map((r) => [toDateKey(r.date), r.date])).values(),
@@ -206,15 +254,7 @@ export async function assignRoomsForBooking(
   // Khoá cùng khoá `home:<serviceId>` của Quản lý phòng (stay.ts → lockHome) để sàn chốt đơn
   // không chen đúng lúc chủ tạo lượt ở (cả hai cùng thấy trống rồi ghi đè ô của nhau).
   // Sắp xếp theo id để nhiều homestay luôn khoá cùng thứ tự, tránh deadlock.
-  const homeIds = (
-    await tx.roomType.findMany({
-      where: { id: { in: [...new Set(rooms.map((r) => r.roomTypeId))] } },
-      select: { serviceId: true },
-    })
-  ).map((t) => t.serviceId);
-  for (const sid of [...new Set(homeIds)].sort()) {
-    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${"home:" + sid}))::text AS ok`;
-  }
+  await lockHomesOfRooms(tx, rooms.map((r) => r.id));
   const assigned: string[] = [];
   for (const room of rooms) {
     if (assigned.length >= need) break;

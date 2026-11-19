@@ -7,7 +7,8 @@ import {
   loadTicketData, moveSeat, patchSession, patchVenueConfig, payOrder, saveLayout, scanStats, scanTicket, sendTicketEmail, setTableStatus, ticketOwnerOf,
   toggleSeatLock, unpayOrder,
 } from "@/lib/ticket";
-import { TIME_RE, type VenueKind } from "@/lib/ticket-core";
+import { pushToAdmins, pushToUsers } from "@/lib/push";
+import { REVIEW_LABEL, TIME_RE, VENUE_KINDS, asReview, type VenueKind } from "@/lib/ticket-core";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -21,12 +22,24 @@ const int = (v: unknown) => {
 const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 const PAY: Record<string, string> = { cash: "Tiền mặt", qr: "Chuyển khoản" };
 
+/** Địa điểm còn thiếu gì để gửi duyệt (null = đủ). */
+async function venueLacks(venueId: string, kind: VenueKind): Promise<string | null> {
+  const [tiers, tables] = await Promise.all([
+    prisma.ticketTier.count({ where: { venueId, active: true } }),
+    prisma.ticketTable.count({ where: { venueId, active: true } }),
+  ]);
+  if (kind === "RESTAURANT" && !tables) return "Thêm ít nhất một bàn trước khi gửi duyệt.";
+  if (kind !== "RESTAURANT" && !tiers) return "Thêm ít nhất một hạng vé trước khi gửi duyệt.";
+  return null;
+}
+
 /**
  * Vé & đặt bàn (admin / chủ địa điểm / nhân viên soát vé) — theo mẫu "Ban ve - Quan tri".
  * Mọi thao tác trả lại toàn bộ dữ liệu địa điểm để giao diện thay state một lần (riêng `scan` chỉ trả kết quả quét).
  * op: scan | createVenue | saveVenue | deleteVenue | saveTier | deleteTier | saveMenu | deleteMenu | saveTable | deleteTable |
  *     saveLayout | savePolicy | createSessions | setQuota | setPause | deleteSession | gateSell | showSell | seatLock | moveSeat |
- *     tableHold | confirm | paid | unpaid | cancel | tableStatus | reload
+ *     tableHold | confirm | paid | unpaid | cancel | tableStatus | reload |
+ *     submitReview | withdrawReview (chủ gửi / rút yêu cầu duyệt) | approveVenue | rejectVenue (admin duyệt địa điểm đối tác tự tạo)
  */
 export async function POST(request: Request) {
   let session = await getSession();
@@ -46,26 +59,34 @@ export async function POST(request: Request) {
   const owner = await ticketOwnerOf(session);
   if (!session || !owner) return bad("Không có quyền.", 403);
   // Bản demo: thử mọi thao tác vận hành, trừ đổi thông tin / mở bán địa điểm (địa điểm demo luôn ẩn với khách thật).
-  if (session.role === "DEMO" && ["createVenue", "saveVenue", "deleteVenue"].includes(op)) return bad("Bản demo không đổi được thông tin địa điểm. Các thao tác bán vé, đặt bàn, thực đơn… vẫn thử được.", 403);
+  if (session.role === "DEMO" && ["createVenue", "saveVenue", "deleteVenue", "submitReview", "withdrawReview", "approveVenue", "rejectVenue"].includes(op)) return bad("Bản demo không đổi được thông tin địa điểm. Các thao tác bán vé, đặt bàn, thực đơn… vẫn thử được.", 403);
   const who = session.name || session.username;
 
   try {
     // ---- Soát vé: nhân viên cũng dùng được; không cần chọn địa điểm ----
     if (op === "scan") {
       if (venueId && !(await canManageVenue(session, venueId))) return bad("Không có quyền.", 403);
-      const result = await scanTicket(owner, who, str(body.code, 300), { venueId: venueId || undefined, deliver: body.deliver === true });
+      const result = await scanTicket(owner, who, str(body.code, 300), { venueId: venueId || undefined, sessionId: str(body.sessionId, 40) || undefined, deliver: body.deliver === true });
       return NextResponse.json({ result, stats: await scanStats(owner, venueId || undefined) });
     }
     if (session.role === "STAFF") return bad("Tài khoản nhân viên chỉ dùng được trang soát vé.", 403);
 
     if (op === "createVenue") {
-      if (session.role !== "ADMIN") return bad("Chỉ quản trị viên tạo được địa điểm bán vé.", 403);
+      // Admin tạo cho bất kỳ chủ nào (đã duyệt sẵn). Đối tác (PROVIDER) tự tạo cho mình ⇒ bản nháp, phải gửi admin duyệt mới mở bán.
+      if (session.role !== "ADMIN" && session.role !== "PROVIDER") return bad("Tài khoản này không tạo được địa điểm.", 403);
       const kind = str(body.kind, 12) as VenueKind;
       if (!["GATE", "SHOW", "RESTAURANT"].includes(kind)) return bad("Loại địa điểm không hợp lệ.");
-      const ownerId = str(body.ownerId, 40) || null;
-      if (ownerId && !(await prisma.adminUser.findFirst({ where: { id: ownerId, role: "PROVIDER" } }))) return bad("Chủ địa điểm không hợp lệ.");
-      const id = await createVenue({ kind, name: str(body.name, 100), ownerId, placeId: str(body.placeId, 40) || null });
-      return NextResponse.json({ ...(await loadTicketData(id)), message: "Đã tạo địa điểm." });
+      let ownerId: string | null;
+      if (session.role === "ADMIN") {
+        ownerId = str(body.ownerId, 40) || null;
+        if (ownerId && !(await prisma.adminUser.findFirst({ where: { id: ownerId, role: "PROVIDER" } }))) return bad("Chủ địa điểm không hợp lệ.");
+      } else {
+        ownerId = session.sub;
+        const open = await prisma.ticketVenue.count({ where: { ownerId, review: { not: "approved" } } });
+        if (open >= 10) return bad("Bạn đang có 10 địa điểm chưa được duyệt — hoàn thiện / xoá bớt rồi tạo thêm.");
+      }
+      const id = await createVenue({ kind, name: str(body.name, 100), ownerId, placeId: str(body.placeId, 40) || null, review: session.role === "ADMIN" ? "approved" : "draft" });
+      return NextResponse.json({ ...(await loadTicketData(id)), message: session.role === "ADMIN" ? "Đã tạo địa điểm." : "Đã tạo bản nháp — thiết lập xong bấm “Gửi duyệt”." });
     }
 
     const venue = await canManageVenue(session, venueId);
@@ -84,7 +105,16 @@ export async function POST(request: Request) {
       case "saveVenue": {
         const name = str(body.name, 100);
         if (name.length < 2) return bad("Nhập tên địa điểm.");
-        const data: Record<string, unknown> = { name, area: str(body.area, 80) || null, description: str(body.description, 2000) || null, published: body.published === true };
+        const data: Record<string, unknown> = { name, area: str(body.area, 80) || null, description: str(body.description, 2000) || null };
+        // Bật / tắt mở bán: địa điểm đã duyệt thì chủ tự bật tắt; chưa duyệt thì chỉ đi qua Gửi duyệt → admin Duyệt.
+        // Admin bật mở bán = duyệt luôn.
+        if ("published" in body) {
+          const want = body.published === true;
+          if (session.role === "ADMIN") {
+            data.published = want;
+            if (want && venue.review !== "approved") Object.assign(data, { review: "approved", reviewNote: null });
+          } else if (venue.review === "approved") data.published = want;
+        }
         if ("placeId" in body) {
           const placeId = str(body.placeId, 40) || null;
           if (placeId && !(await prisma.place.findUnique({ where: { id: placeId }, select: { id: true } }))) return bad("Quán ở danh mục không tồn tại.");
@@ -112,8 +142,41 @@ export async function POST(request: Request) {
         if (Object.keys(cfg).length) await patchVenueConfig(venueId, cfg);
         return done("Đã lưu thông tin địa điểm.");
       }
+      // ===================== DUYỆT ĐỊA ĐIỂM =====================
+      case "submitReview": {
+        if (venue.review === "approved") return bad("Địa điểm đã được duyệt — bật “Hiển thị & mở bán” là xong.");
+        if (venue.review === "pending") return bad("Đã gửi duyệt, đang chờ quản trị viên.");
+        const lack = await venueLacks(venueId, venue.kind as VenueKind);
+        if (lack) return bad(lack);
+        await prisma.ticketVenue.update({ where: { id: venueId }, data: { review: "pending", published: true, submittedAt: new Date(), reviewNote: null } });
+        await pushToAdmins({ title: "Địa điểm chờ duyệt", body: `${VENUE_KINDS[venue.kind as VenueKind]} · ${venue.name}`, url: `/admin/provider/ve?tab=setup&venue=${venueId}`, tag: `venue-review-${venueId}` }).catch(() => 0);
+        return done("Đã gửi duyệt. Quản trị viên duyệt xong địa điểm sẽ tự hiện ở trang Vé & đặt bàn.");
+      }
+      case "withdrawReview": {
+        if (venue.review !== "pending") return bad("Địa điểm không ở trạng thái chờ duyệt.");
+        await prisma.ticketVenue.update({ where: { id: venueId }, data: { review: "draft", published: false } });
+        return done("Đã rút lại yêu cầu duyệt.");
+      }
+      case "approveVenue":
+      case "rejectVenue": {
+        if (session.role !== "ADMIN") return bad("Chỉ quản trị viên duyệt được địa điểm.", 403);
+        const ok = op === "approveVenue";
+        const note = str(body.note, 300);
+        if (!ok && note.length < 3) return bad("Nhập lý do từ chối để đối tác sửa.");
+        await prisma.ticketVenue.update({ where: { id: venueId }, data: ok ? { review: "approved", published: true, reviewNote: null } : { review: "rejected", published: false, reviewNote: note } });
+        if (venue.ownerId) {
+          await pushToUsers([venue.ownerId], {
+            title: ok ? "Địa điểm đã được duyệt" : "Địa điểm chưa được duyệt",
+            body: ok ? `${venue.name} đã mở bán trên Tà Xùa Booking.` : `${venue.name}: ${note}`,
+            url: `/admin/provider/ve?tab=setup&venue=${venueId}`, tag: `venue-review-${venueId}`,
+          }).catch(() => 0);
+        }
+        return done(ok ? "Đã duyệt — địa điểm đang hiện ở trang Vé & đặt bàn." : `Đã từ chối (${REVIEW_LABEL[asReview("rejected")]}).`);
+      }
+
       case "deleteVenue": {
-        if (session.role !== "ADMIN") return bad("Chỉ quản trị viên xoá được địa điểm.", 403);
+        // Đối tác xoá được bản nháp / bị từ chối / đang chờ duyệt của mình; địa điểm đã duyệt chỉ admin xoá.
+        if (session.role !== "ADMIN" && venue.review === "approved") return bad("Địa điểm đã duyệt — liên hệ quản trị viên để xoá, hoặc tắt “Hiển thị & mở bán”.", 403);
         if (await prisma.ticketOrder.count({ where: { venueId } })) return bad("Địa điểm đã có đơn — bỏ 'Hiển thị trên web' thay vì xoá.");
         await prisma.ticketVenue.delete({ where: { id: venueId } });
         return NextResponse.json({ deleted: true, message: "Đã xoá địa điểm." });
@@ -250,11 +313,12 @@ export async function POST(request: Request) {
       // ===================== ĐƠN =====================
       case "confirm":
         await confirmOrder(venueId, orderId);
-        void sendTicketEmail(orderId, "confirmed");
+        // Phiên demo không gửi thư (sendTicketEmail cũng tự bỏ qua địa điểm chưa mở bán).
+        if (session.role !== "DEMO") void sendTicketEmail(orderId, "confirmed");
         return done(venue.kind === "RESTAURANT" ? "Đã xác nhận bàn." : "Đã xác nhận — vé đã phát.");
       case "paid":
         await payOrder(venueId, orderId, PAY[str(body.pay, 6)] ?? "Chuyển khoản");
-        void sendTicketEmail(orderId, "confirmed");
+        if (session.role !== "DEMO") void sendTicketEmail(orderId, "confirmed");
         return done(venue.kind === "RESTAURANT" ? "Đã ghi thu cọc." : "Đã thu tiền — vé đã phát.");
       case "unpaid":
         await unpayOrder(venueId, orderId);

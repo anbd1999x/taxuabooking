@@ -2,11 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
-import { DINE_CATS, DINE_LATE_MIN, DINE_MAX_IMAGES, ago, hm, money, orderQty, tableState, type DineData, type DineMenuVM, type DineOrderVM, type DineStatus, type TableState } from "@/lib/dine-core";
+import { DINE_CATS, DINE_DESC_MAX, DINE_FEE_PRESETS, DINE_LATE_MIN, DINE_MAX_IMAGES, isFee, ago, hm, money, orderQty, tableState, type DineData, type DineMenuVM, type DineOrderVM, type DineStatus, type TableState } from "@/lib/dine-core";
+import { BANKS, bankName, vietQrPayload } from "@/lib/ticket-core";
 import { showToast } from "@/components/admin/Toast";
+import { usePublishTabs } from "@/components/admin/module-tabs";
 import { Empty, G, Head, MUTED, O, RED, VenuePick, h, printHtml, short, useWidth, type Ctx } from "./ui";
 
-type Sub = "live" | "tables" | "menu" | "qr";
+type Sub = "live" | "tables" | "menu" | "qr" | "pay";
+const SUBS: [Sub, string][] = [["live", "Order trực tiếp"], ["tables", "Sơ đồ bàn & thu tiền"], ["menu", "Thực đơn"], ["qr", "Bàn & mã QR"], ["pay", "Thanh toán"]];
 const BLUE = "oklch(0.55 0.13 250)";
 const SS: Record<string, [string, string]> = { new: ["Đã gửi bếp", "oklch(0.48 0.14 55)"], cooking: ["Bếp đang làm", "oklch(0.42 0.12 250)"], served: ["Đã lên món", "oklch(0.36 0.1 155)"] };
 /** [nhãn, nền, viền, chữ] */
@@ -57,20 +60,27 @@ export function DineTab({ ctx }: { ctx: Ctx }) {
   const [payMethod, setPayMethod] = useState("Tiền mặt");
   const [busy, setBusy] = useState(false);
   const [qrs, setQrs] = useState<Record<string, string>>({});
-  const [nm, setNm] = useState({ name: "", group: DINE_CATS[0], price: "" });
+  const [nm, setNm] = useState({ name: "", group: DINE_CATS[0], price: "", desc: "" });
   const [ntZone, setNtZone] = useState("");
   /** Bàn vừa "Đổi mã QR" — làm nổi thẻ mới để in lại. */
   const [rotated, setRotated] = useState<string | null>(null);
 
   const take = useCallback((data: DineData) => {
-    const ids = [...data.orders.filter((o) => o.status === "new").map((o) => o.id), ...data.reqs.map((r) => r.id)];
+    const cx = (id: string) => "x:" + id; // khoá "đã thấy" của lần khách huỷ
+    const ck = (r: { id: string; claim: { at: number } | null }) => `c:${r.id}:${r.claim?.at}`; // khoá "đã thấy" của lần khách báo đã CK
+    const ids = [...data.orders.filter((o) => o.status === "new").map((o) => o.id), ...data.reqs.map((r) => r.id), ...data.reqs.filter((r) => r.claim).map(ck), ...data.guestCancels.map((c) => cx(c.id))];
     const seen = SEEN.get(data.venue.id);
     if (seen) {
       const freshO = data.orders.filter((o) => o.status === "new" && !seen.has(o.id)).pop();
       const freshR = data.reqs.filter((r) => !seen.has(r.id)).pop();
-      if (freshO) setNotice({ id: freshO.id, title: `Bàn ${freshO.table} vừa gọi ${orderQty(freshO)} món`, sub: freshO.items.map((i) => `${i.qty}× ${i.name}`).join(", ") });
+      const freshC = data.guestCancels.find((c) => !seen.has(cx(c.id)));
+      const freshK = data.reqs.find((r) => r.claim && !seen.has(ck(r)));
+      // Khách huỷ báo trước tiên: bếp cần biết để KHÔNG làm món đó.
+      if (freshC) setNotice({ id: cx(freshC.id), title: `Bàn ${freshC.table} đã HUỶ lần gọi ${freshC.qty} món`, sub: `Khách tự huỷ trên điện thoại · ${freshC.summary}` });
+      else if (freshK && freshK.claim) setNotice({ id: freshK.id, title: `Bàn ${freshK.table} báo đã chuyển khoản ${money(freshK.claim.amount)}`, sub: freshK.claim.proof ? "Có ảnh bill — mở hoá đơn để xem và xác thực" : "Không kèm ảnh — kiểm tra tài khoản rồi xác thực" });
+      else if (freshO) setNotice({ id: freshO.id, title: `Bàn ${freshO.table} vừa gọi ${orderQty(freshO)} món`, sub: freshO.items.map((i) => `${i.qty}× ${i.name}`).join(", ") });
       else if (freshR) setNotice({ id: freshR.id, title: freshR.kind === "pay" ? `Bàn ${freshR.table} muốn thanh toán` : `Bàn ${freshR.table} gọi nhân viên`, sub: freshR.kind === "pay" ? freshR.method : "Khách bấm nút trên điện thoại" });
-      if (freshO || freshR) beep();
+      if (freshO || freshR || freshC || freshK) beep();
     }
     SEEN.set(data.venue.id, new Set(ids));
     setD(data);
@@ -130,6 +140,10 @@ export function DineTab({ ctx }: { ctx: Ctx }) {
   const zones = useMemo(() => [...new Set((d?.tables ?? []).map((t) => t.zone))], [d]);
   const groups = useMemo(() => [...new Set([...(d?.menu ?? []).map((m) => m.group).filter(Boolean), ...DINE_CATS])], [d]);
 
+  // Mục của Gọi món QR = mục con cấp 2 dưới "Gọi món QR" ở menu trái (không còn thanh tab ngang).
+  const liveBadge = d ? d.orders.filter((o) => o.status === "new").length + d.reqs.length : 0;
+  usePublishTabs(SUBS.map(([key, label]) => ({ key, label, badge: key === "live" ? liveBadge : 0 })), sub, (k) => setSub(k as Sub), "qr");
+
   const head = <Head title={`${ctx.data.venue.name} · gọi món QR`} note="Khách quét mã ở bàn để gọi món, quán nhận đơn trực tiếp ở đây" right={<VenuePick ctx={ctx} />} />;
   if (!d) return <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>{head}<Empty>Đang tải…</Empty></div>;
 
@@ -186,7 +200,6 @@ export function DineTab({ ctx }: { ctx: Ctx }) {
     );
   };
   const COL: [DineStatus, string, string, string][] = [["new", "Đơn mới", O, "oklch(0.97 0.03 75)"], ["cooking", "Bếp đang làm", BLUE, "oklch(0.97 0.015 250)"], ["served", "Đã lên món", "oklch(0.55 0.12 155)", "oklch(0.97 0.015 155)"]];
-  const subTabs: [Sub, string, number][] = [["live", "Order trực tiếp", count("new") + d.reqs.length], ["tables", "Sơ đồ bàn & thu tiền", 0], ["menu", "Thực đơn", 0], ["qr", "Bàn & mã QR", 0]];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -200,14 +213,6 @@ export function DineTab({ ctx }: { ctx: Ctx }) {
               Đang nhận order trực tiếp
             </span>
             <span style={{ fontSize: 13, color: MUTED, whiteSpace: "nowrap" }}>{new Date(now).toLocaleTimeString("vi-VN")}</span>
-          </div>
-          <div style={{ display: "flex", gap: 4, padding: 3, borderRadius: 12, background: "oklch(0.95 0.006 160)", overflowX: "auto", maxWidth: "100%" }}>
-            {subTabs.map(([k, name, badge]) => (
-              <div key={k} onClick={() => setSub(k)} style={{ cursor: "pointer", flex: "none", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 800, padding: "8px 12px", borderRadius: 9, whiteSpace: "nowrap", background: sub === k ? "white" : "transparent", color: sub === k ? G : "oklch(0.42 0.02 160)", boxShadow: sub === k ? "0 1px 4px oklch(0.2 0.03 160 / .15)" : "none" }}>
-                {name}
-                {badge > 0 && <span style={{ fontSize: 11, fontWeight: 800, padding: "1px 7px", borderRadius: 999, background: O, color: "white" }}>{badge}</span>}
-              </div>
-            ))}
           </div>
         </div>
 
@@ -226,6 +231,17 @@ export function DineTab({ ctx }: { ctx: Ctx }) {
           {/* ---------- ORDER TRỰC TIẾP ---------- */}
           {sub === "live" && (
             <>
+              {d.guestCancels.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: "10px 12px", borderRadius: 14, background: "oklch(0.97 0.025 28)", border: "1px solid oklch(0.88 0.06 28)" }}>
+                  <b style={{ fontSize: 13, color: "oklch(0.48 0.17 28)" }}>Khách vừa huỷ (10 phút qua) — bếp không làm các món này</b>
+                  {d.guestCancels.map((c) => (
+                    <div key={c.id} style={{ fontSize: 13, display: "flex", gap: 8, justifyContent: "space-between", flexWrap: "wrap" }}>
+                      <span><b>Bàn {c.table}</b> · {c.summary}</span>
+                      <span style={{ color: MUTED, whiteSpace: "nowrap" }}>huỷ lúc {hm(c.at)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,130px),1fr))", gap: 8 }}>
                 {([["Bàn có khách", `${d.tables.filter((t) => byT(t.id).length).length}/${d.tables.length}`, G], ["Đơn mới", count("new"), O], ["Đang làm", count("cooking"), BLUE], ["Chờ thanh toán", d.reqs.filter((r) => r.kind === "pay").length, BLUE], ["Doanh thu hôm nay", short(d.revenueToday), "oklch(0.55 0.12 155)"]] as const).map(([k, v, c]) => (
                   <div key={k} style={{ padding: "10px 14px", borderRadius: 14, background: "oklch(0.975 0.006 160)" }}>
@@ -238,14 +254,15 @@ export function DineTab({ ctx }: { ctx: Ctx }) {
                 <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                   {d.reqs.map((r) => {
                     const pay = r.kind === "pay";
+                    const cl = pay ? r.claim : null;
                     return (
-                      <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 14, background: pay ? "oklch(0.96 0.04 250)" : "oklch(0.97 0.04 75)", border: `1.5px solid ${pay ? "oklch(0.8 0.08 250)" : "oklch(0.85 0.08 70)"}`, animation: "dnUp .3s ease both" }}>
+                      <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 14, background: cl ? "oklch(0.95 0.05 155)" : pay ? "oklch(0.96 0.04 250)" : "oklch(0.97 0.04 75)", border: `1.5px solid ${cl ? "oklch(0.75 0.1 155)" : pay ? "oklch(0.8 0.08 250)" : "oklch(0.85 0.08 70)"}`, animation: "dnUp .3s ease both" }}>
                         <span style={{ flex: "none", minWidth: 44, textAlign: "center", padding: "6px 4px", borderRadius: 10, background: "white", fontSize: 14, fontWeight: 800 }}>{r.table}</span>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 14, fontWeight: 800 }}>{pay ? `Yêu cầu thanh toán · ${r.method}` : "Gọi nhân viên"}</div>
+                          <div style={{ fontSize: 14, fontWeight: 800 }}>{cl ? `Khách báo ĐÃ chuyển khoản ${money(cl.amount)}${cl.proof ? " · có ảnh bill" : ""}` : pay ? `Yêu cầu thanh toán · ${r.method}` : "Gọi nhân viên"}</div>
                           <div style={{ fontSize: 12, color: "oklch(0.45 0.02 160)" }}>{ago(now, r.at)} trước{r.tableId ? ` · tạm tính ${money(sumT(r.tableId))}` : ""}</div>
                         </div>
-                        <button type="button" disabled={busy} onClick={() => { if (pay && r.tableId) { setSub("tables"); setSel(r.tableId); setPayMethod(r.method || "Tiền mặt"); } else void call("reqDone", { id: r.id }); if (notice?.id === r.id) setNotice(null); }} style={{ cursor: "pointer", fontSize: 12, fontWeight: 800, padding: "8px 12px", borderRadius: 999, background: G, color: "white", whiteSpace: "nowrap", border: "none", fontFamily: "inherit" }}>{pay ? "Mở hoá đơn" : "Đã tới bàn"}</button>
+                        <button type="button" disabled={busy} onClick={() => { if (pay && r.tableId) { setSub("tables"); setSel(r.tableId); setPayMethod(r.method || "Tiền mặt"); } else void call("reqDone", { id: r.id }); if (notice?.id === r.id) setNotice(null); }} style={{ cursor: "pointer", fontSize: 12, fontWeight: 800, padding: "8px 12px", borderRadius: 999, background: G, color: "white", whiteSpace: "nowrap", border: "none", fontFamily: "inherit" }}>{cl ? "Xem bill · xác thực" : pay ? "Mở hoá đơn" : "Đã tới bàn"}</button>
                       </div>
                     );
                   })}
@@ -253,7 +270,7 @@ export function DineTab({ ctx }: { ctx: Ctx }) {
               )}
               <div style={{ display: "grid", gridTemplateColumns: inner >= 800 ? "repeat(3,minmax(0,1fr))" : "1fr", gap: 10, alignItems: "start" }}>
                 {COL.map(([k, name, c, bg]) => {
-                  const all = d.orders.filter((o) => o.status === k);
+                  const all = d.orders.filter((o) => o.status === k && !isFee(o));
                   const list = k === "served" ? all.slice().sort((a, b) => (b.servedAt ?? b.at) - (a.servedAt ?? a.at)).slice(0, 6) : all;
                   return (
                     <div key={k} style={{ display: "flex", flexDirection: "column", gap: 8, padding: 10, borderRadius: 18, background: bg, minHeight: 180 }}>
@@ -305,10 +322,19 @@ export function DineTab({ ctx }: { ctx: Ctx }) {
                 ) : (() => {
                   const os = byT(selT.id);
                   const agg = new Map<string, { name: string; qty: number; price: number; st: string }>();
-                  for (const o of os) for (const i of o.items) {
+                  for (const o of os) if (!isFee(o)) for (const i of o.items) {
                     const k = `${i.name}|${i.price}|${o.status}`;
                     agg.set(k, { name: i.name, price: i.price, st: o.status, qty: (agg.get(k)?.qty ?? 0) + i.qty });
                   }
+                  const fees = os.filter(isFee);
+                  const total = sumT(selT.id);
+                  const payReq = d.reqs.find((r) => r.tableId === selT.id && r.kind === "pay");
+                  const claim = payReq?.claim ?? null;
+                  const confirmPay = async (method: string) => {
+                    // Gửi kèm các lần gọi đang thấy: bàn vừa gọi thêm thì server từ chối, nạp lại để xem tổng mới.
+                    if (await call("pay", { tableId: selT.id, method, orderIds: os.map((o) => o.id) })) setSel(null);
+                    else void call("load");
+                  };
                   return (
                     <>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -322,10 +348,39 @@ export function DineTab({ ctx }: { ctx: Ctx }) {
                           <b style={{ whiteSpace: "nowrap" }}>{money(r.qty * r.price)}</b>
                         </div>
                       ))}
+                      {fees.map((o) => (
+                        <div key={o.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: 14, padding: "4px 0", borderBottom: "1px dashed oklch(0.92 0.01 160)" }}>
+                          <span><span style={{ fontSize: 11, fontWeight: 800, padding: "2px 7px", borderRadius: 999, background: "oklch(0.95 0.04 75)", color: "oklch(0.48 0.12 55)" }}>Phụ thu</span> {o.items[0]?.name}</span>
+                          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <b style={{ whiteSpace: "nowrap" }}>{money(o.total)}</b>
+                            <span onClick={() => !busy && window.confirm(`Bỏ phụ thu "${o.items[0]?.name}"?`) && call("feeRemove", { id: o.id })} title="Bỏ phụ thu" style={{ cursor: "pointer", fontSize: 13, fontWeight: 800, color: RED }}>×</span>
+                          </span>
+                        </div>
+                      ))}
+                      {os.some((o) => !isFee(o)) && <FeeForm busy={busy} onAdd={(reason, amount) => call("feeAdd", { tableId: selT.id, reason, amount })} />}
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", paddingTop: 6 }}>
                         <span style={{ fontWeight: 800 }}>Tổng</span>
-                        <span style={{ fontSize: 24, fontWeight: 800, color: "oklch(0.58 0.17 45)" }}>{money(sumT(selT.id))}</span>
+                        <span style={{ fontSize: 24, fontWeight: 800, color: "oklch(0.58 0.17 45)" }}>{money(total)}</span>
                       </div>
+                      {/* Khách báo đã chuyển khoản: xem bill rồi xác thực (thu tiền, đóng bàn) hoặc báo chưa nhận được. */}
+                      {claim && payReq && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 12, borderRadius: 14, background: "oklch(0.96 0.04 155)", border: "1.5px solid oklch(0.78 0.09 155)" }}>
+                          <b style={{ fontSize: 14, color: "oklch(0.32 0.09 155)" }}>Khách báo đã chuyển khoản {money(claim.amount)} · {hm(claim.at)}</b>
+                          {claim.amount !== total && <div style={{ fontSize: 12, fontWeight: 800, color: "oklch(0.52 0.17 40)" }}>Lệch với hoá đơn hiện tại ({money(total)}) — hoá đơn đổi sau khi khách chuyển. Kiểm tra số tiền thực nhận.</div>}
+                          {claim.proof ? (
+                            <a href={claim.proof} target="_blank" rel="noreferrer" title="Mở ảnh bill cỡ lớn">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={claim.proof} alt="Ảnh bill chuyển khoản của khách" style={{ display: "block", width: "100%", maxHeight: 320, objectFit: "contain", borderRadius: 10, background: "white", border: "1px solid oklch(0.88 0.03 155)" }} />
+                            </a>
+                          ) : (
+                            <div style={{ fontSize: 12, color: MUTED }}>Khách không kèm ảnh bill — kiểm tra biến động số dư tài khoản (nội dung “BAN {selT.name}”).</div>
+                          )}
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+                            <button type="button" disabled={busy} onClick={() => { const note = window.prompt("Báo khách lý do (khách sẽ thấy để kiểm tra):", "Quán chưa thấy tiền về tài khoản"); if (note !== null) void call("claimReject", { id: payReq.id, note }); }} style={{ cursor: "pointer", fontSize: 13, fontWeight: 800, padding: 11, borderRadius: 999, border: "1.5px solid oklch(0.85 0.08 28)", color: "oklch(0.5 0.18 28)", background: "white", fontFamily: "inherit" }}>Chưa nhận được tiền</button>
+                            <button type="button" disabled={busy} onClick={() => window.confirm(`Đã nhận đủ ${money(total)} chuyển khoản của bàn ${selT.name}? Hoá đơn sẽ đóng, bàn trống lại.`) && void confirmPay("Chuyển khoản")} style={{ cursor: "pointer", fontSize: 13, fontWeight: 800, padding: 11, borderRadius: 999, background: "oklch(0.5 0.13 155)", color: "white", border: "none", fontFamily: "inherit" }}>Xác thực · hoàn thành</button>
+                          </div>
+                        </div>
+                      )}
                       {os.length > 0 && (
                         <>
                           {os.some((o) => o.status !== "served") && <div style={{ fontSize: 12, fontWeight: 700, color: "oklch(0.48 0.14 55)" }}>Còn món chưa lên — thu tiền sẽ đóng luôn các lần gọi này.</div>}
@@ -334,11 +389,7 @@ export function DineTab({ ctx }: { ctx: Ctx }) {
                           </div>
                           <div style={{ display: "grid", gridTemplateColumns: "auto 1fr", gap: 6 }}>
                             <button type="button" onClick={printBill} style={{ cursor: "pointer", fontSize: 13, fontWeight: 800, padding: "12px 14px", borderRadius: 999, border: "1.5px solid oklch(0.88 0.015 160)", background: "white", fontFamily: "inherit" }}>In hoá đơn</button>
-                            <button type="button" disabled={busy} onClick={async () => {
-                              // Gửi kèm các lần gọi đang thấy: bàn vừa gọi thêm thì server từ chối, nạp lại để xem tổng mới.
-                              if (await call("pay", { tableId: selT.id, method: payMethod, orderIds: os.map((o) => o.id) })) setSel(null);
-                              else void call("load");
-                            }} style={{ cursor: "pointer", textAlign: "center", fontSize: 14, fontWeight: 800, padding: 12, borderRadius: 999, background: O, color: "white", border: "none", fontFamily: "inherit" }}>Đã thu · dọn bàn</button>
+                            <button type="button" disabled={busy} onClick={() => void confirmPay(payMethod)} style={{ cursor: "pointer", textAlign: "center", fontSize: 14, fontWeight: 800, padding: 12, borderRadius: 999, background: O, color: "white", border: "none", fontFamily: "inherit" }}>Đã thu · dọn bàn</button>
                           </div>
                         </>
                       )}
@@ -352,17 +403,28 @@ export function DineTab({ ctx }: { ctx: Ctx }) {
           {/* ---------- THỰC ĐƠN ---------- */}
           {sub === "menu" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ fontSize: 13, color: MUTED }}>Đổi giá, bật hết món là điện thoại khách cập nhật ngay. Bấm ô ảnh để tải ảnh món.</div>
-              {d.menu.map((m) => <MenuRow key={m.id} m={m} wide={inner >= 640} busy={busy} venueId={venueId} call={call} />)}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,150px),1fr))", gap: 6, padding: 12, borderRadius: 14, background: "oklch(0.975 0.008 155)" }}>
-                <input value={nm.name} onChange={(e) => setNm({ ...nm, name: e.target.value })} placeholder="Tên món mới" style={inp} />
-                <input value={nm.group} list="dn-groups" onChange={(e) => setNm({ ...nm, group: e.target.value })} placeholder="Nhóm món" style={inp} />
-                <datalist id="dn-groups">{groups.map((g) => <option key={g} value={g} />)}</datalist>
-                <input value={nm.price ? Number(nm.price).toLocaleString("vi-VN") : ""} onChange={(e) => setNm({ ...nm, price: e.target.value.replace(/\D/g, "") })} inputMode="numeric" placeholder="Giá" style={inp} />
-                <button type="button" disabled={busy} onClick={async () => (await call("menuAdd", nm)) && setNm({ ...nm, name: "", price: "" })} style={{ cursor: "pointer", textAlign: "center", fontSize: 14, fontWeight: 800, padding: 10, borderRadius: 10, background: G, color: "white", border: "none", fontFamily: "inherit" }}>+ Thêm món</button>
+              {/* Thêm món — nằm TRÊN CÙNG */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 12, borderRadius: 14, background: "oklch(0.975 0.008 155)", border: "1px solid oklch(0.92 0.02 155)" }}>
+                <div style={{ fontSize: 14, fontWeight: 800 }}>+ Thêm món mới</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,150px),1fr))", gap: 6 }}>
+                  <input value={nm.name} onChange={(e) => setNm({ ...nm, name: e.target.value })} placeholder="Tên món" style={inp} />
+                  <input value={nm.group} list="dn-groups" onChange={(e) => setNm({ ...nm, group: e.target.value })} placeholder="Nhóm món" style={inp} />
+                  <datalist id="dn-groups">{groups.map((g) => <option key={g} value={g} />)}</datalist>
+                  <input value={nm.price ? Number(nm.price).toLocaleString("vi-VN") : ""} onChange={(e) => setNm({ ...nm, price: e.target.value.replace(/\D/g, "") })} inputMode="numeric" placeholder="Giá" style={inp} />
+                </div>
+                <textarea value={nm.desc} maxLength={DINE_DESC_MAX} rows={3} onChange={(e) => setNm({ ...nm, desc: e.target.value })} placeholder="Mô tả chi tiết món: nguyên liệu, khẩu phần (VD: nồi 3–4 người), độ cay, cách chế biến…" style={{ ...inp, resize: "vertical", lineHeight: 1.45 }} />
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 12, color: MUTED }}>{nm.desc.length}/{DINE_DESC_MAX} ký tự · thêm xong bấm ô ảnh của món để tải ảnh</span>
+                  <button type="button" disabled={busy} onClick={async () => (await call("menuAdd", nm)) && setNm({ ...nm, name: "", price: "", desc: "" })} style={{ cursor: "pointer", textAlign: "center", fontSize: 14, fontWeight: 800, padding: "10px 18px", borderRadius: 10, background: G, color: "white", border: "none", fontFamily: "inherit" }}>+ Thêm món</button>
+                </div>
               </div>
+              <div style={{ fontSize: 13, color: MUTED }}>Đổi giá, mô tả, bật hết món là điện thoại khách cập nhật ngay. Bấm ô ảnh để tải ảnh món.</div>
+              {d.menu.map((m) => <MenuRow key={m.id} m={m} wide={inner >= 640} busy={busy} venueId={venueId} call={call} />)}
             </div>
           )}
+
+          {/* ---------- THANH TOÁN (tài khoản chuyển khoản) ---------- */}
+          {sub === "pay" && <BankSetup key={d.venue.bankBin + "|" + d.venue.bankAcc} d={d} busy={busy} call={call} />}
 
           {/* ---------- BÀN & MÃ QR ---------- */}
           {sub === "qr" && (
@@ -460,8 +522,8 @@ function MenuRow({ m, wide, busy, venueId, call }: { m: DineMenuVM; wide: boolea
       </label>
       <div style={{ minWidth: 0 }}>
         <div style={{ fontSize: 14, fontWeight: 800 }}>{m.name}</div>
-        <div style={{ fontSize: 12, color: MUTED }}>{m.group || "Chưa có nhóm"} · đã bán {m.sold}</div>
-        <input value={desc} maxLength={160} onChange={(e) => setDesc(e.target.value)} onBlur={() => desc !== m.desc && call("menuPatch", { id: m.id, desc })} placeholder="Mô tả ngắn (VD: nồi 3–4 người)" style={{ width: "100%", fontSize: 12, padding: "4px 6px", marginTop: 3, borderRadius: 7, border: "1px solid oklch(0.92 0.01 160)", fontFamily: "inherit", color: "oklch(0.35 0.02 160)" }} />
+        <div style={{ fontSize: 12, color: MUTED }}>{m.group || "Chưa có nhóm"} · đã bán {m.sold} (30 ngày)</div>
+        <textarea value={desc} maxLength={DINE_DESC_MAX} rows={desc.length > 70 ? 3 : 2} onChange={(e) => setDesc(e.target.value)} onBlur={() => desc !== m.desc && call("menuPatch", { id: m.id, desc })} placeholder="Mô tả chi tiết món (nguyên liệu, khẩu phần, độ cay…)" style={{ width: "100%", fontSize: 12, lineHeight: 1.4, padding: "4px 6px", marginTop: 3, borderRadius: 7, border: "1px solid oklch(0.92 0.01 160)", fontFamily: "inherit", color: "oklch(0.35 0.02 160)", resize: "vertical" }} />
       </div>
       <input value={Number(price || 0).toLocaleString("vi-VN")} inputMode="numeric" onChange={(e) => setPrice(e.target.value.replace(/\D/g, ""))} onBlur={() => Number(price) !== m.price && call("menuPatch", { id: m.id, price })} style={{ ...inp, fontWeight: 800, textAlign: "right", padding: "8px 10px" }} />
       <div style={{ display: "flex", gap: 4, justifyContent: "flex-end", gridColumn: wide ? "auto" : "1 / -1", alignItems: "center" }}>
@@ -488,6 +550,92 @@ function MenuRow({ m, wide, busy, venueId, call }: { m: DineMenuVM; wide: boolea
           <span style={{ fontSize: 11, color: MUTED }}>{m.images.length}/{DINE_MAX_IMAGES} ảnh · bấm ảnh để đặt làm bìa</span>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Thêm PHỤ THU vào hoá đơn bàn: lý do (chọn nhanh / tự gõ) + số tiền. */
+function FeeForm({ busy, onAdd }: { busy: boolean; onAdd: (reason: string, amount: number) => Promise<boolean> }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [amount, setAmount] = useState("");
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} style={{ cursor: "pointer", alignSelf: "flex-start", fontSize: 12, fontWeight: 800, padding: "6px 12px", borderRadius: 999, border: "1.5px dashed oklch(0.8 0.06 70)", color: "oklch(0.48 0.12 55)", background: "white", fontFamily: "inherit" }}>+ Thêm phụ thu</button>
+    );
+  }
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, padding: 10, borderRadius: 12, background: "oklch(0.975 0.02 75)" }}>
+      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+        {DINE_FEE_PRESETS.map((p) => (
+          <span key={p} onClick={() => setReason(p)} style={{ cursor: "pointer", fontSize: 11, fontWeight: 800, padding: "4px 9px", borderRadius: 999, background: reason === p ? O : "white", color: reason === p ? "white" : "oklch(0.42 0.04 60)", border: "1px solid oklch(0.88 0.04 70)" }}>{p}</span>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 110px", gap: 6 }}>
+        <input value={reason} maxLength={60} onChange={(e) => setReason(e.target.value)} placeholder="Lý do phụ thu" style={{ ...inp, padding: 8, fontSize: 13 }} />
+        <input value={amount ? Number(amount).toLocaleString("vi-VN") : ""} inputMode="numeric" onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))} placeholder="Số tiền" style={{ ...inp, padding: 8, fontSize: 13, textAlign: "right", fontWeight: 800 }} />
+      </div>
+      <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+        <button type="button" onClick={() => setOpen(false)} style={{ cursor: "pointer", fontSize: 12, fontWeight: 800, padding: "7px 12px", borderRadius: 999, border: "1px solid oklch(0.88 0.015 160)", background: "white", fontFamily: "inherit" }}>Đóng</button>
+        <button type="button" disabled={busy} onClick={async () => { if (await onAdd(reason, Number(amount))) { setReason(""); setAmount(""); setOpen(false); } }} style={{ cursor: "pointer", fontSize: 12, fontWeight: 800, padding: "7px 14px", borderRadius: 999, background: G, color: "white", border: "none", fontFamily: "inherit" }}>Cộng vào hoá đơn</button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Cấu hình CHUYỂN KHOẢN của quán: ngân hàng (mã BIN chuẩn VietQR), số tài khoản, chủ tài khoản. Khách chọn "Chuyển khoản QR"
+ * sẽ thấy mã VietQR đã kèm đúng số tiền hoá đơn (quét là ra số tiền), nội dung "BAN <tên bàn>". Có mã xem trước để thử quét.
+ */
+function BankSetup({ d, busy, call }: { d: DineData; busy: boolean; call: (op: string, payload?: Record<string, unknown>) => Promise<boolean> }) {
+  const [bin, setBin] = useState(d.venue.bankBin || BANKS[0][0]);
+  const [acc, setAcc] = useState(d.venue.bankAcc);
+  const [holder, setHolder] = useState(d.venue.bankHolder);
+  const [preview, setPreview] = useState("");
+  const on = !!(d.venue.bankBin && d.venue.bankAcc);
+  const sampleText = acc.trim().length >= 4 ? vietQrPayload({ bin, account: acc.trim(), amount: 100000, memo: "BAN THU" }) : "";
+  useEffect(() => {
+    let off = false;
+    if (sampleText) QRCode.toDataURL(sampleText, { margin: 1, width: 200 }).then((u) => !off && setPreview(u), () => {});
+    return () => {
+      off = true;
+    };
+  }, [sampleText]);
+  const lab: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 4, fontSize: 12, fontWeight: 700, color: MUTED };
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,300px),1fr))", gap: 16, alignItems: "start" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <b style={{ fontSize: 16 }}>Nhận chuyển khoản qua mã VietQR</b>
+          <span style={{ fontSize: 11, fontWeight: 800, padding: "3px 9px", borderRadius: 999, background: on ? "oklch(0.94 0.05 155)" : "oklch(0.95 0.006 160)", color: on ? "oklch(0.36 0.1 155)" : MUTED }}>{on ? `Đang bật · ${bankName(d.venue.bankBin)}` : "Chưa bật"}</span>
+        </div>
+        <div style={{ fontSize: 13, color: MUTED, lineHeight: 1.55 }}>
+          Khách bấm “Yêu cầu thanh toán → Chuyển khoản QR” sẽ thấy mã QR đã điền sẵn <b>đúng số tiền hoá đơn</b> (kể cả phụ thu) và nội dung “BAN &lt;tên bàn&gt;”. Chuyển xong khách gửi ảnh bill, quán xem rồi bấm <b>Xác thực</b>.
+        </div>
+        <label style={lab}>Ngân hàng
+          <select value={bin} onChange={(e) => setBin(e.target.value)} style={inp}>
+            {BANKS.map(([b, name]) => <option key={b} value={b}>{name}</option>)}
+          </select>
+        </label>
+        <label style={lab}>Số tài khoản
+          <input value={acc} inputMode="numeric" maxLength={19} onChange={(e) => setAcc(e.target.value.replace(/[^0-9A-Za-z]/g, ""))} placeholder="VD: 0123456789" style={{ ...inp, fontFamily: "ui-monospace,monospace", fontWeight: 800 }} />
+        </label>
+        <label style={lab}>Tên chủ tài khoản (không dấu, như trên app ngân hàng)
+          <input value={holder} maxLength={50} onChange={(e) => setHolder(e.target.value.toUpperCase())} placeholder="NGUYEN VAN A" style={inp} />
+        </label>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button type="button" disabled={busy} onClick={() => void call("bank", { bin, acc, holder })} style={{ cursor: "pointer", fontSize: 14, fontWeight: 800, padding: "11px 18px", borderRadius: 999, background: G, color: "white", border: "none", fontFamily: "inherit" }}>Lưu tài khoản</button>
+          {on && (
+            <button type="button" disabled={busy} onClick={() => { if (window.confirm("Tắt nhận chuyển khoản? Khách sẽ chỉ còn trả tiền mặt.")) void call("bank", { bin, acc: "", holder: "" }); }} style={{ cursor: "pointer", fontSize: 13, fontWeight: 800, padding: "11px 16px", borderRadius: 999, border: "1.5px solid oklch(0.85 0.08 28)", color: "oklch(0.5 0.18 28)", background: "white", fontFamily: "inherit" }}>Tắt chuyển khoản</button>
+          )}
+        </div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: 16, borderRadius: 18, background: "oklch(0.975 0.006 160)" }}>
+        <b style={{ fontSize: 14 }}>Mã xem trước (100.000đ)</b>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {sampleText && preview ? <img src={preview} alt="Mã VietQR xem trước" width={180} height={180} style={{ borderRadius: 10, background: "white" }} /> : <div style={{ width: 180, height: 180, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", fontSize: 12, color: MUTED, borderRadius: 10, border: "1.5px dashed oklch(0.86 0.02 160)" }}>Nhập số tài khoản để xem mã</div>}
+        <div style={{ fontSize: 12, color: MUTED, textAlign: "center", lineHeight: 1.5 }}>Quét thử bằng app ngân hàng: phải ra đúng tên chủ tài khoản và số tiền 100.000đ. Không cần chuyển thật.</div>
+      </div>
     </div>
   );
 }

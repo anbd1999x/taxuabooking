@@ -10,8 +10,7 @@ import { DemoNav } from "./DemoNav";
  */
 export function DemoShell({ module, title, note, children }: { module: DemoModule; title: string; note?: string; children: React.ReactNode }) {
   return (
-    // --fleet-sticky-top: thanh tab của FleetManager dính sát mép trên (trang demo không có header dính).
-    <div className="admin-ui flex min-h-screen flex-col bg-cloud lg:flex-row" style={{ ["--fleet-sticky-top" as string]: "0px", fontFamily: "var(--font-be-vietnam), 'Be Vietnam Pro', system-ui, sans-serif", color: "oklch(0.22 0.03 160)" }}>
+    <div className="admin-ui flex min-h-screen flex-col bg-cloud lg:flex-row" style={{ fontFamily: "var(--font-be-vietnam), 'Be Vietnam Pro', system-ui, sans-serif", color: "oklch(0.22 0.03 160)" }}>
       {/* Trang nằm ngoài layout (site) ⇒ tự gắn bộ ghi lượt xem (PageView kèm IP, xem ở /admin/visits). */}
       <VisitTracker />
       <DemoNav exitHref={`/hop-tac/demo?m=${module}&exit=1`} resetHref={`/hop-tac/demo?m=${module}&reset=1`} />

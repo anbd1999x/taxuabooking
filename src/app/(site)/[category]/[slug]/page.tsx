@@ -4,16 +4,16 @@ import ServiceDetailSkeleton from "@/components/skeletons/ServiceDetailSkeleton"
 import { ogBlock } from "@/lib/og";
 import { unstable_cache } from "next/cache";
 import Link from "@/components/Link";
-import { notFound, redirect } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import Image from "next/image";
 import { getServiceDetail, getSettings, getHomestayCards, getTransportPoints, transportPricing } from "@/lib/queries";
-import { CATEGORIES } from "@/lib/constants";
+import { CATEGORIES, serviceCatSlug } from "@/lib/constants";
 import { formatPrice, toNumber } from "@/lib/format";
 import { SITE } from "@/lib/site";
 import { AgentNote } from "@/components/AgentNote";
 import { prisma } from "@/lib/prisma";
 import { roomPricing, roomListPrice, roomListDaysOfWeek, isRoomPriceOnRequest } from "@/lib/availability";
-import { today, toDateKey, addDays } from "@/lib/dates";
+import { today, toDateKey, addDays, isValidDateKey, nightsBetween, parseDateOnly } from "@/lib/dates";
 import { getHolidays } from "@/lib/holidays-server";
 import { holidayKeysBetween } from "@/lib/holidays";
 import { BookingPanel } from "@/components/BookingPanel";
@@ -25,7 +25,8 @@ import { buildDirectionOptions, getCabinFareOptions } from "@/lib/cabin";
 import { CabinRoutes } from "@/components/CabinRoutes";
 import { Gallery } from "@/components/Gallery";
 import { Badge } from "@/components/ui/Badge";
-import { getT, lp, tLong } from "@/lib/i18n/server";
+import { getLocale, getT, lp, tLong } from "@/lib/i18n/server";
+import { localePath, type Locale } from "@/lib/i18n/config";
 import { i18nAlternates, i18nOg } from "@/lib/i18n/meta";
 import { renderMarkdown } from "@/lib/markdown";
 
@@ -55,6 +56,22 @@ const expandMapsUrl = unstable_cache(
   { revalidate: 86400 },
 );
 
+/** Slug danh mục chuẩn của dịch vụ: BUNGALOW đã gộp vào homestay ⇒ dùng /homestay (tránh vòng lặp với route /bungalow). */
+const catSlugOf = serviceCatSlug;
+
+/** Ảnh JSON-LD: chỉ nối domain khi URL tương đối. */
+const absUrl = (u: string) => (/^https?:\/\//i.test(u) ? u : `${SITE.url}${u.startsWith("/") ? "" : "/"}${u}`);
+
+/** URL trang chủ theo ngôn ngữ (vi giữ nguyên SITE.url). */
+const homeUrlOf = (locale: Locale) => (locale === "vi" ? SITE.url : `${SITE.url}${localePath("/", locale)}`);
+
+/** Ngày từ URL: chỉ nhận yyyy-mm-dd hợp lệ trong [hôm nay, +1 năm] — input xấu ⇒ null (không 500 / cache rác). */
+function cleanDateKey(v: string | string[] | undefined): string | null {
+  if (typeof v !== "string" || !isValidDateKey(v)) return null;
+  const d = nightsBetween(today(), parseDateOnly(v));
+  return d >= 0 && d <= 366 ? v : null;
+}
+
 export async function generateMetadata({
   params,
 }: {
@@ -64,7 +81,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const service = await getServiceDetail(slug);
   if (!service) return {};
-  const cat = CATEGORIES[service.category];
+  const catSlug = catSlugOf(service.category);
   const cover = service.images.find((i) => i.isCover)?.url ?? service.images[0]?.url;
   // Tiêu đề tìm kiếm: tên + loại dịch vụ + "Tà Xùa" (tên trần như "Nhà bên suối" không nói lên trang bán gì).
   const t = tr(service.title.trim());
@@ -87,8 +104,8 @@ export async function generateMetadata({
   return {
     title,
     description,
-    alternates: await i18nAlternates(`/${cat.slug}/${service.slug}`),
-    openGraph: await i18nOg({ title, description, path: `/${cat.slug}/${service.slug}`, image: cover, alt: tr(service.title) }),
+    alternates: await i18nAlternates(`/${catSlug}/${service.slug}`),
+    openGraph: await i18nOg({ title, description, path: `/${catSlug}/${service.slug}`, image: cover, alt: tr(service.title) }),
   };
 }
 
@@ -106,8 +123,9 @@ export default async function ServiceDetailPage(props: PageProps) {
   const { category, slug } = await props.params;
   const service = await getServiceDetail(slug);
   if (!service) notFound();
-  const cat = CATEGORIES[service.category];
-  if (category !== cat.slug) redirect(await lp(`/${cat.slug}/${service.slug}`));
+  const catSlug = catSlugOf(service.category);
+  // Sai danh mục ⇒ 308 về URL chuẩn (giữ tín hiệu SEO).
+  if (category !== catSlug) permanentRedirect(await lp(`/${catSlug}/${service.slug}`));
   return (
     <Suspense fallback={<ServiceDetailSkeleton />}>
       <ServiceDetailBody {...props} />
@@ -132,9 +150,11 @@ async function ServiceDetailBody({
   if (!service) notFound();
   const transportPoints = CATEGORIES[service.category]?.availabilityKind === "transport" ? await getTransportPoints() : [];
 
-  const cat = CATEGORIES[service.category];
-  // Chuẩn hoá URL: nếu sai danh mục, chuyển về URL đúng (tốt cho SEO).
-  if (category !== cat.slug) redirect(await lp(`/${cat.slug}/${service.slug}`));
+  // BUNGALOW đã gộp vào homestay: nhãn danh mục (breadcrumb, badge) khớp URL /homestay.
+  const cat = CATEGORIES[service.category === "BUNGALOW" ? "HOMESTAY" : service.category];
+  const catSlug = catSlugOf(service.category);
+  // Chuẩn hoá URL: nếu sai danh mục, chuyển hẳn (308) về URL đúng (tốt cho SEO).
+  if (category !== catSlug) permanentRedirect(await lp(`/${catSlug}/${service.slug}`));
 
   // Đơn đặt do Tà Xùa Booking gọi xác nhận → dùng số nền tảng (settings), không dùng số riêng của cơ sở.
   const phone = settings.contactPhone || SITE.defaultPhone;
@@ -214,8 +234,8 @@ async function ServiceDetailBody({
     const mapQuery = `${service.title} ${service.area ?? "Tà Xùa, Bắc Yên, Sơn La"}`;
     // Link chia sẻ rút gọn (maps.app.goo.gl / goo.gl) không chứa toạ độ → mở
     // redirect phía server để lấy URL đầy đủ (có @lat,lng) cho bản đồ đúng vị trí.
-    const fromQ = typeof sp.from === "string" ? sp.from : null;
-    const toQ = typeof sp.to === "string" ? sp.to : null;
+    const fromQ = cleanDateKey(sp.from);
+    const toQ = cleanDateKey(sp.to);
     const [resolvedMapUrl, homestayCards] = await Promise.all([
       expandMapsUrl(service.mapUrl),
       getHomestayCards(fromQ, toQ),
@@ -227,17 +247,19 @@ async function ServiceDetailBody({
 
     // JSON-LD cho Google: cơ sở lưu trú + breadcrumb.
     const roomPrices = rooms.map((r) => r.base).filter((n) => n > 0);
-    const pageUrl = `${SITE.url}/${cat.slug}/${service.slug}`;
+    // URL theo ngôn ngữ đang xem (en/zh/ko có tiền tố) + tên/tóm tắt đã dịch.
+    const locale = await getLocale();
+    const pageUrl = `${SITE.url}${localePath(`/${catSlug}/${service.slug}`, locale)}`;
     const stayJsonLd = {
       "@context": "https://schema.org",
       "@graph": [
         {
           "@type": "LodgingBusiness",
           "@id": `${pageUrl}#lodging`,
-          name: service.title,
-          description: service.summary,
+          name: tr(service.title),
+          description: await tLong(service.summary),
           url: pageUrl,
-          image: service.images.slice(0, 5).map((i) => `${SITE.url}${i.url}`),
+          image: service.images.slice(0, 5).map((i) => absUrl(i.url)),
           // KHÔNG gắn số điện thoại của Tà Xùa Booking vào cơ sở lưu trú (Google coi là mạo danh chủ homestay).
           // Đại lý đặt chỗ khai riêng ở `potentialAction.provider`.
           potentialAction: {
@@ -258,9 +280,9 @@ async function ServiceDetailBody({
         {
           "@type": "BreadcrumbList",
           itemListElement: [
-            { "@type": "ListItem", position: 1, name: tr("Trang chủ"), item: SITE.url },
-            { "@type": "ListItem", position: 2, name: cat.shortLabel, item: `${SITE.url}/${cat.slug}` },
-            { "@type": "ListItem", position: 3, name: service.title, item: pageUrl },
+            { "@type": "ListItem", position: 1, name: tr("Trang chủ"), item: homeUrlOf(locale) },
+            { "@type": "ListItem", position: 2, name: tr(cat.shortLabel), item: `${SITE.url}${localePath(`/${catSlug}`, locale)}` },
+            { "@type": "ListItem", position: 3, name: tr(service.title), item: pageUrl },
           ],
         },
       ],
@@ -278,7 +300,7 @@ async function ServiceDetailBody({
         <nav className="mb-4 text-sm text-gray-500">
           <Link href="/" className="hover:text-forest-700">{tr("Trang chủ")}</Link>
           <span className="mx-2">/</span>
-          <Link href={`/${cat.slug}`} className="hover:text-forest-700">{tr(cat.shortLabel)}</Link>
+          <Link href={`/${catSlug}`} className="hover:text-forest-700">{tr(cat.shortLabel)}</Link>
           <span className="mx-2">/</span>
           <span className="text-gray-700">{tr(service.title)}</span>
         </nav>
@@ -292,8 +314,8 @@ async function ServiceDetailBody({
           holidayKeys={holidayKeys}
           startKey={toDateKey(start)}
           numDays={NUM_DAYS}
-          initialCheckIn={typeof sp.from === "string" ? sp.from : null}
-          initialCheckOut={typeof sp.to === "string" ? sp.to : null}
+          initialCheckIn={fromQ}
+          initialCheckOut={toQ}
           phone={phone}
           zalo={zalo}
           area={service.area}
@@ -337,14 +359,14 @@ async function ServiceDetailBody({
             </div>
           }
         />
-        <ServiceReviews serviceId={service.id} path={`/${cat.slug}/${service.slug}`} />
+        <ServiceReviews serviceId={service.id} path={`/${catSlug}/${service.slug}`} />
       </div>
     );
   }
 
   // Xe cabin: dựng dải ngày chiều đi (và chiều về nếu có ngày về) cho widget đặt vé.
-  const fromKey = typeof sp.from === "string" ? sp.from : null;
-  const toKey = typeof sp.to === "string" ? sp.to : null;
+  const fromKey = cleanDateKey(sp.from);
+  const toKey = cleanDateKey(sp.to);
   const cabinOutbound =
     service.category === "CABIN" ? await buildDirectionOptions(service.id, "OUTBOUND", fromKey) : null;
   const cabinReturn =
@@ -358,7 +380,9 @@ async function ServiceDetailBody({
       : null;
 
   // JSON-LD cho Google: dịch vụ (nhà xe, thuê xe…) + breadcrumb.
-  const svcUrl = `${SITE.url}/${cat.slug}/${service.slug}`;
+  // URL theo ngôn ngữ đang xem (en/zh/ko có tiền tố) + tên/tóm tắt đã dịch.
+  const locale = await getLocale();
+  const svcUrl = `${SITE.url}${localePath(`/${catSlug}/${service.slug}`, locale)}`;
   const svcPrice = Number(service.basePrice ?? 0);
   const svcJsonLd = {
     "@context": "https://schema.org",
@@ -366,11 +390,11 @@ async function ServiceDetailBody({
       {
         "@type": "Service",
         "@id": `${svcUrl}#service`,
-        name: service.title,
-        serviceType: cat.label,
-        description: service.summary,
+        name: tr(service.title),
+        serviceType: tr(cat.label),
+        description: await tLong(service.summary),
         url: svcUrl,
-        image: service.images.slice(0, 5).map((i) => `${SITE.url}${i.url}`),
+        image: service.images.slice(0, 5).map((i) => absUrl(i.url)),
         areaServed: tr("Tà Xùa, Sơn La"),
         provider: { "@type": "TravelAgency", name: SITE.name, url: SITE.url, telephone: phone.replace(/\s/g, "") },
         ...(svcPrice > 0 ? { offers: { "@type": "Offer", price: svcPrice, priceCurrency: "VND", url: svcUrl, availability: "https://schema.org/InStock" } } : {}),
@@ -378,9 +402,9 @@ async function ServiceDetailBody({
       {
         "@type": "BreadcrumbList",
         itemListElement: [
-          { "@type": "ListItem", position: 1, name: tr("Trang chủ"), item: SITE.url },
-          { "@type": "ListItem", position: 2, name: cat.shortLabel, item: `${SITE.url}/${cat.slug}` },
-          { "@type": "ListItem", position: 3, name: service.title, item: svcUrl },
+          { "@type": "ListItem", position: 1, name: tr("Trang chủ"), item: homeUrlOf(locale) },
+          { "@type": "ListItem", position: 2, name: tr(cat.shortLabel), item: `${SITE.url}${localePath(`/${catSlug}`, locale)}` },
+          { "@type": "ListItem", position: 3, name: tr(service.title), item: svcUrl },
         ],
       },
     ],
@@ -392,7 +416,7 @@ async function ServiceDetailBody({
       <nav className="mb-4 text-sm text-gray-500">
         <Link href="/" className="hover:text-forest-700">{tr("Trang chủ")}</Link>
         <span className="mx-2">/</span>
-        <Link href={`/${cat.slug}`} className="hover:text-forest-700">{tr(cat.shortLabel)}</Link>
+        <Link href={`/${catSlug}`} className="hover:text-forest-700">{tr(cat.shortLabel)}</Link>
         <span className="mx-2">/</span>
         <span className="text-gray-700">{tr(service.title)}</span>
       </nav>
@@ -528,7 +552,7 @@ async function ServiceDetailBody({
                         {r.rooms.map((room) => (
                           <Link
                             key={room.id}
-                            href={`/${cat.slug}/${service.slug}/phong/${room.id}`}
+                            href={`/${catSlug}/${service.slug}/phong/${room.id}`}
                             className="rounded-lg bg-forest-50 px-3 py-1.5 text-sm font-medium text-forest-700 transition hover:bg-forest-100"
                           >
                             {tr(room.name)} ·{" "}
@@ -746,7 +770,7 @@ async function ServiceDetailBody({
           )}
         </div>
       </div>
-      <ServiceReviews serviceId={service.id} path={`/${cat.slug}/${service.slug}`} />
+      <ServiceReviews serviceId={service.id} path={`/${catSlug}/${service.slug}`} />
     </div>
   );
 }

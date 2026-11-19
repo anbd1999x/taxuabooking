@@ -1,7 +1,7 @@
 import { dmy } from "@/lib/date-format";
 import "server-only";
 import { prisma } from "./prisma";
-import { parseDateOnly, toDateKey, addDays, enumerateNights, today } from "./dates";
+import { parseDateOnly, toDateKey, addDays, enumerateNights, today, nightsBetween, isValidDateKey } from "./dates";
 import { toNumber } from "./format";
 import { roomPricing, priceForDay, stayStrike, roomCommissionForNights } from "./availability";
 import { generateBookingCode } from "./utils";
@@ -711,10 +711,14 @@ export async function findComboMatches(input: {
   const budget = input.budget && input.budget > 0 ? input.budget : priceMax ?? priceMin;
   const inRange = (p: number) => (priceMax == null || p <= priceMax) && (priceMin == null || p >= priceMin);
 
+  // Ngày lấy từ URL: kiểm định dạng + độ dài kỳ TRƯỚC khi liệt kê đêm (tránh lặp hàng triệu ngày).
+  if (!isValidDateKey(fromKey) || !isValidDateKey(toKey)) return null;
   const from = parseDateOnly(fromKey); // ngày đi (chiều đi)
   const to = parseDateOnly(toKey); // ngày về (chiều về) = check-out
   const checkIn = addDays(from, 1);
   const checkOut = to;
+  const span = nightsBetween(checkIn, checkOut);
+  if (span < 1 || span > 60) return null;
   const nights = enumerateNights(checkIn, checkOut);
   if (nights.length < 1) return null; // ngày về phải sau check-in ít nhất 1 đêm
   // Ngày đi đã qua / kỳ quá dài: không ghép (đặt cũng bị từ chối) — tránh hiện phương án không đặt được.
@@ -1013,9 +1017,12 @@ export async function createComboBooking(
   // Người lớn + tuổi từng trẻ. Số khách TÍNH PHÍ tính lại theo ngưỡng miễn phí của CHÍNH home này.
   const adults = Math.max(1, Math.floor(input.adults ?? input.people) || 1);
   const childrenAges = (input.childrenAges ?? []).filter((a) => Number.isFinite(a) && a >= 0);
+  if (!isValidDateKey(input.fromKey) || !isValidDateKey(input.toKey)) throw new Error("Ngày không hợp lệ.");
   const from = parseDateOnly(input.fromKey); // ngày đi
   const to = parseDateOnly(input.toKey); // ngày về = check-out
   const checkIn = addDays(from, 1);
+  // Kiểm độ dài kỳ trước khi liệt kê đêm.
+  if (nightsBetween(checkIn, to) > 60) throw new Error("Kỳ đặt tối đa 60 đêm.");
   const nights = enumerateNights(checkIn, to);
   if (nights.length < 1) throw new Error("Ngày về phải sau ngày nhận phòng ít nhất 1 đêm.");
   // Cùng quy tắc đơn homestay/cabin: không nhận ngày đã qua, kỳ tối đa 60 đêm.

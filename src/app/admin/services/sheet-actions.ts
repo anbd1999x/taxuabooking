@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAdmin } from "@/lib/auth";
+import { guard } from "@/lib/partner-access";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { isCalendarApiUrl, sheetCsvUrl, syncServiceSheet } from "@/lib/sheet-sync";
@@ -17,7 +17,7 @@ function s(v: FormDataEntryValue | null): string {
 
 /** Lưu (hoặc xoá) link Google Sheet lịch phòng của một homestay. */
 export async function saveSheetUrl(_prev: SheetActionState, formData: FormData): Promise<SheetActionState> {
-  await requireAdmin();
+  await guard(s(formData.get("serviceId")));
   const serviceId = s(formData.get("serviceId"));
   const url = s(formData.get("sheetUrl"));
   if (!serviceId) return { error: "Thiếu homestay." };
@@ -34,7 +34,7 @@ export async function saveSheetUrl(_prev: SheetActionState, formData: FormData):
 
 /** Kéo lịch phòng từ Google Sheet về ngay cho một homestay. */
 export async function syncServiceSheetNow(_prev: SheetActionState, formData: FormData): Promise<SheetActionState> {
-  await requireAdmin();
+  await guard(s(formData.get("serviceId")));
   const serviceId = s(formData.get("serviceId"));
   if (!serviceId) return { error: "Thiếu homestay." };
   const r = await syncServiceSheet(serviceId);

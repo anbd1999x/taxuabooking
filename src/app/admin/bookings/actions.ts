@@ -10,7 +10,7 @@ import { toNumber, formatPrice } from "@/lib/format";
 import { bookingStatusSchema } from "@/lib/validation";
 import { generateBookingCode, normalizeFacebookUrl } from "@/lib/utils";
 import { BOOKING_STATUS_META } from "@/lib/constants";
-import { adjustInventory, assignRoomsForBooking, statusHoldsInventory, RoomConflictError } from "@/lib/inventory";
+import { adjustInventory, assignRoomsForBooking, lockBooking, statusHoldsInventory, RoomConflictError } from "@/lib/inventory";
 import { canRoleAct, type BookingRole } from "@/lib/booking-flow";
 import { enumerateNights, isValidDateKey, parseDateOnly, toDateKey } from "@/lib/dates";
 import { parseSurcharges, type BookingSurcharge } from "@/lib/surcharges";
@@ -20,6 +20,7 @@ import { bookingMessagesById, type BookingMessages } from "@/lib/booking-message
 import { sendConfirmEmailIfDue } from "@/lib/booking-email";
 import { assignComboBikeService, syncFleetForBooking } from "@/lib/fleet";
 import { syncStaysForBooking } from "@/lib/stay";
+import { syncRoomTypeAvailability } from "@/lib/room-availability";
 import { resolveBusCommissions, resolveRoomCommissions } from "@/lib/provider-commission";
 
 export interface BookingActionState {
@@ -138,6 +139,7 @@ export async function advanceBookingStatusResult(formData: FormData): Promise<{ 
 async function advanceTx(id: string, role: BookingRole, newStatus: BookingStatus): Promise<void> {
   const by = await sessionName();
   await prisma.$transaction(async (tx) => {
+    await lockBooking(tx, id); // chống 2 lần xác nhận song song cùng trừ tồn (BK-3)
     const booking = await tx.bookingRequest.findUnique({ where: { id } });
     if (!booking) throw new Error("Không tìm thấy yêu cầu.");
     if (booking.status === newStatus) return;
@@ -251,6 +253,7 @@ export async function bulkUpdateBookingStatus(
     const force = wantForce && role === "ADMIN"; // chỉ admin được ghi đè lịch phòng
     try {
       await prisma.$transaction(async (tx) => {
+        await lockBooking(tx, id); // chống 2 lần xác nhận song song cùng trừ tồn (BK-3)
         const booking = await tx.bookingRequest.findUnique({ where: { id } });
         if (!booking || booking.status === status) return;
         // Chủ dịch vụ: chỉ được hoàn thành đơn đã thu đủ (không xác nhận/hủy hàng loạt).
@@ -336,6 +339,7 @@ export async function saveBookingStage(
 
   try {
     await prisma.$transaction(async (tx) => {
+      await lockBooking(tx, id); // chống 2 lần xác nhận song song cùng trừ tồn (BK-3)
       const booking = await tx.bookingRequest.findUnique({ where: { id } });
       if (!booking) throw new Error("Không tìm thấy yêu cầu.");
       if (booking.status === status && status !== "CANCELLED") return;
@@ -387,8 +391,7 @@ export async function saveBookingStage(
     return { error: err instanceof Error ? err.message : "Có lỗi xảy ra." };
   }
   void sendConfirmEmailIfDue(id);
-  void syncFleetForBooking(id).catch(() => {}); void syncStaysForBooking(id).catch(() => {}); // đơn xe máy: đồng bộ đội xe (huỷ ⇒ nhả xe)
-  revalidateDetail(id);
+  revalidateDetail(id); // đã gọi syncFleetForBooking + syncStaysForBooking
   return { ok: true, message: `Đã chuyển đơn sang “${BOOKING_STATUS_META[status].label}”` };
 }
 
@@ -724,8 +727,28 @@ export async function updateBookingInfo(
   const nights = isStay ? (endDate ? enumerateNights(useDate, endDate).length : 1) : b.nights;
   // Homestay (đặt theo phòng): quantity = 1 phòng, số khách nằm ở adults.
   const qtyData = isStay && b.category !== "COMBO" ? { adults: quantity } : { quantity, ...(b.adults != null ? { adults: quantity } : {}) };
-  // Cabin giữ chỗ theo seatsSingle (= số khách) — đổi số khách thì đổi theo.
-  const seatsData = b.cabinTripId && b.seatsDouble === 0 ? { seatsSingle: quantity } : {};
+  // Cabin / combo giữ chỗ theo seatsSingle (số người đi xe). CHỈ đổi khi số khách đổi, và dời theo
+  // ĐỘ CHÊNH (combo tự chọn có thể ít vé hơn khách — giữ nguyên khoảng chênh khách–vé); cập nhật luôn
+  // cabinShared/cabinSolo vì bookingBusSeats ưu tiên 2 cột này (lịch vé, tin nhắn nhà xe).
+  const seatsData: { seatsSingle?: number; cabinShared?: number; cabinSolo?: number } = {};
+  if (b.cabinTripId && b.seatsDouble === 0 && quantity !== b.quantity) {
+    const oldSeats = b.seatsSingle ?? b.quantity;
+    const newSeats = Math.max(1, oldSeats + (quantity - b.quantity));
+    seatsData.seatsSingle = newSeats;
+    if (b.cabinShared != null || b.cabinSolo != null) {
+      let shared = Math.max(0, b.cabinShared ?? 0);
+      let solo = Math.max(0, b.cabinSolo ?? 0);
+      const d = newSeats - (shared + solo);
+      if (d > 0) shared += d; // khách thêm mặc định nằm ghép (giá do admin nhập ở ô Giá)
+      else if (d < 0) {
+        const cut = Math.min(shared, -d);
+        shared -= cut;
+        solo = Math.max(0, solo - (-d - cut));
+      }
+      seatsData.cabinShared = shared;
+      seatsData.cabinSolo = solo;
+    }
+  }
   // Chiết khấu nhà xe tính theo đầu khách ⇒ đổi số khách thì quy đổi tỉ lệ theo snapshot cũ.
   const oldBusComm = toNumber(b.busCommission);
   const busCommData =
@@ -751,8 +774,11 @@ export async function updateBookingInfo(
       : {}),
   };
 
-  // Các trường đổi → nhật ký.
-  const fmtD = (d: Date | null) => (d ? dmy(d) : "—");
+  // Các trường đổi → nhật ký. So ngày bằng KHOÁ yyyy-mm-dd (form gửi key, DB là Date) — trước đây
+  // so dmy với key nên lần lưu nào cũng tính là "đổi ngày" ⇒ nhả rồi giữ lại tồn + nhật ký giả (BK-4).
+  const oldUseKey = toDateKey(b.useDate);
+  const oldEndKey = b.endDate ? toDateKey(b.endDate) : "";
+  const newEndKey = endDate ? endDateKey : "";
   const changes: string[] = [];
   const diff = (label: string, a: unknown, c: unknown) => {
     if (String(a ?? "") !== String(c ?? "")) changes.push(`${label}: ${a ?? "—"} → ${c ?? "—"}`);
@@ -760,9 +786,10 @@ export async function updateBookingInfo(
   diff("Tên", b.customerName, customerName);
   diff("SĐT", b.phone, phone);
   diff("Facebook", b.customerFacebook, customerFacebook);
-  diff("Ngày", fmtD(b.useDate), useDateKey);
-  diff("Đến ngày", fmtD(b.endDate), endDate ? endDateKey : "—");
+  diff("Ngày", dmy(oldUseKey), dmy(useDateKey));
+  diff("Đến ngày", oldEndKey ? dmy(oldEndKey) : "—", newEndKey ? dmy(newEndKey) : "—");
   diff("Số lượng", isStay && b.category !== "COMBO" ? b.adults : b.quantity, quantity);
+  if (seatsData.seatsSingle !== undefined) diff("Số người đi xe", b.seatsSingle ?? b.quantity, seatsData.seatsSingle);
   diff("Lựa chọn", b.selectionLabel, data.selectionLabel);
   diff("Ghi chú", b.note, data.note);
   diff("Giá", toNumber(b.referencePrice), data.referencePrice);
@@ -774,13 +801,20 @@ export async function updateBookingInfo(
 
   const inventoryChanged =
     b.inventoryApplied &&
-    (fmtD(b.useDate) !== useDateKey ||
-      fmtD(b.endDate) !== (endDate ? endDateKey : "—") ||
+    (oldUseKey !== useDateKey ||
+      oldEndKey !== newEndKey ||
       (!isStay && b.quantity !== quantity) ||
-      (b.cabinTripId != null && (b.seatsSingle ?? b.quantity) !== quantity));
+      (b.cabinTripId != null && seatsData.seatsSingle !== undefined && seatsData.seatsSingle !== (b.seatsSingle ?? b.quantity)));
 
   try {
     await prisma.$transaction(async (tx) => {
+      // Khoá đơn + kiểm đơn chưa bị đổi từ lúc đọc (vd vừa xác nhận / huỷ ở tab khác): `b` và
+      // `inventoryChanged` tính từ bản đọc NGOÀI transaction, lệch ⇒ trả/giữ tồn sai (BK-3).
+      await lockBooking(tx, id);
+      const cur = await tx.bookingRequest.findUnique({ where: { id }, select: { updatedAt: true } });
+      if (!cur || cur.updatedAt.getTime() !== b.updatedAt.getTime()) {
+        throw new Error("Đơn vừa được cập nhật ở nơi khác — tải lại trang rồi sửa lại.");
+      }
       if (inventoryChanged) {
         // Trả chỗ theo thông tin CŨ…
         if (b.roomTypeId) await assignRoomsForBooking(tx, b, false);
@@ -898,21 +932,80 @@ export async function duplicateBooking(formData: FormData): Promise<void> {
   redirect(`/admin/bookings/${copy.id}`);
 }
 
-/** XOÁ HẲN yêu cầu (chỉ ADMIN): trả tồn kho nếu đang giữ rồi xoá. */
-export async function deleteBooking(formData: FormData): Promise<void> {
-  const id = String(formData.get("id") ?? "");
-  const session = await getSession();
-  if (!id || session?.role !== "ADMIN") return;
-  await prisma.$transaction(async (tx) => {
+/**
+ * Xoá hẳn MỘT đơn mà không để lại chỗ giữ mồ côi (BK-1). RoomDayStatus.bookingId / RoomStay.bookingId
+ * không có FK (không cascade), FleetRental chỉ SetNull ⇒ xoá thẳng sẽ để lại ô PENDING chủ nhà giữ hộ,
+ * lượt ở còn sống trên sơ đồ phòng và lượt thuê xe thành "tạo tay" vẫn giữ xe.
+ * Cách làm: trả tồn + chuyển đơn sang Huỷ ⇒ gọi đồng bộ lượt ở / đội xe (như mọi luồng huỷ khác:
+ * huỷ lượt ở chưa nhận phòng, nhả xe chưa giao) ⇒ dọn nốt ô lịch còn gắn đơn rồi mới xoá.
+ * Bước đồng bộ lỗi ⇒ ném ra, đơn còn ở trạng thái Huỷ (không giữ gì), xoá lại sau được.
+ * Trả false nếu đơn không tồn tại. Đơn KHÔNG được xoá (ném PurgeBlocked, không đổi gì):
+ *  - đã Hoàn thành: xoá làm mất doanh thu báo cáo (sàn + Quản lý phòng) ⇒ huỷ trước hoặc giữ đơn;
+ *  - có lượt ở ĐÃ nhận phòng: huỷ lượt ở / xoá ô BOOKED của khách đang ở làm phòng hiện trống sai.
+ */
+class PurgeBlocked extends Error {}
+
+async function purgeBooking(id: string): Promise<boolean> {
+  const found = await prisma.$transaction(async (tx) => {
+    await lockBooking(tx, id); // chống 2 lần xác nhận/xoá song song cùng trả tồn (BK-3)
     const booking = await tx.bookingRequest.findUnique({ where: { id } });
-    if (!booking) return;
+    if (!booking) return false;
+    if (booking.status === "COMPLETED") {
+      throw new PurgeBlocked(`Đơn ${booking.code} đã hoàn thành — không xoá để giữ doanh thu báo cáo (huỷ trước hoặc giữ đơn).`);
+    }
+    if (await tx.roomStay.count({ where: { bookingId: id, checkedInAt: { not: null } } })) {
+      throw new PurgeBlocked(`Đơn ${booking.code} có lượt ở khách đã nhận phòng — không xoá được (giữ đơn để còn lịch phòng & doanh thu).`);
+    }
     if (booking.inventoryApplied) {
       if (booking.roomTypeId) await assignRoomsForBooking(tx, booking, false);
       if (booking.cabinTripId || booking.rentalVehicleId) await adjustInventory(tx, booking, +1);
     }
-    await tx.bookingRequest.delete({ where: { id } });
+    if (booking.status !== "CANCELLED" || booking.inventoryApplied || booking.heldRoom) {
+      await tx.bookingRequest.update({
+        where: { id },
+        data: { status: "CANCELLED", inventoryApplied: false, heldRoom: false, needsConfirmation: false },
+      });
+    }
+    return true;
   });
+  if (!found) return false;
+  await syncStaysForBooking(id);
+  await syncFleetForBooking(id);
+  await prisma.$transaction(async (tx) => {
+    await lockBooking(tx, id);
+    // Ô còn gắn đơn (kể cả PENDING, phòng nằm ngoài phạm vi đồng bộ) ⇒ xoá + tính lại tồn từng hạng/đêm.
+    const cells = await tx.roomDayStatus.findMany({
+      where: { bookingId: id },
+      select: { date: true, room: { select: { roomTypeId: true } } },
+    });
+    if (cells.length) {
+      await tx.roomDayStatus.deleteMany({ where: { bookingId: id } });
+      const pairs = new Map<string, { tid: string; date: Date }>();
+      for (const c of cells) pairs.set(`${c.room.roomTypeId}|${toDateKey(c.date)}`, { tid: c.room.roomTypeId, date: c.date });
+      for (const p of pairs.values()) await syncRoomTypeAvailability(p.tid, p.date, tx);
+    }
+    await tx.bookingRequest.deleteMany({ where: { id } });
+  });
+  return true;
+}
+
+/** XOÁ HẲN yêu cầu (chỉ ADMIN): trả tồn kho, nhả lượt ở / xe / ô lịch của đơn rồi xoá. */
+export async function deleteBooking(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "");
+  const session = await getSession();
+  if (!id || session?.role !== "ADMIN") return;
+  try {
+    await purgeBooking(id);
+  } catch (err) {
+    if (!(err instanceof PurgeBlocked)) throw err;
+    // Nút xoá là form thường (không có toast) ⇒ ghi lý do vào lịch sử đơn để admin thấy, ở lại trang đơn.
+    await log(prisma, id, "SYSTEM", "Không xoá được đơn", err.message, await sessionName());
+    revalidateDetail(id);
+    return;
+  }
   for (const p of REVALIDATE) revalidatePath(p);
+  revalidatePath("/admin/provider/phong");
+  revalidatePath("/admin/provider/xe");
   redirect("/admin/bookings");
 }
 
@@ -935,25 +1028,23 @@ export async function bulkDeleteBookings(
   if (!Array.isArray(ids) || ids.length === 0) return { error: "Dữ liệu không hợp lệ." };
 
   let done = 0;
+  const blocked: string[] = [];
   for (const id of ids.slice(0, 100).map(String)) {
     try {
-      await prisma.$transaction(async (tx) => {
-        const booking = await tx.bookingRequest.findUnique({ where: { id } });
-        if (!booking) return;
-        if (booking.inventoryApplied) {
-          if (booking.roomTypeId) await assignRoomsForBooking(tx, booking, false);
-          if (booking.cabinTripId || booking.rentalVehicleId) await adjustInventory(tx, booking, +1);
-        }
-        await tx.bookingRequest.delete({ where: { id } });
-        done++;
-      });
-    } catch {
-      /* đơn lỗi ⇒ bỏ qua, đếm theo done */
+      if (await purgeBooking(id)) done++;
+    } catch (err) {
+      if (err instanceof PurgeBlocked) blocked.push(err.message);
+      /* đơn lỗi khác ⇒ bỏ qua, đếm theo done */
     }
   }
 
-  if (done === 0) return { error: "Không xoá được đơn nào." };
+  const more = blocked.length > 5 ? `\n… và ${blocked.length - 5} đơn khác` : "";
+  const blockedNote = blocked.length ? `\n\n${blocked.slice(0, 5).join("\n")}${more}` : "";
+  if (done === 0) return { error: "Không xoá được đơn nào." + blockedNote };
+  revalidatePath("/admin/provider/phong");
+  revalidatePath("/admin/provider/xe");
   for (const p of REVALIDATE) revalidatePath(p);
+  if (blocked.length) return { ok: true, message: `Đã xoá ${done} đơn; ${blocked.length} đơn được giữ lại.` + blockedNote };
   return { ok: true, message: done === 1 ? "Đã xoá 1 đơn" : `Đã xoá ${done} đơn` };
 }
 
@@ -974,6 +1065,7 @@ export async function updateBookingStatus(
 
   try {
     await prisma.$transaction(async (tx) => {
+      await lockBooking(tx, id); // chống 2 lần xác nhận song song cùng trừ tồn (BK-3)
       const booking = await tx.bookingRequest.findUnique({ where: { id } });
       if (!booking) throw new Error("Không tìm thấy yêu cầu.");
 

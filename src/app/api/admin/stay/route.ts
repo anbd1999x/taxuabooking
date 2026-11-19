@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { getSession, hashPassword } from "@/lib/auth";
+import { getSession, hashPassword, invalidateSessionCache } from "@/lib/auth";
 import { getDemoSession } from "@/lib/fleet-demo";
 import { prisma } from "@/lib/prisma";
 import { parseDateOnly, toDateKey } from "@/lib/dates";
@@ -45,9 +45,13 @@ import {
   normPhone,
   paidOf,
   quoteStay,
+  shopHeldStay,
+  MAX_PAY,
   splitTotal,
   stayPrice,
   stayStatus,
+  moveSplitCarry,
+  moveSplitNote,
   vnNow,
   type HomeConfig,
   type StayFee,
@@ -111,22 +115,23 @@ export async function POST(request: Request) {
   const extraFee = Number(svc.extraPersonFee ?? 0);
 
   /** Lượt ở của homestay này (kèm sổ thu + thông tin đơn sàn). */
-  const ownStay = async (id: string) => {
-    const r = id ? await prisma.roomStay.findFirst({ where: { id, serviceId }, include: { payments: true } }) : null;
+  // `db` = transaction khi cần đọc lại SAU lockHome (tính tiền / ghi phí trên dữ liệu mới nhất).
+  const ownStay = async (id: string, db: Prisma.TransactionClient | typeof prisma = prisma) => {
+    const r = id ? await db.roomStay.findFirst({ where: { id, serviceId }, include: { payments: true } }) : null;
     if (!r) return null;
     const meta = r.bookingId
-      ? await prisma.bookingRequest.findUnique({ where: { id: r.bookingId }, select: { code: true, category: true, collector: true, paymentStatus: true } })
+      ? await db.bookingRequest.findUnique({ where: { id: r.bookingId }, select: { code: true, category: true, collector: true, paymentStatus: true } })
       : null;
     return { row: r, vm: stayVM(r, meta) };
   };
   /** Các lượt cùng đoàn (để chia tiền đã thu theo tỉ lệ). */
-  const groupOf = async (groupId: string | null, selfId: string) => {
+  const groupOf = async (groupId: string | null, selfId: string, db: Prisma.TransactionClient | typeof prisma = prisma) => {
     if (!groupId) return [];
-    const rows = await prisma.roomStay.findMany({ where: { serviceId, groupId, NOT: { id: selfId } }, include: { payments: true } });
+    const rows = await db.roomStay.findMany({ where: { serviceId, groupId, NOT: { id: selfId } }, include: { payments: true } });
     // Kèm thông tin đơn sàn (combo / payBlock) như loadHome — thiếu thì phòng combo bị tính cả tiền phòng ⇒ quyết toán sai (hoàn nhầm).
     const bIds = [...new Set(rows.map((r) => r.bookingId).filter((x): x is string => !!x))];
     const metas = new Map(
-      (bIds.length ? await prisma.bookingRequest.findMany({ where: { id: { in: bIds } }, select: { id: true, code: true, category: true, collector: true, paymentStatus: true } }) : []).map((b) => [b.id, b]),
+      (bIds.length ? await db.bookingRequest.findMany({ where: { id: { in: bIds } }, select: { id: true, code: true, category: true, collector: true, paymentStatus: true } }) : []).map((b) => [b.id, b]),
     );
     return rows.map((r) => stayVM(r, r.bookingId ? metas.get(r.bookingId) : null));
   };
@@ -188,12 +193,23 @@ export async function POST(request: Request) {
         const method = (PAY_METHODS as readonly string[]).includes(str(body.method, 20)) ? str(body.method, 20) : "Tiền mặt";
         let amt = int(body.amt);
         if (!amt) return bad("Nhập số tiền.");
+        if (amt > MAX_PAY) return bad(`Số tiền tối đa ${vnd(MAX_PAY)} mỗi lần ghi.`);
         if (kind === "Hoàn") amt = -amt;
         await prisma.$transaction(async (tx) => {
           await lockHome(tx, serviceId);
           // Đọc lại sau khi khoá: giữ chỗ có thể vừa bị tự nhả / lượt ở vừa trả phòng ở yêu cầu khác.
           const cur = await tx.roomStay.findUnique({ where: { id: s.row.id }, select: { state: true, checkedOutAt: true } });
           if (!cur || !isLive(cur) || cur.checkedOutAt) throw new StayError("Lượt ở đã kết thúc hoặc vừa bị nhả — tải lại trang.");
+          if (amt < 0) {
+            // Hoàn tối đa số chủ nhà đang giữ (cả đoàn, không gồm "Sàn thu hộ") — trước đây không có trần: hoàn khống
+            // tiền mặt, hoặc hoàn cả khoản sàn thu ⇒ đơn sàn về "chưa thu" dù khách đã trả cho sàn.
+            const members = await tx.roomStay.findMany({
+              where: s.row.groupId ? { serviceId, groupId: s.row.groupId } : { id: s.row.id },
+              select: { payments: { select: { amount: true, method: true } } },
+            });
+            const held = shopHeldStay(members.map((m) => ({ pays: m.payments.map((p) => ({ amt: Number(p.amount), method: p.method })) })));
+            if (-amt > held) throw new StayError(`Chỉ hoàn được tối đa ${vnd(held)} (số chủ nhà đã thu, không gồm tiền sàn thu hộ).`);
+          }
           await tx.stayPayment.create({ data: { stayId: s.row.id, amount: amt, method, kind, by: who } });
           if (!s.row.bookingId) {
             // Có cọc ⇒ bỏ hạn tự nhả, ô lịch thành "Đã đặt" (cả đoàn).
@@ -217,10 +233,56 @@ export async function POST(request: Request) {
         if (!isLive(s.row) || s.row.checkedOutAt) return bad("Lượt ở đã kết thúc.");
         if (to.id === s.row.roomId) return bad("Khách đang ở phòng này.");
         const ci = toDateKey(s.row.checkIn), co = toDateKey(s.row.checkOut);
-        const fromName = roomById.get(s.row.roomId)?.name ?? "";
+        const fromRoom = roomById.get(s.row.roomId);
+        const fromName = fromRoom?.name ?? "";
+        if (s.row.checkedInAt && co <= T) return bad("Đã tới ngày trả phòng — trả phòng hoặc gia hạn trước khi đổi phòng.");
+        // Khách ĐANG Ở (lượt chủ tạo) từ đêm trước: chỉ dời các đêm từ hôm nay — tách lượt, phần đã ở giữ ở phòng cũ.
+        // Trước đây dời cả đêm đã ở ⇒ phòng mới có khách các đêm trước thì bị chặn oan, lịch sử phòng cũ bị xoá.
+        const inHouse = !s.row.bookingId && !!s.row.checkedInAt && ci < T;
+        const hk = inHouse ? await holKeysFor(ci, co) : [];
         await prisma.$transaction(async (tx) => {
           await lockHome(tx, serviceId);
-          if (s.row.bookingId) {
+          if (inHouse) {
+            const cur = await tx.roomStay.findUnique({ where: { id: s.row.id } });
+            if (!cur || !isLive(cur) || cur.checkedOutAt || !cur.checkedInAt || cur.roomId !== s.row.roomId || toDateKey(cur.checkIn) !== ci || toDateKey(cur.checkOut) !== co)
+              throw new StayError("Lượt ở vừa thay đổi — tải lại trang.");
+            await assertRoomsFree(tx, [to], T, co, { stayId: cur.id });
+            const status = (await tx.roomDayStatus.findFirst({ where: { stayId: cur.id }, select: { status: true } }))?.status === "PENDING" ? "PENDING" : "BOOKED";
+            // Tiền phòng giữ nguyên TỔNG (đổi phòng không đổi giá đã chốt). Phần đêm đã ở theo giá đêm phòng cũ, nhưng
+            // không vượt số đã thu còn dư của đoàn: lượt lịch sử ở trạng thái "đã trả" mà paidOf ưu tiên phòng đã trả ⇒
+            // phần chưa thu phải nằm ở lượt còn ở, nếu không lúc trả phòng sẽ thu thiếu.
+            const mates = await tx.roomStay.findMany({ where: cur.groupId ? { serviceId, groupId: cur.groupId } : { id: cur.id }, include: { payments: { select: { amount: true } } } });
+            // Đổi phòng lần 2+: cur.total đã gồm tiền đêm chưa thu do các lượt tách TRƯỚC dồn sang ⇒ trừ ra trước khi
+            // chia theo đêm (phần đó vẫn ở lại lượt chính, không chia lại lần nữa — tránh cộng trùng khi Sửa lượt chính).
+            const priorCarry = mates.filter((m) => m.id !== cur.id && isLive(m)).reduce((a, m) => a + moveSplitCarry(m.note, cur.code), 0);
+            const [pastPrice] = splitTotal(
+              Math.max(0, Number(cur.total) - priorCarry),
+              fromRoom ? [stayPrice(fromRoom, ci, T, hk), stayPrice(fromRoom, T, co, hk)] : [diffDays(ci, T), diffDays(T, co)],
+            );
+            const gPaid = mates.reduce((a, m) => a + m.payments.reduce((b, p) => b + Number(p.amount), 0), 0);
+            const outBills = mates
+              .filter((m) => isLive(m) && m.checkedOutAt)
+              .reduce((a, m) => a + Number(m.total) + (Array.isArray(m.fees) ? (m.fees as unknown as StayFee[]) : []).reduce((b, f) => b + (Number(f?.amt) || 0), 0), 0);
+            const pastTotal = Math.max(0, Math.min(pastPrice, Math.round(gPaid - outBills)));
+            const restTotal = Number(cur.total) - pastTotal;
+            // Hai phần chung một đoàn ⇒ tiền đã thu (nằm ở lượt gốc) chia qua paidOf: phần đã ở nhận đủ trước, phần còn lại cho lượt đang ở.
+            const groupId = cur.groupId ?? `g:${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+            const groupName = cur.groupName ?? `Đổi phòng ${cur.customerName.split(/\s+/).pop()}`;
+            const past = await createWithCode(tx, {
+              serviceId, roomId: cur.roomId, groupId, groupName, customerName: cur.customerName, phone: cur.phone,
+              guests: cur.guests, guestList: (cur.guestList ?? []) as unknown as Prisma.InputJsonValue,
+              checkIn: parseDateOnly(ci), checkOut: parseDateOnly(T), total: pastTotal, source: cur.source,
+              // Thẻ MOVE_SPLIT_TAG: lượt lịch sử, không đếm như lượt khách / trả phòng thật; phần chưa thu đọc lại khi Sửa lượt chính.
+              note: moveSplitNote(to.name, dm(T), cur.code, pastPrice - pastTotal),
+              checkedInAt: cur.checkedInAt, checkedOutAt: new Date(), createdBy: who,
+            });
+            // Đêm đã ở: ô lịch phòng cũ chuyển sang lượt lịch sử (không xoá); từ hôm nay: nhả phòng cũ, giữ phòng mới.
+            await tx.roomDayStatus.updateMany({ where: { stayId: cur.id, date: { lt: parseDateOnly(T) } }, data: { stayId: past.id } });
+            await releaseStayCells(tx, cur.id, T);
+            await tx.roomStay.update({ where: { id: cur.id }, data: { roomId: to.id, checkIn: parseDateOnly(T), total: restTotal, groupId, groupName } });
+            await writeStayCells(tx, { id: cur.id, roomId: to.id, ci: T, co }, status);
+            await tx.room.update({ where: { id: cur.roomId }, data: { hkStatus: "dirty", hkAt: new Date() } });
+          } else if (s.row.bookingId) {
             // Đơn của sàn: đổi phòng ngay trên đơn để ô lịch do đơn giữ chuyển theo.
             const b = await tx.bookingRequest.findUnique({ where: { id: s.row.bookingId } });
             if (!b) throw new StayError("Không tìm thấy đơn.");
@@ -248,7 +310,7 @@ export async function POST(request: Request) {
           }
         }, { timeout: 20_000 });
         if (s.row.bookingId) await syncStaysForBooking(s.row.bookingId).catch(() => {});
-        return done(`Đã đổi ${fromName} → ${to.name}`);
+        return done(`Đã đổi ${fromName} → ${to.name}${inHouse ? ` từ đêm ${dm(T)} · các đêm đã ở giữ ở ${fromName}` : ""}`);
       }
       case "extend": {
         const s = await ownStay(str(body.id, 40));
@@ -364,7 +426,15 @@ export async function POST(request: Request) {
         const override = int(body.total);
         let total = Number(s.row.total);
         if (override > 0) total = override;
-        else if (datesChanged || guests !== s.row.guests) total = quoteStay([room], ci, co, guests, await holKeysFor(ci, co), extraFee).total;
+        else if (datesChanged || guests !== s.row.guests) {
+          total = quoteStay([room], ci, co, guests, await holKeysFor(ci, co), extraFee).total;
+          // Lượt chính sau đổi phòng (khách đang ở): báo giá chỉ từ ngày đổi ⇒ cộng lại phần tiền đêm đã ở chưa thu
+          // mà các lượt tách đã dồn sang, nếu không phần đó mất khỏi bill.
+          if (s.row.checkedInAt && s.row.groupId) {
+            const splits = await prisma.roomStay.findMany({ where: { serviceId, groupId: s.row.groupId, NOT: { id: s.row.id } }, select: { note: true, state: true } });
+            total += splits.filter(isLive).reduce((a, x) => a + moveSplitCarry(x.note, s.row.code), 0);
+          }
+        }
         const gl2 = gl.length && gl[0].name === s.row.customerName ? [{ ...gl[0], name }, ...gl.slice(1)] : gl;
         await prisma.$transaction(async (tx) => {
           await lockHome(tx, serviceId);
@@ -403,19 +473,25 @@ export async function POST(request: Request) {
               return { name: str(o.name, 80), cccd: str(o.cccd, 12).replace(/\D/g, "") };
             }).filter((g) => g.name || g.cccd)
           : [];
-        const fees = (Array.isArray(s.row.fees) ? s.row.fees : []) as unknown as StayFee[];
         const early = time < hh(cfg.ci) && time < "12:00" && cfg.early > 0;
-        // Điều kiện checkedInAt = null ngay trong câu lệnh: bấm 2 lần không cộng phí nhận sớm 2 lần.
-        const upd = await prisma.roomStay.updateMany({
-          where: { id: s.row.id, checkedInAt: null, state: null },
-          data: {
-            checkedInAt: vnTimeToday(T, time),
-            guestList: guests as unknown as Prisma.InputJsonValue,
-            holdUntil: null,
-            ...(early ? { fees: [...fees, { name: "Nhận phòng sớm", amt: cfg.early }] as unknown as Prisma.InputJsonValue } : {}),
-          },
+        // Trong lockHome + đọc lại phí: nối phí nhận sớm vào bản MỚI NHẤT (bản đọc trước khoá có thể thiếu phí vừa ghi
+        // ở máy khác ⇒ ghi đè làm mất). Điều kiện checkedInAt = null: bấm 2 lần không cộng phí 2 lần.
+        const okIn = await prisma.$transaction(async (tx) => {
+          await lockHome(tx, serviceId);
+          const cur = await tx.roomStay.findUnique({ where: { id: s.row.id }, select: { fees: true } });
+          const fees = (Array.isArray(cur?.fees) ? cur.fees : []) as unknown as StayFee[];
+          const upd = await tx.roomStay.updateMany({
+            where: { id: s.row.id, checkedInAt: null, state: null },
+            data: {
+              checkedInAt: vnTimeToday(T, time),
+              guestList: guests as unknown as Prisma.InputJsonValue,
+              holdUntil: null,
+              ...(early ? { fees: [...fees, { name: "Nhận phòng sớm", amt: cfg.early }] as unknown as Prisma.InputJsonValue } : {}),
+            },
+          });
+          return upd.count > 0;
         });
-        if (!upd.count) return bad("Lượt ở đã nhận phòng hoặc vừa thay đổi — tải lại trang.");
+        if (!okIn) return bad("Lượt ở đã nhận phòng hoặc vừa thay đổi — tải lại trang.");
         return done(`Đã nhận phòng ${roomById.get(s.row.roomId)?.name ?? ""} lúc ${time}`);
       }
       case "checkOut": {
@@ -428,11 +504,6 @@ export async function POST(request: Request) {
           ...(body.late === true && cfg.late ? [{ name: "Trả muộn", amt: cfg.late }] : []),
           ...(int(body.dmg) ? [{ name: "Hư hỏng", amt: int(body.dmg) }] : []),
         ];
-        const fees = [...s.vm.fees, ...add];
-        const me = { ...s.vm, fees };
-        const group = await groupOf(s.row.groupId, s.row.id);
-        const due = billOf(me) - paidOf(me, [me, ...group]);
-        const canPay = !s.vm.payBlock;
         const room = roomById.get(s.row.roomId);
         const co = toDateKey(s.row.checkOut);
         // Trả trước ngày dự kiến (lượt chủ tạo): rút ngày trả về hôm nay (ít nhất giữ đêm nhận phòng) và nhả các đêm sau để web bán lại.
@@ -440,8 +511,18 @@ export async function POST(request: Request) {
         const ci0 = toDateKey(s.row.checkIn);
         const newCo = T > ci0 ? T : addDaysKey(ci0, 1);
         const shorten = !s.row.bookingId && newCo < co;
-        await prisma.$transaction(async (tx) => {
+        const { due, canPay } = await prisma.$transaction(async (tx) => {
           await lockHome(tx, serviceId);
+          // Phí + sổ thu + đoàn đọc lại SAU khoá: bản đọc trước khoá làm mất phí dịch vụ vừa ghi, hoặc thu trùng
+          // khoản lễ tân khác vừa ghi "Thu" (khách bị đòi 2 lần).
+          const f = await ownStay(s.row.id, tx);
+          if (!f || !f.row.checkedInAt || f.row.checkedOutAt || !isLive(f.row) || f.row.roomId !== s.row.roomId || toDateKey(f.row.checkOut) !== co)
+            throw new StayError("Lượt ở vừa thay đổi — tải lại trang.");
+          const fees = [...f.vm.fees, ...add];
+          const me = { ...f.vm, fees };
+          const group = await groupOf(f.row.groupId, f.row.id, tx);
+          const due = billOf(me) - paidOf(me, [me, ...group]);
+          const canPay = !f.vm.payBlock;
           // Điều kiện checkedOutAt = null trong câu lệnh: bấm "Thu & trả phòng" 2 lần không ghi thu 2 lần.
           const upd = await tx.roomStay.updateMany({
             where: { id: s.row.id, checkedOutAt: null, state: null },
@@ -458,7 +539,8 @@ export async function POST(request: Request) {
             if (s.row.bookingId) await pushStayPayments(tx, s.row.bookingId, who, `Trả phòng ${room?.name ?? ""} · ${due > 0 ? "thu" : "hoàn"} ${vnd(Math.abs(due))} (${method})`);
           }
           await tx.room.update({ where: { id: s.row.roomId }, data: { hkStatus: "dirty", hkAt: new Date() } });
-        });
+          return { due, canPay };
+        }, { timeout: 20_000 });
         return done(`Đã trả phòng ${room?.name ?? ""} · phòng chuyển "Chưa dọn"${due && !canPay ? ` · còn ${vnd(due)} chưa ghi thu (đơn sàn)` : ""}`);
       }
       case "charge": {
@@ -469,7 +551,14 @@ export async function POST(request: Request) {
         const name = str(body.name, 40);
         const amt = int(body.amt);
         if (!name || !amt) return bad("Thiếu tên hoặc giá dịch vụ.");
-        await prisma.roomStay.update({ where: { id: s.row.id }, data: { fees: [...s.vm.fees, { name, amt }] as unknown as Prisma.InputJsonValue } });
+        // Trong lockHome, nối phí vào bản đọc lại: 2 lễ tân cùng ghi dịch vụ (hoặc ghi đúng lúc trả phòng) không ghi đè mất khoản nào.
+        await prisma.$transaction(async (tx) => {
+          await lockHome(tx, serviceId);
+          const cur = await tx.roomStay.findUnique({ where: { id: s.row.id }, select: { fees: true, state: true, checkedInAt: true, checkedOutAt: true } });
+          if (!cur || !isLive(cur) || !cur.checkedInAt || cur.checkedOutAt) throw new StayError("Phòng không còn khách (vừa trả phòng?) — tải lại trang.");
+          const fees = (Array.isArray(cur.fees) ? cur.fees : []) as unknown as StayFee[];
+          await tx.roomStay.update({ where: { id: s.row.id }, data: { fees: [...fees, { name, amt }] as unknown as Prisma.InputJsonValue } });
+        });
         return done(`Đã ghi ${name} vào phòng ${roomById.get(s.row.roomId)?.name ?? ""}`);
       }
 
@@ -645,15 +734,18 @@ export async function POST(request: Request) {
         if (!u) return bad("Không tìm thấy nhân viên.");
         if (op === "staffToggle") {
           await prisma.adminUser.update({ where: { id: u.id }, data: { active: !u.active } });
+          invalidateSessionCache(u.id); // khoá / mở khoá có hiệu lực ngay
           return done(u.active ? `Đã khoá ${u.username}` : `Đã mở khoá ${u.username}`);
         }
         if (op === "staffReset") {
           const password = typeof body.password === "string" ? body.password : "";
           if (password.length < 6) return bad("Mật khẩu tối thiểu 6 ký tự.");
           await prisma.adminUser.update({ where: { id: u.id }, data: { passwordHash: await hashPassword(password) } });
+          invalidateSessionCache(u.id);
           return done(`Đã đổi mật khẩu ${u.username}`);
         }
         await prisma.adminUser.delete({ where: { id: u.id } });
+        invalidateSessionCache(u.id); // xoá ⇒ phiên cũ hết hiệu lực ngay
         return done(`Đã xoá tài khoản ${u.username}`);
       }
       default:

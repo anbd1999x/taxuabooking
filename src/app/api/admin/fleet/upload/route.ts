@@ -15,13 +15,23 @@ export const maxDuration = 300;
  */
 export async function POST(request: Request) {
   const session = await getSession();
+  // Kiểm phiên + kích thước TRƯỚC khi đọc formData (Node đệm cả body vào RAM; route nằm ngoài proxy để tải được
+  // video lớn ⇒ người lạ gửi body 200MB song song từng làm cạn RAM). Quyền theo nhà xe kiểm lại sau khi có serviceId.
+  if (!session || !(session.role === "ADMIN" || session.role === "PROVIDER" || session.role === "STAFF")) {
+    const demo = session?.role === "DEMO" || (await getDemoSession());
+    return NextResponse.json({ error: demo ? "Bản demo không tải ảnh / video lên được." : "Không có quyền." }, { status: 403 });
+  }
+  // Thiếu Content-Length (body chunked) ⇒ 411, không đọc body không biết trước kích thước.
+  if (!Number(request.headers.get("content-length") || "")) return NextResponse.json({ error: "Thiếu kích thước tệp — tải lại." }, { status: 411 });
+  if (Number(request.headers.get("content-length")) > MAX_VIDEO_BYTES + 1024 * 1024) {
+    return NextResponse.json({ error: `Video vượt quá ${Math.round(MAX_VIDEO_BYTES / 1048576)}MB.` }, { status: 413 });
+  }
   let fd: FormData;
   try {
     fd = await request.formData();
   } catch {
     return NextResponse.json({ error: "Tệp quá lớn hoặc tải lên bị gián đoạn." }, { status: 400 });
   }
-  if (session?.role === "DEMO") return NextResponse.json({ error: "Bản demo không tải ảnh / video lên được." }, { status: 403 });
   const serviceId = String(fd.get("serviceId") ?? "");
   if (!(await canManageFleet(session, serviceId))) {
     const demo = await getDemoSession();

@@ -12,7 +12,11 @@ import { renderMarkdown } from "@/lib/markdown";
 import { articleTopicLabel } from "@/lib/constants";
 import { getLocale, getT, lp, tLong } from "@/lib/i18n/server";
 import { i18nAlternates } from "@/lib/i18n/meta";
-import { LOCALE_META } from "@/lib/i18n/config";
+import { LOCALE_META, localePath } from "@/lib/i18n/config";
+
+/** URL tuyệt đối cho JSON-LD: ảnh bìa có thể đã là URL ngoài (Unsplash) — chỉ ghép domain khi là đường dẫn tương đối. */
+const absUrl = (u: string) => (/^https?:\/\//i.test(u) ? u : `${SITE.url}${u.startsWith("/") ? "" : "/"}${u}`);
+const escRe = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +44,8 @@ export async function generateMetadata({
       modifiedTime: a.updatedAt.toISOString(),
       title: a.title,
       description: a.excerpt ?? a.title,
-      url: `${SITE.url}/kinh-nghiem/${a.slug}`,
+      // og:url theo bản ngôn ngữ đang xem (không gộp link chia sẻ bản en/zh/ko về bản tiếng Việt).
+      url: `${SITE.url}${localePath(`/kinh-nghiem/${a.slug}`, locale)}`,
       images: ogImages(a.coverImage, a.title),
     },
   };
@@ -81,23 +86,34 @@ export default async function ArticlePage({
       : [];
   const related = [...sameTopic, ...fill];
 
+  // JSON-LD phải khớp nội dung ĐANG HIỂN THỊ: bản en/zh/ko dùng tiêu đề + thân bài đã dịch.
+  const locale = await getLocale();
+  const title = tr(a.title);
+  const content = await tLong(a.content);
+  // Thân bài chưa có bản dịch ⇒ trang vẫn hiện tiếng Việt ⇒ khai inLanguage "vi" (không khai lệch "en").
+  const shownLang = locale === "vi" || content !== a.content ? LOCALE_META[locale].htmlLang : LOCALE_META.vi.htmlLang;
+
   // Câu hỏi thường gặp trong bài (mục "## Câu hỏi thường gặp", mỗi câu là "### …") → dữ liệu FAQPage.
+  // Bài đã dịch thì tiêu đề mục là bản dịch (Frequently asked questions / 常见问题 / 자주 묻는 질문 / FAQ…).
+  const faqHeads = [...new Set(["Câu hỏi thường gặp", tr("Câu hỏi thường gặp"), "Frequently asked questions", "常见问题", "자주 묻는 질문", "FAQ"])];
+  const faqRe = new RegExp(`^## (?:${faqHeads.map(escRe).join("|")}).*$`, "mi");
   const plain = (t: string) =>
     t.replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1").replace(/[*_`>#]/g, "").replace(/\s+/g, " ").trim();
-  const faqPart = a.content.split(/^## Câu hỏi thường gặp.*$/m)[1]?.split(/^## /m)[0] ?? "";
+  const faqPart = content.split(faqRe)[1]?.split(/^## /m)[0] ?? "";
   const faqs = faqPart
     .split(/^### /m)
     .slice(1)
     .map((b) => { const [q, ...rest] = b.split("\n"); return { q: plain(q), a: plain(rest.join(" ")) }; })
     .filter((x) => x.q && x.a);
-  const pageUrl = `${SITE.url}/kinh-nghiem/${a.slug}`;
+  const pageUrl = `${SITE.url}${localePath(`/kinh-nghiem/${a.slug}`, locale)}`;
+  const homeUrl = `${SITE.url}${localePath("/", locale)}`;
   const extraLd = [
     {
       "@type": "BreadcrumbList",
       itemListElement: [
-        { "@type": "ListItem", position: 1, name: tr("Trang chủ"), item: SITE.url },
-        { "@type": "ListItem", position: 2, name: tr("Kinh nghiệm Tà Xùa"), item: `${SITE.url}/kinh-nghiem` },
-        { "@type": "ListItem", position: 3, name: a.title, item: pageUrl },
+        { "@type": "ListItem", position: 1, name: tr("Trang chủ"), item: homeUrl },
+        { "@type": "ListItem", position: 2, name: tr("Kinh nghiệm Tà Xùa"), item: `${SITE.url}${localePath("/kinh-nghiem", locale)}` },
+        { "@type": "ListItem", position: 3, name: title, item: pageUrl },
       ],
     },
     ...(faqs.length >= 2
@@ -109,13 +125,13 @@ export default async function ArticlePage({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
-    headline: a.title,
-    description: a.excerpt ?? undefined,
-    image: a.coverImage ? [`${SITE.url}${a.coverImage}`] : undefined,
+    headline: title,
+    description: (await tLong(a.excerpt)) ?? undefined,
+    image: a.coverImage ? [absUrl(a.coverImage)] : undefined,
     datePublished: a.createdAt.toISOString(),
     dateModified: a.updatedAt.toISOString(),
-    inLanguage: LOCALE_META[await getLocale()].htmlLang,
-    mainEntityOfPage: `${SITE.url}/kinh-nghiem/${a.slug}`,
+    inLanguage: shownLang,
+    mainEntityOfPage: pageUrl,
     author: { "@type": "Organization", name: SITE.name, url: SITE.url },
     publisher: { "@type": "Organization", name: SITE.name, url: SITE.url },
   };
@@ -138,7 +154,7 @@ export default async function ArticlePage({
       )}
       <div
         className="mt-6 leading-relaxed text-gray-700 [&_a]:font-semibold [&_a]:text-forest-700 [&_a]:underline [&_a]:underline-offset-2 [&_blockquote]:my-4 [&_blockquote]:border-l-4 [&_blockquote]:border-forest-200 [&_blockquote]:pl-4 [&_blockquote]:italic [&_h2]:mt-8 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-ink [&_h3]:mt-6 [&_h3]:text-lg [&_h3]:font-bold [&_h3]:text-ink [&_img]:my-5 [&_img]:w-full [&_img]:rounded-2xl [&_li]:my-1 [&_p]:my-4 [&_ul]:my-4 [&_ul]:list-inside [&_ul]:list-disc"
-        dangerouslySetInnerHTML={{ __html: renderMarkdown(await tLong(a.content)) }}
+        dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
       />
 
       {/* Bài viết cùng chủ đề */}

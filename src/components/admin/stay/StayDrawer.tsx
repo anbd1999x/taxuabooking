@@ -175,7 +175,10 @@ export function StayDrawer({ dr, setDr, data, call, say, busy, mob, serviceTitle
     const st = stat(x), S = ST[st], bill = billOf(x), pd = paidOf(x, stays), due = bill - pd;
     const group = x.groupId ? stays.filter((s) => s.groupId === x.groupId && isLive(s)) : [];
     const manual = !x.bookingId;
-    const moveOpts = rooms.filter((r) => r.id !== x.roomId && free(r.id, x.ci, x.co, x.id));
+    // Khách đang ở (lượt chủ tạo) từ đêm trước: server chỉ dời các đêm từ hôm nay ⇒ chỉ cần phòng trống [hôm nay, ngày trả).
+    // Đơn sàn vẫn dời cả khoảng ngày (gán lại phòng trên đơn) ⇒ lọc theo cả lượt.
+    const moveFrom = manual && x.inAt && x.ci < T ? T : x.ci;
+    const moveOpts = rooms.filter((r) => r.id !== x.roomId && free(r.id, moveFrom, x.co, x.id));
     const canPay = !["out", "cancel", "noshow", "reject"].includes(st) && !x.payBlock;
     const copy = async () => {
       const txt = [

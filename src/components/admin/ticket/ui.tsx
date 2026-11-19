@@ -103,7 +103,7 @@ export const statGrid: CSSProperties = { display: "grid", gridTemplateColumns: "
 /** Thanh chọn dạng viên (tab, địa điểm, phương thức thu). */
 export function Seg<T extends string>({ items, value, onPick, dark, grow }: { items: [T, string][]; value: T; onPick: (k: T) => void; dark?: boolean; grow?: boolean }) {
   return (
-    <div style={{ display: "flex", gap: 4, padding: dark ? 3 : 4, borderRadius: dark ? 12 : 14, background: SOFT, overflowX: "auto", maxWidth: "100%" }}>
+    <div style={{ display: "flex", gap: 4, padding: dark ? 3 : 4, borderRadius: dark ? 12 : 14, background: SOFT, flexWrap: "wrap", maxWidth: "100%" }}>
       {items.map(([k, name]) => {
         const on = k === value;
         return (

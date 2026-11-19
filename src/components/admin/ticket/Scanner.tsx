@@ -35,10 +35,38 @@ export function Scanner({ venues, who, initial }: { venues: TkVenueRef[]; who: s
     venueRef.current = venueId;
   }, [venueId]);
 
+  // TK-5: show nhiều suất / ngày ⇒ cho chọn suất đang soát (tuỳ chọn; để trống = tự chọn theo giờ mở cổng).
+  const showVenue = venueId ? venues.find((v) => v.id === venueId) : venues.length === 1 ? venues[0] : undefined;
+  const showVenueId = showVenue?.kind === "SHOW" ? showVenue.id : "";
+  const [shows, setShows] = useState<{ venueId: string; list: { id: string; time: string; paused: boolean }[] }>({ venueId: "", list: [] });
+  const [sessionId, setSessionId] = useState("");
+  const sessionRef = useRef("");
+  useEffect(() => {
+    sessionRef.current = shows.venueId === showVenueId ? sessionId : "";
+  }, [sessionId, shows.venueId, showVenueId]);
+  useEffect(() => {
+    if (!showVenueId) return;
+    let off = false;
+    // Lấy suất hôm nay của địa điểm; tài khoản không xem được (nhân viên) ⇒ không hiện ô chọn, giữ tự chọn suất.
+    fetch("/api/admin/ticket", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "reload", venueId: showVenueId }) })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { today?: string; sessions?: { id: string; date: string; time: string; status: string }[] } | null) => {
+        if (off) return;
+        const list = (j?.sessions ?? []).filter((s) => s.date === j?.today && s.time).map((s) => ({ id: s.id, time: s.time, paused: s.status === "paused" }));
+        setShows({ venueId: showVenueId, list });
+        setSessionId("");
+      })
+      .catch(() => {});
+    return () => {
+      off = true;
+    };
+  }, [showVenueId]);
+  const sessionOpts = shows.venueId === showVenueId ? shows.list : [];
+
   const check = useCallback(async (code: string, deliver = false) => {
     setBusy(true);
     try {
-      const r = await fetch("/api/admin/ticket", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "scan", venueId: venueRef.current, code, deliver }) });
+      const r = await fetch("/api/admin/ticket", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "scan", venueId: venueRef.current, code, deliver, sessionId: sessionRef.current || undefined }) });
       const j = await r.json();
       const result: ScanResult = r.ok ? j.result : { kind: "none", title: "Không kiểm tra được", sub: j.error ?? "Mất kết nối, thử lại" };
       if (r.ok && j.stats) setStats(j.stats);
@@ -120,6 +148,12 @@ export function Scanner({ venues, who, initial }: { venues: TkVenueRef[]; who: s
             </select>
           ) : (
             <div style={{ fontSize: 16, fontWeight: 800 }}>{venues[0]?.name ?? "Vé hôm nay"}</div>
+          )}
+          {sessionOpts.length > 1 && (
+            <select value={sessionId} onChange={(e) => setSessionId(e.target.value)} aria-label="Suất đang soát" style={{ display: "block", marginTop: 2, fontSize: 13, fontWeight: 700, border: "none", background: "transparent", fontFamily: "inherit", padding: 0, maxWidth: "100%", color: "oklch(0.4 0.1 155)" }}>
+              <option value="">Suất: tự chọn theo giờ</option>
+              {sessionOpts.map((s) => <option key={s.id} value={s.id}>Suất {s.time}{s.paused ? " · tạm dừng" : ""}</option>)}
+            </select>
           )}
         </div>
         <div style={{ textAlign: "right", flex: "none" }}>

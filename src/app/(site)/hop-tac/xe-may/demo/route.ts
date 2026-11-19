@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createSessionToken } from "@/lib/auth-token";
 import { DEMO_COOKIE, DEMO_USERNAME, ensureFleetDemo } from "@/lib/fleet-demo";
+import { demoGate } from "@/lib/demo-rate";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -22,7 +23,10 @@ export async function GET(request: Request) {
     res.cookies.delete(DEMO_COOKIE);
     return res;
   }
-  const demo = await ensureFleetDemo(!!sp.get("reset"));
+  // Giới hạn tần suất theo IP; ?reset=1 chỉ nhận khi đang có cookie demo (chống bot / gọi lặp xoá-dựng dữ liệu prod).
+  const gate = demoGate(request, !!sp.get("reset"));
+  if ("blocked" in gate) return gate.blocked;
+  const demo = await ensureFleetDemo(gate.force);
   const jwt = await createSessionToken({ sub: demo.ownerId, username: DEMO_USERNAME, name: demo.ownerName, role: "DEMO" });
   const res = go("/demo/quan-ly-xe");
   res.cookies.set(DEMO_COOKIE, jwt, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: DEMO_MAX_AGE });

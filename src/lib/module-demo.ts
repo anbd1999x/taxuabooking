@@ -76,21 +76,23 @@ const TABLES: [string, string, number, number, boolean][] = [
   ["B1", "Trong nhà", 4, 0, false], ["B2", "Trong nhà", 4, 0, false], ["B3", "Trong nhà", 6, 0, false], ["B4", "Trong nhà", 6, 0, false], ["B5", "Trong nhà", 8, 0, false], ["B6", "Trong nhà", 10, 0, false],
   ["BC1", "Ban công view mây", 2, 1, true], ["BC2", "Ban công view mây", 2, 1, true], ["BC3", "Ban công view mây", 4, 1, true], ["BC4", "Ban công view mây", 4, 1, true],
 ];
-/** [tên, nhóm, mô tả, giá, bán chạy, còn món] */
+/** [tên, nhóm, mô tả chi tiết, giá, bán chạy, còn món] */
 const MENU: [string, string, string, number, boolean, boolean][] = [
-  ["Lẩu gà đen", "Món chính", "Nồi 3–4 người, gà bản, nấm rừng", 450000, true, true],
-  ["Thịt trâu gác bếp", "Món chính", "Đĩa 300g, chẩm chéo", 220000, true, true],
-  ["Cá suối nướng", "Món chính", "Đĩa 4 con, nướng than", 180000, false, true],
-  ["Gà đồi nướng mật ong", "Món chính", "Nửa con", 350000, false, false],
-  ["Cơm lam", "Ăn kèm", "1 ống, chấm muối vừng", 40000, true, true],
-  ["Cải mèo xào tỏi", "Ăn kèm", "", 60000, false, true],
-  ["Măng đắng luộc", "Ăn kèm", "Chấm chẩm chéo", 50000, false, true],
-  ["Khoai lang nướng", "Ăn kèm", "Túi 3 củ", 30000, false, true],
-  ["Rượu táo mèo", "Đồ uống", "Bình 500ml", 120000, true, true],
-  ["Trà Shan tuyết", "Đồ uống", "Ấm lớn, nóng", 50000, false, true],
-  ["Bia Hà Nội", "Đồ uống", "Chai 450ml", 20000, false, true],
-  ["Nước ngọt", "Đồ uống", "Coca, 7Up, Sting", 15000, false, true],
+  ["Lẩu gà đen", "Món chính", "Nồi cho 3–4 người. Gà đen bản nuôi thả đồi, chặt miếng vừa, hầm cùng nấm hương rừng, táo mèo và sả gừng nên nước dùng ngọt thanh, thơm mùi thảo mộc. Kèm rau cải mèo, nấm và mỳ hoặc bún.", 450000, true, true],
+  ["Thịt trâu gác bếp", "Món chính", "Đĩa 300g. Thịt trâu tẩm mắc khén, hạt dổi, ớt rồi hun khói trên gác bếp nhiều ngày; nướng lại cho nóng, xé sợi. Thịt dai ngọt, thơm khói, chấm chẩm chéo cay nhẹ — hợp nhâm nhi cùng rượu táo mèo.", 220000, true, true],
+  ["Cá suối nướng", "Món chính", "Đĩa 4 con. Cá suối bắt trong ngày, ướp muối ớt, mắc khén, kẹp tre nướng trên than hoa đến khi da giòn, thịt chắc ngọt. Ăn kèm rau thơm và chẩm chéo.", 180000, false, true],
+  ["Gà đồi nướng mật ong", "Món chính", "Nửa con (khoảng 700–800g). Gà đồi ướp mật ong rừng, sả, tỏi và mắc khén, nướng than chậm nên da vàng óng, thịt mềm mọng. Chờ khoảng 25–30 phút.", 350000, false, false],
+  ["Cơm lam", "Ăn kèm", "1 ống. Gạo nếp nương ngâm, nhồi vào ống nứa non rồi nướng trên lửa than, bóc vỏ còn lớp màng lụa thơm mùi tre. Chấm muối vừng lạc rang.", 40000, true, true],
+  ["Cải mèo xào tỏi", "Ăn kèm", "Đĩa vừa cho 2–3 người. Rau cải mèo trồng trên nương, vị hơi đắng nhẹ rồi ngọt hậu, xào lửa lớn với tỏi để rau còn giòn xanh.", 60000, false, true],
+  ["Măng đắng luộc", "Ăn kèm", "Đĩa vừa. Măng rừng tươi luộc kỹ cho bớt đắng, giữ vị đắng nhẹ ngọt hậu đặc trưng. Chấm chẩm chéo hoặc muối ớt.", 50000, false, true],
+  ["Khoai lang nướng", "Ăn kèm", "Túi 3 củ. Khoai lang trồng trên đồi, nướng vùi than đến khi vỏ xém, ruột vàng dẻo bùi — món ăn vặt ấm bụng khi ngắm mây.", 30000, false, true],
+  ["Rượu táo mèo", "Đồ uống", "Bình 500ml. Rượu ngô ngâm táo mèo Tà Xùa từ 6 tháng, màu hổ phách, vị chua chát nhẹ, thơm dịu, uống ấm người. Phục vụ kèm chén nhỏ.", 120000, true, true],
+  ["Trà Shan tuyết", "Đồ uống", "Ấm lớn, pha nóng. Búp trà từ những cây chè Shan tuyết cổ thụ trên núi Tà Xùa, nước vàng sáng, vị chát nhẹ rồi ngọt hậu, hương thơm cốm non. Châm thêm nước nóng miễn phí.", 50000, false, true],
+  ["Bia Hà Nội", "Đồ uống", "Chai 450ml, ướp lạnh hoặc để nhiệt độ thường tuỳ chọn.", 20000, false, true],
+  ["Nước ngọt", "Đồ uống", "Lon 330ml — Coca-Cola, 7Up hoặc Sting. Ghi chú loại muốn uống khi gọi món.", 15000, false, true],
 ];
+/** Mô tả mẫu cũ (bản ngắn) — món còn đúng chữ này / để trống thì được cập nhật sang mô tả chi tiết; quán tự viết thì giữ nguyên. */
+const OLD_MENU_DESC = new Set(["Nồi 3–4 người, gà bản, nấm rừng", "Đĩa 300g, chẩm chéo", "Đĩa 4 con, nướng than", "Nửa con", "1 ống, chấm muối vừng", "Chấm chẩm chéo", "Túi 3 củ", "Bình 500ml", "Ấm lớn, nóng", "Chai 450ml", "Coca, 7Up, Sting"]);
 
 /**
  * Ảnh của từng món mẫu: public/hop-tac/demo/mon/<mã>-1..n.jpg — ẢNH THẬT lấy tạm từ kho ảnh các nhà hàng Tà Xùa đã đăng
@@ -122,6 +124,12 @@ export async function seedRestaurantSample(venueId: string): Promise<void> {
   const haveM = new Set((await prisma.ticketMenuItem.findMany({ where: { venueId }, select: { name: true } })).map((m) => m.name));
   const newM = MENU.map((m, i) => [m, i] as const).filter(([m]) => !haveM.has(m[0]));
   if (newM.length) await prisma.ticketMenuItem.createMany({ data: newM.map(([[name, group, description, price, hot, active], i]) => ({ venueId, name, group, description: description || null, price, hot, active, sortOrder: i })) });
+
+  // Món mẫu tạo từ trước còn mô tả cũ / trống ⇒ thay bằng mô tả chi tiết (mô tả quán tự viết thì giữ nguyên).
+  for (const m of await prisma.ticketMenuItem.findMany({ where: { venueId, name: { in: MENU.map((x) => x[0]) } }, select: { id: true, name: true, description: true } })) {
+    const desc = MENU.find((x) => x[0] === m.name)![2];
+    if (desc && desc !== m.description && (!m.description || OLD_MENU_DESC.has(m.description))) await prisma.ticketMenuItem.update({ where: { id: m.id }, data: { description: desc } });
+  }
 
   // Món mẫu chưa có ảnh ⇒ gắn 3 ảnh minh hoạ (món quán đã tự tải ảnh thì giữ nguyên).
   for (const m of await prisma.ticketMenuItem.findMany({ where: { venueId }, select: { id: true, name: true, images: true, imageUrl: true } })) {
@@ -217,7 +225,7 @@ async function buildTicketDemo(owner: { id: string; name: string }): Promise<voi
     await patchVenueConfig(gate, { quota: 150, hours: "05:00 – 18:00", notes: ["Vé dùng trong ngày đã chọn, vào cổng 1 lần", "Đổi ngày miễn phí trước 20:00 hôm trước"] });
     const sideMenu = (venueId: string, rows: [string, string, number, string][]) =>
       prisma.ticketMenuItem.createMany({ data: rows.map(([name, group, price, description], i) => ({ venueId, name, group, price, description, sortOrder: i, images: dishImages(name), imageUrl: dishImages(name)[0] ?? null })) });
-    await sideMenu(gate, [["Trà Shan tuyết", "Đồ uống nóng", 25000, "Ấm nhỏ, uống tại chòi"], ["Khoai lang nướng", "Ăn nhẹ", 20000, "Túi 3 củ"], ["Nước ngọt", "Đồ uống", 15000, "Coca, 7Up, Sting"]]);
+    await sideMenu(gate, [["Trà Shan tuyết", "Đồ uống nóng", 25000, "Ấm nhỏ cho 2 người, trà Shan tuyết cổ thụ pha nóng — vị chát nhẹ, ngọt hậu. Nhận và uống ngay tại chòi ngắm mây."], ["Khoai lang nướng", "Ăn nhẹ", 20000, "Túi 3 củ khoai đồi nướng vùi than, ruột vàng dẻo bùi, còn nóng khi giao."], ["Nước ngọt", "Đồ uống", 15000, "Lon 330ml — Coca-Cola, 7Up hoặc Sting, chọn khi nhận tại quầy vé."]]);
     const gTiers = await prisma.ticketTier.findMany({ where: { venueId: gate }, orderBy: { sortOrder: "asc" } });
     const tea = (await prisma.ticketMenuItem.findFirstOrThrow({ where: { venueId: gate, name: "Trà Shan tuyết" } })).id;
     const gOrder = (i: number, date: string, mode: "paid" | "confirmed" | "request", source: string, ad: number, ch = 0, food = 0) =>
@@ -244,7 +252,7 @@ async function buildTicketDemo(owner: { id: string; name: string }): Promise<voi
         { venueId: doi, name: "Vé + trà Shan tuyết", price: 60000, listPrice: 75000, sortOrder: 4 },
       ],
     });
-    await sideMenu(doi, [["Trà Shan tuyết", "Đồ uống nóng", 25000, "Ấm nhỏ, uống tại chòi"], ["Khoai lang nướng", "Ăn nhẹ", 20000, "Túi 3 củ"]]);
+    await sideMenu(doi, [["Trà Shan tuyết", "Đồ uống nóng", 25000, "Ấm nhỏ cho 2 người, trà Shan tuyết cổ thụ pha nóng — vị chát nhẹ, ngọt hậu. Nhận và uống ngay tại chòi ngắm mây."], ["Khoai lang nướng", "Ăn nhẹ", 20000, "Túi 3 củ khoai đồi nướng vùi than, ruột vàng dẻo bùi, còn nóng khi giao."]]);
     const dTiers = await prisma.ticketTier.findMany({ where: { venueId: doi }, orderBy: { sortOrder: "asc" } });
     const dOrder = (i: number, date: string, mode: "paid" | "confirmed" | "request", source: string, qty: number[]) =>
       createTicketOrder({ venueId: doi, date, time: "", name: NAMES[(i + 4) % NAMES.length], phone: phone(110 + i), source, mode, staff: true, tickets: dTiers.map((t, n) => ({ tierId: t.id, qty: qty[n] ?? 0 })) });
@@ -264,7 +272,7 @@ async function buildTicketDemo(owner: { id: string; name: string }): Promise<voi
     await prisma.ticketVenue.update({ where: { id: show }, data: { layout: { rows: 8, cols: 14, cells } } });
     await prisma.ticketTier.create({ data: { venueId: show, name: "Khu đứng", price: 150000, quota: 40, sortOrder: 2 } });
     const stand = (await prisma.ticketTier.findFirstOrThrow({ where: { venueId: show, seatClass: null } })).id;
-    await sideMenu(show, [["Trà Shan tuyết", "Đồ uống", 30000, "Cốc nóng, nhận tại quầy"], ["Rượu táo mèo", "Đồ uống", 30000, "Shot 50ml · từ 18 tuổi"], ["Bia Hà Nội", "Đồ uống", 25000, "Chai 450ml"], ["Khoai lang nướng", "Ăn nhẹ", 25000, "Túi 3 củ"]]);
+    await sideMenu(show, [["Trà Shan tuyết", "Đồ uống", 30000, "Cốc giấy 300ml trà Shan tuyết pha nóng, giữ ấm suốt đêm nhạc. Đưa mã voucher để nhận tại quầy đồ uống."], ["Rượu táo mèo", "Đồ uống", 30000, "Shot 50ml rượu ngô ngâm táo mèo Tà Xùa, chua chát nhẹ, uống ấm người. Chỉ bán cho khách từ 18 tuổi."], ["Bia Hà Nội", "Đồ uống", 25000, "Chai 450ml ướp lạnh, nhận tại quầy đồ uống."], ["Khoai lang nướng", "Ăn nhẹ", 25000, "Túi 3 củ khoai đồi nướng than hồng, ăn nóng bên lửa trại."]]);
     const days = [today, addDaysKey(today, 1), addDaysKey(today, 2)];
     for (const d of days) await createSessions(show, [d], d === days[2] ? "19:30" : "20:00");
     const seat = (r: number, c: number) => String.fromCharCode(65 + r) + (c + 1);

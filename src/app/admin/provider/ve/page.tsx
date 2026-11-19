@@ -19,12 +19,13 @@ export default async function TicketPage({ searchParams }: { searchParams: Promi
   const venues = await venuesFor(session);
   const isAdmin = session.role === "ADMIN";
 
-  if (!venues.length && !isAdmin) {
+  // Chưa có địa điểm: chủ dịch vụ vẫn vào được tab Thiết lập để tự tạo (gửi admin duyệt); nhân viên thì không.
+  if (!venues.length && !isAdmin && session.role !== "PROVIDER") {
     return (
       <div className="mx-auto max-w-xl rounded-2xl border border-dashed border-forest-200 bg-white p-8 text-center">
         <h1 className="text-xl font-bold text-ink">Vé &amp; đặt bàn</h1>
         <p className="mt-2 text-sm text-gray-600">
-          Tài khoản chưa có địa điểm bán vé / nhận đặt bàn nào. Liên hệ quản trị viên Tà Xùa Booking để mở bán vé cổng, vé show hoặc nhận đặt bàn nhà hàng.
+          Chủ địa điểm chưa có địa điểm bán vé / nhận đặt bàn nào.
         </p>
       </div>
     );

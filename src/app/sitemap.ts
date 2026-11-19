@@ -1,8 +1,9 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
-import { CATEGORIES, CATEGORY_LIST } from "@/lib/constants";
+import { PUBLIC_VENUE } from "@/lib/ticket-core";
+import { CATEGORIES, CATEGORY_LIST, serviceCatSlug } from "@/lib/constants";
 import { SITE } from "@/lib/site";
-import { LOCALE_META, TARGET_LOCALES, localePath } from "@/lib/i18n/config";
+import { LOCALE_META, TARGET_LOCALES, VI_ONLY_PATHS, localePath } from "@/lib/i18n/config";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       select: { slug: true, kind: true, updatedAt: true },
     }),
     // Địa điểm bán vé / đặt bàn đang mở bán (/ve/<slug>).
-    prisma.ticketVenue.findMany({ where: { published: true }, select: { slug: true, updatedAt: true } }),
+    prisma.ticketVenue.findMany({ where: PUBLIC_VENUE, select: { slug: true, updatedAt: true } }),
   ]);
 
   const staticRoutes: MetadataRoute.Sitemap = [
@@ -52,7 +53,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   const serviceRoutes: MetadataRoute.Sitemap = services.map((s) => ({
-    url: `${base}/${CATEGORIES[s.category].slug}/${s.slug}`,
+    url: `${base}/${serviceCatSlug(s.category)}/${s.slug}`,
     lastModified: s.updatedAt,
     changeFrequency: "daily",
     priority: 0.7,
@@ -77,6 +78,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const all = [...staticRoutes, ...categoryRoutes, ...serviceRoutes, ...articleRoutes, ...placeRoutes];
   return all.map((r) => {
     const path = r.url.slice(base.length) || "/";
+    if (VI_ONLY_PATHS.includes(path)) return r; // trang chỉ tiếng Việt: không khai bản en/zh/ko
     const languages: Record<string, string> = { [LOCALE_META.vi.htmlLang]: r.url };
     for (const l of TARGET_LOCALES) languages[LOCALE_META[l].htmlLang] = `${base}${localePath(path, l)}`;
     return { ...r, alternates: { languages } };

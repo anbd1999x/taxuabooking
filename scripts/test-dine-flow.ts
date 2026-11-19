@@ -4,8 +4,8 @@
  */
 import { prisma } from "../src/lib/prisma";
 import { TicketError, createVenue, patchVenueConfig } from "../src/lib/ticket";
-import { addDineTable, advanceDineOrder, cancelDineOrder, closeDineRequest, createDineOrder, createDineRequest, dineCustomerState, loadDine, payDineTable, rotateDineQr, tableForQr, tableForQrGuarded } from "../src/lib/dine";
-import { tableState } from "../src/lib/dine-core";
+import { addDineFee, addDineTable, advanceDineOrder, cancelDineOrder, cancelDineOrderByGuest, claimDinePaid, rejectDineClaim, removeDineFee, saveDineBank, closeDineRequest, createDineOrder, createDineRequest, dineCustomerState, loadDine, payDineTable, rotateDineQr, SOLD_DAYS, tableForQr, tableForQrGuarded } from "../src/lib/dine";
+import { isFee, tableState } from "../src/lib/dine-core";
 import { crc16 } from "../src/lib/ticket-core";
 
 let pass = 0, failN = 0;
@@ -93,6 +93,18 @@ async function main() {
     await cancelDineOrder(venueId, o2.id);
     d = await loadDine(venueId);
     ok("Huỷ lần gọi 2 ⇒ rời hoá đơn, bàn 'đang dùng bữa'", d.orders.length === 1 && tableState(d.orders, d.reqs, t1.id) === "eat");
+    ok("Quán tự huỷ ⇒ không báo 'khách huỷ'", d.guestCancels.length === 0);
+
+    // --- khách tự huỷ (bếp chưa bắt đầu làm) ---
+    const g1 = await createDineOrder({ venueId, tableId: t1.id, items: [{ menuId: com.id, qty: 2 }] });
+    await rejects("Khách bàn khác không huỷ được lần gọi của bàn này", () => cancelDineOrderByGuest(venueId, t2.id, g1.id));
+    await cancelDineOrderByGuest(venueId, t1.id, g1.id);
+    d = await loadDine(venueId);
+    ok("Khách huỷ lần gọi còn 'Đơn mới' ⇒ rời hoá đơn + quán thấy trong 'khách vừa huỷ'", !d.orders.some((o) => o.id === g1.id) && d.guestCancels.length === 1 && d.guestCancels[0].table === "TN1" && d.guestCancels[0].qty === 2 && d.guestCancels[0].summary.includes("2×"), JSON.stringify(d.guestCancels));
+    const g2 = await createDineOrder({ venueId, tableId: t1.id, items: [{ menuId: com.id, qty: 1 }] });
+    await advanceDineOrder(venueId, g2.id);
+    await rejects("Bếp đã bấm 'Đang làm' ⇒ khách không tự huỷ được", () => cancelDineOrderByGuest(venueId, t1.id, g2.id));
+    await cancelDineOrder(venueId, g2.id); // dọn: quán huỷ hộ
 
     // --- gọi nhân viên / xin thanh toán ---
     await createDineRequest({ venueId, tableId: t1.id, kind: "staff" });
@@ -137,11 +149,57 @@ async function main() {
     c = await dineCustomerState(q);
     ok("Khách mới ngồi vào gọi món ⇒ hết 'Cảm ơn', hoá đơn mới theo giá mới", !c.paid && c.bill === 50000);
     ok("Thực đơn đếm 'đã bán' (không tính lần gọi đã huỷ)", (await loadDine(venueId)).menu.find((m) => m.id === com.id)!.sold === 5, String((await loadDine(venueId)).menu.find((m) => m.id === com.id)!.sold));
+    // PERF-3: 'đã bán' chỉ tính SOLD_DAYS (30) ngày gần nhất — lần gọi cũ hơn (đã thu) không cộng vào, màn quán nạp 5 giây/lần không groupBy cả lịch sử.
+    const old = await createDineOrder({ venueId, tableId: t2.id, items: [{ menuId: com.id, qty: 3 }] });
+    await prisma.dineOrder.update({ where: { id: old.id }, data: { status: "paid", createdAt: new Date(Date.now() - (SOLD_DAYS + 10) * 86_400_000) } });
+    ok("PERF-3: lần gọi quá 30 ngày không tính vào 'đã bán'", (await loadDine(venueId)).menu.find((m) => m.id === com.id)!.sold === 5);
+
+    // --- phụ thu + khách báo đã chuyển khoản (bàn thử riêng PT1, món lẩu ⇒ không lệch các ca đếm ở trên/dưới) ---
+    const pt = await prisma.ticketTable.create({ data: { venueId, name: "PT1", zone: "Trong nhà", qrKey: "feed0001" } });
+    const qp = (await tableForQr(slug, "PT1", "feed0001"))!;
+    await rejects("Phụ thu bàn chưa có món bị từ chối", () => addDineFee(venueId, pt.id, "Phí phục vụ", 10000));
+    await createDineOrder({ venueId, tableId: pt.id, items: [{ menuId: lau.id, qty: 1 }] });
+    const base = (await dineCustomerState(qp)).bill;
+    await rejects("Phụ thu số tiền 0 bị từ chối", () => addDineFee(venueId, pt.id, "Phí phục vụ", 0));
+    await addDineFee(venueId, pt.id, "Phí phục vụ", 30000);
+    await addDineFee(venueId, pt.id, "Khăn lạnh", 5000);
+    d = await loadDine(venueId);
+    const ptFees = d.orders.filter((o) => o.tableId === pt.id && isFee(o));
+    await removeDineFee(venueId, ptFees.find((o) => o.items[0].name === "Khăn lạnh")!.id);
+    let cp = await dineCustomerState(qp);
+    ok("Phụ thu cộng vào hoá đơn khách + mã VietQR; bỏ phụ thu thì trừ lại", cp.bill === base + 30000 && !!cp.bank?.qr.includes(`54${String(base + 30000).length.toString().padStart(2, "0")}${base + 30000}`), `${base} → ${cp.bill}`);
+    ok("Phụ thu ở trạng thái 'đã lên món', nguồn 'Phụ thu' (không vào cột bếp)", ptFees.length === 2 && ptFees.every((o) => o.status === "served"));
+    await claimDinePaid(qp, "/uploads/bill-test.jpg");
+    cp = await dineCustomerState(qp);
+    d = await loadDine(venueId);
+    const pr = d.reqs.find((r) => r.tableId === pt.id)!;
+    ok("Khách báo đã CK ⇒ quán thấy yêu cầu CK kèm ảnh bill + số tiền lúc báo", pr?.kind === "pay" && pr.method === "Chuyển khoản" && pr.claim?.amount === base + 30000 && pr.claim.proof === "/uploads/bill-test.jpg" && cp.payClaim?.amount === base + 30000, JSON.stringify(pr));
+    await rejectDineClaim(venueId, pr.id, "Chưa thấy tiền về");
+    cp = await dineCustomerState(qp);
+    ok("Quán báo chưa nhận được ⇒ khách thấy lý do, hết trạng thái 'đã CK'", !cp.payClaim && cp.claimNote === "Chưa thấy tiền về" && cp.payReq === "Chuyển khoản");
+    await claimDinePaid(qp, null);
+    cp = await dineCustomerState(qp);
+    ok("Gửi lại xác nhận (không ảnh) ⇒ xoá lý do cũ", !!cp.payClaim && cp.payClaim.proof === null && cp.claimNote === "");
+    const ptIds = (await loadDine(venueId)).orders.filter((o) => o.tableId === pt.id).map((o) => o.id);
+    const paidPt = await payDineTable(venueId, pt.id, "Chuyển khoản", "Test", ptIds);
+    d = await loadDine(venueId);
+    ok("Xác thực · hoàn thành ⇒ thu đủ cả phụ thu, đóng bàn + yêu cầu", paidPt === base + 30000 && !d.orders.some((o) => o.tableId === pt.id) && !d.reqs.some((r) => r.tableId === pt.id), String(paidPt));
+    // Cấu hình tài khoản chuyển khoản
+    await rejects("Lưu tài khoản: ngân hàng không hợp lệ", () => saveDineBank(venueId, "123", "0123456789", "NGUYEN VAN A"));
+    await rejects("Lưu tài khoản: số tài khoản quá ngắn", () => saveDineBank(venueId, "970436", "12", "NGUYEN VAN A"));
+    await saveDineBank(venueId, "970436", " 0071 0000 12345 ", "Nguyễn Văn Ánh");
+    d = await loadDine(venueId);
+    ok("Lưu tài khoản: bỏ khoảng trắng STK, tên chủ TK bỏ dấu + viết hoa", d.venue.bankBin === "970436" && d.venue.bankAcc === "0071000012345" && d.venue.bankHolder === "NGUYEN VAN ANH", JSON.stringify(d.venue));
+    await saveDineBank(venueId, "", "", "");
+    await createDineOrder({ venueId, tableId: pt.id, items: [{ menuId: lau.id, qty: 1 }] });
+    const qpOff = (await tableForQr(slug, "PT1", "feed0001"))!; // mỗi yêu cầu thật đều đọc lại cấu hình quán
+    await rejects("Tắt chuyển khoản ⇒ khách không báo 'đã CK' được", () => claimDinePaid(qpOff, null));
+    await payDineTable(venueId, pt.id, "Tiền mặt", "Test");
 
     // Xoá bàn ⇒ mã QR cũ hết dùng, lịch sử đơn vẫn còn tên bàn.
     await prisma.dineOrder.updateMany({ where: { venueId, status: "new" }, data: { status: "cancel" } });
     await prisma.ticketTable.delete({ where: { id: t1.id } });
-    ok("Xoá bàn: QR cũ không vào được, đơn cũ giữ tên bàn", (await tableForQr(slug, "tn1", key)) === null && (await prisma.dineOrder.count({ where: { venueId, tableName: "TN1", tableId: null } })) === 4);
+    ok("Xoá bàn: QR cũ không vào được, đơn cũ giữ tên bàn", (await tableForQr(slug, "tn1", key)) === null && (await prisma.dineOrder.count({ where: { venueId, tableName: "TN1", tableId: null } })) === 6); // 4 lần gọi + 2 lần thử khách huỷ
   } finally {
     if (venueId) await prisma.ticketVenue.delete({ where: { id: venueId } });
     console.log(`\nDọn dữ liệu thử: còn sót ${await prisma.dineOrder.count({ where: { venueId } })} đơn.`);

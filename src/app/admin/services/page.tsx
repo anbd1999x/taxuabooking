@@ -5,6 +5,8 @@ import { CATEGORIES, CATEGORY_LIST } from "@/lib/constants";
 import { formatPrice } from "@/lib/format";
 import { toggleField } from "./actions";
 import { STT_TH, STT_TD } from "@/components/admin/Stt";
+import { PartnerServices } from "@/components/admin/PartnerServices";
+import { servicePageAccess } from "@/lib/partner-access";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +19,12 @@ export default async function AdminServicesPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  // Chủ homestay tự đăng ký: chỉ thấy homestay của mình (giao diện riêng).
+  const access = await servicePageAccess();
+  if (!access.isAdmin) return <PartnerServices ownerId={access.session.sub} />;
+
   const sp = await searchParams;
+  const pendingOnly = str(sp.pending) === "1";
   const catSlug = str(sp.category);
   const q = str(sp.q);
   const cat = CATEGORY_LIST.find((c) => c.slug === catSlug);
@@ -25,12 +32,16 @@ export default async function AdminServicesPage({
   const where: Prisma.ServiceWhereInput = {};
   if (cat) where.category = cat.key as ServiceCategory;
   if (q) where.title = { contains: q, mode: "insensitive" };
+  // Homestay của chủ tự đăng ký đang chờ duyệt hiển thị.
+  const PENDING: Prisma.ServiceWhereInput = { published: false, owner: { selfSignup: true } };
+  if (pendingOnly) Object.assign(where, PENDING);
+  const pendingCount = await prisma.service.count({ where: PENDING });
 
   const services = await prisma.service.findMany({
     where,
     // Như trang tìm kiếm: Nổi bật trước, trong đó số ưu tiên LỚN lên trước; còn lại theo sửa gần nhất.
     orderBy: [{ featured: "desc" }, { priorityOrder: "desc" }, { updatedAt: "desc" }],
-    include: { _count: { select: { images: true } }, owner: { select: { name: true } } },
+    include: { _count: { select: { images: true } }, owner: { select: { name: true, selfSignup: true } } },
   });
 
   // Số lượng dịch vụ mỗi danh mục (theo bộ tìm kiếm hiện tại) để hiện trên tab.
@@ -64,6 +75,13 @@ export default async function AdminServicesPage({
           <Link href="/admin/services/new" className="rounded-xl bg-forest-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-forest-700">+ Thêm bài đăng</Link>
         </div>
       </div>
+
+      {pendingCount > 0 && (
+        <Link href={pendingOnly ? "/admin/services" : "/admin/services?pending=1"} className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800 ring-1 ring-amber-200 hover:bg-amber-100">
+          <span>🕓 {pendingCount} homestay của chủ tự đăng ký đang chờ duyệt — bật “Hiện” để đăng lên website.</span>
+          <span className="text-xs underline">{pendingOnly ? "Xem tất cả" : "Lọc chờ duyệt"}</span>
+        </Link>
+      )}
 
       {/* Tab danh mục */}
       <div className="mt-4 flex flex-wrap gap-2">
@@ -118,6 +136,8 @@ export default async function AdminServicesPage({
                     </Link>
                     <div className="text-xs text-gray-400">
                       {svc._count.images} ảnh · Chủ: {svc.owner ? svc.owner.name : <span className="text-amber-600">chưa gán</span>}
+                      {svc.owner?.selfSignup && <span className="ml-1.5 rounded-full bg-sky-50 px-1.5 py-0.5 font-semibold text-sky-700">tự đăng ký</span>}
+                      {svc.owner?.selfSignup && !svc.published && <span className="ml-1.5 rounded-full bg-amber-50 px-1.5 py-0.5 font-semibold text-amber-700">chờ duyệt</span>}
                     </div>
                   </td>
                   <td className="px-4 py-3 hidden sm:table-cell">{CATEGORIES[svc.category].shortLabel}</td>

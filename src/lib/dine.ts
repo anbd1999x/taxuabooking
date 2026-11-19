@@ -3,9 +3,9 @@ import { randomBytes } from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import { parseDateOnly } from "./dates";
-import { TicketError } from "./ticket";
-import { bankName, normalizeConfig, vietQrPayload, vnNow } from "./ticket-core";
-import { DINE_MAX_LINES, DINE_MAX_QTY, type DineCustomer, type DineData, type DineOrderVM, type DineReqVM, type DineStatus } from "./dine-core";
+import { TicketError, patchVenueConfig } from "./ticket";
+import { BANKS, bankName, normalizeConfig, vietQrPayload, vnNow } from "./ticket-core";
+import { DINE_FEE, DINE_FEE_MAX, DINE_MAX_LINES, DINE_MAX_QTY, type DineClaim, type DineCustomer, type DineData, type DineOrderVM, type DineReqVM, type DineStatus } from "./dine-core";
 
 /**
  * Gọi món QR tại bàn — phía server. Khách quét QR dán ở bàn (/qr/<slug>/<bàn>?k=<qrKey>) rồi gọi món; quán nhận ở tab
@@ -27,37 +27,51 @@ function orderVM(o: OrderRow): DineOrderVM {
     at: o.createdAt.getTime(), servedAt: o.servedAt?.getTime() ?? null, items, total: items.reduce((a, i) => a + i.price * i.qty, 0),
   };
 }
-const reqVM = (r: { id: string; tableId: string | null; tableName: string; kind: string; method: string | null; createdAt: Date }): DineReqVM => ({
-  id: r.id, tableId: r.tableId, table: r.tableName, kind: r.kind === "pay" ? "pay" : "staff", method: r.method ?? "", at: r.createdAt.getTime(),
+type ReqRow = { id: string; tableId: string | null; tableName: string; kind: string; method: string | null; createdAt: Date; claimedAt: Date | null; claimAmount: Prisma.Decimal | null; proofUrl: string | null };
+const claimOf = (r: ReqRow): DineClaim | null => (r.claimedAt ? { at: r.claimedAt.getTime(), amount: num(r.claimAmount), proof: r.proofUrl } : null);
+const reqVM = (r: ReqRow): DineReqVM => ({
+  id: r.id, tableId: r.tableId, table: r.tableName, kind: r.kind === "pay" ? "pay" : "staff", method: r.method ?? "", at: r.createdAt.getTime(), claim: claimOf(r),
 });
 /** Ảnh của món: danh sách images, món cũ chỉ có ảnh bìa thì lấy ảnh bìa. */
 const menuImages = (m: { images: string[]; imageUrl: string | null }) => (m.images.length ? m.images : m.imageUrl ? [m.imageUrl] : []);
 export const qrPath = (slug: string, table: string, key: string) => `/qr/${slug}/${encodeURIComponent(table.toLowerCase())}?k=${key}`;
 
 // ----------------------------- Màn hình quán -----------------------------
+/** Số "đã bán" của món tính trong SOLD_DAYS ngày gần nhất (PERF-3: không groupBy cả lịch sử mỗi lần màn quán nạp lại 5 giây). */
+export const SOLD_DAYS = 30;
+const soldRecent = (venueId: string) =>
+  prisma.dineOrderItem.groupBy({
+    by: ["menuItemId"], _sum: { qty: true },
+    where: { order: { venueId, status: { not: "cancel" }, createdAt: { gte: new Date(Date.now() - SOLD_DAYS * 86_400_000) } } },
+  });
+const GUEST_CANCEL_SHOW_MS = 10 * 60_000;
+
 export async function loadDine(venueId: string): Promise<DineData> {
   const v = await prisma.ticketVenue.findUniqueOrThrow({ where: { id: venueId }, select: { id: true, name: true, slug: true, config: true } });
   // Bàn chưa có khoá QR ⇒ cấp một lần.
   const noKey = await prisma.ticketTable.findMany({ where: { venueId, qrKey: null }, select: { id: true } });
   for (const t of noKey) await prisma.ticketTable.update({ where: { id: t.id }, data: { qrKey: randomBytes(4).toString("hex") } });
   const today = parseDateOnly(vnNow().today).getTime() - 7 * 3_600_000; // 00:00 giờ VN
-  const [tables, menu, orders, reqs, sold, paid] = await Promise.all([
+  const [tables, menu, orders, reqs, sold, paid, cancels] = await Promise.all([
     // Bàn bị chuyển "ngừng dùng" (tab Thiết lập) khi còn món chưa thu vẫn phải hiện để còn thu tiền.
     prisma.ticketTable.findMany({ where: { venueId, OR: [{ active: true }, { dineOrders: { some: { status: { in: LIVE } } } }] }, orderBy: [{ floor: "asc" }, { sortOrder: "asc" }, { name: "asc" }] }),
     prisma.ticketMenuItem.findMany({ where: { venueId }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] }),
     prisma.dineOrder.findMany({ where: { venueId, status: { in: LIVE } }, include: orderInc, orderBy: { createdAt: "asc" } }),
     prisma.dineRequest.findMany({ where: { venueId, doneAt: null }, orderBy: { createdAt: "asc" } }),
-    prisma.dineOrderItem.groupBy({ by: ["menuItemId"], _sum: { qty: true }, where: { order: { venueId, status: { not: "cancel" } } } }),
+    soldRecent(venueId),
     prisma.dineOrder.findMany({ where: { venueId, status: "paid", paidAt: { gte: new Date(today) } }, select: { items: { select: { price: true, qty: true } } } }),
+    // Khách tự huỷ trong 10 phút qua ⇒ báo bếp (đơn biến khỏi cột "Đơn mới").
+    prisma.dineOrder.findMany({ where: { venueId, status: "cancel", cancelledBy: "guest", cancelledAt: { gte: new Date(Date.now() - GUEST_CANCEL_SHOW_MS) } }, include: orderInc, orderBy: { cancelledAt: "desc" } }),
   ]);
   const cfg = normalizeConfig(v.config);
   const soldBy = new Map(sold.map((x) => [x.menuItemId, x._sum.qty ?? 0]));
   return {
-    venue: { id: v.id, name: v.name, slug: v.slug, hasBank: !!(cfg.bankBin && cfg.bankAcc) },
+    venue: { id: v.id, name: v.name, slug: v.slug, hasBank: !!(cfg.bankBin && cfg.bankAcc), bankBin: cfg.bankBin, bankAcc: cfg.bankAcc, bankHolder: cfg.bankHolder },
     tables: tables.map((t) => ({ id: t.id, name: t.name, cap: t.capacity, zone: t.zone, floor: t.floor, url: qrPath(v.slug, t.name, t.qrKey ?? "") })),
     menu: menu.map((m) => ({ id: m.id, name: m.name, group: m.group ?? "", desc: m.description ?? "", price: num(m.price), hot: m.hot, avail: m.active, imageUrl: m.imageUrl, images: menuImages(m), sold: soldBy.get(m.id) ?? 0 })),
     orders: orders.map(orderVM),
     reqs: reqs.map(reqVM),
+    guestCancels: cancels.map((o) => ({ id: o.id, table: o.tableName, at: (o.cancelledAt ?? o.createdAt).getTime(), summary: o.items.map((i) => `${i.qty}× ${i.name}`).join(", "), qty: o.items.reduce((a, i) => a + i.qty, 0) })),
     revenueToday: paid.reduce((a, o) => a + o.items.reduce((b, i) => b + num(i.price) * i.qty, 0), 0),
     now: Date.now(),
   };
@@ -74,8 +88,17 @@ export async function advanceDineOrder(venueId: string, orderId: string): Promis
 
 /** Huỷ một lần gọi chưa lên món (khách gọi nhầm / hết nguyên liệu). */
 export async function cancelDineOrder(venueId: string, orderId: string): Promise<void> {
-  const r = await prisma.dineOrder.updateMany({ where: { id: orderId, venueId, status: { in: ["new", "cooking"] } }, data: { status: "cancel" } });
+  const r = await prisma.dineOrder.updateMany({ where: { id: orderId, venueId, status: { in: ["new", "cooking"] } }, data: { status: "cancel", cancelledAt: new Date() } });
   if (!r.count) fail("Đơn đã lên món hoặc đã thu tiền — không huỷ được.");
+}
+
+/**
+ * KHÁCH tự huỷ một lần gọi của bàn mình — chỉ khi bếp CHƯA chuyển sang "Đang làm" (status new). Điều kiện status nằm trong
+ * where ⇒ bếp vừa bấm "Đang làm" cùng lúc thì lần huỷ thất bại, không huỷ món bếp đã bắt tay làm.
+ */
+export async function cancelDineOrderByGuest(venueId: string, tableId: string, orderId: string): Promise<void> {
+  const r = await prisma.dineOrder.updateMany({ where: { id: orderId, venueId, tableId, status: "new" }, data: { status: "cancel", cancelledAt: new Date(), cancelledBy: "guest" } });
+  if (!r.count) fail("Bếp đã bắt đầu làm món này nên không tự huỷ được — bấm “Gọi nhân viên” để báo quán.");
 }
 
 export async function closeDineRequest(venueId: string, id: string): Promise<void> {
@@ -98,6 +121,57 @@ export async function payDineTable(venueId: string, tableId: string, method: str
     await tx.dineRequest.updateMany({ where: { venueId, tableId, doneAt: null }, data: { doneAt: now } });
     return orders.reduce((a, o) => a + orderVM(o).total, 0);
   });
+}
+
+// ----------------------------- Phụ thu & chuyển khoản -----------------------------
+/** Quán thêm PHỤ THU vào hoá đơn bàn (bàn phải đang có món chưa thu). */
+export async function addDineFee(venueId: string, tableId: string, reason: string, amount: number): Promise<void> {
+  const name = reason.trim().slice(0, 60);
+  if (name.length < 2) fail("Nhập lý do phụ thu.");
+  if (!Number.isFinite(amount) || amount <= 0 || amount > DINE_FEE_MAX) fail(`Số tiền phụ thu từ 1đ đến ${DINE_FEE_MAX.toLocaleString("vi-VN")}đ.`);
+  const t = (await prisma.ticketTable.findFirst({ where: { id: tableId, venueId } })) ?? fail("Bàn không hợp lệ.");
+  if (!(await prisma.dineOrder.count({ where: { venueId, tableId, status: { in: LIVE }, source: { not: DINE_FEE } } }))) fail("Bàn chưa có món nào — chưa thêm phụ thu được.");
+  const now = new Date();
+  await prisma.dineOrder.create({ data: { venueId, tableId: t.id, tableName: t.name, source: DINE_FEE, status: "served", servedAt: now, cookingAt: now, items: { create: [{ name, price: Math.round(amount), qty: 1 }] } } });
+}
+/** Bỏ một dòng phụ thu chưa thu tiền. */
+export async function removeDineFee(venueId: string, orderId: string): Promise<void> {
+  const r = await prisma.dineOrder.updateMany({ where: { id: orderId, venueId, source: DINE_FEE, status: { in: LIVE } }, data: { status: "cancel", cancelledAt: new Date() } });
+  if (!r.count) fail("Dòng phụ thu đã thu tiền hoặc không còn.");
+}
+
+/** Lưu tài khoản nhận chuyển khoản (mã VietQR khách quét ra đúng số tiền). Để trống số tài khoản = tắt chuyển khoản. */
+export async function saveDineBank(venueId: string, bin: string, acc: string, holder: string): Promise<void> {
+  const account = acc.replace(/\s/g, "");
+  const name = holder.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[đĐ]/g, "D").toUpperCase().replace(/[^A-Z ]/g, "").replace(/\s+/g, " ").trim().slice(0, 50);
+  if (account) {
+    if (!BANKS.some((b) => b[0] === bin)) fail("Chọn ngân hàng.");
+    if (!/^[0-9A-Za-z]{4,19}$/.test(account)) fail("Số tài khoản 4–19 ký tự, chỉ gồm số / chữ.");
+    if (name.length < 3) fail("Nhập tên chủ tài khoản.");
+  }
+  await patchVenueConfig(venueId, account ? { bankBin: bin, bankAcc: account, bankHolder: name } : { bankBin: "", bankAcc: "", bankHolder: "" });
+}
+
+/**
+ * KHÁCH báo đã chuyển khoản (kèm ảnh bill nếu có): ghi lên yêu cầu thanh toán của bàn (tạo nếu chưa có), chụp lại tổng hoá đơn
+ * lúc báo ⇒ quán so với tổng hiện tại khi xác thực. Quán chưa khai tài khoản ⇒ từ chối.
+ */
+export async function claimDinePaid(q: { venueId: string; table: { id: string; name: string }; config: Prisma.JsonValue }, proofUrl: string | null): Promise<void> {
+  const cfg = normalizeConfig(q.config);
+  if (!cfg.bankBin || !cfg.bankAcc) fail("Quán chưa nhận chuyển khoản — chọn trả tiền mặt.");
+  const orders = await prisma.dineOrder.findMany({ where: { tableId: q.table.id, status: { in: LIVE } }, include: orderInc });
+  const bill = orders.reduce((a, o) => a + orderVM(o).total, 0);
+  if (!bill) fail("Bàn chưa có món nào cần thanh toán.");
+  const data = { method: "Chuyển khoản", claimedAt: new Date(), claimAmount: bill, proofUrl, claimNote: null };
+  const open = await prisma.dineRequest.findFirst({ where: { tableId: q.table.id, kind: "pay", doneAt: null } });
+  if (open) await prisma.dineRequest.update({ where: { id: open.id }, data });
+  else await prisma.dineRequest.create({ data: { venueId: q.venueId, tableId: q.table.id, tableName: q.table.name, kind: "pay", ...data } });
+}
+
+/** Quán CHƯA nhận được tiền: bỏ trạng thái "đã chuyển", để lại lý do cho khách kiểm tra rồi gửi lại. */
+export async function rejectDineClaim(venueId: string, reqId: string, note: string): Promise<void> {
+  const r = await prisma.dineRequest.updateMany({ where: { id: reqId, venueId, kind: "pay", doneAt: null, claimedAt: { not: null } }, data: { claimedAt: null, claimNote: note.trim().slice(0, 200) || "Quán chưa nhận được tiền." } });
+  if (!r.count) fail("Yêu cầu không còn — tải lại.");
 }
 
 /** Thêm nhanh một bàn ở tab "Bàn & mã QR": tên tự đánh số theo khu (B1, B2… / BC1…). */
@@ -182,6 +256,8 @@ export async function dineCustomerState(q: QrTable): Promise<DineCustomer> {
     orders: vms,
     bill,
     payReq: reqs.find((r) => r.kind === "pay")?.method ?? null,
+    payClaim: (() => { const r = reqs.find((x) => x.kind === "pay"); return r ? claimOf(r) : null; })(),
+    claimNote: reqs.find((r) => r.kind === "pay")?.claimNote ?? "",
     staffAsked: reqs.some((r) => r.kind === "staff"),
     paid: !vms.length && !!lastPaid,
     bank: cfg.bankBin && cfg.bankAcc && bill > 0 ? { name: bankName(cfg.bankBin), account: cfg.bankAcc, holder: cfg.bankHolder, memo, qr: vietQrPayload({ bin: cfg.bankBin, account: cfg.bankAcc, amount: bill, memo }) } : null,

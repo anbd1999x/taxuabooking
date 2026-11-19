@@ -168,7 +168,7 @@ export async function tripsOnDate(
   if (serviceIds.length === 0) return out;
   const real = await prisma.cabinTrip.findMany({
     where: { serviceId: { in: serviceIds }, direction, departureDate: date },
-    orderBy: { departureTime: "asc" },
+    orderBy: [{ departureTime: "asc" }, { createdAt: "asc" }],
   });
   for (const t of real) if (!out.has(t.serviceId)) out.set(t.serviceId, realView(t));
   const missing = serviceIds.filter((id) => !out.has(id));
@@ -192,7 +192,7 @@ export async function tripsForDays(
   if (days.length === 0) return out;
   const real = await prisma.cabinTrip.findMany({
     where: { serviceId, direction, departureDate: { gte: days[0], lte: days[days.length - 1] } },
-    orderBy: [{ departureDate: "asc" }, { departureTime: "asc" }],
+    orderBy: [{ departureDate: "asc" }, { departureTime: "asc" }, { createdAt: "asc" }],
   });
   for (const t of real) {
     const k = toDateKey(t.departureDate);
@@ -239,11 +239,47 @@ export async function ensureTripOnDate(
   dateKey: string,
   db: Prisma.TransactionClient = prisma,
 ): Promise<CabinTrip | null> {
-  const date = parseDateOnly(dateKey);
-  const existing = await db.cabinTrip.findFirst({
+  // Hai đơn đầu tiên cùng ngày gửi song song từng cùng thấy "chưa có chuyến" rồi tạo 2 CabinTrip trùng
+  // (đơn gắn chuyến thứ 2 bị ẩn khỏi lịch, "hết vé" không khoá được nó — BK-7) ⇒ tìm + tạo nằm
+  // trong khoá advisory theo (nhà xe, chiều, ngày). Gọi với prisma thường ⇒ tự mở transaction.
+  if ("$transaction" in db) {
+    try {
+      return await (db as typeof prisma).$transaction((tx) => ensureTripLocked(serviceId, direction, dateKey, tx));
+    } catch (err) {
+      // Lối tạo chuyến khác không qua khoá (form admin) đụng ràng buộc unique ⇒ đọc lại chuyến đã có.
+      if (isUniqueViolation(err)) return findTripOnDate(serviceId, direction, parseDateOnly(dateKey), prisma);
+      throw err;
+    }
+  }
+  return ensureTripLocked(serviceId, direction, dateKey, db);
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  return !!err && typeof err === "object" && (err as { code?: unknown }).code === "P2002";
+}
+
+function findTripOnDate(
+  serviceId: string,
+  direction: CabinDirection,
+  date: Date,
+  db: Prisma.TransactionClient,
+): Promise<CabinTrip | null> {
+  // createdAt làm tie-breaker: dữ liệu cũ có thể trùng giờ — luôn chọn cùng MỘT chuyến như lịch hiển thị.
+  return db.cabinTrip.findFirst({
     where: { serviceId, direction, departureDate: date },
-    orderBy: { departureTime: "asc" },
+    orderBy: [{ departureTime: "asc" }, { createdAt: "asc" }],
   });
+}
+
+async function ensureTripLocked(
+  serviceId: string,
+  direction: CabinDirection,
+  dateKey: string,
+  db: Prisma.TransactionClient,
+): Promise<CabinTrip | null> {
+  const date = parseDateOnly(dateKey);
+  await db.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${`cabin-trip:${serviceId}:${direction}:${dateKey}`}))::text AS ok`;
+  const existing = await findTripOnDate(serviceId, direction, date, db);
   if (existing) return existing;
   const svc = await db.service.findFirst({ where: { id: serviceId, category: "CABIN" }, select: { id: true } });
   if (!svc) return null;

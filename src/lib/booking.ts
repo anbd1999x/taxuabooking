@@ -315,6 +315,11 @@ export async function createBooking(
   if (service.contactOnly || service.inquiryOnly) {
     throw new Error("Cơ sở này không nhận đặt trực tiếp trên web — vui lòng nhắn tin/gọi để nhận thông tin và giữ phòng.");
   }
+  // Vé cabin CHỈ đặt qua /api/cabin/book (createCabinBooking): luồng này không chặn "ngày hết vé",
+  // không dựng chuyến ảo và tính giá theo trip.price thay bảng giá chặng (BK-8). Giao diện không còn gửi CABIN tới đây.
+  if (service.category === "CABIN") {
+    throw new Error("Vé xe cabin vui lòng đặt qua trang nhà xe (chọn ngày đi/về và số vé).");
+  }
 
   const kind = CATEGORIES[service.category].availabilityKind;
   const qty = input.quantity;

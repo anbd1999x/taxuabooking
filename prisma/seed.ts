@@ -392,8 +392,8 @@ async function main() {
     const trips = [];
     for (let d = 1; d <= 30; d++) {
       const date = addDays(start, d);
-      // Chiều đi (OUTBOUND) theo các giờ tối.
-      for (const t of c.times) {
+      // Chiều đi (OUTBOUND): mỗi ngày đúng 1 chuyến/chiều (unique serviceId + ngày + chiều) ⇒ lấy giờ đầu.
+      for (const t of c.times.slice(0, 1)) {
         const s = sampleDay(date, singleTotal, d);
         const doubleAvail = s.status === "SOLD_OUT" ? 0 : Math.max(0, doubleTotal - (d % 3));
         trips.push({
@@ -435,7 +435,7 @@ async function main() {
         status: rs.status,
       });
     }
-    await prisma.cabinTrip.createMany({ data: trips });
+    await prisma.cabinTrip.createMany({ data: trips, skipDuplicates: true });
   }
   console.log("✅ Cabin");
 

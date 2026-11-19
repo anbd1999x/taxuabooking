@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { isValidDineProof } from "@/lib/dine-proof";
 import { TicketError } from "@/lib/ticket";
-import { createDineOrder, createDineRequest, dineCustomerState, tableForQrGuarded } from "@/lib/dine";
+import { cancelDineOrderByGuest, claimDinePaid, createDineOrder, createDineRequest, dineCustomerState, tableForQrGuarded } from "@/lib/dine";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -18,7 +19,8 @@ export async function GET(request: Request) {
 }
 
 /**
- * Khách tại bàn: op `order` (gửi món cho bếp) · `staff` (gọi nhân viên) · `pay` (xin thanh toán, method Tiền mặt | Chuyển khoản).
+ * Khách tại bàn: op `order` (gửi món cho bếp) · `cancel` (huỷ lần gọi khi bếp chưa bắt đầu làm) · `staff` (gọi nhân viên) ·
+ * `pay` (xin thanh toán, method Tiền mặt | Chuyển khoản) · `claim` (báo ĐÃ chuyển khoản, kèm `proof` = url ảnh bill từ /api/qr/proof).
  * Chỉ nhận khi có đúng khoá của mã QR dán ở bàn; giới hạn tần suất theo IP + bàn. Trả lại trạng thái mới của bàn.
  */
 export async function POST(request: Request) {
@@ -43,6 +45,15 @@ export async function POST(request: Request) {
         : [];
       const o = await createDineOrder({ venueId: q.venueId, tableId: q.table.id, items, note: str(body.note, 300) });
       message = `Đã gửi ${o.qty} món tới bếp`;
+    } else if (op === "cancel") {
+      await cancelDineOrderByGuest(q.venueId, q.table.id, str(body.orderId, 40));
+      message = "Đã huỷ lần gọi món";
+    } else if (op === "claim") {
+      const proof = str(body.proof, 200);
+      // Chỉ nhận ảnh do /api/qr/proof vừa cấp cho CHÍNH bàn này (không nhận tệp /uploads bất kỳ).
+      if (proof && !(await isValidDineProof(q.table.id, proof))) return bad("Ảnh bill không hợp lệ — tải lại ảnh.");
+      await claimDinePaid(q, proof || null);
+      message = "Đã gửi xác nhận chuyển khoản · chờ quán kiểm tra";
     } else if (op === "staff") {
       await createDineRequest({ venueId: q.venueId, tableId: q.table.id, kind: "staff" });
       message = `Đã gọi nhân viên tới bàn ${q.table.name}`;

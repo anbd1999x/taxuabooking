@@ -2230,5 +2230,18 @@
  "Sau khi gửi, quét VietQR để thanh toán trong {0} phút (quá hạn đơn tự huỷ). Vé QR phát khi xác nhận thu tiền.": "보낸 후 {0}분 안에 VietQR을 스캔해 결제해 주세요(지나면 주문 자동 취소). 결제가 확인되면 QR 티켓이 발급됩니다.",
  "Đơn giữ chỗ {0} phút chờ xác nhận, quá hạn tự huỷ.": "주문은 확인을 기다리며 {0}분간 자리를 잡아 두고, 지나면 자동 취소됩니다.",
  "Bàn {0}": "{0} 테이블",
- "Bấm vào bàn trống để chọn, bấm lại để bỏ · mỗi bàn 2–4 người": "빈 테이블을 눌러 선택하고 다시 누르면 취소 · 테이블당 2–4명"
+ "Bấm vào bàn trống để chọn, bấm lại để bỏ · mỗi bàn 2–4 người": "빈 테이블을 눌러 선택하고 다시 누르면 취소 · 테이블당 2–4명",
+ "Bạn tra cứu quá nhiều lần. Vui lòng thử lại sau ít phút hoặc gọi {0} để được hỗ trợ.": "조회 횟수가 너무 많습니다. 몇 분 후 다시 시도하시거나 {0}(으)로 전화해 도움을 받으세요.",
+ "Thiếu homestay.": "홈스테이 정보가 없습니다.",
+ "Không tìm thấy homestay.": "홈스테이를 찾을 수 없습니다.",
+ "Thiếu kích thước tệp — tải lại.": "파일 크기 정보가 없습니다 — 다시 업로드해 주세요.",
+ "Ảnh quá lớn hoặc tải lên bị gián đoạn.": "이미지가 너무 크거나 업로드가 중단되었습니다.",
+ "Không tìm thấy.": "찾을 수 없습니다.",
+ "Địa điểm này chưa mở bán.": "이 장소는 아직 판매를 시작하지 않았습니다.",
+ "Vé cổng không cần giữ chỗ.": "입장권은 좌석을 홀드할 필요가 없습니다.",
+ "Bạn giữ chỗ quá nhiều lần liên tiếp. Chờ vài phút rồi thử lại.": "연속으로 너무 많이 좌석을 홀드했습니다. 몇 분 기다린 후 다시 시도해 주세요.",
+ "Bạn gửi quá nhiều yêu cầu. Vui lòng thử lại sau ít phút.": "요청을 너무 많이 보냈습니다. 몇 분 후 다시 시도해 주세요.",
+ "Bạn đã gửi nhiều đơn trong giờ qua. Vui lòng gọi địa điểm hoặc thử lại sau.": "지난 1시간 동안 주문을 많이 보내셨습니다. 장소에 전화하시거나 나중에 다시 시도해 주세요.",
+ "Số điện thoại này đang có 2 đơn chờ xác nhận ở đây — đợi địa điểm gọi lại hoặc gọi trực tiếp giúp mình nhé.": "이 전화번호로 이곳에 확인 대기 중인 주문이 2건 있습니다 — 장소에서 다시 연락할 때까지 기다리시거나 직접 전화해 주세요.",
+ "Vé xe cabin vui lòng đặt qua trang nhà xe (chọn ngày đi/về và số vé).": "캐빈 버스 티켓은 버스 회사 페이지에서 예약해 주세요 (출발/귀환 날짜와 티켓 수 선택)."
 }

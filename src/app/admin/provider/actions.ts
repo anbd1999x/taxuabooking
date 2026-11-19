@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { hashPassword, getSession } from "@/lib/auth";
+import { hashPassword, getSession, invalidateSessionCache } from "@/lib/auth";
 
 export interface ProviderActionState {
   ok?: boolean;
@@ -74,6 +74,7 @@ export async function toggleMyCtv(formData: FormData): Promise<void> {
   if (!id || !(await ownCtv(id))) return;
   const u = await prisma.adminUser.findUnique({ where: { id } });
   await prisma.adminUser.update({ where: { id }, data: { active: !u!.active } });
+  invalidateSessionCache(id); // khoá/mở CTV có hiệu lực ngay
   revalidatePath("/admin/provider/ctv");
 }
 
@@ -81,5 +82,6 @@ export async function deleteMyCtv(formData: FormData): Promise<void> {
   const id = s(formData.get("id"));
   if (!id || !(await ownCtv(id))) return;
   await prisma.adminUser.delete({ where: { id } });
+  invalidateSessionCache(id);
   revalidatePath("/admin/provider/ctv");
 }

@@ -62,6 +62,16 @@ export default async function ArticlesPage() {
                 title="STT nổi bật: số lớn xếp trước, 0 = bài thường"
                 className={`w-16 rounded-lg border px-2 py-1.5 text-center text-xs font-bold ${a.featuredOrder > 0 ? "border-sunset-300 bg-sunset-50 text-sunset-700" : "border-gray-200 text-gray-500"}`}
               />
+              <span className={`ml-1 text-xs font-bold ${a.topicOrder > 0 ? "text-forest-700" : "text-gray-400"}`} title="Thứ tự trong chủ đề">Chủ đề</span>
+              <input
+                type="number"
+                name="topicOrder"
+                min={0}
+                max={9999}
+                defaultValue={a.topicOrder}
+                title="Thứ tự trong chủ đề (tab lọc theo chủ đề): số lớn xếp trước, 0 = theo ngày đăng"
+                className={`w-14 rounded-lg border px-2 py-1.5 text-center text-xs font-bold ${a.topicOrder > 0 ? "border-forest-300 bg-forest-50 text-forest-700" : "border-gray-200 text-gray-500"}`}
+              />
               <button className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50">Lưu</button>
             </ActionForm>
             <form action={toggleArticlePublished}>

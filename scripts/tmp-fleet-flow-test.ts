@@ -6,8 +6,8 @@
 import { PrismaClient } from "@prisma/client";
 import { bookingInputSchema } from "../src/lib/validation";
 import { computeAvailability, createBooking } from "../src/lib/booking";
-import { assignComboBikeService, canManageFleet, comboBikeAssignInfo, fleetFreeByWebType, loadFleet, pushFleetPayments, releaseExpiredHolds, syncFleetBookings, syncFleetForBooking } from "../src/lib/fleet";
-import { KEEP_FEE, isVehicleFree, rentalStatus, suggestDeposit } from "../src/lib/fleet-core";
+import { assignComboBikeService, canManageFleet, comboBikeAssignInfo, fleetFreeByWebType, loadFleet, pushFleetPayments, releaseExpiredHolds, syncFleetBookings, syncFleetForBooking, vehicleVM } from "../src/lib/fleet";
+import { KEEP_FEE, isVehicleFree, lateFeeOf, normalizeConfig, quoteRental, rentalStatus, suggestDeposit } from "../src/lib/fleet-core";
 import { getRentalBikes } from "../src/lib/queries";
 import { AUTH_COOKIE_NAME, createSessionToken } from "../src/lib/auth-token";
 import { POST as fleetPOST } from "../src/app/api/admin/fleet/route";
@@ -70,6 +70,18 @@ async function main() {
     alive = await prisma.fleetRental.findMany({ where: { bookingId: b1.id, state: null } });
     ok(alive.length === 1 && alive[0].startDate.toISOString().slice(0, 10) === N1 && alive[0].endDate.toISOString().slice(0, 10) === N2, "Admin đổi ngày → lịch xe đổi theo");
     ok((await fleetFreeByWebType([svc.id], D1, D2)).get(rv.id)?.free === 2, "Ngày cũ được nhả → còn 2 xe");
+    // FL-1: đổi ngày ⇒ tiền thuê của lượt chưa giao tính lại theo giá hiện tại của xe + nhật ký.
+    const P1 = normalizeConfig((await prisma.fleetConfig.findUnique({ where: { serviceId: svc.id } }))?.data);
+    const q1 = quoteRental({ price: 150000, kind: "so" }, N1, N2, "08:00", "17:00", false, P1).t;
+    ok(Number(alive[0].total) === q1, "FL-1: đổi ngày → tiền thuê lượt chưa giao = báo giá theo lịch mới", `total=${alive[0].total} báo giá=${q1}`);
+    ok((await prisma.bookingLog.count({ where: { bookingId: b1.id, title: { startsWith: "Đội xe: tính lại tiền thuê" } } })) >= 1, "FL-1: có nhật ký tính lại tiền thuê");
+    await syncFleetForBooking(b1.id);
+    const again1 = await prisma.fleetRental.findFirstOrThrow({ where: { id: alive[0].id } });
+    ok(Number(again1.total) === q1, "FL-1: đồng bộ lại không đổi tiền thuê");
+
+    // FL-3: phí trả muộn không giảm khi trễ thêm giờ.
+    const lf = Array.from({ length: 73 }, (_, h) => lateFeeOf(h, 30000, 120000));
+    ok(lf.every((x, i) => i === 0 || x >= lf[i - 1]) && lf[5] === 150000 && lf[6] === 150000 && lf[25] === 240000, "FL-3: phí trả muộn tăng dần theo giờ (6 giờ không rẻ hơn 5 giờ)", `5h=${lf[5]} 6h=${lf[6]} 24h=${lf[24]} 25h=${lf[25]}`);
 
     // Huỷ đơn: chưa đồng bộ vẫn tính là trống; đồng bộ thì lượt thuê bị huỷ.
     await prisma.bookingRequest.update({ where: { id: b1.id }, data: { status: "CANCELLED" } });
@@ -138,6 +150,13 @@ async function main() {
     ok(cr.length === 1 && cr[0].vehicle.serviceId === svc.id && Number(cr[0].total) === 340000 && cr[0].webPending, "Combo thuê 1 xe Wave → tự xếp vào nhà xe có xe Wave trống, chờ nhà xe duyệt", `${cr.length} xe`);
     const logs = await prisma.bookingLog.count({ where: { bookingId: cb.id, title: { startsWith: "Xe máy kèm combo" } } });
     ok(logs === 1, "Đơn combo có nhật ký đã xếp xe máy");
+    // BK-6: hai lần đồng bộ CHẠY SONG SONG cho combo chưa có xe ⇒ chỉ xếp đúng số xe, không trùng.
+    const cb2 = await prisma.bookingRequest.create({ data: { code: "TX-CB-P" + Date.now().toString(36).slice(-4), category: "COMBO", serviceTitle: "Homestay thử", customerName: "Khách combo song song", phone: "0386274915", useDate: new Date(key(55)), endDate: new Date(key(57)), quantity: 2, bikeCount: 1, bikeType: "wave", bikeFrom: new Date(key(56)), bikeTo: new Date(key(57)), bikePickup: "08:00", bikeReturn: "12:00", bikeAmount: 300000 } });
+    bookingIds.push(cb2.id);
+    await Promise.all([syncFleetForBooking(cb2.id), syncFleetForBooking(cb2.id), syncFleetForBooking(cb2.id)]);
+    ok((await prisma.fleetRental.count({ where: { bookingId: cb2.id, state: null } })) === 1, "BK-6: 3 lần đồng bộ song song combo 1 xe → chỉ 1 lượt thuê");
+    await prisma.bookingRequest.update({ where: { id: cb2.id }, data: { status: "CANCELLED" } });
+    await syncFleetForBooking(cb2.id);
 
     // ===== Admin phân xe máy kèm combo cho nhà xe khác =====
     const mk = async (tag: string, bike: string) => {
@@ -195,7 +214,8 @@ async function main() {
     // ===== Hồi quy (rà soát 19/11/2026): gọi thẳng API đội xe với phiên admin =====
     await prisma.fleetConfig.update({ where: { serviceId: svc.id }, data: { data: { webSync: true, holdH: 0 } } });
     (globalThis as unknown as { __testCookies: Record<string, string> }).__testCookies = {
-      [AUTH_COOKIE_NAME]: await createSessionToken({ sub: "test-admin", role: "ADMIN", username: "kiem-thu", name: "Kiểm thử" }),
+      // sub phải là tài khoản ADMIN thật: getSession kiểm lại tài khoản trong DB (còn active + đúng vai trò).
+      [AUTH_COOKIE_NAME]: await createSessionToken({ sub: (await prisma.adminUser.findFirstOrThrow({ where: { role: "ADMIN", active: true }, select: { id: true } })).id, role: "ADMIN", username: "kiem-thu", name: "Kiểm thử" }),
     };
     const api = async (body: Record<string, unknown>) => {
       const res = await fleetPOST(new Request("http://x/api/admin/fleet", { method: "POST", body: JSON.stringify({ serviceId: svc.id, ...body }) }));
@@ -371,6 +391,45 @@ async function main() {
       "Hoàn cọc khi huỷ xe đơn web → hoàn 50k nhà xe thu, giữ nguyên 100k sàn thu hộ; đơn đã thu = 100k", `sổ=${ledW} đơn=${bWa.amountCollected} ${cw3.j.error ?? ""}`);
     await syncFleetForBooking(bW.id);
     ok((await prisma.fleetPayment.count({ where: { rentalId: RW.id } })) === RWa.payments.length, "Đồng bộ lại sau hoàn → không sinh dòng thu chi thừa");
+
+    // FL-2: mở trang xe (đồng bộ mọi đơn) ĐÚNG lúc nhà xe ghi cọc ⇒ không sinh dòng "Sàn ghi nhận hoàn" sai.
+    const bF = await prisma.bookingRequest.create({ data: { code: "TX-XM-F" + Date.now().toString(36).slice(-4), category: "MOTORBIKE", serviceId: svc.id, serviceTitle: svc.title, rentalVehicleId: rv.id, customerName: "Khách đồng bộ chen", phone: "0386274915", useDate: new Date(key(140)), endDate: new Date(key(141)), quantity: 1, referencePrice: 300000 } });
+    bookingIds.push(bF.id);
+    await syncFleetForBooking(bF.id);
+    const RF = await prisma.fleetRental.findFirstOrThrow({ where: { bookingId: bF.id, state: null } });
+    await api({ op: "webConfirm", id: RF.id });
+    const [, depF] = await Promise.all([syncFleetBookings(svc.id), api({ op: "deposit", id: RF.id, amt: 50000, method: "Tiền mặt" })]);
+    await syncFleetBookings(svc.id);
+    const paysF = await prisma.fleetPayment.findMany({ where: { rental: { bookingId: bF.id } } });
+    const bFa = await bk(bF.id);
+    ok(depF.status === 200 && !paysF.some((p) => p.method === "Sàn thu hộ") && Number(bFa.amountCollected) === 50000 && paysF.reduce((a, p) => a + Number(p.amount), 0) === 50000,
+      "FL-2: đồng bộ chạy chen lúc ghi cọc → sổ chỉ có 50k Tiền mặt, không dòng Sàn thu hộ ±", paysF.map((p) => `${p.amount} ${p.method}`).join(", "));
+
+    // FL-1 (vòng 2): đơn THIẾU XE không bị tính lại giá ở mỗi lần đồng bộ; chỉ tính lại khi số xe của đơn đổi.
+    const nFleet = await prisma.fleetVehicle.count({ where: { serviceId: svc.id } });
+    const qS = nFleet + 1; // luôn thiếu ít nhất 1 xe
+    const bS = await prisma.bookingRequest.create({ data: { code: "TX-XM-S" + Date.now().toString(36).slice(-4), category: "MOTORBIKE", serviceId: svc.id, serviceTitle: svc.title, rentalVehicleId: rv.id, customerName: "Khách thiếu xe", phone: "0386274915", useDate: new Date(key(160)), endDate: new Date(key(161)), quantity: qS, referencePrice: 333000 * qS } });
+    bookingIds.push(bS.id);
+    await syncFleetForBooking(bS.id);
+    const rS0 = await prisma.fleetRental.findMany({ where: { bookingId: bS.id, state: null }, orderBy: { id: "asc" } });
+    const repriceLogs = () => prisma.bookingLog.count({ where: { bookingId: bS.id, title: { startsWith: "Đội xe: tính lại tiền thuê" } } });
+    ok(rS0.length > 0 && rS0.length < qS && rS0.every((r) => Number(r.total) === 333000), "FL-1: đơn thiếu xe → xếp được một phần, giá theo đơn", `${rS0.length}/${qS} xe`);
+    await syncFleetForBooking(bS.id);
+    await syncFleetBookings(svc.id);
+    const rS1 = await prisma.fleetRental.findMany({ where: { bookingId: bS.id, state: null }, orderBy: { id: "asc" } });
+    ok(rS1.length === rS0.length && rS1.every((r) => Number(r.total) === 333000) && (await repriceLogs()) === 0,
+      "FL-1: đồng bộ lại đơn thiếu xe (khách không đổi gì) → giữ giá, không ghi nhật ký tính lại", rS1.map((r) => String(r.total)).join(","));
+    // Đổi số xe của đơn (giảm còn bằng số xe đang giữ) ⇒ tính lại theo giá hiện tại MỘT lần.
+    await prisma.bookingRequest.update({ where: { id: bS.id }, data: { quantity: rS1.length, referencePrice: 333000 * rS1.length } });
+    await syncFleetForBooking(bS.id);
+    const PS = normalizeConfig((await prisma.fleetConfig.findUnique({ where: { serviceId: svc.id } }))?.data);
+    const rS2 = await prisma.fleetRental.findMany({ where: { bookingId: bS.id, state: null }, include: { vehicle: true } });
+    ok(rS2.length === rS1.length && rS2.every((r) => Number(r.total) === quoteRental(vehicleVM(r.vehicle), key(160), key(161), "08:00", "17:00", false, PS).t) && (await repriceLogs()) === 1,
+      "FL-1: đổi số xe → tính lại theo giá hiện tại + 1 nhật ký", rS2.map((r) => String(r.total)).join(","));
+    await syncFleetForBooking(bS.id);
+    ok((await repriceLogs()) === 1, "FL-1: đồng bộ lại sau đổi số xe → không ghi nhật ký lặp");
+    await prisma.bookingRequest.update({ where: { id: bS.id }, data: { status: "CANCELLED" } });
+    await syncFleetForBooking(bS.id);
 
     // Đơn web 2 xe: giữ cọc khi huỷ 1 xe → tiền giữ KHÔNG bị chuyển sang xe còn lại.
     const bK = await prisma.bookingRequest.create({ data: { code: "TX-XM-K" + Date.now().toString(36).slice(-4), category: "MOTORBIKE", serviceId: svc.id, serviceTitle: svc.title, rentalVehicleId: rv.id, customerName: "Khách giữ cọc", phone: "0386274915", useDate: new Date(key(135)), endDate: new Date(key(136)), quantity: 2, referencePrice: 600000 } });

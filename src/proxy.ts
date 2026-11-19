@@ -8,16 +8,22 @@ const BLOCKED_HTML = `<!doctype html><html lang="vi"><head><meta charset="utf-8"
 /** Khu quản trị: đăng nhập + phân quyền theo vai trò (giữ nguyên logic middleware cũ). */
 async function adminGuard(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  // Gắn đường dẫn cho admin/layout.tsx (tài khoản bị khoá mà JWT còn hạn ⇒ layout chuyển về /admin/login).
+  // Luôn GHI ĐÈ header client tự gửi.
+  const pass = () => {
+    const h = new Headers(request.headers);
+    h.set("x-admin-path", pathname);
+    return NextResponse.next({ request: { headers: h } });
+  };
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
   const session = token ? await verifySessionToken(token) : null;
 
   const isLogin = pathname === "/admin/login";
   const home = (r?: string) => (r === "CTV" ? "/admin/ctv" : r === "PROVIDER" ? "/admin/provider" : r === "STAFF" || r === "DEMO" ? "/admin/provider/xe" : "/admin");
 
-  if (isLogin) {
-    if (session) return NextResponse.redirect(new URL(home(session.role), request.url));
-    return NextResponse.next();
-  }
+  // Trang đăng nhập: luôn cho vào — việc "đã đăng nhập thì về khu của mình" làm ở admin/login/layout.tsx (server kiểm
+  // tài khoản còn active). Ở đây chỉ thấy JWT còn hạn ⇒ redirect sẽ kẹt vòng lặp với tài khoản đã bị khoá.
+  if (isLogin) return pass();
 
   if (!session) {
     const url = new URL("/admin/login", request.url);
@@ -30,6 +36,9 @@ async function adminGuard(request: NextRequest) {
   const isProviderArea = pathname.startsWith("/admin/provider");
   // Chủ dịch vụ được vào "Lịch giá & tình trạng" (dữ liệu đã lọc theo ownerId trong trang/API).
   const isAvailability = pathname.startsWith("/admin/availability");
+  // Chủ homestay TỰ ĐĂNG KÝ (AdminUser.selfSignup) quản lý homestay của mình ở /admin/services. Proxy (edge) không
+  // đọc được DB ⇒ cho mọi PROVIDER qua; trang kiểm selfSignup + quyền sở hữu (src/lib/partner-access.ts).
+  const isServices = pathname === "/admin/services" || pathname.startsWith("/admin/services/");
 
   // Nhân viên giao xe: CHỈ trang quản lý xe.
   if (role === "STAFF" || role === "DEMO") {
@@ -38,21 +47,21 @@ async function adminGuard(request: NextRequest) {
     //  kiểm ở trang + API: stayOwnerOf chỉ nhận "phong", fleetOwnerOf từ chối "phong".)
     const scan = role === "STAFF" && (pathname.startsWith("/admin/provider/soat-ve") || pathname.startsWith("/admin/provider/phong"));
     if (!scan && !pathname.startsWith("/admin/provider/xe")) return NextResponse.redirect(new URL(home(role), request.url));
-    return NextResponse.next();
+    return pass();
   }
 
   if (isCtvArea) {
     if (role !== "CTV" && role !== "ADMIN") return NextResponse.redirect(new URL(home(role), request.url));
   } else if (isProviderArea) {
     if (role !== "PROVIDER" && role !== "ADMIN") return NextResponse.redirect(new URL(home(role), request.url));
-  } else if (isAvailability) {
+  } else if (isAvailability || isServices) {
     if (role !== "ADMIN" && role !== "PROVIDER") return NextResponse.redirect(new URL(home(role), request.url));
   } else {
     // Khu vực quản trị đầy đủ: chỉ ADMIN.
     if (role !== "ADMIN") return NextResponse.redirect(new URL(home(role), request.url));
   }
 
-  return NextResponse.next();
+  return pass();
 }
 
 export async function proxy(request: NextRequest) {

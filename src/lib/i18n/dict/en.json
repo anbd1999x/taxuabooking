@@ -2230,5 +2230,18 @@
  "Sau khi gửi, quét VietQR để thanh toán trong {0} phút (quá hạn đơn tự huỷ). Vé QR phát khi xác nhận thu tiền.": "After sending, scan the VietQR to pay within {0} minutes (otherwise the order cancels automatically). QR tickets are issued once payment is confirmed.",
  "Đơn giữ chỗ {0} phút chờ xác nhận, quá hạn tự huỷ.": "The order holds your spot {0} minutes awaiting confirmation, then cancels automatically.",
  "Bàn {0}": "{0} table",
- "Bấm vào bàn trống để chọn, bấm lại để bỏ · mỗi bàn 2–4 người": "Tap a free table to select it, tap again to remove it · 2–4 people per table"
+ "Bấm vào bàn trống để chọn, bấm lại để bỏ · mỗi bàn 2–4 người": "Tap a free table to select it, tap again to remove it · 2–4 people per table",
+ "Bạn tra cứu quá nhiều lần. Vui lòng thử lại sau ít phút hoặc gọi {0} để được hỗ trợ.": "You have searched too many times. Please try again in a few minutes or call {0} for help.",
+ "Thiếu homestay.": "Homestay is missing.",
+ "Không tìm thấy homestay.": "Homestay not found.",
+ "Thiếu kích thước tệp — tải lại.": "File size is missing — please upload again.",
+ "Ảnh quá lớn hoặc tải lên bị gián đoạn.": "The image is too large or the upload was interrupted.",
+ "Không tìm thấy.": "Not found.",
+ "Địa điểm này chưa mở bán.": "This venue is not open for booking yet.",
+ "Vé cổng không cần giữ chỗ.": "Entrance tickets do not need a hold.",
+ "Bạn giữ chỗ quá nhiều lần liên tiếp. Chờ vài phút rồi thử lại.": "You have held seats too many times in a row. Please wait a few minutes and try again.",
+ "Bạn gửi quá nhiều yêu cầu. Vui lòng thử lại sau ít phút.": "You have sent too many requests. Please try again in a few minutes.",
+ "Bạn đã gửi nhiều đơn trong giờ qua. Vui lòng gọi địa điểm hoặc thử lại sau.": "You have sent many orders in the past hour. Please call the venue or try again later.",
+ "Số điện thoại này đang có 2 đơn chờ xác nhận ở đây — đợi địa điểm gọi lại hoặc gọi trực tiếp giúp mình nhé.": "This phone number already has 2 orders awaiting confirmation here — please wait for the venue to call back or call them directly.",
+ "Vé xe cabin vui lòng đặt qua trang nhà xe (chọn ngày đi/về và số vé).": "Please book cabin bus tickets on the bus operator's page (choose departure/return dates and number of tickets)."
 }

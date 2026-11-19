@@ -21,7 +21,7 @@ export default function AdminLoginPage() {
 
         <form action={action} className="space-y-4">
           <label className="block">
-            <span className="text-sm font-medium text-gray-600">Tên đăng nhập</span>
+            <span className="text-sm font-medium text-gray-600">Tên đăng nhập / Email / SĐT</span>
             <input
               name="username"
               autoComplete="username"
@@ -54,6 +54,12 @@ export default function AdminLoginPage() {
             {pending ? "Đang đăng nhập..." : "Đăng nhập"}
           </button>
         </form>
+        <div className="mt-5 border-t border-gray-100 pt-5">
+          <a href="/api/auth/google?mode=partner" rel="nofollow" className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-bold text-gray-800 hover:bg-gray-50">
+            <span className="text-base font-black text-[#4285F4]">G</span> Chủ homestay: đăng nhập bằng Google
+          </a>
+          <p className="mt-2 text-center text-xs text-gray-400">Lần đầu đăng nhập sẽ tự tạo tài khoản dùng thử.</p>
+        </div>
       </div>
     </div>
   );

@@ -2230,5 +2230,18 @@
  "Sau khi gửi, quét VietQR để thanh toán trong {0} phút (quá hạn đơn tự huỷ). Vé QR phát khi xác nhận thu tiền.": "提交后，请在 {0} 分钟内扫描 VietQR 付款（逾时订单自动取消）。确认收款后发放二维码门票。",
  "Đơn giữ chỗ {0} phút chờ xác nhận, quá hạn tự huỷ.": "订单保留座位 {0} 分钟等待确认，逾时自动取消。",
  "Bàn {0}": "{0} 桌",
- "Bấm vào bàn trống để chọn, bấm lại để bỏ · mỗi bàn 2–4 người": "点击空桌选择，再次点击取消 · 每桌 2–4 人"
+ "Bấm vào bàn trống để chọn, bấm lại để bỏ · mỗi bàn 2–4 người": "点击空桌选择，再次点击取消 · 每桌 2–4 人",
+ "Bạn tra cứu quá nhiều lần. Vui lòng thử lại sau ít phút hoặc gọi {0} để được hỗ trợ.": "您查询的次数过多。请几分钟后再试，或拨打 {0} 寻求帮助。",
+ "Thiếu homestay.": "缺少民宿信息。",
+ "Không tìm thấy homestay.": "未找到该民宿。",
+ "Thiếu kích thước tệp — tải lại.": "缺少文件大小信息——请重新上传。",
+ "Ảnh quá lớn hoặc tải lên bị gián đoạn.": "图片过大或上传中断。",
+ "Không tìm thấy.": "未找到。",
+ "Địa điểm này chưa mở bán.": "该地点尚未开放预订。",
+ "Vé cổng không cần giữ chỗ.": "门票无需预留座位。",
+ "Bạn giữ chỗ quá nhiều lần liên tiếp. Chờ vài phút rồi thử lại.": "您连续预留座位的次数过多。请等待几分钟后再试。",
+ "Bạn gửi quá nhiều yêu cầu. Vui lòng thử lại sau ít phút.": "您发送的请求过多。请几分钟后再试。",
+ "Bạn đã gửi nhiều đơn trong giờ qua. Vui lòng gọi địa điểm hoặc thử lại sau.": "您在过去一小时内提交了多个订单。请致电该地点或稍后再试。",
+ "Số điện thoại này đang có 2 đơn chờ xác nhận ở đây — đợi địa điểm gọi lại hoặc gọi trực tiếp giúp mình nhé.": "该电话号码在此已有 2 个待确认的订单——请等待该地点回电，或直接致电联系。",
+ "Vé xe cabin vui lòng đặt qua trang nhà xe (chọn ngày đi/về và số vé).": "卧铺巴士车票请在车行页面预订（选择去程/返程日期和票数）。"
 }

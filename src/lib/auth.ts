@@ -1,6 +1,7 @@
 import "server-only";
 import bcrypt from "bcryptjs";
 import { cookies } from "next/headers";
+import { prisma } from "./prisma";
 import {
   AUTH_COOKIE_NAME,
   SESSION_MAX_AGE,
@@ -39,11 +40,47 @@ export async function clearSessionCookie(): Promise<void> {
   store.delete(AUTH_COOKIE_NAME);
 }
 
+/**
+ * JWT sống 7 ngày ⇒ phải kiểm lại tài khoản ở server: bị khoá / xoá / đổi vai trò thì phiên cũ hết hiệu lực ngay
+ * (trước đây CTV / chủ cơ sở bị khoá vẫn thao tác được tới khi cookie hết hạn). Cache trong bộ nhớ ~60 giây để
+ * không query DB mỗi request. Không kiểm ở proxy (edge, không có Prisma).
+ */
+const ACCOUNT_TTL_MS = 60_000;
+const accountCache = new Map<string, { at: number; active: boolean; role: string }>();
+
+/** Bỏ cache của một tài khoản (gọi sau khi khoá / xoá / đổi vai trò để có hiệu lực ngay, không chờ 60 giây). */
+export function invalidateSessionCache(userId?: string): void {
+  if (userId) accountCache.delete(userId);
+  else accountCache.clear();
+}
+
+async function accountStillValid(s: SessionPayload): Promise<boolean> {
+  // Phiên DEMO không ứng với đăng nhập thật (cookie demo riêng, vai trò không có trong DB) ⇒ giữ như cũ.
+  if (s.role === "DEMO") return true;
+  const now = Date.now();
+  let c = accountCache.get(s.sub);
+  if (!c || now - c.at > ACCOUNT_TTL_MS) {
+    try {
+      const u = await prisma.adminUser.findUnique({ where: { id: s.sub }, select: { active: true, role: true } });
+      c = { at: now, active: !!u?.active, role: u?.role ?? "" };
+      accountCache.set(s.sub, c);
+      if (accountCache.size > 5_000) for (const [k, v] of accountCache) if (now - v.at > ACCOUNT_TTL_MS) accountCache.delete(k);
+    } catch (e) {
+      // DB lỗi tạm thời: dùng kết quả cache cũ nếu có, không thì cho qua (không đá văng mọi người khi DB chập chờn).
+      console.error("[auth] kiểm tài khoản lỗi", e);
+      return c ? c.active && c.role === s.role : true;
+    }
+  }
+  return c.active && c.role === s.role;
+}
+
 export async function getSession(): Promise<SessionPayload | null> {
   const store = await cookies();
   const token = store.get(AUTH_COOKIE_NAME)?.value;
   if (!token) return null;
-  return verifySessionToken(token);
+  const s = await verifySessionToken(token);
+  if (!s) return null;
+  return (await accountStillValid(s)) ? s : null;
 }
 
 /**

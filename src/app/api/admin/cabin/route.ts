@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
-import type { AvailabilityStatus, CabinDirection } from "@prisma/client";
+import type { AvailabilityStatus, BookingStatus, CabinDirection } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { parseDateOnly, addDays, toDateKey, isValidDateKey } from "@/lib/dates";
 import { ensureTripOnDate } from "@/lib/cabin-trips";
-import { adjustInventory, assignRoomsForBooking } from "@/lib/inventory";
+import { adjustInventory, assignRoomsForBooking, lockBooking, statusHoldsInventory } from "@/lib/inventory";
 import { generateBookingCode } from "@/lib/utils";
 import { resolveCommission } from "@/lib/commission";
 import { sendConfirmEmailIfDue } from "@/lib/booking-email";
+import { canRoleAct, type BookingRole } from "@/lib/booking-flow";
+import { BOOKING_STATUS_META } from "@/lib/constants";
+import { syncFleetForBooking } from "@/lib/fleet";
+import { syncStaysForBooking } from "@/lib/stay";
 
 export const dynamic = "force-dynamic";
 
@@ -96,6 +100,15 @@ export async function POST(request: Request) {
       if (!/^0\d{9}$/.test(phone)) return NextResponse.json({ error: "Số điện thoại 10 số, bắt đầu bằng 0." }, { status: 400 });
 
       if (!(await assertOwn(serviceId))) return NextResponse.json({ error: "Nhà xe không thuộc quyền của bạn." }, { status: 403 });
+      // ctvId phải là CTV đang hoạt động; chủ nhà xe chỉ gán CTV của chính mình — tránh tính hoa hồng
+      // cho CTV của chủ khác / tài khoản không phải CTV (SEC-6).
+      if (ctvId) {
+        const ctv = await prisma.adminUser.findFirst({
+          where: { id: ctvId, role: "CTV", active: true, ...(session.role === "PROVIDER" ? { providerId: session.sub } : {}) },
+          select: { id: true },
+        });
+        if (!ctv) return NextResponse.json({ error: "CTV không hợp lệ hoặc không thuộc cơ sở của bạn." }, { status: 400 });
+      }
       // Lịch luôn mở bán: ngày chưa có chuyến ⇒ tạo từ mẫu; không giới hạn theo số ghế.
       const trip = await ensureTripOnDate(serviceId, direction, date);
       if (!trip) return NextResponse.json({ error: "Nhà xe không hợp lệ." }, { status: 400 });
@@ -176,30 +189,80 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, changed });
     }
 
+    // Xác nhận / huỷ vé từ lịch cabin — cùng quy tắc vai trò & chuyển trạng thái với luồng đơn chính
+    // (canRoleAct): PROVIDER không tự xác nhận, không huỷ đơn combo/đơn đã hoàn thành (BK-2/SEC-2).
     if (op === "confirm" || op === "cancel") {
-      const bookingId = String(body.bookingId);
-      const target = await prisma.bookingRequest.findUnique({ where: { id: bookingId }, select: { serviceId: true } });
+      const bookingId = String(body.bookingId ?? "");
+      const toStatus: BookingStatus = op === "confirm" ? "CONFIRMED" : "CANCELLED";
+      const target = await prisma.bookingRequest.findUnique({
+        where: { id: bookingId },
+        select: { category: true, cabinTripId: true, cabinReturnTripId: true },
+      });
       if (!target) return NextResponse.json({ error: "Không tìm thấy vé." }, { status: 404 });
-      if (!(await assertOwn(target.serviceId))) return NextResponse.json({ error: "Vé không thuộc dịch vụ của bạn." }, { status: 403 });
+      // Panel này chỉ cho vé gắn chuyến cabin (đơn cabin / combo), không cho đơn homestay, xe máy…
+      const tripIds = [target.cabinTripId, target.cabinReturnTripId].filter((x): x is string => !!x);
+      if (!tripIds.length || (target.category !== "CABIN" && target.category !== "COMBO")) {
+        return NextResponse.json({ error: "Đây không phải vé xe cabin." }, { status: 400 });
+      }
+      if (session.role === "PROVIDER") {
+        // Quyền theo NHÀ XE của chuyến đi/về — đơn combo có serviceId = homestay nên không dùng serviceId của đơn.
+        const own = await prisma.cabinTrip.count({ where: { id: { in: tripIds }, service: { ownerId: session.sub } } });
+        if (!own) return NextResponse.json({ error: "Vé không thuộc nhà xe của bạn." }, { status: 403 });
+        if (target.category === "COMBO") {
+          return NextResponse.json({ error: "Đơn combo do sàn điều phối — liên hệ sàn để xác nhận / huỷ." }, { status: 403 });
+        }
+      }
+      const role: BookingRole = session.role === "ADMIN" ? "ADMIN" : "PROVIDER";
+      const by = session.name || session.username || "Admin";
+      const reason = String(body.reason ?? "").trim().slice(0, 300) || "Huỷ từ lịch vé cabin";
       await prisma.$transaction(async (tx) => {
+        await lockBooking(tx, bookingId); // chống 2 thao tác song song cùng trừ/cộng ghế
         const booking = await tx.bookingRequest.findUnique({ where: { id: bookingId } });
         if (!booking) throw new Error("Không tìm thấy vé.");
-        if (op === "confirm") {
-          if (!booking.inventoryApplied) {
-            // Đơn COMBO có cả phòng homestay → giữ phòng cùng lúc với trừ ghế.
-            if (booking.roomTypeId) await assignRoomsForBooking(tx, booking, true);
-            await adjustInventory(tx, booking, -1);
-          }
-          await tx.bookingRequest.update({ where: { id: bookingId }, data: { status: "CONFIRMED", inventoryApplied: true } });
-        } else {
-          if (booking.inventoryApplied) {
-            if (booking.roomTypeId) await assignRoomsForBooking(tx, booking, false);
-            await adjustInventory(tx, booking, +1);
-          }
-          await tx.bookingRequest.update({ where: { id: bookingId }, data: { status: "CANCELLED", inventoryApplied: false } });
+        // Trạng thái nguồn hợp lệ: chỉ xác nhận vé Mới/Đang liên hệ; không huỷ vé đã hoàn thành/đã huỷ
+        // (trước đây "xác nhận" đơn COMPLETED làm lùi trạng thái, đơn CANCELLED bị mở lại không nhật ký).
+        const fromOk = op === "confirm"
+          ? booking.status === "NEW" || booking.status === "CONTACTING"
+          : booking.status !== "COMPLETED" && booking.status !== "CANCELLED";
+        if (!fromOk) throw new Error(`Vé đang ở trạng thái "${BOOKING_STATUS_META[booking.status].label}" — không thể ${op === "confirm" ? "xác nhận" : "huỷ"}.`);
+        if (!canRoleAct(role, booking.status, booking.paymentStatus, "status", toStatus, booking.category === "COMBO")) {
+          throw new Error("Bạn không có quyền chuyển vé sang trạng thái này.");
         }
+        const shouldHold = statusHoldsInventory(toStatus);
+        let inventoryApplied = booking.inventoryApplied;
+        if (shouldHold && !booking.inventoryApplied) {
+          // Đơn COMBO có cả phòng homestay → giữ phòng cùng lúc với trừ ghế.
+          if (booking.roomTypeId) await assignRoomsForBooking(tx, booking, true);
+          await adjustInventory(tx, booking, -1);
+          inventoryApplied = true;
+        } else if (!shouldHold && booking.inventoryApplied) {
+          if (booking.roomTypeId) await assignRoomsForBooking(tx, booking, false);
+          await adjustInventory(tx, booking, +1);
+          inventoryApplied = false;
+        }
+        await tx.bookingRequest.update({
+          where: { id: bookingId },
+          data: {
+            status: toStatus,
+            inventoryApplied,
+            needsConfirmation: false,
+            ...(toStatus === "CANCELLED" ? { cancelReason: reason } : {}),
+          },
+        });
+        await tx.bookingLog.create({
+          data: {
+            bookingId,
+            kind: "STATUS",
+            title: `Chuyển sang ${BOOKING_STATUS_META[toStatus].label} (lịch vé cabin)`,
+            body: toStatus === "CANCELLED" ? `Lý do: ${reason}` : null,
+            by,
+          },
+        });
       });
       void sendConfirmEmailIfDue(bookingId); // khách có email ⇒ gửi thư xác nhận (1 lần)
+      // Như luồng đơn chính: huỷ combo ⇒ nhả lượt ở / xe máy kèm ngay, không đợi ai mở trang quản lý.
+      void syncFleetForBooking(bookingId).catch(() => {});
+      void syncStaysForBooking(bookingId).catch(() => {});
       return NextResponse.json({ ok: true });
     }
 

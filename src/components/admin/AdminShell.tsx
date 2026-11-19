@@ -7,6 +7,7 @@ import { logoutAction } from "@/app/admin/actions";
 import { cn } from "@/lib/utils";
 import { ToastHost } from "./Toast";
 import { PushToggle } from "./PushToggle";
+import { ModuleSubNav, useActiveTabLabel } from "./module-tabs";
 
 type NavItem = { href: string; label: string; exact?: boolean };
 /** Nhóm menu CHA → các mục CON. title = null: mục đứng riêng, không có tiêu đề nhóm. */
@@ -80,6 +81,8 @@ const PROVIDER_NAV: NavGroup[] = [
     title: null,
     items: [
       { href: "/admin/provider", label: "Tổng quan", exact: true },
+      // Chỉ chủ homestay tự đăng ký (layout ẩn mục này với chủ do admin tạo).
+      { href: "/admin/services", label: "Homestay của tôi" },
       { href: "/admin/provider/phong", label: "Quản lý phòng" },
       { href: "/admin/availability", label: "Lịch giá & tình trạng" },
       { href: "/admin/provider/xe", label: "Quản lý xe máy" },
@@ -110,6 +113,7 @@ export function AdminShell({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const tabLabel = useActiveTabLabel();
   // Nhóm do người dùng bấm mở/thu gọn; chưa bấm → mở nhóm chứa trang hiện tại.
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
   const NAV0 = role === "CTV" ? CTV_NAV : role === "PROVIDER" ? PROVIDER_NAV : role === "STAFF" ? STAFF_NAV : role === "DEMO" ? STAFF_NAV : ADMIN_NAV;
@@ -123,6 +127,19 @@ export function AdminShell({
 
   function renderItem(item: NavItem, child: boolean) {
     const badge = badges?.[item.href] ?? 0;
+    // Mục đang mở của module lớn (xe / phòng / vé…) ⇒ hiện các tab của module thành mục con ngay bên dưới.
+    if (isActive(item)) {
+      return (
+        <div key={item.href}>
+          {renderLink(item, child, badge)}
+          <ModuleSubNav onPick={() => setOpen(false)} depth={child ? 1 : 0} />
+        </div>
+      );
+    }
+    return renderLink(item, child, badge);
+  }
+
+  function renderLink(item: NavItem, child: boolean, badge: number) {
     return (
       <Link
         key={item.href}
@@ -238,9 +255,16 @@ export function AdminShell({
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12h18M3 6h18M3 18h18" /></svg>
           </button>
+          {/* Điện thoại: tên tab đang mở của module — bấm để mở menu chọn tab khác. */}
+          {tabLabel && (
+            <button type="button" onClick={() => setOpen(true)} className="ml-1 flex min-w-0 items-center gap-1 rounded-full bg-forest-50 px-3 py-1.5 text-sm font-bold text-forest-700 lg:hidden">
+              <span className="truncate">{tabLabel}</span>
+              <span aria-hidden="true">▾</span>
+            </button>
+          )}
           <div className="ml-auto flex items-center gap-3">
             {(role === "ADMIN" || role === "PROVIDER") && <PushToggle vapidKey={vapidKey} />}
-            <div className="text-sm text-gray-600">
+            <div className={cn("text-sm text-gray-600", tabLabel && "hidden sm:block")}>
               Xin chào, <span className="font-semibold text-forest-700">{adminName}</span>
             </div>
           </div>

@@ -26,7 +26,8 @@ function titleLabel(cat: ServiceCategory) {
 let seq = 0;
 const nextKey = () => ++seq;
 
-export function ServiceCreateWizard({ category }: { category: ServiceCategory }) {
+/** partner = chủ homestay tự đăng ký: ẩn Hiển thị / Nổi bật (do admin duyệt). */
+export function ServiceCreateWizard({ category, partner = false }: { category: ServiceCategory; partner?: boolean }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(createServiceFull, {});
   const meta = CATEGORIES[category];
   const kind = meta.availabilityKind;
@@ -97,10 +98,14 @@ export function ServiceCreateWizard({ category }: { category: ServiceCategory })
             <input name="contactZalo" className={inp} />
           </label>
         </div>
+        {partner ? (
+          <p className="mt-4 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">Homestay mới tạo sẽ <b>chờ Tà Xùa Booking duyệt</b> trước khi hiện trên website. Bạn vẫn quản lý phòng, giá, lịch và tạo đơn ngay từ bây giờ.</p>
+        ) : (
         <div className="mt-4 flex gap-6">
           <label className="flex items-center gap-2"><input type="checkbox" name="published" defaultChecked className="h-4 w-4 accent-forest-600" /><span className="text-sm text-gray-700">Hiển thị</span></label>
           <label className="flex items-center gap-2"><input type="checkbox" name="featured" className="h-4 w-4 accent-forest-600" /><span className="text-sm text-gray-700">Nổi bật</span></label>
         </div>
+        )}
       </section>
 
       {/* STAY: hạng phòng */}

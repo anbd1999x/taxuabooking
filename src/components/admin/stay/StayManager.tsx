@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
+import { usePublishTabs } from "@/components/admin/module-tabs";
 import type { HomeData } from "@/lib/stay";
 import {
   EXP_CATS,
@@ -11,6 +12,7 @@ import {
   dowOf,
   hh,
   isLive,
+  isMoveSplit,
   paidOf,
   rawPaid,
   roomFree,
@@ -270,7 +272,8 @@ export function StayManager({ serviceId, serviceTitle, services, viewerRole, ini
   const byP: Record<string, { name: string; phone: string; n: number; spent: number; last: string }> = {};
   for (const x of stays.filter((s) => s.state !== "reject")) {
     const c = (byP[x.phone] ??= { name: x.name.split(" (")[0], phone: x.phone, n: 0, spent: 0, last: "" });
-    if (isLive(x)) { c.n++; c.spent += rawPaid(x); if (x.ci > c.last) c.last = x.ci; }
+    // Lượt lịch sử tách khi đổi phòng không phải lượt khách mới ⇒ không đếm thêm lượt.
+    if (isLive(x)) { if (!isMoveSplit(x)) c.n++; c.spent += rawPaid(x); if (x.ci > c.last) c.last = x.ci; }
   }
   const custs = Object.values(byP)
     .filter((c) => !cq || (c.name + c.phone).toLowerCase().includes(cq.toLowerCase()))
@@ -305,6 +308,8 @@ export function StayManager({ serviceId, serviceTitle, services, viewerRole, ini
     ? [["today", "Hôm nay"], ["map", "Sơ đồ phòng"], ["web", "Đơn web", webPending.length], ["hk", "Buồng phòng", dirty]]
     : [["today", "Hôm nay"], ["map", "Sơ đồ phòng"], ["web", "Đơn web", webPending.length], ["hk", "Buồng phòng", dirty], ["ledger", "Thu chi"], ["cust", "Khách hàng"], ["report", "Báo cáo"], ["settings", "Cài đặt"]];
   const curTab: Tab = tabsDef.some((t) => t[0] === tab) ? tab : "today";
+  // Tab hiện thành MỤC CON ở menu trái (không còn thanh tab cuộn ngang).
+  usePublishTabs(tabsDef.map(([key, label, badge]) => ({ key, label, badge })), curTab, (k) => setTab(k as Tab));
   const kpis = [
     { k: "Phòng trống đêm nay", v: `${freeRooms.length}/${rooms.length}`, sub: freeRooms.map((r) => r.name).join(", ") || "Kín phòng", c: "oklch(0.55 0.12 155)", pick: () => { setTab("map"); setView("day"); setDate(T); } },
     { k: "Đang ở", v: String(inh.length), sub: inh.reduce((a, s) => a + s.guests, 0) + " khách", c: "oklch(0.45 0.1 158)", pick: () => { setTab("map"); setView("day"); setDate(T); } },
@@ -328,7 +333,7 @@ export function StayManager({ serviceId, serviceTitle, services, viewerRole, ini
 
   return (
     <div ref={rootRef} className="stay-root -m-4 lg:-m-6" style={{ color: "oklch(0.22 0.03 160)", minHeight: "100%", background: "oklch(0.975 0.004 160)" }}>
-      <style>{`@keyframes stayUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}@keyframes staySlide{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}.stay-root *{box-sizing:border-box}.stay-root input,.stay-root select,.stay-root textarea{font-family:inherit}.stay-tabs::-webkit-scrollbar{display:none}.stay-hov:hover{filter:brightness(1.06)}.stay-cell:hover{background:oklch(0.95 0.03 155)!important}`}</style>
+      <style>{`@keyframes stayUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}@keyframes staySlide{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}.stay-root *{box-sizing:border-box}.stay-root input,.stay-root select,.stay-root textarea{font-family:inherit}.stay-hov:hover{filter:brightness(1.06)}.stay-cell:hover{background:oklch(0.95 0.03 155)!important}`}</style>
       {/* thanh trên */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "12px clamp(14px,2.5vw,28px)", background: "white", borderBottom: "1px solid oklch(0.93 0.008 160)", flexWrap: "wrap" }}>
         {services.length > 1 ? (
@@ -356,14 +361,6 @@ export function StayManager({ serviceId, serviceTitle, services, viewerRole, ini
           <div>
             <h1 style={{ margin: 0, fontSize: "clamp(24px,2.6vw,30px)", fontWeight: 800, letterSpacing: "-.02em" }}>Quản lý phòng</h1>
             <div style={{ fontSize: 15, color: "oklch(0.48 0.02 160)", marginTop: 4 }}>Một lịch phòng duy nhất cho khách gọi điện, vãng lai và đơn web. Đặt ở đây, web tự báo hết phòng.</div>
-          </div>
-          <div className="stay-tabs" style={{ display: "flex", gap: 4, padding: 4, borderRadius: 14, background: "oklch(0.93 0.008 160)", overflowX: "auto", maxWidth: "100%", scrollbarWidth: "none" }}>
-            {tabsDef.map(([k, name, badge]) => (
-              <div key={k} onClick={() => setTab(k)} style={{ cursor: "pointer", flex: "none", display: "flex", alignItems: "center", gap: 6, fontSize: 14, fontWeight: 800, padding: "9px 14px", borderRadius: 11, whiteSpace: "nowrap", background: curTab === k ? "white" : "transparent", color: curTab === k ? G : "oklch(0.42 0.02 160)", boxShadow: curTab === k ? "0 1px 4px oklch(0.2 0.03 160 / .15)" : "none" }}>
-                {name}
-                {badge ? <span style={{ fontSize: 11, fontWeight: 800, padding: "2px 7px", borderRadius: 999, background: O, color: "white" }}>{badge}</span> : null}
-              </div>
-            ))}
           </div>
         </div>
 

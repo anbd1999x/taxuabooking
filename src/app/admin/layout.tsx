@@ -1,8 +1,13 @@
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { AdminShell } from "@/components/admin/AdminShell";
 
 export const dynamic = "force-dynamic";
+
+/** Header đường dẫn thật của request /admin — proxy (src/proxy.ts) phải GHI ĐÈ (không tin header client tự gửi). */
+const ADMIN_PATH_HEADER = "x-admin-path";
 
 export default async function AdminLayout({
   children,
@@ -13,6 +18,10 @@ export default async function AdminLayout({
 
   // Trang đăng nhập (chưa có phiên) hiển thị không có sidebar.
   if (!session) {
+    // JWT còn hạn nhưng tài khoản bị khoá / xoá / đổi vai trò (proxy cho qua, getSession trả null) ⇒ về đăng nhập.
+    // Layout không biết đường dẫn: đọc header ADMIN_PATH_HEADER do proxy ghi đè; chưa có header thì giữ hành vi cũ.
+    const p = (await headers()).get(ADMIN_PATH_HEADER);
+    if (p && p !== "/admin/login") redirect("/admin/login");
     return <>{children}</>;
   }
 
@@ -20,41 +29,42 @@ export default async function AdminLayout({
   const badges: Record<string, number> = {};
   const hideNav: string[] = [];
   if (session.role === "ADMIN") {
-    const [count, fbCount] = await Promise.all([
+    const [count, fbCount, venueReview] = await Promise.all([
       prisma.bookingRequest.count({ where: { status: "NEW" } }),
       prisma.feedback.count({ where: { status: "NEW", hidden: false } }),
+      prisma.ticketVenue.count({ where: { review: "pending" } }),
     ]);
     if (count > 0) badges["/admin/bookings"] = count;
     if (fbCount > 0) badges["/admin/feedback"] = fbCount;
+    // Địa điểm vé / đặt bàn đối tác gửi duyệt.
+    if (venueReview > 0) badges["/admin/provider/ve"] = venueReview;
+    // Homestay của chủ tự đăng ký đang chờ duyệt hiển thị.
+    const pendingSvc = await prisma.service.count({ where: { published: false, owner: { selfSignup: true } } });
+    if (pendingSvc > 0) badges["/admin/services"] = pendingSvc;
   } else if (session.role === "PROVIDER") {
     const sub = session.sub;
     // Nhà xe cabin cũng thấy đơn COMBO đi qua chuyến của mình (như trang Đơn).
-    const myTrips = await prisma.cabinTrip.findMany({
-      where: { service: { ownerId: sub, category: "CABIN" } },
-      select: { id: true },
-    });
-    const tripIds = myTrips.map((t) => t.id);
-    const count = await prisma.bookingRequest.count({
-      where: {
-        status: "NEW",
-        ...(tripIds.length
-          ? {
-              OR: [
-                { service: { ownerId: sub } },
-                { cabinTripId: { in: tripIds } },
-                { cabinReturnTripId: { in: tripIds } },
-              ],
-            }
-          : { service: { ownerId: sub } }),
-      },
-    });
+    // Đếm bằng subquery trong DB (PERF-2): trước đây nạp TOÀN BỘ id chuyến rồi IN(...) hàng nghìn tham số
+    // ở mỗi lần điều hướng. BookingRequest.cabinTripId không có relation Prisma nên dùng SQL thô.
+    const [{ n }] = await prisma.$queryRaw<{ n: number }[]>`
+      SELECT COUNT(*)::int AS n FROM "BookingRequest" b
+      WHERE b."status" = 'NEW' AND (
+        b."serviceId" IN (SELECT s.id FROM "Service" s WHERE s."ownerId" = ${sub})
+        OR b."cabinTripId" IN (SELECT t.id FROM "CabinTrip" t JOIN "Service" s ON s.id = t."serviceId" WHERE s."ownerId" = ${sub} AND s."category" = 'CABIN')
+        OR b."cabinReturnTripId" IN (SELECT t.id FROM "CabinTrip" t JOIN "Service" s ON s.id = t."serviceId" WHERE s."ownerId" = ${sub} AND s."category" = 'CABIN')
+      )`;
+    const count = Number(n);
     if (count > 0) badges["/admin/provider/don"] = count;
     // Menu "Quản lý xe máy" chỉ hiện cho chủ có dịch vụ thuê xe máy.
     if (!(await prisma.service.count({ where: { ownerId: sub, category: "MOTORBIKE" } }))) hideNav.push("/admin/provider/xe");
-    // Menu "Vé & đặt bàn" chỉ hiện cho chủ có địa điểm bán vé / nhận đặt bàn.
-    if (!(await prisma.ticketVenue.count({ where: { ownerId: sub } }))) hideNav.push("/admin/provider/ve");
+    // Menu "Vé & đặt bàn" luôn hiện cho chủ: chưa có địa điểm thì tự tạo (vé cổng / show / nhà hàng) rồi gửi admin duyệt.
     // Menu "Quản lý phòng" chỉ hiện cho chủ có homestay.
     if (!(await prisma.service.count({ where: { ownerId: sub, category: { in: ["HOMESTAY", "BUNGALOW"] } } }))) hideNav.push("/admin/provider/phong");
+    // Chủ homestay TỰ ĐĂNG KÝ dùng thử: có "Quản lý dịch vụ" (tự tạo homestay), không có xe máy / vé & đặt bàn /
+    // gọi món / tài khoản CTV. Chủ do admin tạo giữ menu như cũ (không tự sửa dịch vụ).
+    const me = await prisma.adminUser.findUnique({ where: { id: sub }, select: { selfSignup: true } });
+    if (me?.selfSignup) hideNav.push("/admin/provider/xe", "/admin/provider/ve", "/admin/provider/ctv");
+    else hideNav.push("/admin/services");
   } else if (session.role === "STAFF") {
     // Nhân viên: chỉ hiện việc mà chủ của mình có (giao xe / soát vé).
     const me = await prisma.adminUser.findUnique({ where: { id: session.sub }, select: { providerId: true, staffArea: true } });

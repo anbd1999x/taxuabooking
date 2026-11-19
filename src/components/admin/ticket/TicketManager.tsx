@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { VENUE_KINDS, type TkData, type TkVenueRef, type VenueKind } from "@/lib/ticket-core";
+import { REVIEW_LABEL, VENUE_KINDS, type TkData, type TkVenueRef, type VenueKind } from "@/lib/ticket-core";
 import { showToast } from "@/components/admin/Toast";
+import { usePublishTabs } from "@/components/admin/module-tabs";
 import { BuildTab } from "./BuildTab";
 import { DineTab } from "./DineTab";
 import { GateTab } from "./GateTab";
@@ -11,7 +12,7 @@ import { RestTab } from "./RestTab";
 import { Scanner } from "./Scanner";
 import { SetupTab } from "./SetupTab";
 import { ShowTab } from "./ShowTab";
-import { Empty, MUTED, Seg, type Ctx } from "./ui";
+import { Empty, MUTED, type Ctx } from "./ui";
 
 /**
  * Vé & đặt bàn — theo mẫu claude.ai/design "Ban ve - Quan tri" (project 4ec052fe…).
@@ -100,21 +101,34 @@ export function TicketManager({
     return () => clearInterval(iv);
   }, [tab, post, venueId, busy]);
 
+  const pending = venues.filter((v) => v.review === "pending");
   const tabs = TABS.filter(([k]) => (!only || only.includes(k)) && (isAdmin || k === "scan" || k === "setup" || venues.some((v) => v.kind === TAB_KIND[k])));
+  // Tab hiện thành MỤC CON ở menu trái (không còn thanh tab cuộn ngang).
+  usePublishTabs(tabs.map(([key, label]) => ({ key, label })), tab, (k) => void pickTab(k as Tab));
   const ctx: Ctx | null = data ? { data, venues, busy, isAdmin, call, pickVenue } : null;
   const ready = ctx && (!kind || ctx.data.venue.kind === kind) ? ctx : null;
   const reloadTo = (id: string) => router.push(`/admin/provider/ve?tab=setup&venue=${id}`);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, color: "oklch(0.22 0.03 160)" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <Seg items={tabs} value={tab} onPick={pickTab} />
+      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
         {tab === "setup" && venues.length > 1 && data && (
           <select value={data.venue.id} onChange={(e) => pickVenue(e.target.value)} style={{ fontSize: 14, fontWeight: 700, padding: "9px 12px", borderRadius: 12, border: "1.5px solid oklch(0.88 0.015 160)", background: "white", fontFamily: "inherit", maxWidth: "100%" }}>
-            {venues.map((v) => <option key={v.id} value={v.id}>{VENUE_KINDS[v.kind]} · {v.name}</option>)}
+            {venues.map((v) => <option key={v.id} value={v.id}>{VENUE_KINDS[v.kind]} · {v.name}{v.review !== "approved" ? ` (${REVIEW_LABEL[v.review]})` : ""}</option>)}
           </select>
         )}
       </div>
+
+      {isAdmin && !only && pending.length > 0 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "12px 14px", borderRadius: 16, background: "oklch(0.96 0.05 85)", border: "1px solid oklch(0.88 0.08 85)" }}>
+          <b style={{ fontSize: 14 }}>{pending.length} địa điểm đối tác gửi duyệt:</b>
+          {pending.map((v) => (
+            <span key={v.id} onClick={() => { setTab("setup"); pickVenue(v.id); }} style={{ cursor: "pointer", fontSize: 13, fontWeight: 800, padding: "6px 12px", borderRadius: 999, background: "white", color: "oklch(0.45 0.12 70)" }}>
+              {VENUE_KINDS[v.kind]} · {v.name} →
+            </span>
+          ))}
+        </div>
+      )}
 
       {tab === "setup" ? (
         <SetupTab ctx={ctx} providers={providers} places={places} onCreated={reloadTo} />

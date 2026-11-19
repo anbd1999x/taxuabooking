@@ -4,7 +4,7 @@ import Link from "@/components/Link";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import type { ServiceCategory } from "@prisma/client";
-import { CATEGORIES } from "@/lib/constants";
+import { CATEGORIES, serviceCatSlug } from "@/lib/constants";
 import { formatPrice } from "@/lib/format";
 import type { ServiceCard as Data } from "@/lib/queries";
 import { useT } from "@/components/i18n/I18nProvider";
@@ -183,7 +183,7 @@ function Card({
   const img = s.coverImage ?? s.images[0]?.url ?? null;
 
   return (
-    <Link href={`/${cat.slug}/${s.slug}`} data-rv className="group flex snap-center" style={{ ["--d" as string]: `${delay}s` }}>
+    <Link href={`/${serviceCatSlug(s.category)}/${s.slug}`} data-rv className="group flex snap-center" style={{ ["--d" as string]: `${delay}s` }}>
       <div
         data-card
         onPointerMove={tilt}
