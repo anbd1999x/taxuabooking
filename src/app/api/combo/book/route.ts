@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { recordServerAction } from "@/lib/visits";
 import { ZodError } from "zod";
 import { comboBookingSchema } from "@/lib/validation";
 import { createComboBooking } from "@/lib/combo";
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
     void ensureGeo(requestIp(request.headers)); // tra khu vực/nhà mạng cho trang Chặn IP
     await attachPhoneIfMissing(input.phone).catch(() => {});
     void notifyNewBooking({ code: result.code, customerName: input.customerName, phone: input.phone, summary: "Combo xe + phòng" });
+    void recordServerAction(request, "/combo", `Gửi yêu cầu đặt combo thành công — mã ${result.code}`);
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
     if (err instanceof ZodError) {

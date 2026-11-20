@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getVisitStats, geoForIps, type GeoInfo } from "@/lib/visits";
-import { describePath, deviceLabel, regionLabel } from "@/lib/track-labels";
+import { actionTone, describeView, deviceLabel, regionLabel, type TrackNames } from "@/lib/track-labels";
 import { VisitStatsCards } from "@/components/admin/VisitStatsCards";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +49,7 @@ function shortAddr(a: string): string {
 
 interface VisitRow {
   path: string;
+  action: string | null;
   createdAt: Date;
 }
 interface Group {
@@ -92,7 +93,7 @@ export default async function AdminVisitsPage({
   const [stats, views, viewsRange, visitorsGrouped] = await Promise.all([
     getVisitStats(),
     prisma.pageView.findMany({ where, orderBy: { createdAt: "desc" }, take: 2000 }),
-    prisma.pageView.count({ where }),
+    prisma.pageView.count({ where: { ...where, action: null } }),
     prisma.pageView.groupBy({ by: ["visitorId"], where }),
   ]);
 
@@ -113,7 +114,7 @@ export default async function AdminVisitsPage({
       };
       groups.set(v.visitorId, g);
     }
-    g.items.push({ path: v.path, createdAt: v.createdAt });
+    g.items.push({ path: v.path, action: v.action, createdAt: v.createdAt });
     if (v.createdAt < g.first) g.first = v.createdAt;
     if (!g.customerName && v.customerName) g.customerName = v.customerName;
     if (!g.ip && v.ip) g.ip = v.ip;
@@ -129,6 +130,40 @@ export default async function AdminVisitsPage({
     }),
   ]);
   const locs = new Map(locRows.map((l) => [l.id, l]));
+
+  // Tên thật cho slug trên đường dẫn (homestay, nhà xe, quán, bài viết, địa điểm vé) ⇒ câu dễ đọc.
+  const slugs = { svc: new Set<string>(), place: new Set<string>(), art: new Set<string>(), venue: new Set<string>() };
+  for (const g of list)
+    for (const it of g.items) {
+      const parts = it.path.split("?")[0].split("/").filter(Boolean);
+      if (["en", "zh", "ko"].includes(parts[0] ?? "")) parts.shift();
+      const [a, b] = parts;
+      if (!b) continue;
+      let slug = b;
+      try { slug = decodeURIComponent(b); } catch { /* giữ nguyên */ }
+      slug = slug.slice(0, 120);
+      if (["homestay", "bungalow", "xe-cabin", "thue-xe-may", "xe-om", "taxi"].includes(a)) slugs.svc.add(slug);
+      else if (a === "nha-hang" || a === "cafe") slugs.place.add(slug);
+      else if (a === "kinh-nghiem") slugs.art.add(slug);
+      else if (a === "ve" && b !== "don") slugs.venue.add(slug);
+    }
+  const [svcRows, placeRows, artRows, venueRows] = await Promise.all([
+    slugs.svc.size ? prisma.service.findMany({ where: { slug: { in: [...slugs.svc] } }, select: { slug: true, title: true } }) : [],
+    slugs.place.size ? prisma.place.findMany({ where: { slug: { in: [...slugs.place] } }, select: { slug: true, name: true } }) : [],
+    slugs.art.size ? prisma.article.findMany({ where: { slug: { in: [...slugs.art] } }, select: { slug: true, title: true } }) : [],
+    slugs.venue.size ? prisma.ticketVenue.findMany({ where: { slug: { in: [...slugs.venue] } }, select: { slug: true, name: true } }) : [],
+  ]);
+  const names: TrackNames = {
+    services: new Map(svcRows.map((r) => [r.slug, r.title])),
+    places: new Map(placeRows.filter((r) => r.slug).map((r) => [r.slug!, r.name])),
+    articles: new Map(artRows.map((r) => [r.slug, r.title])),
+    venues: new Map(venueRows.map((r) => [r.slug, r.name])),
+  };
+  const hhmm = (d: Date) =>
+    new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", hour: "2-digit", minute: "2-digit" }).format(d);
+  const dayKey = (d: Date) =>
+    new Intl.DateTimeFormat("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric" }).format(d);
+  const SHOW = 40; // dòng hành trình hiện sẵn mỗi khách; phần cũ hơn gói trong "Xem thêm"
 
   const rangeTabs = Object.entries(RANGES);
 
@@ -146,7 +181,7 @@ export default async function AdminVisitsPage({
       <header>
         <h1 className="text-xl font-bold text-ink sm:text-2xl">Lượt truy cập</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Lịch sử khách vào website: trang nào, lúc nào, từ IP &amp; khu vực nào. Số liệu cập nhật khi tải lại trang.
+          Hành trình từng khách trên website, kể bằng câu: xem trang nào, tìm ngày nào / mấy người, bấm nút gì, gọi điện / nhắn Zalo, gửi đơn. Không ghi nội dung khách gõ. Số liệu cập nhật khi tải lại trang.
           Khu vực là nơi đăng ký của nhà mạng (thường ghi Hà Nội / TP.HCM), không phải vị trí thật của khách.
         </p>
       </header>
@@ -223,7 +258,7 @@ export default async function AdminVisitsPage({
             const gi: GeoInfo | undefined = g.ip ? geo.get(g.ip) : undefined;
             const loc = locs.get(g.visitorId);
             return (
-              <details key={g.visitorId} className="group rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
+              <details key={g.visitorId} open className="group rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
                 <summary className="flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 p-4">
                   <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-forest-100 text-sm font-bold text-forest-700">
                     {(g.customerName ?? "K").slice(0, 1).toUpperCase()}
@@ -233,8 +268,19 @@ export default async function AdminVisitsPage({
                       <b className="text-ink">{g.customerName ?? "Khách ẩn danh"}</b>
                       <span className="text-xs text-gray-400">#{g.visitorId.slice(0, 8)}</span>
                       <span className="rounded-full bg-forest-50 px-2 py-0.5 text-xs font-semibold text-forest-700">
-                        {g.items.length} trang
+                        {g.items.filter((x) => !x.action).length} trang
                       </span>
+                      {g.items.some((x) => x.action) && (
+                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
+                          {g.items.filter((x) => x.action).length} thao tác
+                        </span>
+                      )}
+                      {g.items.some((x) => x.action && actionTone(x.action).tone === "booking") && (
+                        <span className="rounded-full bg-forest-600 px-2 py-0.5 text-xs font-bold text-white">Đã gửi đơn</span>
+                      )}
+                      {g.items.some((x) => x.action && actionTone(x.action).tone === "contact") && (
+                        <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-700">Đã liên hệ</span>
+                      )}
                     </span>
                     <span className="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-gray-500">
                       {loc ? (
@@ -290,19 +336,41 @@ export default async function AdminVisitsPage({
                       Nguồn vào: <span className="break-all text-gray-700">{g.referrer}</span>
                     </div>
                   )}
-                  <ol className="flex flex-col gap-1.5">
-                    {[...g.items].reverse().map((it, i) => (
-                      <li key={i} className="flex items-baseline gap-3 text-sm">
-                        <span className="w-24 flex-none whitespace-nowrap font-mono text-xs text-gray-400">
-                          {fmtTime(it.createdAt)}
-                        </span>
-                        <span className="min-w-0">
-                          <span className="font-semibold text-ink">{describePath(it.path)}</span>
-                          <span className="ml-2 break-all text-xs text-gray-400">{it.path}</span>
-                        </span>
-                      </li>
-                    ))}
-                  </ol>
+                  {(() => {
+                    const rows = [...g.items].reverse(); // cũ → mới
+                    const multiDay = dayKey(rows[0].createdAt) !== dayKey(rows[rows.length - 1].createdAt);
+                    const mins = Math.round((g.last.getTime() - g.first.getTime()) / 60000);
+                    const line = (it: VisitRow, i: number) => {
+                      const t = it.action ? actionTone(it.action) : null;
+                      const text = it.action ?? describeView(it.path, names);
+                      const cls = t?.tone === "booking" ? "font-bold text-forest-700" : t?.tone === "contact" ? "font-semibold text-sky-700" : t ? "text-amber-800" : "text-ink";
+                      return (
+                        <li key={i} className="flex items-start gap-2.5 text-sm leading-snug">
+                          <span className="w-[86px] flex-none whitespace-nowrap pt-px text-right font-mono text-xs text-gray-400">
+                            {multiDay ? dayKey(it.createdAt).slice(0, 5) + " " : ""}{hhmm(it.createdAt)}
+                          </span>
+                          <span className="flex-none pt-px" aria-hidden>{t ? t.icon : "•"}</span>
+                          <span className={"min-w-0 " + cls} title={it.path}>{text}</span>
+                        </li>
+                      );
+                    };
+                    const head = rows.length > SHOW ? rows.slice(0, rows.length - SHOW) : [];
+                    const tail = rows.length > SHOW ? rows.slice(rows.length - SHOW) : rows;
+                    return (
+                      <>
+                        <div className="mb-2 text-xs text-gray-500">
+                          Bắt đầu {fmtTime(g.first)} · {mins < 1 ? "dưới 1 phút" : mins < 120 ? "khoảng " + mins + " phút" : "khoảng " + Math.round(mins / 60) + " giờ"} trên web
+                        </div>
+                        {head.length > 0 && (
+                          <details className="mb-1.5">
+                            <summary className="cursor-pointer text-xs font-semibold text-forest-700">Xem {head.length} dòng trước đó</summary>
+                            <ul className="mt-1.5 flex flex-col gap-1.5">{head.map(line)}</ul>
+                          </details>
+                        )}
+                        <ul className="flex flex-col gap-1.5">{tail.map((it, i) => line(it, i + head.length))}</ul>
+                      </>
+                    );
+                  })()}
                 </div>
               </details>
             );

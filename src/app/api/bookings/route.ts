@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { recordServerAction } from "@/lib/visits";
 import { ZodError } from "zod";
 import { bookingInputSchema } from "@/lib/validation";
 import { createBooking } from "@/lib/booking";
@@ -12,6 +13,9 @@ import { ensureGeo } from "@/lib/visits";
 import { isInternalError } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
+
+/** Loại dịch vụ theo tiền tố mã đơn (generateBookingCode). */
+const CODE_WORD: Record<string, string> = { HT: "phòng homestay", XC: "vé xe cabin", XM: "thuê xe máy", XO: "xe ôm", TX: "taxi", CB: "combo" };
 
 export async function POST(request: Request) {
   if (!rateLimit(`book:${clientIp(request)}`, 5, 60_000)) {
@@ -38,6 +42,8 @@ export async function POST(request: Request) {
     void ensureGeo(requestIp(request.headers)); // tra khu vực/nhà mạng cho trang Chặn IP
     await attachPhoneIfMissing(input.phone).catch(() => {});
     void notifyNewBooking({ code: result.code, customerName: input.customerName, phone: input.phone });
+    // Trang "Lượt truy cập": ghi khách này đã gửi đơn (kể hành trình đầy đủ).
+    void recordServerAction(request, "/", `Gửi yêu cầu đặt ${CODE_WORD[result.code.split("-")[1] ?? ""] ?? "dịch vụ"} thành công — mã ${result.code}`);
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
     if (err instanceof ZodError) {

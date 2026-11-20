@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { recordServerAction } from "@/lib/visits";
 import { ZodError } from "zod";
 import { cabinBookingSchema } from "@/lib/validation";
 import { createCabinBooking } from "@/lib/cabin";
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
     void ensureGeo(requestIp(request.headers)); // tra khu vực/nhà mạng cho trang Chặn IP
     await attachPhoneIfMissing(input.phone).catch(() => {});
     void notifyNewBooking({ code: result.code, customerName: input.customerName, phone: input.phone, summary: "Vé xe cabin" });
+    void recordServerAction(request, "/xe-cabin", `Gửi yêu cầu đặt vé xe cabin thành công — mã ${result.code}`);
     return NextResponse.json(result, { status: 201 });
   } catch (err) {
     if (err instanceof ZodError) {

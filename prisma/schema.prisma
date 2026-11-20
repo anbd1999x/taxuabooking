@@ -858,7 +858,8 @@ model Visitor {
 model PageView {
   id           String   @id @default(cuid())
   visitorId    String // cookie tx_vid (không FK để tránh phụ thuộc thứ tự ghi)
-  path         String // đường dẫn trang (VD: /xe-cabin, /homestay/nha-may-si)
+  path         String // đường dẫn trang kèm tham số tìm kiếm (VD: /homestay?from=…&to=…)
+  action       String? // null = lượt xem trang; có chữ = THAO TÁC trên trang (bấm nút, gọi điện, gửi đơn…)
   referrer     String? // nguồn vào (document.referrer) — chủ yếu cho lần đầu phiên
   customerId   String? // nếu khách đã đăng nhập
   customerName String? // tên khách lúc xem (tiện hiển thị, không cần join)

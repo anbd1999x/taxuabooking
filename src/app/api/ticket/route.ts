@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import { recordServerAction } from "@/lib/visits";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getDemoSession } from "@/lib/fleet-demo";
@@ -95,6 +96,7 @@ export async function POST(request: Request) {
         v.kind === "GATE"
           ? await createTicketOrder({ ...common, venueId: v.id, date, time: "", mode: "request", preview, tickets: arr(body.tickets).map((t) => ({ tierId: str(t.tierId, 40), qty: int(t.qty) })) })
           : await finalizeDraft({ ...common, token: str(body.hold, 40), slug, preview, guests: int(body.guests) || undefined });
+      if (!preview) void recordServerAction(request, `/ve/${slug}`, `Gửi đơn ${v.kind === "RESTAURANT" ? "đặt bàn" : "mua vé"} thành công — mã ${o.code}`);
       if (!preview) void sendTicketEmail(o.id, "received"); // đơn đặt thử ở bản demo không gửi thư (sendTicketEmail cũng tự chặn địa điểm chưa mở bán)
       return NextResponse.json({ token: o.token, code: o.code });
     }

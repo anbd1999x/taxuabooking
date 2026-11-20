@@ -12,6 +12,8 @@ export interface VisitInfo {
   userAgent?: string | null;
   customerId?: string | null;
   customerName?: string | null;
+  /** Có chữ = THAO TÁC trên trang (bấm nút, gọi điện, gửi đơn…) — không tính là lượt xem trang. */
+  action?: string | null;
 }
 
 /**
@@ -20,6 +22,28 @@ export interface VisitInfo {
  */
 export async function recordVisit(info: VisitInfo): Promise<void> {
   const now = new Date();
+  if (info.action) {
+    // Thao tác: chỉ ghi nhật ký + đánh dấu khách còn hoạt động (không cộng lượt xem).
+    await prisma.$transaction([
+      prisma.visitor.upsert({
+        where: { id: info.visitorId },
+        create: { id: info.visitorId, views: 0, firstSeen: now, lastSeen: now },
+        update: { lastSeen: now },
+      }),
+      prisma.pageView.create({
+        data: {
+          visitorId: info.visitorId,
+          path: info.path.slice(0, 512),
+          action: info.action.slice(0, 200),
+          customerId: info.customerId ?? null,
+          customerName: info.customerName ?? null,
+          ip: info.ip ?? null,
+          userAgent: info.userAgent ? info.userAgent.slice(0, 512) : null,
+        },
+      }),
+    ]);
+    return;
+  }
   await prisma.$transaction([
     prisma.visitor.upsert({
       where: { id: info.visitorId },
@@ -142,4 +166,19 @@ export async function geoForIps(ips: string[]): Promise<Map<string, GeoInfo>> {
   if (uniq.length === 0) return new Map();
   const rows = await prisma.ipGeo.findMany({ where: { ip: { in: uniq } } });
   return new Map(rows.map((r) => [r.ip, { country: r.country, region: r.region, city: r.city, isp: r.isp }]));
+}
+
+/**
+ * Ghi THAO TÁC phía server cho khách đang có cookie truy cập (VD gửi đơn thành công) — để trang "Lượt truy cập"
+ * kể đủ hành trình. Không có cookie / lỗi ⇒ bỏ qua êm, không ảnh hưởng luồng chính.
+ */
+export async function recordServerAction(request: Request, path: string, action: string): Promise<void> {
+  try {
+    const m = /(?:^|;s*)tx_vid=([0-9a-f-]{36})/i.exec(request.headers.get("cookie") ?? "");
+    if (!m) return;
+    const { requestIp } = await import("./ip-block");
+    await recordVisit({ visitorId: m[1], path, action, ip: requestIp(request.headers), userAgent: request.headers.get("user-agent") });
+  } catch {
+    /* bỏ qua */
+  }
 }
