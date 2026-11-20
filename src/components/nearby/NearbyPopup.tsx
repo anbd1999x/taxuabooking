@@ -55,6 +55,9 @@ const ICON_PATHS: Record<NearbyKind, string> = {
 const iconSvg = (k: NearbyKind, size: number) =>
   `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="display:block;flex:none">${ICON_PATHS[k]}</svg>`;
 
+/** Zoom mặc định khi mở popup: sát nhất mà ảnh vệ tinh Esri ở Tà Xùa còn ảnh thật (mức 19 là ô "chưa có dữ liệu"). */
+const CLOSE_ZOOM = 18;
+
 const RADII: [number, string][] = [[1, "≤ 1 km"], [3, "≤ 3 km"], [5, "≤ 5 km"], [0, "Tất cả"]];
 
 function hav(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
@@ -212,10 +215,10 @@ export function NearbyPopup({ homeIds, context, onClose }: { homeIds: string[]; 
         attribution: "© Esri · OpenStreetMap",
       });
       const sat = L.layerGroup([
-        L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, attribution: "© Esri, Maxar" }),
-        L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, opacity: 0.9 }),
+        L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, maxNativeZoom: 18, attribution: "© Esri, Maxar" }),
+        L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, maxNativeZoom: 18, opacity: 0.9 }),
         // Đường giao thông phủ lên ảnh vệ tinh — thấy rõ cung đường đèo.
-        L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, opacity: 0.85 }),
+        L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}", { maxZoom: 19, maxNativeZoom: 18, opacity: 0.85 }),
       ]).addTo(map); // mặc định: ảnh vệ tinh
       L.control.layers({ [t("Vệ tinh")]: sat, [t("Địa hình")]: topo }, undefined, { position: "topleft", collapsed: true }).addTo(map);
       const layer = L.layerGroup().addTo(map);
@@ -271,10 +274,12 @@ export function NearbyPopup({ homeIds, context, onClose }: { homeIds: string[]; 
     });
     L.marker([home.lat, home.lng], { icon: pin(L, t(home.name), HOME_C, true, false, "HOMESTAY"), zIndexOffset: 1000 }).addTo(layer);
     if (lastFit.current !== fitKey) {
+      // Mở popup / đổi home ⇒ zoom SÁT vào home (mức ảnh vệ tinh rõ nhất); đổi loại / bán kính ⇒ thu nhỏ thấy hết điểm.
+      const homeChanged = lastFit.current.split("|")[0] !== String(home.id);
       lastFit.current = fitKey;
       const pts: [number, number][] = [[home.lat, home.lng], ...vis.map((p) => [p.lat, p.lng] as [number, number])];
-      if (pts.length > 1) map.fitBounds(pts, { padding: [50, 50], maxZoom: 16 });
-      else map.setView([home.lat, home.lng], 15);
+      if (homeChanged || pts.length < 2) map.setView([home.lat, home.lng], CLOSE_ZOOM);
+      else map.fitBounds(pts, { padding: [50, 50], maxZoom: 16 });
     } else if (routeLine) map.fitBounds(routeLine.getBounds(), { padding: [60, 60], maxZoom: 16 });
     else if (sp) map.panTo([(home.lat + sp.lat) / 2, (home.lng + sp.lng) / 2], { animate: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -282,12 +287,9 @@ export function NearbyPopup({ homeIds, context, onClose }: { homeIds: string[]; 
 
   const refit = () => {
     setSel(null);
-    lastFit.current = "";
     const m = mapRef.current;
     if (m && home) {
-      const pts: [number, number][] = [[home.lat, home.lng], ...vis.map((p) => [p.lat, p.lng] as [number, number])];
-      if (pts.length > 1) m.map.fitBounds(pts, { padding: [50, 50], maxZoom: 16 });
-      else m.map.setView([home.lat, home.lng], 15);
+      m.map.setView([home.lat, home.lng], CLOSE_ZOOM, { animate: true });
       lastFit.current = fitKey;
     }
   };
@@ -335,8 +337,9 @@ export function NearbyPopup({ homeIds, context, onClose }: { homeIds: string[]; 
         </div>
 
         {/* Thanh lọc */}
-        <div className="flex flex-wrap items-center justify-between gap-2.5 border-b border-[oklch(0.93_0.01_160)] px-[18px] py-2.5">
-          <div className="flex max-w-full gap-1.5 overflow-x-auto [scrollbar-width:none]">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[oklch(0.93_0.01_160)] px-3 py-2 sm:gap-2.5 sm:px-[18px] sm:py-2.5">
+          {/* Chip loại: chỉ desktop — mobile lọc bằng icon ngay trên bản đồ (tiết kiệm chỗ). */}
+          <div className="hidden max-w-full gap-1.5 overflow-x-auto [scrollbar-width:none] sm:flex">
             {([["all", t("Tất cả"), G], ["CHECKIN", t("Điểm check-in"), TYPES.CHECKIN[1]], ["CAFE", t("Cafe"), TYPES.CAFE[1]], ["RESTAURANT", t("Nhà hàng"), TYPES.RESTAURANT[1]], ["HOMESTAY", t("Homestay"), TYPES.HOMESTAY[1]]] as const).map(([k, name, dot]) => {
               const on = type === k;
               const n = k === "all" ? inR.length : inR.filter((p) => p.kind === k).length;
@@ -355,21 +358,22 @@ export function NearbyPopup({ homeIds, context, onClose }: { homeIds: string[]; 
               );
             })}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="inline-flex gap-[3px] rounded-[11px] bg-[oklch(0.95_0.006_160)] p-[3px]">
+          {/* Bán kính + sắp xếp: luôn MỘT hàng (mobile: nút bán kính chia đều bề ngang). */}
+          <div className="flex w-full flex-nowrap items-center gap-1.5 sm:w-auto sm:gap-2">
+            <div className="flex min-w-0 flex-1 gap-[3px] rounded-[11px] bg-[oklch(0.95_0.006_160)] p-[3px] sm:inline-flex sm:flex-none">
               {RADII.map(([k, name]) => (
                 <button
                   key={k}
                   type="button"
                   onClick={() => { setRadius(k); setSel(null); }}
-                  className="whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-extrabold"
+                  className="flex-1 whitespace-nowrap rounded-lg px-1 py-1.5 text-xs font-extrabold sm:flex-none sm:px-2.5"
                   style={{ background: radius === k ? "white" : "transparent", color: radius === k ? G : "oklch(0.45 0.02 160)", boxShadow: radius === k ? "0 1px 3px oklch(0.2 0.03 160 / .15)" : "none" }}
                 >
                   {t(name)}
                 </button>
               ))}
             </div>
-            <select value={sort} onChange={(e) => setSort(e.target.value as "near" | "rate")} className="rounded-[10px] border-[1.5px] border-[oklch(0.9_0.01_160)] bg-white px-2.5 py-[7px] text-xs font-extrabold">
+            <select value={sort} onChange={(e) => setSort(e.target.value as "near" | "rate")} className="flex-none rounded-[10px] border-[1.5px] border-[oklch(0.9_0.01_160)] bg-white px-1.5 py-[7px] text-xs font-extrabold sm:px-2.5">
               <option value="near">{t("Gần nhất")}</option>
               <option value="rate">{t("Đánh giá cao")}</option>
             </select>
@@ -384,16 +388,39 @@ export function NearbyPopup({ homeIds, context, onClose }: { homeIds: string[]; 
         ) : !home ? (
           <div className="flex flex-1 items-center justify-center p-6 text-center text-sm text-gray-500">{data.homes.length ? t("Homestay này chưa có vị trí trên bản đồ — chọn homestay khác ở ô phía trên để xem.") : t("Homestay này chưa có vị trí trên bản đồ.")}</div>
         ) : (
-          <div className="grid min-h-0 flex-1" style={{ gridTemplateColumns: mob ? "1fr" : "minmax(0,1.35fr) minmax(0,1fr)", gridTemplateRows: mob ? "50dvh minmax(0,1fr)" : "1fr" }}>
+          <div className="grid min-h-0 flex-1" style={{ gridTemplateColumns: mob ? "1fr" : "minmax(0,1.35fr) minmax(0,1fr)", gridTemplateRows: mob ? "minmax(0,1fr) 286px" : "1fr" }}>
             <div className="relative min-h-0 min-w-0">
               <div ref={box} className="absolute inset-0 bg-[oklch(0.94_0.01_160)] [&_.leaflet-container]:font-[inherit]" />
-              <div className="pointer-events-none absolute bottom-3 left-3 z-[500] flex flex-wrap gap-1.5">
-                {[{ name: t(home.name), c: HOME_C, k: "HOMESTAY" as NearbyKind }, ...(Object.entries(TYPES) as [NearbyKind, [string, string]][]).map(([k, [name, c]]) => ({ name: t(name), c, k }))].map((l) => (
-                  <span key={l.name} className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-white/95 px-[7px] py-[4px] text-[11px] font-extrabold shadow-[0_2px_8px_-2px_oklch(0.2_0.03_160_/.3)]">
-                    <span className="flex h-4 w-4 items-center justify-center rounded-full" style={{ background: l.c }} dangerouslySetInnerHTML={{ __html: iconSvg(l.k, 10) }} />
-                    {l.name}
-                  </span>
-                ))}
+              {/* Chú thích = NÚT LỌC loại điểm (bấm để chỉ hiện loại đó, bấm lại để hiện tất cả). */}
+              <div className="pointer-events-none absolute bottom-2.5 left-2.5 right-2.5 z-[500] flex flex-wrap gap-1.5 sm:bottom-3 sm:left-3 sm:right-auto">
+                <span className="hidden items-center gap-1.5 whitespace-nowrap rounded-full bg-white/95 px-[7px] py-[4px] text-[11px] font-extrabold shadow-[0_2px_8px_-2px_oklch(0.2_0.03_160_/.3)] sm:flex">
+                  <span className="flex h-4 w-4 items-center justify-center rounded-full" style={{ background: HOME_C }} dangerouslySetInnerHTML={{ __html: iconSvg("HOMESTAY", 10) }} />
+                  {t(home.name)}
+                </span>
+                {(Object.entries(TYPES) as [NearbyKind, [string, string]][]).map(([k, [name, c]]) => {
+                  const on = type === k;
+                  const dim = type !== "all" && !on;
+                  const n = inR.filter((p) => p.kind === k).length;
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => { setType(on ? "all" : k); setSel(null); }}
+                      className="pointer-events-auto flex items-center gap-1.5 whitespace-nowrap rounded-full px-[8px] py-[5px] text-[12px] font-extrabold shadow-[0_2px_8px_-2px_oklch(0.2_0.03_160_/.35)] transition"
+                      style={{ background: on ? c : "rgba(255,255,255,.96)", color: on ? "white" : "oklch(0.25 0.03 160)", opacity: dim ? 0.7 : 1 }}
+                    >
+                      <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full" style={{ background: on ? "rgba(255,255,255,.25)" : c }} dangerouslySetInnerHTML={{ __html: iconSvg(k, 11) }} />
+                      {t(name)}
+                      <span className="opacity-70">{n}</span>
+                    </button>
+                  );
+                })}
+                {type !== "all" && (
+                  <button type="button" onClick={() => { setType("all"); setSel(null); }} className="pointer-events-auto whitespace-nowrap rounded-full bg-[oklch(0.29_0.055_160)] px-[10px] py-[5px] text-[12px] font-extrabold text-white shadow-[0_2px_8px_-2px_oklch(0.2_0.03_160_/.35)]">
+                    {t("Tất cả")} {inR.length}
+                  </button>
+                )}
               </div>
               <button type="button" onClick={refit} className="absolute right-3 top-3 z-[500] rounded-full bg-white px-3 py-2 text-xs font-extrabold shadow-[0_4px_12px_-4px_oklch(0.2_0.03_160_/.35)]">
                 {t("Về vị trí home")}
