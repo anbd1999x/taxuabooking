@@ -39,7 +39,7 @@ export default async function AdminLayout({
     // Địa điểm vé / đặt bàn đối tác gửi duyệt.
     if (venueReview > 0) badges["/admin/provider/ve"] = venueReview;
     // Homestay của chủ tự đăng ký đang chờ duyệt hiển thị.
-    const pendingSvc = await prisma.service.count({ where: { published: false, owner: { selfSignup: true } } });
+    const pendingSvc = await prisma.service.count({ where: { published: false, category: { in: ["HOMESTAY", "BUNGALOW"] }, owner: { selfSignup: true } } });
     if (pendingSvc > 0) badges["/admin/services"] = pendingSvc;
   } else if (session.role === "PROVIDER") {
     const sub = session.sub;
@@ -55,16 +55,17 @@ export default async function AdminLayout({
       )`;
     const count = Number(n);
     if (count > 0) badges["/admin/provider/don"] = count;
-    // Menu "Quản lý xe máy" chỉ hiện cho chủ có dịch vụ thuê xe máy.
-    if (!(await prisma.service.count({ where: { ownerId: sub, category: "MOTORBIKE" } }))) hideNav.push("/admin/provider/xe");
+    // Đối tác TỰ ĐĂNG KÝ (/hop-tac/dang-ky): luôn có đủ 4 chức năng — Quản lý xe máy, Quản lý phòng, Vé & đặt bàn,
+    // Gọi món QR (tab trong Vé & đặt bàn); chưa có dịch vụ thì trang của từng chức năng cho tự tạo. Không có tài khoản CTV.
+    // Chủ do admin tạo: xe máy / phòng chỉ hiện khi có dịch vụ tương ứng, không tự sửa dịch vụ.
     // Menu "Vé & đặt bàn" luôn hiện cho chủ: chưa có địa điểm thì tự tạo (vé cổng / show / nhà hàng) rồi gửi admin duyệt.
-    // Menu "Quản lý phòng" chỉ hiện cho chủ có homestay.
-    if (!(await prisma.service.count({ where: { ownerId: sub, category: { in: ["HOMESTAY", "BUNGALOW"] } } }))) hideNav.push("/admin/provider/phong");
-    // Chủ homestay TỰ ĐĂNG KÝ dùng thử: có "Quản lý dịch vụ" (tự tạo homestay), không có xe máy / vé & đặt bàn /
-    // gọi món / tài khoản CTV. Chủ do admin tạo giữ menu như cũ (không tự sửa dịch vụ).
     const me = await prisma.adminUser.findUnique({ where: { id: sub }, select: { selfSignup: true } });
-    if (me?.selfSignup) hideNav.push("/admin/provider/xe", "/admin/provider/ve", "/admin/provider/ctv");
-    else hideNav.push("/admin/services");
+    if (me?.selfSignup) hideNav.push("/admin/provider/ctv");
+    else {
+      hideNav.push("/admin/services");
+      if (!(await prisma.service.count({ where: { ownerId: sub, category: "MOTORBIKE" } }))) hideNav.push("/admin/provider/xe");
+      if (!(await prisma.service.count({ where: { ownerId: sub, category: { in: ["HOMESTAY", "BUNGALOW"] } } }))) hideNav.push("/admin/provider/phong");
+    }
   } else if (session.role === "STAFF") {
     // Nhân viên: chỉ hiện việc mà chủ của mình có (giao xe / soát vé).
     const me = await prisma.adminUser.findUnique({ where: { id: session.sub }, select: { providerId: true, staffArea: true } });

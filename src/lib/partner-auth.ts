@@ -38,8 +38,8 @@ export async function loginPartnerWithGoogle(info: { email: string; name: string
   await setSessionCookie(await createSessionToken({ sub: user.id, username: user.username, name: user.name, role: user.role }));
   invalidateSessionCache(user.id);
   if (created) {
-    void pushToAdmins({ title: "Chủ homestay mới dùng thử", body: `${user.name} · ${email}`, url: "/admin/accounts", tag: `signup-${user.id}` }).catch(() => {});
+    void pushToAdmins({ title: "Đối tác mới đăng ký dùng thử", body: `${user.name} · ${email}`, url: "/admin/accounts", tag: `signup-${user.id}` }).catch(() => {});
   }
-  if (user.role === "PROVIDER") return { next: user.selfSignup ? "/admin/services" : "/admin/provider" };
+  if (user.role === "PROVIDER") return { next: "/admin/provider" };
   return { next: user.role === "CTV" ? "/admin/ctv" : user.role === "ADMIN" ? "/admin" : "/admin/provider/xe" };
 }

@@ -33,7 +33,8 @@ export default async function AdminServicesPage({
   if (cat) where.category = cat.key as ServiceCategory;
   if (q) where.title = { contains: q, mode: "insensitive" };
   // Homestay của chủ tự đăng ký đang chờ duyệt hiển thị.
-  const PENDING: Prisma.ServiceWhereInput = { published: false, owner: { selfSignup: true } };
+  // Chỉ homestay chờ duyệt (tiệm xe máy đối tác tự tạo chỉ để quản lý đội xe, không vào hàng chờ).
+  const PENDING: Prisma.ServiceWhereInput = { published: false, category: { in: ["HOMESTAY", "BUNGALOW"] }, owner: { selfSignup: true } };
   if (pendingOnly) Object.assign(where, PENDING);
   const pendingCount = await prisma.service.count({ where: PENDING });
 

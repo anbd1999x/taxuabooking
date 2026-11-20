@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { forViewer, homeServicesFor, loadHome, releaseExpiredStayHolds, syncHomeBookings } from "@/lib/stay";
 import { StayManager } from "@/components/admin/stay/StayManager";
+import { isSelfSignupProvider } from "@/lib/partner-access";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Quản lý phòng" };
@@ -15,6 +16,20 @@ export default async function RoomPmsPage({ searchParams }: { searchParams: Prom
   if (!services.length) {
     // Nhân viên không phải lễ tân phòng (vd nhân viên giao xe) ⇒ về trang của mình.
     if (session.role === "STAFF") redirect("/admin/provider/xe");
+    if (await isSelfSignupProvider(session)) {
+      return (
+        <div className="mx-auto max-w-xl rounded-2xl border border-dashed border-forest-200 bg-white p-8 text-center">
+          <div className="text-4xl" aria-hidden>🏡</div>
+          <h1 className="mt-2 text-xl font-bold text-ink">Quản lý homestay</h1>
+          <p className="mt-2 text-sm text-gray-600">
+            Tạo homestay (thông tin, ảnh, hạng phòng, giá từng phòng) là dùng được ngay lịch phòng, đặt phòng, thu chi, buồng phòng và báo cáo.
+          </p>
+          <Link href="/admin/services/new?type=HOMESTAY" className="mt-5 inline-block rounded-xl bg-forest-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-forest-800">
+            + Tạo homestay
+          </Link>
+        </div>
+      );
+    }
     return (
       <div className="mx-auto max-w-xl rounded-2xl border border-dashed border-forest-200 bg-white p-8 text-center">
         <h1 className="text-xl font-bold text-ink">Quản lý phòng</h1>

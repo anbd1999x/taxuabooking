@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { DemoModule } from "@/lib/module-demo";
 import { HUB, HUB_ORDER } from "./hub-data";
@@ -79,8 +80,8 @@ export function PartnerHub({ initial }: { initial: DemoModule }) {
           <p style={{ margin: 0, fontSize: "clamp(16px,1.6vw,19px)", lineHeight: 1.6, color: "oklch(0.42 0.02 160)", maxWidth: 520, textWrap: "pretty" }}>{p.lead}</p>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <a href={demo} rel="nofollow" style={{ fontSize: 16, fontWeight: 800, padding: "14px 22px", borderRadius: 999, background: G, color: "white" }}>Mở bản demo →</a>
-            {/* Module homestay: tự đăng ký tài khoản dùng thử (/hop-tac/dang-ky); module khác vẫn liên hệ. */}
-            <a href={mod === "home" ? "/hop-tac/dang-ky" : "#lien-he"} style={{ fontSize: 16, fontWeight: 800, padding: "14px 22px", borderRadius: 999, border: "1.5px solid oklch(0.85 0.02 160)", color: "oklch(0.25 0.03 160)" }}>Đăng ký dùng thử</a>
+            {/* Mọi module: tự đăng ký tài khoản (/hop-tac/dang-ky) — vào là có đủ 4 chức năng. */}
+            <Link href="/hop-tac/dang-ky" style={{ fontSize: 16, fontWeight: 800, padding: "14px 22px", borderRadius: 999, border: "1.5px solid oklch(0.85 0.02 160)", color: "oklch(0.25 0.03 160)" }}>Đăng ký dùng miễn phí</Link>
           </div>
           <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
             {p.proof.map(([v, k]) => (
@@ -186,7 +187,10 @@ export function PartnerHub({ initial }: { initial: DemoModule }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <h2 style={{ margin: 0, fontSize: "clamp(28px,4vw,44px)", fontWeight: 800, lineHeight: 1.1, letterSpacing: "-.03em" }}>{p.ctaTitle}</h2>
             <p style={{ margin: 0, fontSize: 16, lineHeight: 1.6, color: "oklch(0.88 0.02 160)", maxWidth: 460 }}>{p.ctaText}</p>
-            <a href={demo} rel="nofollow" style={{ alignSelf: "flex-start", fontSize: 15, fontWeight: 800, padding: "13px 22px", borderRadius: 999, background: "white", color: G }}>Mở bản demo →</a>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <Link href="/hop-tac/dang-ky" style={{ fontSize: 15, fontWeight: 800, padding: "13px 22px", borderRadius: 999, background: O, color: "white" }}>Đăng ký dùng miễn phí →</Link>
+              <a href={demo} rel="nofollow" style={{ fontSize: 15, fontWeight: 800, padding: "13px 22px", borderRadius: 999, background: "white", color: G }}>Mở bản demo</a>
+            </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {PEOPLE.map(([name, phone, n]) => (

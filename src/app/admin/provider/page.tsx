@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { isSelfSignupProvider } from "@/lib/partner-access";
@@ -17,8 +16,8 @@ export const dynamic = "force-dynamic";
 export default async function ProviderHome() {
   const session = await getSession();
   const ownerId = session!.sub;
-  // Chủ homestay tự đăng ký chưa tạo homestay nào ⇒ đưa thẳng tới bước tạo homestay.
-  if (!(await prisma.service.count({ where: { ownerId } })) && (await isSelfSignupProvider(session))) redirect("/admin/services");
+  // Đối tác tự đăng ký: thẻ "4 chức năng" ở đầu trang để bắt đầu từ bất kỳ module nào.
+  const starter = (await isSelfSignupProvider(session)) ? await starterState(ownerId) : null;
 
   // Nhà xe: đơn COMBO gắn serviceId homestay nhưng đi qua CHUYẾN của nhà xe → vẫn là đơn của mình.
   // Lọc phạm vi trong DB (subquery chuyến), không nạp toàn bộ id CabinTrip.
@@ -82,6 +81,8 @@ export default async function ProviderHome() {
         {services.length} dịch vụ của bạn. Doanh thu tính trên đơn đã giữ phòng/hoàn thành.
       </p>
 
+      {starter && <StarterModules s={starter} />}
+
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Stat label="Đơn đã chốt" value={String(all.length)} />
         <Stat label={discount > 0 ? "Thực nhận (sau chiết khấu)" : "Doanh thu"} value={formatPrice(total)} strike={strikeTotal > total ? formatPrice(strikeTotal) : undefined} sub={discount > 0 ? `giá bán ${formatPrice(gross)} − chiết khấu ${formatPrice(discount)}` : undefined} />
@@ -103,6 +104,44 @@ export default async function ProviderHome() {
         detailHref="/admin/provider/don?open="
       />
     </div>
+  );
+}
+
+/** Đối tác tự đăng ký đã thiết lập tới đâu ở từng chức năng. */
+async function starterState(ownerId: string) {
+  const [homes, motos, venues, rest] = await Promise.all([
+    prisma.service.count({ where: { ownerId, category: { in: ["HOMESTAY", "BUNGALOW"] } } }),
+    prisma.service.count({ where: { ownerId, category: "MOTORBIKE" } }),
+    prisma.ticketVenue.count({ where: { ownerId, kind: { not: "RESTAURANT" } } }),
+    prisma.ticketVenue.count({ where: { ownerId, kind: "RESTAURANT" } }),
+  ]);
+  return { homes, motos, venues, rest };
+}
+
+/** 4 chức năng miễn phí của đối tác tự đăng ký — mỗi thẻ dẫn vào module, chưa thiết lập thì ghi bước đầu tiên. */
+function StarterModules({ s }: { s: Awaited<ReturnType<typeof starterState>> }) {
+  const mods = [
+    { href: s.homes ? "/admin/provider/phong" : "/admin/services/new?type=HOMESTAY", icon: "🏡", name: "Quản lý homestay", done: s.homes > 0, doneText: `${s.homes} homestay · lịch phòng, đơn, thu chi`, todo: "Tạo homestay đầu tiên" },
+    { href: "/admin/provider/xe", icon: "🛵", name: "Quản lý thuê xe máy", done: s.motos > 0, doneText: "Đội xe, lượt thuê, giao nhận, thu chi", todo: "Tạo tiệm xe máy" },
+    { href: "/admin/provider/ve", icon: "🎟️", name: "Bán vé & đặt bàn", done: s.venues + s.rest > 0, doneText: `${s.venues + s.rest} địa điểm · vé cổng, show, đặt bàn`, todo: "Tạo điểm bán vé / nhà hàng" },
+    { href: "/admin/provider/ve", icon: "📱", name: "Gọi món QR tại bàn", done: s.rest > 0, doneText: "Thực đơn, mã QR từng bàn, order bếp", todo: "Tạo nhà hàng để có thực đơn QR" },
+  ];
+  return (
+    <section className="mt-5 rounded-2xl bg-gradient-to-br from-forest-50 to-white p-4 ring-1 ring-forest-100 sm:p-5">
+      <h2 className="text-base font-bold text-ink">4 chức năng miễn phí của bạn</h2>
+      <p className="mt-0.5 text-sm text-gray-500">Dùng chức năng nào thì bắt đầu từ chức năng đó — không bắt buộc dùng hết.</p>
+      <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+        {mods.map((m) => (
+          <Link key={m.name} href={m.href} className="flex items-center gap-3 rounded-xl bg-white p-3 ring-1 ring-black/5 transition hover:ring-forest-300">
+            <span className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-forest-50 text-xl" aria-hidden>{m.icon}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-bold text-ink">{m.name}</span>
+              <span className={`block truncate text-xs ${m.done ? "text-forest-700" : "text-amber-700"}`}>{m.done ? "✓ " + m.doneText : m.todo + " →"}</span>
+            </span>
+          </Link>
+        ))}
+      </div>
+    </section>
   );
 }
 

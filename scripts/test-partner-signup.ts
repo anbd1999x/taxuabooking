@@ -44,7 +44,7 @@ async function main() {
     console.log("· Đăng nhập Google lần đầu (tự tạo tài khoản)");
     let r: { value?: unknown; redirect?: string; error?: string } = {};
     let g = await loginPartnerWithGoogle({ email: email.toUpperCase(), name: "Chủ Thử" });
-    ok("next" in g && g.next === "/admin/services", "lần đầu → chuyển tới Homestay của tôi", g);
+    ok("next" in g && g.next === "/admin/provider", "lần đầu → chuyển tới Tổng quan (4 chức năng)", g);
     const u1 = await prisma.adminUser.findUnique({ where: { username: email } });
     ok(u1?.selfSignup && u1.role === "PROVIDER" && u1.email === email, "tạo tài khoản PROVIDER selfSignup, email chữ thường", u1);
     if (u1) made.users.push(u1.id);

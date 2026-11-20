@@ -54,7 +54,7 @@ export function DemoNav({ exitHref, resetHref }: { exitHref: string; resetHref: 
           {/* <a> thường: route handler làm mới / thoát phiên demo, không được prefetch. */}
           <a href={resetHref} className={foot}>↻ Làm mới dữ liệu mẫu</a>
           <a href={exitHref} className={foot}>← Trang giới thiệu</a>
-          <a href="/hop-tac/dang-ky" className="mt-2 block rounded-full px-3 py-2.5 text-center text-sm font-extrabold text-white" style={{ background: "oklch(0.68 0.18 45)" }}>Đăng ký dùng thử</a>
+          <a href="/hop-tac/dang-ky" className="mt-2 block rounded-full px-3 py-2.5 text-center text-sm font-extrabold text-white" style={{ background: "oklch(0.68 0.18 45)" }}>Đăng ký dùng miễn phí</a>
         </div>
       </aside>
 

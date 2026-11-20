@@ -56,9 +56,9 @@ export default function AdminLoginPage() {
         </form>
         <div className="mt-5 border-t border-gray-100 pt-5">
           <a href="/api/auth/google?mode=partner" rel="nofollow" className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-bold text-gray-800 hover:bg-gray-50">
-            <span className="text-base font-black text-[#4285F4]">G</span> Chủ homestay: đăng nhập bằng Google
+            <span className="text-base font-black text-[#4285F4]">G</span> Đối tác: đăng nhập bằng Google
           </a>
-          <p className="mt-2 text-center text-xs text-gray-400">Lần đầu đăng nhập sẽ tự tạo tài khoản dùng thử.</p>
+          <p className="mt-2 text-center text-xs text-gray-400">Lần đầu đăng nhập sẽ tự tạo tài khoản miễn phí có đủ 4 chức năng.</p>
         </div>
       </div>
     </div>

@@ -2,7 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { redirect } from "next/navigation";
 import { hashPassword, getSession, invalidateSessionCache } from "@/lib/auth";
+import { isSelfSignupProvider } from "@/lib/partner-access";
+import { slugify } from "@/lib/utils";
 
 export interface ProviderActionState {
   ok?: boolean;
@@ -84,4 +87,25 @@ export async function deleteMyCtv(formData: FormData): Promise<void> {
   await prisma.adminUser.delete({ where: { id } });
   invalidateSessionCache(id);
   revalidatePath("/admin/provider/ctv");
+}
+
+/**
+ * Đối tác TỰ ĐĂNG KÝ bật chức năng "Quản lý thuê xe máy": tạo một tiệm xe máy (dịch vụ MOTORBIKE) của chính họ.
+ * published=false — chỉ dùng để quản lý đội xe; muốn hiện trên website thì liên hệ sàn. Mỗi tài khoản một tiệm.
+ */
+export async function createMyMotoShop(): Promise<void> {
+  const session = await getSession();
+  if (!session || !(await isSelfSignupProvider(session))) throw new Error("Không có quyền.");
+  const has = await prisma.service.findFirst({ where: { ownerId: session.sub, category: "MOTORBIKE" }, select: { id: true } });
+  if (!has) {
+    const title = `Tiệm xe máy ${session.name || ""}`.trim();
+    const root = slugify(title) || "tiem-xe-may";
+    let slug = root;
+    for (let i = 2; await prisma.service.findUnique({ where: { slug }, select: { id: true } }); i++) slug = `${root}-${i}`;
+    await prisma.service.create({
+      data: { category: "MOTORBIKE", title, slug, summary: "", description: "", published: false, ownerId: session.sub },
+    });
+  }
+  revalidatePath("/admin", "layout");
+  redirect("/admin/provider/xe");
 }
