@@ -183,7 +183,7 @@ export default async function EditServicePage({
                   providers={providers}
                   initial={{
                     id: service.id, category: service.category, title: service.title, slug: service.slug,
-                    summary: service.summary, description: service.description, area: service.area, distanceKm: service.distanceKm, mapUrl: service.mapUrl, policy: service.policy,
+                    summary: service.summary, description: service.description, area: service.area, distanceKm: service.distanceKm, mapUrl: service.mapUrl, lat: service.lat, lng: service.lng, policy: service.policy,
                     basePrice: toNumber(service.basePrice), originalPrice: toNumber(service.originalPrice), priceUnit: service.priceUnit,
                     contactName: service.contactName, contactPhone: service.contactPhone, contactZalo: service.contactZalo,
                     featured: service.featured, published: service.published, easyRoad: service.easyRoad, pool: service.pool, contactOnly: service.contactOnly, inquiryOnly: service.inquiryOnly, soldOutDates: service.soldOutDates, ownerId: service.ownerId,
@@ -437,7 +437,7 @@ export default async function EditServicePage({
                   partner={!access.isAdmin}
                   initial={{
                     id: service.id, category: service.category, title: service.title, slug: service.slug,
-                    summary: service.summary, description: service.description, area: service.area, distanceKm: service.distanceKm, mapUrl: service.mapUrl, policy: service.policy,
+                    summary: service.summary, description: service.description, area: service.area, distanceKm: service.distanceKm, mapUrl: service.mapUrl, lat: service.lat, lng: service.lng, policy: service.policy,
                     basePrice: toNumber(service.basePrice), originalPrice: toNumber(service.originalPrice), priceUnit: service.priceUnit,
                     contactName: service.contactName, contactPhone: service.contactPhone, contactZalo: service.contactZalo,
                     featured: service.featured, published: service.published, easyRoad: service.easyRoad, pool: service.pool, contactOnly: service.contactOnly, inquiryOnly: service.inquiryOnly, soldOutDates: service.soldOutDates, ownerId: service.ownerId,
@@ -851,7 +851,7 @@ export default async function EditServicePage({
             description: service.description,
             area: service.area,
             distanceKm: service.distanceKm,
-            mapUrl: service.mapUrl, policy: service.policy,
+            mapUrl: service.mapUrl, lat: service.lat, lng: service.lng, policy: service.policy,
             basePrice: toNumber(service.basePrice),
             priceUnit: service.priceUnit,
             contactName: service.contactName,

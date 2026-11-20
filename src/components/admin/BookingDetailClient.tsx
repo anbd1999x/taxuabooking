@@ -13,6 +13,7 @@ import {
   addBookingNote,
   deleteBooking,
   saveBookingSurcharge,
+  deletePayoutProof,
   type BookingActionState,
 } from "@/app/admin/bookings/actions";
 import { SURCHARGE_PRESETS, type BookingSurcharge } from "@/lib/surcharges";
@@ -658,5 +659,130 @@ export function ProviderExtraForm({ id, extra, onDone }: { id: string; extra: nu
         {pending ? "Đang lưu…" : extra > 0 ? "Cập nhật" : "Lưu"}
       </button>
     </form>
+  );
+}
+
+export interface PayoutProofItem {
+  id: string;
+  url: string;
+  createdAt: string; // ISO
+  createdBy: string | null;
+}
+
+/**
+ * Ảnh UỶ NHIỆM CHI khi sàn trả tiền cho nhà cung cấp (một bên room | bus của đơn).
+ * Tải nhiều ảnh, nhiều lần (mỗi lần chuyển khoản một ảnh); bấm ảnh để xem lớn; × để xoá ảnh tải nhầm.
+ */
+export function PayoutProofs({
+  id,
+  side,
+  proofs: initial,
+  onDone,
+}: {
+  id: string;
+  side: "room" | "bus";
+  proofs: PayoutProofItem[];
+  onDone?: () => void;
+}) {
+  const [proofs, setProofs] = useState(initial);
+  const [seen, setSeen] = useState(initial);
+  if (seen !== initial) {
+    setSeen(initial);
+    setProofs(initial);
+  }
+  const [busy, setBusy] = useState(0); // số ảnh đang tải
+  const [view, setView] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function upload(files: FileList | null) {
+    const list = files ? [...files] : [];
+    if (!list.length) return;
+    let ok = 0;
+    for (const f of list) {
+      setBusy((n) => n + 1);
+      try {
+        const fd = new FormData();
+        fd.set("bookingId", id);
+        fd.set("side", side);
+        fd.set("file", f);
+        const r = await fetch("/api/admin/bookings/payout-proof", { method: "POST", body: fd });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) showToast(j.error || `Không tải được ${f.name}`, "error");
+        else {
+          ok++;
+          setProofs((p) => [...p, j.proof as PayoutProofItem]);
+        }
+      } catch {
+        showToast(`Lỗi kết nối khi tải ${f.name}`, "error");
+      } finally {
+        setBusy((n) => n - 1);
+      }
+    }
+    if (inputRef.current) inputRef.current.value = "";
+    if (ok) {
+      showToast(ok > 1 ? `Đã tải ${ok} ảnh uỷ nhiệm chi` : "Đã tải ảnh uỷ nhiệm chi", "ok");
+      onDone?.();
+    }
+  }
+
+  async function remove(p: PayoutProofItem) {
+    if (!confirm("Xoá ảnh uỷ nhiệm chi này? (Số tiền đã trả không đổi)")) return;
+    const res = await deletePayoutProof(p.id);
+    if (res.error) return showToast(res.error, "error");
+    setProofs((list) => list.filter((x) => x.id !== p.id));
+    showToast(res.message || "Đã xoá ảnh", "ok");
+    onDone?.();
+  }
+
+  const when = (iso: string) => {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${pad(d.getHours())}:${pad(d.getMinutes())} ${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5 rounded-lg bg-gray-50 p-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[12px] font-bold text-gray-600">
+          Ảnh uỷ nhiệm chi{proofs.length ? ` (${proofs.length})` : ""}
+        </span>
+        <label className={`cursor-pointer whitespace-nowrap rounded-full border-[1.5px] border-forest-200 bg-white px-2.5 py-1 text-xs font-bold text-forest-700 hover:bg-forest-50 ${busy ? "pointer-events-none opacity-60" : ""}`}>
+          {busy ? `Đang tải ${busy} ảnh…` : "📎 Tải ảnh"}
+          <input ref={inputRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => void upload(e.target.files)} />
+        </label>
+      </div>
+      {proofs.length > 0 ? (
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(72px,1fr))] gap-1.5">
+          {proofs.map((p) => (
+            <div key={p.id} className="group relative">
+              <button type="button" onClick={() => setView(p.url)} className="block aspect-square w-full overflow-hidden rounded-md bg-white ring-1 ring-black/10" title={`${when(p.createdAt)}${p.createdBy ? " · " + p.createdBy : ""}`}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.url} alt="Uỷ nhiệm chi" className="h-full w-full object-cover" loading="lazy" />
+              </button>
+              <button
+                type="button"
+                onClick={() => void remove(p)}
+                aria-label="Xoá ảnh"
+                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-600 text-xs font-bold leading-none text-white shadow"
+              >
+                ×
+              </button>
+              <div className="mt-0.5 truncate text-center text-[10px] text-gray-500">{when(p.createdAt).slice(6)}</div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-[11px] text-gray-400">Chưa có ảnh. Chuyển khoản xong thì tải ảnh uỷ nhiệm chi lên để lưu chứng từ — chọn được nhiều ảnh.</p>
+      )}
+      {view && (
+        <div onClick={() => setView(null)} className="fixed inset-0 z-[90] flex items-center justify-center bg-black/80 p-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={view} alt="Uỷ nhiệm chi" className="max-h-full max-w-full rounded-lg object-contain" />
+          <a href={view} target="_blank" rel="noopener" onClick={(e) => e.stopPropagation()} className="absolute right-4 top-4 rounded-full bg-white px-3 py-1.5 text-sm font-bold text-ink">
+            Mở ảnh gốc ↗
+          </a>
+        </div>
+      )}
+    </div>
   );
 }

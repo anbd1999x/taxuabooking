@@ -12,6 +12,7 @@ import { comboQuote } from "@/lib/combo-pricing";
 import { CUSTOM_MAX_PEOPLE, CUSTOM_MAX_ROOMS, CUSTOM_MAX_TICKETS, cheapestPick, groupQty, groupRooms, pickedRooms, toQuoteRoom, type CustomRoomGroup } from "@/lib/combo-custom";
 import { ComboModeSlot } from "@/components/combo/ComboModeSwitch";
 import { HomeDrawer, RoomViewer } from "@/components/combo/ComboCustomViews";
+import { NearbyButton } from "@/components/nearby/NearbyPopup";
 import { ComboSchedule } from "@/components/combo/ComboSchedule";
 import { useComboBike, comboBikePayload, ComboBikePicker, ComboBikeSummary, ComboBikeDoneNote } from "@/components/combo/ComboBike";
 import { vnPhoneError } from "@/lib/phone";
@@ -489,6 +490,8 @@ export function ComboCustom({
                     <div className="text-[13px]" style={{ color: MUTED }}>
                       {t("{0} phòng trống · chọn bao nhiêu phòng tuỳ ý", [groups.length])}{" · "}
                       <Link href={`/homestay/${home.slug}?from=${checkIn}&to=${checkOut}`} target="_blank" className="font-bold text-forest-700 hover:text-sunset-600">{t("Xem homestay")} ↗</Link>
+                      {" · "}
+                      <NearbyButton homeIds={[home.serviceId, ...homes.map((h) => h.serviceId).filter((x) => x !== home.serviceId)]} context="combo" className="inline-flex items-center gap-1.5 text-[13px] font-bold text-forest-700 hover:text-sunset-600" />
                     </div>
                   </div>
                 </div>

@@ -1198,3 +1198,15 @@ export async function saveProviderExtra(_prev: BookingActionState, formData: For
   for (const p of REVALIDATE) revalidatePath(p);
   return { ok: true, message: amount > 0 ? `Đã ghi thu thêm ${formatPrice(amount)}` : "Đã xoá khoản thu thêm" };
 }
+
+/** Xoá một ảnh uỷ nhiệm chi (tải nhầm). Không đổi số tiền đã trả. Chỉ ADMIN. */
+export async function deletePayoutProof(proofId: string): Promise<BookingActionState> {
+  const session = await getSession();
+  if (session?.role !== "ADMIN") return { error: "Chỉ admin xoá chứng từ thanh toán." };
+  const p = await prisma.supplierPayoutProof.findUnique({ where: { id: proofId } });
+  if (!p) return { error: "Ảnh đã bị xoá." };
+  await prisma.supplierPayoutProof.delete({ where: { id: proofId } });
+  await log(prisma, p.bookingId, "SUPPLIER", `Xoá ảnh uỷ nhiệm chi (${p.side === "bus" ? "nhà xe" : "nhà cung cấp"})`, null, await sessionName());
+  revalidatePath(`/admin/bookings/${p.bookingId}`);
+  return { ok: true, message: "Đã xoá ảnh" };
+}

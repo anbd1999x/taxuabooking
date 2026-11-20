@@ -16,6 +16,7 @@ import {
 } from "@/lib/partner-access";
 import { serviceInputSchema, availabilityBulkSchema } from "@/lib/validation";
 import { slugify } from "@/lib/utils";
+import { parseLatLng, resolveMapLatLng } from "@/lib/map-link";
 import { CATEGORIES } from "@/lib/constants";
 import {
   parseDateOnly,
@@ -54,6 +55,30 @@ function fnum(v: FormDataEntryValue | null): number | undefined {
   if (t == null) return undefined;
   const n = Number(t.replace(",", ".").replace(/[^\d.]/g, ""));
   return Number.isFinite(n) ? n : undefined;
+}
+
+/**
+ * TOẠ ĐỘ dịch vụ (popup "Xung quanh có gì?"): admin nhập tay "vĩ độ, kinh độ" ⇒ dùng luôn; để trống ⇒ tự lấy
+ * từ link Google Maps. Sửa dịch vụ mà link không đổi, ô toạ độ không gửi ⇒ giữ toạ độ cũ (không gọi mạng).
+ */
+async function serviceGeo(
+  mapUrl: string | null | undefined,
+  latLngText: string | undefined,
+  id?: string,
+): Promise<{ lat: number | null; lng: number | null } | { error: string }> {
+  const text = (latLngText ?? "").trim();
+  let geo = parseLatLng(text);
+  if (text && !geo) return { error: 'Toạ độ không hợp lệ — nhập dạng "21.2652, 104.5386" (vĩ độ, kinh độ) hoặc để trống để tự lấy từ link Google Maps.' };
+  const url = (mapUrl ?? "").trim();
+  if (id) {
+    const prev = await prisma.service.findUnique({ where: { id }, select: { mapUrl: true, lat: true, lng: true } });
+    const sameUrl = (prev?.mapUrl ?? "") === url;
+    // Đổi link mà ô toạ độ vẫn là số cũ ⇒ lấy lại theo link mới.
+    if (geo && prev && !sameUrl && prev.lat === geo.lat && prev.lng === geo.lng) geo = null;
+    if (!geo && !text && latLngText === undefined && sameUrl && prev?.lat != null && prev.lng != null) return { lat: prev.lat, lng: prev.lng };
+  }
+  if (!geo && url) geo = await resolveMapLatLng(url).catch(() => null);
+  return { lat: geo?.lat ?? null, lng: geo?.lng ?? null };
 }
 
 async function uniqueSlug(base: string, excludeId?: string): Promise<string> {
@@ -110,6 +135,8 @@ export async function createService(
     return { error: parsed.error.issues[0]?.message ?? "Dữ liệu không hợp lệ." };
   }
   const d = parsed.data;
+  const geo = await serviceGeo(d.mapUrl, s(formData.get("latLng")));
+  if ("error" in geo) return { error: geo.error };
   const slug = await uniqueSlug(d.slug || d.title);
   const created = await prisma.service.create({
     data: {
@@ -121,6 +148,8 @@ export async function createService(
       area: d.area ?? null,
       distanceKm: d.distanceKm ?? null,
       mapUrl: d.mapUrl ?? null,
+      lat: geo.lat,
+      lng: geo.lng,
       policy: d.policy ?? null,
       basePrice: d.basePrice ?? null,
       originalPrice: d.originalPrice ?? null,
@@ -257,6 +286,8 @@ export async function createServiceFull(
   }
 
   const slug = await uniqueSlug(d.slug || d.title);
+  const geoFull = await serviceGeo(d.mapUrl, undefined);
+  const geoOk = "error" in geoFull ? { lat: null, lng: null } : geoFull;
 
   const created = await prisma.service.create({
     data: {
@@ -268,6 +299,8 @@ export async function createServiceFull(
       area: d.area ?? null,
       distanceKm: d.distanceKm ?? null,
       mapUrl: d.mapUrl ?? null,
+      lat: geoOk.lat,
+      lng: geoOk.lng,
       policy: d.policy ?? null,
       basePrice,
       originalPrice: d.originalPrice ?? null,
@@ -408,6 +441,9 @@ export async function updateService(
       priorityOrder: cur.priorityOrder,
     });
   }
+  const latLngRaw = formData.get("latLng");
+  const geo = await serviceGeo(d.mapUrl, latLngRaw == null ? undefined : String(latLngRaw), id);
+  if ("error" in geo) return { error: geo.error };
   const slug = await uniqueSlug(d.slug || d.title, id);
   await prisma.service.update({
     where: { id },
@@ -420,6 +456,8 @@ export async function updateService(
       area: d.area ?? null,
       distanceKm: d.distanceKm ?? null,
       mapUrl: d.mapUrl ?? null,
+      lat: geo.lat,
+      lng: geo.lng,
       policy: d.policy ?? null,
       basePrice: d.basePrice ?? null,
       originalPrice: d.originalPrice ?? null,

@@ -22,6 +22,7 @@ import {
   SupplierPayableForm,
   CollectorForm,
   ProviderExtraForm,
+  PayoutProofs,
 } from "@/components/admin/BookingDetailClient";
 import { supplierPayouts } from "@/lib/supplier-payout";
 import { resolveBusCommissions, resolveRoomCommissions } from "@/lib/provider-commission";
@@ -387,9 +388,14 @@ export default async function BookingDetailPage({
   const payPct = price != null && price > 0 ? Math.min(100, Math.round((collected / price) * 100)) : 0;
 
   // Sàn thanh toán cho nhà cung cấp: phải trả (bán ra − chiết khấu sàn) / đã trả / còn lại, từng bên.
-  const [roomDiscMap, busDiscMap] = await Promise.all([resolveRoomCommissions([b]), resolveBusCommissions([b])]);
+  const [roomDiscMap, busDiscMap, proofRows] = await Promise.all([
+    resolveRoomCommissions([b]),
+    resolveBusCommissions([b]),
+    prisma.supplierPayoutProof.findMany({ where: { bookingId: b.id }, orderBy: { createdAt: "asc" } }),
+  ]);
   const payouts = supplierPayouts(b, roomDiscMap.get(b.id) ?? 0, busDiscMap.get(b.id) ?? 0).map((s) => ({
     ...s,
+    proofs: proofRows.filter((p) => p.side === s.side).map((p) => ({ id: p.id, url: p.url, createdAt: p.createdAt.toISOString(), createdBy: p.createdBy })),
     kind: s.side === "bus" ? "Nhà xe" : b.category === "COMBO" || b.category === "HOMESTAY" || b.category === "BUNGALOW" ? "Homestay" : cat.label,
     name:
       s.side === "bus"
@@ -1011,6 +1017,7 @@ export default async function BookingDetailPage({
                   )}
                   <SupplierPayableForm id={b.id} side={s.side} label={s.name} payable={s.payable} autoPayable={s.autoPayable} overridden={s.overridden} />
                   <SupplierPayoutForm id={b.id} side={s.side} label={s.name} payable={s.payable} paid={s.paid} />
+                  <PayoutProofs id={b.id} side={s.side} proofs={s.proofs} />
                 </div>
               ))
             )}

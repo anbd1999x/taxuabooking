@@ -22,6 +22,8 @@ export async function register() {
   const { cancelExpiredUnpaidBookingsLocked } = await import("./lib/booking-auto-cancel");
   const BILL_CLEANUP_MS = 6 * 60 * 60_000;
   let lastBillCleanup = 0; // 0 ⇒ lượt đầu (sau 1 phút) dọn luôn
+  const ROAD_WARM_MS = 30 * 60_000;
+  let lastRoadWarm = 0;
   const tick = async () => {
     // Tự huỷ đơn chờ quá 6 giờ chưa ghi nhận thanh toán (src/lib/booking-auto-cancel.ts).
     try {
@@ -74,6 +76,23 @@ export async function register() {
       } catch (err) {
         console.error("[dine] lỗi xoá ảnh bill", err);
       }
+    }
+    // Popup "Xung quanh có gì?": tính sẵn quãng đường xe chạy (homestay → điểm) 30 phút/lần, không chặn nhịp này.
+    // Mốc SiteSetting `roadWarmAt` để 2 bản app không cùng chạy.
+    if (Date.now() - lastRoadWarm >= ROAD_WARM_MS) {
+      lastRoadWarm = Date.now();
+      void (async () => {
+        try {
+          const { prisma } = await import("./lib/prisma");
+          const row = await prisma.siteSetting.findUnique({ where: { key: "roadWarmAt" } });
+          if (row && Date.now() - Number(row.value) < ROAD_WARM_MS - 60_000) return;
+          await prisma.siteSetting.upsert({ where: { key: "roadWarmAt" }, create: { key: "roadWarmAt", value: String(Date.now()) }, update: { value: String(Date.now()) } });
+          const { warmRoadCache } = await import("./lib/road-distance");
+          await warmRoadCache({ routes: 150, log: (m) => console.log(m) });
+        } catch (err) {
+          console.error("[road-cache] lỗi", err);
+        }
+      })();
     }
     try {
       const res = await runBookingRemindersLocked();

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import { NearbyButton } from "@/components/nearby/NearbyPopup";
 import ServiceDetailSkeleton from "@/components/skeletons/ServiceDetailSkeleton";
 import { ogBlock } from "@/lib/og";
 import { unstable_cache } from "next/cache";
@@ -344,6 +345,7 @@ async function ServiceDetailBody({
                       {tr("📍 {0} · Xem bản đồ ↓", [tr(service.area)])}
                     </a>
                   )}
+                  {service.lat != null && service.lng != null && <NearbyButton homeIds={[service.id]} className="inline-flex items-center gap-1.5 text-[13px] font-bold text-forest-700 hover:text-sunset-600" />}
                 </div>
                 <h1 className="mt-2 text-[clamp(26px,4vw,40px)] font-extrabold leading-[1.1] tracking-tight text-ink">{tr(service.title)}</h1>
                 <p className="mt-2 text-[17px] text-gray-600">{tr(service.summary)}</p>

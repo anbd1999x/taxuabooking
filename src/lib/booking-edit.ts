@@ -28,7 +28,7 @@ export interface BookingEditProps {
     cancelReason: string | null;
     price: number | null; // tổng khách trả
     collected: number; // đã thu của khách
-    payouts: { side: PayoutSide; kind: string; name: string; gross: number; discount: number; payable: number; paid: number; remaining: number; autoPayable: number; overridden: boolean }[];
+    payouts: { side: PayoutSide; kind: string; name: string; gross: number; discount: number; payable: number; paid: number; remaining: number; autoPayable: number; overridden: boolean; proofs: { id: string; url: string; createdAt: string; createdBy: string | null }[] }[];
   };
 }
 
@@ -127,10 +127,13 @@ export async function loadBookingEdit(id: string): Promise<BookingEditProps | nu
   const [roomDisc, busDisc] = await Promise.all([resolveRoomCommissions([b]), resolveBusCommissions([b])]);
   const svcTitle = services.find((s) => s.id === b.serviceId)?.title ?? b.serviceTitle;
   const stayish = b.category === "COMBO" || b.category === "HOMESTAY" || b.category === "BUNGALOW";
+  // Ảnh uỷ nhiệm chi sàn trả nhà cung cấp (theo từng bên).
+  const proofRows = await prisma.supplierPayoutProof.findMany({ where: { bookingId: b.id }, orderBy: { createdAt: "asc" } });
   const payouts = supplierPayouts(b, roomDisc.get(b.id) ?? 0, busDisc.get(b.id) ?? 0).map((s) => ({
     ...s,
     kind: s.side === "bus" ? "Nhà xe" : stayish ? "Homestay" : "Dịch vụ",
     name: s.side === "bus" ? (outTrip?.service.title ?? svcTitle) : svcTitle,
+    proofs: proofRows.filter((p) => p.side === s.side).map((p) => ({ id: p.id, url: p.url, createdAt: p.createdAt.toISOString(), createdBy: p.createdBy })),
   }));
 
   return {

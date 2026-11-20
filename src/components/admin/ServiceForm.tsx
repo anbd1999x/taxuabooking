@@ -20,6 +20,8 @@ interface Initial {
   area?: string | null;
   distanceKm?: number | null;
   mapUrl?: string | null;
+  lat?: number | null;
+  lng?: number | null;
   policy?: string | null;
   basePrice?: number | null;
   originalPrice?: number | null;
@@ -218,6 +220,19 @@ export function ServiceForm({
         />
         <span className="mt-1 block text-xs text-gray-400">
           Mở Google Maps → Chia sẻ → sao chép liên kết (hoặc “Nhúng bản đồ”). Hiển thị bản đồ ở trang homestay.
+        </span>
+      </label>
+      <label className="block">
+        <span className="text-sm font-medium text-gray-600">Toạ độ (vĩ độ, kinh độ)</span>
+        <input
+          name="latLng"
+          defaultValue={initial.lat != null && initial.lng != null ? `${initial.lat}, ${initial.lng}` : ""}
+          placeholder="VD 21.3112, 104.4468 — để trống = tự lấy từ link Google Maps khi lưu"
+          className={inputCls}
+        />
+        <span className="mt-1 block text-xs text-gray-400">
+          Dùng cho popup “Xung quanh có gì?” (khoảng cách tới điểm check-in, cafe, nhà hàng).
+          {initial.mapUrl && (initial.lat == null || initial.lng == null) ? " Chưa lấy được toạ độ từ link — bấm lưu lại, hoặc nhập tay (Google Maps: nhấn giữ vị trí → chép số toạ độ)." : ""}
         </span>
       </label>
 

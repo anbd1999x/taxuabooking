@@ -6,6 +6,7 @@ import { SupportHoursNote } from "@/components/SupportHours";
 import { ItineraryLink } from "@/components/itinerary/ItineraryLink";
 import { SitePhone, We } from "@/components/SiteContact";
 import { useSearchParams } from "next/navigation";
+import { areaZone, isFilterZone, zoneLabel } from "@/lib/constants";
 import { COMBO_FILTER_OPTIONS, ROOM_KIND_OPTIONS } from "@/components/combo/ComboSearch";
 import Link from "@/components/Link";
 import Image from "next/image";
@@ -29,6 +30,7 @@ import { CommitmentLink } from "@/components/trust/parts";
 import { useT } from "@/components/i18n/I18nProvider";
 import { ComboModeSlot } from "@/components/combo/ComboModeSwitch";
 import { ComboSchedule } from "@/components/combo/ComboSchedule";
+import { NearbyButton } from "@/components/nearby/NearbyPopup";
 import { useComboBike, comboBikePayload, ComboBikeSummary, ComboBikePicker, ComboBikeDoneNote } from "@/components/combo/ComboBike";
 
 const G = "oklch(0.29 0.055 160)"; // xanh rừng
@@ -86,7 +88,8 @@ export function ComboResults({
   const [sort, setSort] = useState("match"); // match | priceAsc | rating | near
   const [sheet, setSheet] = useState(false); // mobile: bộ lọc dạng bottom sheet
   useBodyScrollLock(sheet);
-  const zones = useMemo(() => [...new Set(homes.map((h) => h.area).filter((a): a is string => Boolean(a)))], [homes]);
+  // Khu vực quy về khu chuẩn (areaZone) — bỏ "Khác" (home chỉ ghi "Tà Xùa").
+  const zones = useMemo(() => [...new Set(homes.map((h) => areaZone(h.area)).filter(isFilterZone))], [homes]);
 
   const distOf = (h: ComboHomeOption) => h.distanceKm ?? (/trung tâm/i.test(h.area ?? "") ? 0 : Number.POSITIVE_INFINITY);
 
@@ -118,7 +121,7 @@ export function ComboResults({
   }, [homes, buses, budget, comboDiscount]);
 
   const entries = useMemo<PlanEntry[]>(() => {
-    const arr = all.filter((e) => (!fHome.length || fHome.includes(e.home.serviceId)) && (!fArea.length || fArea.includes(e.home.area ?? "")));
+    const arr = all.filter((e) => (!fHome.length || fHome.includes(e.home.serviceId)) && (!fArea.length || fArea.includes(areaZone(e.home.area))));
     // Ưu tiên (Nổi bật lên đầu) CHỈ áp dụng ở trạng thái MẶC ĐỊNH: mọi mức giá + sắp xếp "Tối ưu".
     const prRank = (e: PlanEntry) => (e.home.featured ? (e.home.priorityOrder || 0) + 1 : 0);
     const keepPriority = priceMax == null && priceMin == null && budget == null && sort === "match";
@@ -134,6 +137,7 @@ export function ComboResults({
     });
   }, [all, fHome, fArea, sort, priceMax, priceMin, budget]);
 
+  const allHomeIds = useMemo(() => homes.map((h) => h.serviceId), [homes]);
   const bestPlanId = buses.length > 0 && entries.length > 0 && sort === "match" ? entries[0].plan.id : null;
 
   // Hiện dần từng thẻ (không có nút "Xem thêm"); đổi bộ lọc / sắp xếp ⇒ hiện dần lại từ đầu.
@@ -237,7 +241,7 @@ export function ComboResults({
           <div className="flex flex-wrap gap-1.5">
             {zones.map((z) => (
               <button key={z} type="button" onClick={() => toggle(fArea, setFArea, z)} className={chip(fArea.includes(z))}>
-                {tr(z.replace(/^Trung tâm Tà Xùa$/i, "Trung tâm"))}
+                {tr(zoneLabel(z))}
               </button>
             ))}
           </div>
@@ -378,6 +382,7 @@ export function ComboResults({
               toKey={toKey}
               origin={origin}
               comboDiscount={comboDiscount}
+              allHomeIds={allHomeIds}
             />
           ))}
 
@@ -405,7 +410,10 @@ function ComboPlanCard({
   toKey,
   origin,
   comboDiscount,
+  allHomeIds,
 }: {
+  /** Mọi homestay trong kết quả (popup "Xung quanh có gì?" cho chọn home để tính khoảng cách). */
+  allHomeIds: string[];
   home: ComboHomeOption;
   plan: ComboStayPlan;
   buses: ComboBusOption[];
@@ -757,6 +765,7 @@ function ComboPlanCard({
           <div className="flex gap-3.5 text-[13px] font-bold">
             <button type="button" onClick={() => openRoom(0)} className="text-forest-700 hover:text-sunset-600">{tr("Xem phòng")}</button>
             {bus && <button type="button" onClick={() => setPreview("bus")} className="text-forest-700 hover:text-sunset-600">{tr("Xem xe")}</button>}
+            <NearbyButton homeIds={[home.serviceId, ...allHomeIds.filter((x) => x !== home.serviceId)]} context="combo" className="inline-flex items-center gap-1.5 text-[13px] font-bold text-forest-700 hover:text-sunset-600" />
           </div>
         </div>
 

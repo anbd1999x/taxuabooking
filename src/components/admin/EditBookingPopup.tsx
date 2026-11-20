@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import AdminCreateBooking from "./AdminCreateBooking";
-import { StatusPanel, PaymentRecordForm, SupplierPayoutForm, SupplierPayableForm } from "./BookingDetailClient";
+import { StatusPanel, PaymentRecordForm, SupplierPayoutForm, SupplierPayableForm, PayoutProofs } from "./BookingDetailClient";
 import { showToast } from "./Toast";
 import { fetchBookingEdit } from "@/app/admin/bookings/new/actions";
 import type { BookingEditProps } from "@/lib/booking-edit";
@@ -153,6 +153,7 @@ export function EditBookingPopup({
                           {s.discount !== 0 && <div className="text-[11px] text-gray-500">Bán ra {K(s.gross)} {s.discount > 0 ? `− chiết khấu sàn ${K(s.discount)}` : `+ sàn bù ${K(-s.discount)}`}</div>}
                           <SupplierPayableForm id={bookingId} side={s.side} label={s.name} payable={s.payable} autoPayable={s.autoPayable} overridden={s.overridden} onDone={reload} />
                           <SupplierPayoutForm id={bookingId} side={s.side} label={s.name} payable={s.payable} paid={s.paid} onDone={reload} />
+                          <PayoutProofs id={bookingId} side={s.side} proofs={s.proofs} onDone={reload} />
                         </div>
                       ))}
                     </section>

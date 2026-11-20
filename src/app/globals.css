@@ -99,6 +99,19 @@ body {
   from { transform: translate3d(-45vw, 0, 0); }
   to { transform: translate3d(115vw, 0, 0); }
 }
+/* Chấm cam của nút "Xung quanh có gì?" nhấp nhô + toả sóng — chữ đứng yên (dừng khi rê chuột / giảm chuyển động). */
+@keyframes nb-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+@keyframes nb-ping {
+  0% { box-shadow: 0 0 0 0 oklch(0.68 0.18 45 / 0.65); }
+  100% { box-shadow: 0 0 0 7px oklch(0.68 0.18 45 / 0); }
+}
+.nb-bob { animation: nb-bob 1.6s ease-in-out infinite; will-change: transform; }
+.nb-dot { animation: nb-bob 1.6s ease-in-out infinite, nb-ping 1.6s ease-out infinite; }
+.group:hover .nb-dot, .group:focus-visible .nb-dot { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) { .nb-bob, .nb-dot { animation: none; } }
 @keyframes tx-cloud-bob {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
   50% { transform: translate3d(0, -10px, 0) scale(1.04); }
