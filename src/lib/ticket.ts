@@ -4,11 +4,11 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
 import type { SessionPayload } from "./auth-token";
 import { parseDateOnly, toDateKey } from "./dates";
-import { dmy, wdShort } from "./date-format";
+import { dmy, wdDmy, wdShort } from "./date-format";
 import { generateBookingCode, slugify } from "./utils";
 import {
   DATE_RE, PUBLIC_VENUE, asReview, normPhone, isPublicVenue, DEFAULT_COLS, DEFAULT_ROWS, DRAFT_HOLD_MIN, isSeatItem, seatName, unitWord, TIME_RE, WEB_CONFIRM_MIN, WEB_MAX, addDaysKey, cellType, mealOverlap, mealRange, normalizeConfig, normalizeLayout, scanSessionTime, scanCandidateTimes, seatClassOf, seatKey, slotPassed, vnNow, webHoldCap,
-  type OrderStatus, type PubAvail, type PubCard, type PubShow, type PubVenue, type ScanResult, type SeatLayout, type TkData, type TkOrder, type TkVenueRef, type VenueConfig, type VenueKind,
+  type OrderStatus, type PubAvail, type PubCard, type PubShow, type PubVenue, type ScanDetail, type ScanResult, type SeatLayout, type TkData, type TkOrder, type TkVenueRef, type VenueConfig, type VenueKind,
 } from "./ticket-core";
 
 /**
@@ -665,7 +665,7 @@ export async function scanTicket(owner: "all" | string, by: string, raw: string,
   const input = raw.trim().split(/[/?#=]/).filter(Boolean).pop()?.trim() ?? "";
   const none: ScanResult = { kind: "none", title: "Không tìm thấy mã", sub: "Kiểm tra lại mã hoặc tra cứu theo số điện thoại" };
   if (input.length < 6 || input.length > 60) return none;
-  const inc = { order: { include: { session: true, venue: { select: { id: true, name: true, ownerId: true } }, tickets: { select: { id: true, kind: true, code: true, usedAt: true } } } } } as const;
+  const inc = { order: { include: { session: true, venue: { select: { id: true, name: true, ownerId: true } }, tickets: { select: { id: true, kind: true, code: true, usedAt: true } }, items: { select: { qty: true, name: true } } } } } as const;
   let t = await prisma.ticket.findFirst({ where: { OR: [{ token: input }, { code: input.toUpperCase() }] }, include: inc });
   if (!t) {
     const o = await prisma.ticketOrder.findUnique({ where: { code: input.toUpperCase() }, select: { id: true } });
@@ -680,13 +680,30 @@ export async function scanTicket(owner: "all" | string, by: string, raw: string,
   if (!t) return none;
   const o = t.order;
   if (owner !== "all" && o.venue.ownerId !== owner) return none;
-  if (o.status === "cancel" || o.status === "wait" || o.status === "draft") return { kind: "wrong", title: "Vé không hợp lệ", sub: o.status === "cancel" ? `Đơn ${o.code} đã huỷ` : `Đơn ${o.code} chưa thanh toán` };
-  if (opts.venueId && o.venue.id !== opts.venueId) return { kind: "wrong", title: "Sai địa điểm", sub: `Vé của ${o.venue.name}` };
-  if (toDateKey(o.session.date) !== vnNow().today) return { kind: "wrong", title: o.session.time ? "Sai suất diễn" : "Sai ngày", sub: `Vé của ${sessionLabel(o.session.date, o.session.time)}, không phải hôm nay` };
+  const tk = t;
+  /** Chi tiết vé cho popup kết quả. `justUsed` = vé này vừa được cho vào (tính vào số đã vào của đơn). */
+  const detail = (extra: Partial<ScanDetail> = {}, justUsed = false): ScanDetail => {
+    const entries = o.tickets.filter((x) => x.kind === "entry").sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
+    const ph = o.phone.replace(/\s+/g, "");
+    return {
+      ticketCode: tk.code, label: tk.label, ticketKind: tk.kind === "food" ? "food" : "entry",
+      orderCode: o.code, customer: o.customerName, phone: ph.length > 6 ? `${ph.slice(0, 4)}•••${ph.slice(-3)}` : ph,
+      venue: o.venue.name, date: wdDmy(o.session.date), time: o.session.time,
+      index: tk.kind === "entry" ? entries.findIndex((x) => x.id === tk.id) + 1 : 0, count: entries.length,
+      usedCount: entries.filter((x) => x.usedAt || (justUsed && x.id === tk.id)).length,
+      usedAt: tk.usedAt?.toISOString(), usedBy: tk.usedBy ?? undefined,
+      items: o.items.map((i) => `${i.qty}× ${i.name}`).join(" · "), note: o.note ?? "",
+      ...extra,
+    };
+  };
+  if (o.status === "cancel" || o.status === "wait" || o.status === "draft")
+    return { kind: "wrong", title: "Vé không hợp lệ", sub: o.status === "cancel" ? `Đơn ${o.code} đã huỷ` : `Đơn ${o.code} chưa thanh toán`, detail: detail({ orderState: o.status === "cancel" ? "Đơn đã huỷ" : "Đơn chưa thanh toán / chưa xác nhận" }) };
+  if (opts.venueId && o.venue.id !== opts.venueId) return { kind: "wrong", title: "Sai địa điểm", sub: `Vé của ${o.venue.name}`, detail: detail() };
+  if (toDateKey(o.session.date) !== vnNow().today) return { kind: "wrong", title: o.session.time ? "Sai suất diễn" : "Sai ngày", sub: `Vé của ${sessionLabel(o.session.date, o.session.time)}, không phải hôm nay`, detail: detail() };
   // TK-5: show nhiều suất / ngày — vé phải đúng SUẤT. Máy soát chọn suất (sessionId) ⇒ so thẳng; không chọn ⇒ so với suất đang mở cổng.
   if (o.session.time) {
     if (opts.sessionId) {
-      if (o.sessionId !== opts.sessionId) return { kind: "wrong", title: "Sai suất diễn", sub: `Vé suất ${o.session.time} · ${o.venue.name}` };
+      if (o.sessionId !== opts.sessionId) return { kind: "wrong", title: "Sai suất diễn", sub: `Vé suất ${o.session.time} · ${o.venue.name}`, detail: detail() };
     } else {
       // Suất tạm dừng không có đơn (chưa bán vé nào) không được coi là suất đang soát.
       const rows = await prisma.ticketSession.findMany({
@@ -694,24 +711,33 @@ export async function scanTicket(owner: "all" | string, by: string, raw: string,
         select: { time: true, status: true, _count: { select: { orders: { where: { status: { notIn: ["cancel", "draft"] } } } } } },
       });
       const cur = scanSessionTime(scanCandidateTimes(rows.map((x) => ({ time: x.time, status: x.status, orders: x._count.orders }))), vnNow().now);
-      if (cur && cur !== o.session.time) return { kind: "wrong", title: "Sai suất diễn", sub: `Vé suất ${o.session.time}, đang soát suất ${cur} · ${o.venue.name}` };
+      if (cur && cur !== o.session.time) return { kind: "wrong", title: "Sai suất diễn", sub: `Vé suất ${o.session.time}, đang soát suất ${cur} · ${o.venue.name}`, detail: detail() };
     }
   }
   // Máy soát không chọn địa điểm (soát chung các địa điểm của chủ) ⇒ ghi rõ vé thuộc địa điểm nào.
   const at = opts.venueId ? "" : ` · ${o.venue.name}`;
 
   const usedSub = () => `Đã quét lúc ${t.usedAt ? hhmm(t.usedAt) : ""}${t.usedBy ? " bởi " + t.usedBy : ""} · ${t.label}`;
+  /** Máy soát khác vừa quét trước (thua cuộc đua) ⇒ đọc lại lúc / người đã quét. */
+  const reread = async () => {
+    const x = await prisma.ticket.findUnique({ where: { id: tk.id }, select: { usedAt: true, usedBy: true } });
+    return detail({ usedAt: x?.usedAt?.toISOString(), usedBy: x?.usedBy ?? undefined });
+  };
   if (t.kind === "food") {
-    if (t.usedAt) return { kind: "used", title: "Voucher đã nhận", sub: usedSub() };
-    if (!opts.deliver) return { kind: "food", title: "Voucher đồ ăn uống", sub: `${t.label} · chưa nhận · bấm để đánh dấu đã giao${at}`, ticketId: t.id };
-    const r = await prisma.ticket.updateMany({ where: { id: t.id, usedAt: null }, data: { usedAt: new Date(), usedBy: by } });
-    return r.count ? { kind: "ok", title: "Đã giao voucher", sub: `${t.label} · ${o.customerName} · đơn ${o.code}${at}` } : { kind: "used", title: "Voucher đã nhận", sub: t.label };
+    if (t.usedAt) return { kind: "used", title: "Voucher đã nhận", sub: usedSub(), detail: detail() };
+    if (!opts.deliver) return { kind: "food", title: "Voucher đồ ăn uống", sub: `${t.label} · chưa nhận · bấm để đánh dấu đã giao${at}`, ticketId: t.id, detail: detail() };
+    const now = new Date();
+    const r = await prisma.ticket.updateMany({ where: { id: t.id, usedAt: null }, data: { usedAt: now, usedBy: by } });
+    return r.count
+      ? { kind: "ok", title: "Đã giao voucher", sub: `${t.label} · ${o.customerName} · đơn ${o.code}${at}`, detail: detail({ usedAt: now.toISOString(), usedBy: by }) }
+      : { kind: "used", title: "Voucher đã nhận", sub: t.label, detail: await reread() };
   }
-  if (t.usedAt) return { kind: "used", title: "Vé đã dùng", sub: usedSub() };
-  const r = await prisma.ticket.updateMany({ where: { id: t.id, usedAt: null }, data: { usedAt: new Date(), usedBy: by } });
-  if (!r.count) return { kind: "used", title: "Vé đã dùng", sub: t.label };
-  const entries = o.tickets.filter((x) => x.kind === "entry").sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
-  return { kind: "ok", title: "Hợp lệ · mời vào", sub: `${t.label} · ${o.customerName} · vé ${entries.findIndex((x) => x.id === t.id) + 1}/${entries.length} của đơn ${o.code}${o.session.time ? ` · suất ${o.session.time}` : ""}${at}` };
+  if (t.usedAt) return { kind: "used", title: "Vé đã dùng", sub: usedSub(), detail: detail() };
+  const now = new Date();
+  const r = await prisma.ticket.updateMany({ where: { id: t.id, usedAt: null }, data: { usedAt: now, usedBy: by } });
+  if (!r.count) return { kind: "used", title: "Vé đã dùng", sub: t.label, detail: await reread() };
+  const d = detail({ usedAt: now.toISOString(), usedBy: by }, true);
+  return { kind: "ok", title: "Hợp lệ · mời vào", sub: `${t.label} · ${o.customerName} · vé ${d.index}/${d.count} của đơn ${o.code}${o.session.time ? ` · suất ${o.session.time}` : ""}${at}`, detail: d };
 }
 
 /** Vé điện tử của một đơn (trang công khai /ve/don/<token>). */

@@ -253,7 +253,36 @@ export const isPublicVenue = (v: { published: boolean; review: string }) => v.pu
 
 /** Kết quả quét vé. */
 export type ScanKind = "ok" | "used" | "wrong" | "food" | "none";
-export interface ScanResult { kind: ScanKind; title: string; sub: string; ticketId?: string }
+export interface ScanResult { kind: ScanKind; title: string; sub: string; ticketId?: string; detail?: ScanDetail }
+/** Thông tin chi tiết vé vừa quét — hiện trong popup kết quả của máy soát. */
+export interface ScanDetail {
+  ticketCode: string;
+  /** "Người lớn" / "Ghế C7 · Thường" / "2× Trà Shan tuyết" */
+  label: string;
+  ticketKind: "entry" | "food";
+  orderCode: string;
+  customer: string;
+  /** SĐT đã che giữa: "0912•••678" */
+  phone: string;
+  venue: string;
+  /** "T7, 21/11/2026" */
+  date: string;
+  /** Giờ suất ("19:30"), vé cổng = "" */
+  time: string;
+  /** Vé thứ mấy / tổng số vé vào cửa của đơn (voucher: index = 0) */
+  index: number;
+  count: number;
+  /** Số vé vào cửa của đơn đã quét (tính cả vé vừa cho vào) */
+  usedCount: number;
+  /** ISO — lúc vé được quét / voucher được giao */
+  usedAt?: string;
+  usedBy?: string;
+  /** "2× Người lớn · 1× Trẻ em · 2× Trà" */
+  items: string;
+  note: string;
+  /** Lý do đơn không hợp lệ: "Đơn đã huỷ" / "Đơn chưa thanh toán" */
+  orderState?: string;
+}
 
 /** Số vé (không tính món) của đơn. */
 export const ticketQty = (o: Pick<TkOrder, "items">) => o.items.reduce((a, i) => a + (i.kind === "ticket" ? i.qty : 0), 0);

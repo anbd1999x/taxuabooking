@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { ScanKind, ScanResult, TkVenueRef } from "@/lib/ticket-core";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import type { ScanDetail, ScanKind, ScanResult, TkVenueRef } from "@/lib/ticket-core";
+import { vnDateTime } from "@/lib/date-format";
 import { G, MUTED, inputCls } from "./ui";
 
 /** [nền, biểu tượng, chữ, ký hiệu, chấm nhật ký] */
@@ -12,7 +13,10 @@ const R: Record<ScanKind, [string, string, string, string, string]> = {
   food: ["oklch(0.95 0.03 250)", "oklch(0.55 0.13 250)", "oklch(0.4 0.12 250)", "F", "oklch(0.55 0.13 250)"],
   none: ["oklch(0.96 0.005 160)", "oklch(0.55 0.01 160)", "oklch(0.35 0.02 160)", "?", "oklch(0.6 0.01 160)"],
 };
-type Log = { k: ScanKind; t: string; s: string; at: string };
+type Res = ScanResult & { code: string };
+type Log = { k: ScanKind; t: string; s: string; at: string; res: Res };
+/** Vé hợp lệ tự đóng popup sau ngần này ms (bấm vào popup để giữ lại). */
+const OK_CLOSE_MS = 4500;
 type Detector = { detect: (src: CanvasImageSource) => Promise<{ rawValue: string }[]> };
 
 /**
@@ -22,7 +26,12 @@ type Detector = { detect: (src: CanvasImageSource) => Promise<{ rawValue: string
 export function Scanner({ venues, who, initial }: { venues: TkVenueRef[]; who: string; initial: { checked: number; total: number } }) {
   const [venueId, setVenueId] = useState("");
   const [stats, setStats] = useState(initial);
-  const [res, setRes] = useState<(ScanResult & { code: string }) | null>(null);
+  const [res, setRes] = useState<Res | null>(null);
+  /** Popup đang mở ⇒ tạm ngừng đọc camera (tránh quét lại mã khi nhân viên còn đang xem). */
+  const openRef = useRef(false);
+  useEffect(() => {
+    openRef.current = !!res;
+  }, [res]);
   const [log, setLog] = useState<Log[]>([]);
   const [manual, setManual] = useState("");
   const [cam, setCam] = useState<"off" | "on" | "error">("off");
@@ -70,14 +79,26 @@ export function Scanner({ venues, who, initial }: { venues: TkVenueRef[]; who: s
       const j = await r.json();
       const result: ScanResult = r.ok ? j.result : { kind: "none", title: "Không kiểm tra được", sub: j.error ?? "Mất kết nối, thử lại" };
       if (r.ok && j.stats) setStats(j.stats);
-      setRes({ ...result, code });
-      setLog((l) => [{ k: result.kind, t: result.title, s: result.sub.split(" · ")[0], at: new Date().toTimeString().slice(0, 5) }, ...l].slice(0, 8));
+      const full = { ...result, code };
+      openRef.current = true;
+      setRes(full);
+      const d = result.detail;
+      const s = d ? [d.label, d.customer].filter(Boolean).join(" · ") : result.sub.split(" · ")[0];
+      setLog((l) => [{ k: result.kind, t: result.title, s, at: new Date().toTimeString().slice(0, 5), res: full }, ...l].slice(0, 8));
       if (navigator.vibrate) navigator.vibrate(result.kind === "ok" ? 60 : [80, 60, 80]);
     } catch {
+      openRef.current = true;
       setRes({ kind: "none", title: "Mất kết nối", sub: "Kiểm tra mạng rồi quét lại", code });
     } finally {
       setBusy(false);
     }
+  }, []);
+
+  // Đóng popup: mã vừa xem phải chờ thêm 4 giây mới quét lại (camera thường vẫn đang chĩa vào mã đó).
+  const closePop = useCallback(() => {
+    openRef.current = false;
+    last.current = { code: last.current.code, at: Date.now() };
+    setRes(null);
   }, []);
 
   // Camera + vòng đọc QR.
@@ -111,6 +132,7 @@ export function Scanner({ venues, who, initial }: { venues: TkVenueRef[]; who: s
               }
             }
             // Cùng một mã: 4 giây mới kiểm tra lại (tránh báo "đã dùng" ngay sau khi vừa cho vào).
+            if (openRef.current) code = "";
             if (code && (code !== last.current.code || Date.now() - last.current.at > 4000)) {
               last.current = { code, at: Date.now() };
               await check(code);
@@ -134,7 +156,6 @@ export function Scanner({ venues, who, initial }: { venues: TkVenueRef[]; who: s
   }, [cam, check]);
 
   const pct = Math.round((stats.checked / Math.max(1, stats.total)) * 100);
-  const S = res ? R[res.kind] : null;
 
   return (
     <div style={{ width: 420, maxWidth: "100%", borderRadius: 28, overflow: "hidden", background: "white", border: "1px solid oklch(0.92 0.008 160)", display: "flex", flexDirection: "column" }}>
@@ -181,16 +202,6 @@ export function Scanner({ venues, who, initial }: { venues: TkVenueRef[]; who: s
         {cam === "on" && <div style={{ position: "absolute", left: 0, right: 0, bottom: 12, textAlign: "center", fontSize: 12, fontWeight: 700, color: "white", opacity: 0.85 }}>Đưa mã QR vào khung</div>}
       </div>
 
-      {res && S && (
-        <div onClick={() => res.kind === "food" && !busy && check(res.code, true)} style={{ margin: "12px 16px 0", padding: 14, borderRadius: 20, background: S[0], display: "flex", gap: 12, alignItems: "center", animation: "tkRise .25s ease both", cursor: res.kind === "food" ? "pointer" : "default" }}>
-          <div style={{ width: 48, height: 48, borderRadius: "50%", background: S[1], color: "white", fontSize: 24, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>{S[3]}</div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: S[2] }}>{res.title}</div>
-            <div style={{ fontSize: 13, lineHeight: 1.45, color: "oklch(0.3 0.02 160)" }}>{res.sub}</div>
-          </div>
-        </div>
-      )}
-
       <form onSubmit={(e) => { e.preventDefault(); if (manual.trim() && !busy) void check(manual.trim()); }} style={{ margin: "12px 16px 0", display: "flex", gap: 6 }}>
         <input value={manual} onChange={(e) => setManual(e.target.value.toUpperCase())} placeholder="Nhập mã tay TX-VE-…" autoCapitalize="characters" autoComplete="off" style={{ ...inputCls, flex: 1, padding: "11px 14px", borderRadius: 14, fontFamily: "ui-monospace,monospace" }} />
         <button type="submit" disabled={busy} style={{ cursor: "pointer", fontSize: 14, fontWeight: 800, padding: "11px 16px", borderRadius: 14, background: G, color: "white", border: "none", fontFamily: "inherit" }}>Kiểm tra</button>
@@ -200,17 +211,166 @@ export function Scanner({ venues, who, initial }: { venues: TkVenueRef[]; who: s
         <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".08em", color: "oklch(0.5 0.08 158)" }}>VỪA QUÉT</div>
         {!log.length && <div style={{ fontSize: 13, color: MUTED }}>Chưa quét mã nào trong phiên này.</div>}
         {log.map((l, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 12, background: "oklch(0.975 0.006 160)" }}>
+          <button type="button" key={i} onClick={() => setRes(l.res)} title="Xem lại chi tiết" style={{ cursor: "pointer", textAlign: "left", font: "inherit", color: "inherit", border: "none", display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 12, background: "oklch(0.975 0.006 160)" }}>
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: R[l.k][4], flex: "none" }} />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 800 }}>{l.t}</div>
               <div style={{ fontSize: 11, color: "oklch(0.5 0.02 160)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l.s}</div>
             </div>
             <span style={{ fontSize: 11, fontWeight: 700, color: "oklch(0.5 0.02 160)" }}>{l.at}</span>
-          </div>
+          </button>
         ))}
       </div>
+      {res && (
+        <ScanPopup
+          res={res}
+          busy={busy}
+          onClose={closePop}
+          onDeliver={() => void check(res.code, true)}
+        />
+      )}
       <style>{`@keyframes tkScan{0%{top:16%}50%{top:82%}100%{top:16%}}@keyframes tkRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}`}</style>
+    </div>
+  );
+}
+
+/** "12 phút trước" / "2 giờ 5 phút trước" / "3 ngày trước". */
+function ago(iso: string): string {
+  const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+  if (m < 1) return "vừa xong";
+  if (m < 60) return `${m} phút trước`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} giờ ${m % 60 ? `${m % 60} phút ` : ""}trước`;
+  return `${Math.floor(h / 24)} ngày trước`;
+}
+
+const HEAD: Record<ScanKind, string> = { ok: "HỢP LỆ", used: "ĐÃ SỬ DỤNG", wrong: "KHÔNG HỢP LỆ", food: "VOUCHER", none: "KHÔNG TÌM THẤY" };
+
+function Row({ k, v, strong }: { k: string; v: ReactNode; strong?: boolean }) {
+  return (
+    <div style={{ display: "flex", gap: 12, padding: "9px 0", borderTop: "1px dashed oklch(0.9 0.01 160)" }}>
+      <div style={{ width: 92, flex: "none", fontSize: 12.5, fontWeight: 700, color: "oklch(0.52 0.02 160)", paddingTop: 1 }}>{k}</div>
+      <div style={{ flex: 1, minWidth: 0, fontSize: 14, lineHeight: 1.45, fontWeight: strong ? 800 : 600, color: "oklch(0.25 0.02 160)", overflowWrap: "anywhere" }}>{v}</div>
+    </div>
+  );
+}
+
+/** Popup kết quả quét: trạng thái lớn + chi tiết vé (khách, suất, đơn, lúc đã quét…). */
+function ScanPopup({ res, busy, onClose, onDeliver }: { res: Res; busy: boolean; onClose: () => void; onDeliver: () => void }) {
+  const S = R[res.kind];
+  const d: ScanDetail | undefined = res.detail;
+  const [hold, setHold] = useState(false);
+  const auto = res.kind === "ok" && !hold;
+  useEffect(() => {
+    if (!auto) return;
+    const id = setTimeout(onClose, OK_CLOSE_MS);
+    return () => clearTimeout(id);
+  }, [auto, onClose, res]);
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [onClose]);
+
+  const usedLine = d?.usedAt ? (
+    <>
+      <b>{vnDateTime(d.usedAt)}</b> · {ago(d.usedAt)}
+      {d.usedBy ? (
+        <>
+          {" · bởi "}
+          <b>{d.usedBy}</b>
+        </>
+      ) : null}
+    </>
+  ) : null;
+
+  return (
+    <div role="dialog" aria-modal="true" className="tkPopWrap" onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 80, background: "oklch(0.15 0.02 200 / .55)", display: "flex", justifyContent: "center", padding: 16 }}>
+      <div className="tkPop" onClick={(e) => { e.stopPropagation(); setHold(true); }} style={{ width: 440, maxWidth: "100%", maxHeight: "calc(100dvh - 32px)", overflowY: "auto", background: "white", borderRadius: 26, boxShadow: "0 24px 60px oklch(0 0 0 / .3)", animation: "tkPopIn .22s ease both" }}>
+        {/* Đầu popup: trạng thái */}
+        <div style={{ position: "relative", background: S[0], padding: "22px 20px 18px", textAlign: "center", overflow: "hidden" }}>
+          <div style={{ width: 68, height: 68, margin: "0 auto 10px", borderRadius: "50%", background: S[1], color: "white", fontSize: 34, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 0 0 8px color-mix(in oklch, ${S[1]} 18%, transparent)` }}>{S[3]}</div>
+          <div style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: ".14em", color: S[1] }}>{HEAD[res.kind]}</div>
+          <div style={{ fontSize: 22, fontWeight: 900, color: S[2], lineHeight: 1.2, marginTop: 2 }}>{res.title}</div>
+          {(res.kind === "wrong" || res.kind === "none" || !d) && <div style={{ marginTop: 6, fontSize: 14, lineHeight: 1.45, color: "oklch(0.32 0.03 160)" }}>{d?.orderState ?? res.sub}</div>}
+          {auto && <div style={{ position: "absolute", left: 0, bottom: 0, height: 4, background: S[1], animation: `tkPopBar ${OK_CLOSE_MS}ms linear both` }} />}
+        </div>
+
+        <div style={{ padding: "16px 20px 6px" }}>
+          {/* Đã dùng: nêu bật lúc / người quét */}
+          {res.kind === "used" && usedLine && (
+            <div style={{ marginBottom: 14, padding: "12px 14px", borderRadius: 16, background: "oklch(0.97 0.04 70)", border: "1px solid oklch(0.88 0.08 65)", fontSize: 14, lineHeight: 1.5, color: "oklch(0.38 0.1 50)" }}>
+              <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".06em", marginBottom: 2 }}>{d?.ticketKind === "food" ? "ĐÃ GIAO LÚC" : "ĐÃ QUÉT VÀO LÚC"}</div>
+              {usedLine}
+            </div>
+          )}
+
+          {d ? (
+            <>
+              {/* Thẻ vé */}
+              <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 16, background: "oklch(0.975 0.006 160)", marginBottom: 6 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 17, fontWeight: 900, color: "oklch(0.25 0.03 160)", lineHeight: 1.3 }}>{d.label}</div>
+                  <div style={{ marginTop: 2, fontSize: 12.5, fontWeight: 700, fontFamily: "ui-monospace,monospace", color: "oklch(0.5 0.02 160)" }}>{d.ticketCode}</div>
+                </div>
+                {d.ticketKind === "entry" && d.count > 0 && (
+                  <div style={{ flex: "none", textAlign: "center", padding: "6px 10px", borderRadius: 12, background: "white", border: "1px solid oklch(0.9 0.01 160)" }}>
+                    <div style={{ fontSize: 18, fontWeight: 900, color: G, lineHeight: 1 }}>{d.index}/{d.count}</div>
+                    <div style={{ fontSize: 10.5, fontWeight: 700, color: MUTED, marginTop: 2 }}>vé của đơn</div>
+                  </div>
+                )}
+                {d.ticketKind === "food" && <span style={{ flex: "none", fontSize: 11.5, fontWeight: 800, padding: "4px 10px", borderRadius: 999, background: R.food[0], color: R.food[2] }}>Đồ ăn uống</span>}
+              </div>
+
+              <Row k="Khách hàng" strong v={<>{d.customer}{d.phone && <span style={{ color: MUTED, fontWeight: 600 }}>{" · " + d.phone}</span>}</>} />
+              <Row k="Địa điểm" v={d.venue} />
+              <Row k={d.time ? "Suất" : "Ngày"} v={d.time ? `${d.time} · ${d.date}` : d.date} />
+              <Row k="Mã đơn" v={<span style={{ fontFamily: "ui-monospace,monospace" }}>{d.orderCode}</span>} />
+              {d.items && <Row k="Đơn gồm" v={d.items} />}
+              {d.ticketKind === "entry" && d.count > 1 && (
+                <Row
+                  k="Đã vào"
+                  v={
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <span>{d.usedCount}/{d.count} người</span>
+                      <span style={{ display: "inline-flex", gap: 3, flexWrap: "wrap" }}>
+                        {Array.from({ length: Math.min(d.count, 20) }, (_, i) => (
+                          <span key={i} style={{ width: 9, height: 9, borderRadius: 3, background: i < d.usedCount ? "oklch(0.55 0.13 155)" : "oklch(0.9 0.01 160)" }} />
+                        ))}
+                      </span>
+                    </span>
+                  }
+                />
+              )}
+              {res.kind === "ok" && usedLine && <Row k={d.ticketKind === "food" ? "Giao lúc" : "Vào lúc"} v={usedLine} />}
+              {res.kind !== "used" && res.kind !== "ok" && usedLine && <Row k="Đã quét" v={usedLine} />}
+              {d.note && <Row k="Ghi chú" v={<span style={{ fontStyle: "italic" }}>{d.note}</span>} />}
+            </>
+          ) : (
+            !!res.code && (
+              <div style={{ padding: "12px 14px", borderRadius: 16, background: "oklch(0.975 0.006 160)", fontSize: 13, color: "oklch(0.4 0.02 160)", lineHeight: 1.5 }}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: MUTED, marginBottom: 2 }}>Nội dung đã quét</div>
+                <div style={{ fontFamily: "ui-monospace,monospace", overflowWrap: "anywhere" }}>{res.code.length > 120 ? res.code.slice(0, 120) + "…" : res.code}</div>
+              </div>
+            )
+          )}
+        </div>
+
+        <div style={{ padding: "12px 20px 20px", display: "flex", flexDirection: "column", gap: 8 }}>
+          {res.kind === "food" && (
+            <button type="button" disabled={busy} onClick={onDeliver} style={{ cursor: "pointer", fontSize: 15, fontWeight: 800, padding: "13px 16px", borderRadius: 16, background: R.food[1], color: "white", border: "none", fontFamily: "inherit", opacity: busy ? 0.6 : 1 }}>
+              {busy ? "Đang lưu…" : "Xác nhận đã giao voucher"}
+            </button>
+          )}
+          <button type="button" onClick={onClose} autoFocus style={{ cursor: "pointer", fontSize: 15, fontWeight: 800, padding: "13px 16px", borderRadius: 16, background: res.kind === "food" ? "oklch(0.95 0.01 160)" : G, color: res.kind === "food" ? "oklch(0.3 0.02 160)" : "white", border: "none", fontFamily: "inherit" }}>
+            {res.kind === "food" ? "Để sau" : "Đóng · quét tiếp"}
+          </button>
+          {auto && <div style={{ textAlign: "center", fontSize: 11.5, color: MUTED }}>Tự đóng sau vài giây — chạm vào để giữ lại</div>}
+        </div>
+      </div>
+      <style>{`.tkPopWrap{align-items:center}@media (max-width:640px){.tkPopWrap{align-items:flex-end;padding:0!important}.tkPop{border-radius:26px 26px 0 0!important;max-height:92dvh!important}}@keyframes tkPopIn{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:none}}@keyframes tkPopBar{from{width:100%}to{width:0}}`}</style>
     </div>
   );
 }
