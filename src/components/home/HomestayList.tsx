@@ -3,10 +3,11 @@
 import { SitePhone, We } from "@/components/SiteContact";
 import Link from "@/components/Link";
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { dmy, wdShort } from "@/lib/date-format";
 import { DateField } from "@/components/DateField";
 import { useSearchNav } from "@/components/useSearchNav";
-import { AREA_OPTIONS, areaZone } from "@/lib/constants";
+import { AREA_OPTIONS, areaZone, isFilterZone, zoneLabel } from "@/lib/constants";
 import { useT } from "@/components/i18n/I18nProvider";
 import { TripFlag } from "@/components/TripFlag";
 import { PushSwitch } from "@/components/home/PushSwitch";
@@ -124,8 +125,15 @@ export function HomestayList({
   const [childAges, setChildAges] = useState<number[]>([]); // tuổi từng trẻ (lọc theo ngưỡng miễn phí từng home)
   const [price, setPrice] = useState("all");
   const [type, setType] = useState("all");
-  const [zone, setZone] = useState("all"); // lọc theo khu vực (Trung tâm, Khe Cải, Đỉnh Gió...)
-  const [home, setHome] = useState("all"); // lọc theo TÊN homestay (sau khi tìm xong, xem riêng từng nhà)
+  const [fZone, setFZone] = useState<string[]>([]); // lọc theo khu vực (chọn nhiều: Trung tâm, Khe Cải, Đỉnh Gió...)
+  const [fHome, setFHome] = useState<string[]>([]); // lọc theo TÊN homestay (chọn nhiều)
+  const [sheet, setSheet] = useState(false); // mobile: cột lọc dạng bottom sheet
+  useEffect(() => {
+    if (!sheet) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [sheet]);
   const [sort, setSort] = useState("rec"); // rec | priceAsc | priceDesc | near
   const [amen, setAmen] = useState<Set<AmenKey>>(new Set()); // tiện ích phải có (chọn nhiều)
 
@@ -287,7 +295,7 @@ export function HomestayList({
   // Số thẻ đang dựng: bắt đầu 24, cuộn tới cuối danh sách thì thêm 24. Đổi bộ lọc / dữ liệu ⇒ về 24
   // (so khoá lọc thay vì setState trong effect).
   const PAGE = 24;
-  const fkey = JSON.stringify([view, q, ci, co, adults, childAges, price, type, zone, home, sort, [...amen], all.length]);
+  const fkey = JSON.stringify([view, q, ci, co, adults, childAges, price, type, fZone, fHome, sort, [...amen], all.length]);
   const [lim, setLim] = useState({ k: fkey, n: PAGE });
   const limit = lim.k === fkey ? lim.n : PAGE;
   const moreRef = useRef<HTMLDivElement>(null);
@@ -309,7 +317,7 @@ export function HomestayList({
       el.style.opacity = "1";
       el.style.transform = "none";
     });
-  }, [view, q, ci, co, adults, childAges, price, type, zone, home, sort, amen, all, limit]);
+  }, [view, q, ci, co, adults, childAges, price, type, fZone, fHome, sort, amen, all, limit]);
 
   // Mở trang với sẵn ngày (từ trang chủ) → cuộn xuống danh sách để thấy kết quả
   // ngay trên mobile. Không chạy khi đang gõ lọc trực tiếp.
@@ -365,15 +373,16 @@ export function HomestayList({
   // Khu vực có trong dữ liệu — quy về KHU CHUẨN (areaZone) để "Đỉnh Gió" và
   // "Đỉnh Gió, Tà Xùa" là MỘT lựa chọn. Khu chuẩn trước, khu khác sau, "Khác" cuối.
   const zones = useMemo(() => {
-    const set = new Set(all.map((x) => areaZone(x.area)));
+    const set = new Set(all.map((x) => areaZone(x.area)).filter(isFilterZone));
     const rank = (z: string) => (z === "Khác" ? 2 : (AREA_OPTIONS as readonly string[]).includes(z) ? 0 : 1);
     return [...set].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b, "vi"));
   }, [all]);
-  // Tên các homestay có trong dữ liệu (dropdown lọc theo từng nhà).
-  const homeNames = useMemo(
-    () => [...new Set(all.map((x) => x.homeName).filter(Boolean))].sort((a, b) => a.localeCompare(b, "vi")),
-    [all],
-  );
+  // Các homestay có trong dữ liệu (cột lọc: tick nhiều nhà) kèm số loại phòng của từng nhà.
+  const homeList = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const x of all) if (x.homeName) m.set(x.homeName, (m.get(x.homeName) ?? 0) + 1);
+    return [...m.entries()].map(([name, n]) => ({ name, n })).sort((a, b) => a.name.localeCompare(b.name, "vi"));
+  }, [all]);
   // Khoảng cách tới trung tâm để sắp "gần trung tâm": thiếu số km nhưng khu vực là
   // "Trung tâm..." thì coi như 0; thiếu hẳn thì xếp cuối.
   const distOf = (x: HomestayCard) => x.distanceKm ?? (norm(x.area).includes("trung tam") ? 0 : Number.POSITIVE_INFINITY);
@@ -399,8 +408,8 @@ export function HomestayList({
   const preFiltered = all.filter(
     (x) =>
       (type === "all" || x.cat === type) &&
-      (zone === "all" || areaZone(x.area) === zone) &&
-      (home === "all" || x.homeName === home) &&
+      (!fZone.length || fZone.includes(areaZone(x.area))) &&
+      (!fHome.length || fHome.includes(x.homeName)) &&
       inPrice(x.price) &&
       fitsGuests(x) &&
       [...amen].every((k) => x.amen?.[k]) &&
@@ -489,7 +498,6 @@ export function HomestayList({
     return list;
   })();
   const shownCount = view === "home" ? homes.length : items.length;
-  const hasFilter = Boolean(q || ci || co || adults > 0 || childAges.length > 0 || price !== "all" || type !== "all" || zone !== "all" || home !== "all" || sort !== "rec" || amen.size > 0);
   const toggleAmen = (k: AmenKey) =>
     setAmen((prev) => {
       const next = new Set(prev);
@@ -497,7 +505,6 @@ export function HomestayList({
       else next.add(k);
       return next;
     });
-  const wide = w >= 980;
   const heroH = w < 640 ? 500 : 560;
   const dateQS = (() => { const p = new URLSearchParams(); if (hasDates) { p.set("from", initialFrom); p.set("to", initialTo); } const s = p.toString(); return s ? `?${s}` : ""; })();
   // Mang theo số khách sang trang chi tiết để panel đặt tự điền (giá hiện đúng ngay).
@@ -525,12 +532,32 @@ export function HomestayList({
 
   // Xoá lọc: về trạng thái không ngày (server trả "Chọn ngày để xem").
   function clearAll() {
-    setQ(""); setCi(""); setCo(""); setAdults(0); setChildAges([]); setPrice("all"); setType("all"); setZone("all"); setHome("all"); setSort("rec"); setAmen(new Set());
+    setQ(""); setCi(""); setCo(""); setAdults(0); setChildAges([]); setPrice("all"); setType("all"); setFZone([]); setFHome([]); setSort("rec"); setAmen(new Set());
     go(view === "home" ? "/homestay?view=home" : "/homestay", { replace: true });
   }
 
-  const cell = "flex min-w-0 flex-col gap-0.5 rounded-[14px] bg-[oklch(0.965_0.01_230)] px-3.5 py-2.5";
-  const inp = "min-w-0 border-0 bg-transparent p-0 text-[15px] font-semibold text-ink outline-none";
+  // Ô nhập theo ô tìm combo (Combo v3).
+  const cell = "flex min-w-0 flex-col gap-[3px] rounded-[14px] border-[1.5px] border-transparent bg-[oklch(0.965_0.008_180)] px-3.5 py-2.5";
+  const lab = "whitespace-nowrap text-xs font-semibold text-[oklch(0.48_0.02_160)]";
+  const inp = "w-full min-w-0 border-0 bg-transparent p-0 text-base font-bold text-ink outline-none";
+  const stepBtn = "flex h-7 w-7 flex-none items-center justify-center rounded-[9px] font-extrabold transition";
+  // Dải ngày ở theo ngày ĐANG CHỌN (nháp) — chỉ để khách soát lại trước khi bấm tìm.
+  const draftOk = /^d{4}-d{2}-d{2}$/.test(ci) && /^d{4}-d{2}-d{2}$/.test(co) && co > ci;
+  const draftNights = draftOk ? Math.round((Date.parse(co) - Date.parse(ci)) / 864e5) : 0;
+  const stayPlan = draftOk
+    ? [
+        { k: tr("Nhận phòng"), v: `${tr(wdShort(ci))} ${dmy(ci)}` },
+        { k: tr("Trả phòng"), v: `${tr(wdShort(co))} ${dmy(co)}` },
+      ]
+    : null;
+  // Cột lọc trái: loại hình · homestay · khu vực · tiện ích (lọc phía client, không tìm lại).
+  const toggleIn = (arr: string[], set: (v: string[]) => void, v: string) => set(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
+  const sideCount = (type !== "all" ? 1 : 0) + fHome.length + fZone.length + amen.size;
+  const clearSide = () => { setType("all"); setFHome([]); setFZone([]); setAmen(new Set()); };
+  const groupCls = "flex flex-col gap-2 border-t border-[oklch(0.94_0.006_160)] pt-3.5";
+  const groupTitle = "text-xs font-extrabold tracking-[0.08em] text-[oklch(0.45_0.06_158)]";
+  const chipCls = (on: boolean) =>
+    `cursor-pointer rounded-full border px-[11px] py-1.5 text-[13px] font-bold transition ${on ? "border-forest-700 bg-forest-700 text-white" : "border-[oklch(0.9_0.01_160)] bg-white text-[oklch(0.3_0.03_160)] hover:border-forest-300"}`;
 
   return (
     <div style={{ background: TH.page }}>
@@ -643,47 +670,58 @@ export function HomestayList({
         </div>
       </section>
 
-      {/* SEARCH */}
+      {/* SEARCH — theo bố cục ô tìm combo (Combo v3): 3 nhóm đánh số + dải ngày ở + nút tìm */}
       <div data-in="4" className="container-page relative z-[4] -mt-[70px] opacity-0" style={{ transform: "translateY(22px)", transition: "opacity .9s ease .4s, transform .9s cubic-bezier(.2,.7,.2,1) .4s" }}>
-        <div className="flex flex-col gap-2 rounded-[22px] border border-white/80 p-2.5 shadow-[0_24px_60px_-24px_oklch(0.3_0.08_270_/.45)]" style={{ background: "oklch(1 0 0 / .9)", backdropFilter: "blur(14px)" }}>
-          <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,170px),1fr))" }}>
-            <label className={cell} style={{ gridColumn: wide ? "span 1" : "1 / -1" }}>
-              <span className="text-xs font-semibold text-gray-500">{tr("Tìm kiếm")}</span>
-              <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submitSearch(); }} placeholder={tr("Tên homestay, khu vực…")} className={inp} />
-            </label>
-            <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">{tr("Nhận phòng")}</span>
-              <DateField value={ci} onChange={setCi} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel={tr("Nhận phòng")} />
-            </label>
-            <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">{tr("Trả phòng")}</span>
-              <DateField value={co} min={ci || undefined} onChange={setCo} className={inp} displayClassName="text-[15px] font-semibold text-ink" ariaLabel={tr("Trả phòng")} />
-            </label>
-            <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">{tr("Người lớn")}</span>
-              <select value={adults} onChange={(e) => setAdults(Number(e.target.value))} className={inp}>
-                <option value={0}>{tr("Mọi số khách")}</option>
-                {Array.from({ length: 20 }, (_, i) => i + 1).map((n) => (
-                  <option key={n} value={n}>{tr("{0} người lớn", [n])}</option>
-                ))}
-              </select>
-            </label>
-            <div className={cell}>
-              <span className="text-xs font-semibold text-gray-500">{tr("Trẻ em")}</span>
-              <select
-                value={childAges.length}
-                onChange={(e) => {
-                  const n = Number(e.target.value);
-                  setChildAges((arr) => Array.from({ length: n }, (_, i) => arr[i] ?? 6));
-                }}
-                className={inp}
-              >
-                {Array.from({ length: 11 }, (_, i) => i).map((n) => (
-                  <option key={n} value={n}>{n === 0 ? tr("Không có trẻ") : tr("{0} trẻ", [n])}</option>
-                ))}
-              </select>
+        <div className="flex flex-col gap-3.5 rounded-[24px] bg-white p-3.5 text-ink shadow-[0_24px_60px_-28px_oklch(0.2_0.05_200_/.55)] sm:p-[18px]">
+          <div className="grid gap-3.5 sm:gap-[18px] min-[1100px]:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,.62fr)]">
+            {/* 1 · LƯU TRÚ */}
+            <SearchGroup n={1} title={tr("LƯU TRÚ")}>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)]">
+                <label className={`${cell} col-span-2 sm:col-span-1`}>
+                  <span className={lab}>{tr("Tìm kiếm")}</span>
+                  <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submitSearch(); }} placeholder={tr("Tên homestay, khu vực…")} className={inp} />
+                </label>
+                <label className={cell}>
+                  <span className={lab}>{tr("Nhận phòng")}</span>
+                  <DateField value={ci} onChange={setCi} className={inp} displayClassName="text-base font-bold text-ink" ariaLabel={tr("Nhận phòng")} />
+                </label>
+                <label className={cell}>
+                  <span className={lab}>{tr("Trả phòng")}</span>
+                  <DateField value={co} min={ci || undefined} onChange={setCo} className={inp} displayClassName="text-base font-bold text-ink" ariaLabel={tr("Trả phòng")} />
+                </label>
+              </div>
+            </SearchGroup>
+
+            {/* 2 · ĐOÀN KHÁCH */}
+            <SearchGroup n={2} title={tr("ĐOÀN KHÁCH")}>
+              <div className="grid grid-cols-2 gap-2">
+                <div className={cell}>
+                  <span className={lab}>{tr("Người lớn")}</span>
+                  <span className="flex items-center justify-between gap-1.5">
+                    <button type="button" aria-label={tr("Giảm người lớn")} onClick={() => setAdults(Math.max(0, adults - 1))} className={`${stepBtn} border border-[oklch(0.9_0.01_160)] bg-white text-ink hover:bg-forest-50`}>−</button>
+                    <b className="text-[17px]">{adults > 0 ? adults : <span className="text-sm font-bold text-gray-400">{tr("Mọi")}</span>}</b>
+                    <button type="button" aria-label={tr("Tăng người lớn")} onClick={() => setAdults(Math.min(20, adults + 1))} className={`${stepBtn} bg-forest-700 text-white hover:bg-forest-800`}>+</button>
+                  </span>
+                </div>
+                <label className={cell}>
+                  <span className={lab}>{tr("Trẻ em")}</span>
+                  <select
+                    value={childAges.length}
+                    onChange={(e) => {
+                      const n = Number(e.target.value);
+                      setChildAges((arr) => Array.from({ length: n }, (_, i) => arr[i] ?? 6));
+                    }}
+                    className={inp}
+                  >
+                    {Array.from({ length: 11 }, (_, i) => i).map((n) => (
+                      <option key={n} value={n}>{n === 0 ? tr("Không có") : tr("{0} bé", [n])}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
               {childAges.length > 0 && (
-                <div className="mt-1 flex flex-wrap gap-1">
+                <div className="flex flex-wrap items-center gap-1.5 px-1 text-xs font-semibold text-[oklch(0.48_0.02_160)]">
+                  {tr("Tuổi từng bé:")}
                   {childAges.map((age, i) => (
                     <input
                       key={i}
@@ -696,137 +734,176 @@ export function HomestayList({
                         const v = Math.max(0, Math.min(17, parseInt(e.target.value || "0", 10) || 0));
                         setChildAges((arr) => arr.map((x, j) => (j === i ? v : x)));
                       }}
-                      className="w-11 rounded border border-gray-200 px-1 py-0.5 text-center text-xs font-bold text-ink outline-none"
+                      className="w-12 rounded-lg border border-[oklch(0.9_0.01_160)] bg-white px-1 py-1 text-center text-xs font-bold text-ink outline-none focus:border-forest-500"
                     />
                   ))}
                 </div>
               )}
-            </div>
-            <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">{tr("Khoảng giá")}</span>
-              <select value={price} onChange={(e) => setPrice(e.target.value)} className={inp}>
-                {[["all", tr("Mọi mức giá")], ["lt500", tr("Dưới 500k")], ["mid", "500k – 900k"], ["gt900", tr("Trên 900k")], ["lt1500", tr("Dưới 1.500k")], ["gt1500", tr("Trên 1.500k")]].map(([v, n]) => <option key={v} value={v}>{tr(n)}</option>)}
-              </select>
-            </label>
-            <label className={cell}>
-              <span className="text-xs font-semibold text-gray-500">{tr("Sắp xếp")}</span>
-              <select value={sort} onChange={(e) => setSort(e.target.value)} className={inp}>
-                {[["rec", tr("Phù hợp nhất")], ["priceAsc", tr("Giá thấp → cao")], ["priceDesc", tr("Giá cao → thấp")], ["near", tr("Gần trung tâm nhất")]].map(([v, n]) => <option key={v} value={v}>{tr(n)}</option>)}
-              </select>
-            </label>
+            </SearchGroup>
+
+            {/* 3 · NGÂN SÁCH / ĐÊM */}
+            <SearchGroup n={3} title={tr("NGÂN SÁCH / ĐÊM")}>
+              <label className={cell}>
+                <span className={lab}>{tr("Khoảng giá")}</span>
+                <select value={price} onChange={(e) => setPrice(e.target.value)} className={inp}>
+                  {[["all", tr("Mọi mức giá")], ["lt500", tr("Dưới 500k")], ["mid", "500k – 900k"], ["gt900", tr("Trên 900k")], ["lt1500", tr("Dưới 1.500k")], ["gt1500", tr("Trên 1.500k")]].map(([v, n]) => <option key={v} value={v}>{tr(n)}</option>)}
+                </select>
+              </label>
+            </SearchGroup>
+          </div>
+
+          {/* Dải ngày ở + nút tìm */}
+          <div className="grid items-center gap-3 border-t border-[oklch(0.94_0.006_160)] pt-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+            {stayPlan ? (
+              <div className="flex min-w-0 items-center overflow-x-auto [scrollbar-width:none]">
+                {stayPlan.map((p, i) => (
+                  <div key={p.k} className="flex flex-none items-center">
+                    <div className="flex flex-col gap-px rounded-xl bg-[oklch(0.965_0.008_180)] px-3 py-1.5">
+                      <span className="whitespace-nowrap text-[11px] font-bold text-[oklch(0.5_0.02_160)]">{p.k}</span>
+                      <b className="whitespace-nowrap text-sm">{p.v}</b>
+                    </div>
+                    {i < stayPlan.length - 1 && <span className="mx-0.5 h-0.5 w-7 flex-none" style={{ background: "repeating-linear-gradient(90deg, oklch(0.75 0.02 160) 0 4px, transparent 4px 7px)" }} />}
+                  </div>
+                ))}
+                <span className="ml-2.5 flex-none whitespace-nowrap rounded-full bg-[oklch(0.95_0.04_155)] px-2.5 py-1 text-xs font-extrabold text-[oklch(0.36_0.1_155)]">{tr("{0} đêm", [draftNights])}</span>
+              </div>
+            ) : (
+              <div className="text-[13px] leading-relaxed text-[oklch(0.42_0.03_220)]">{tr("Chọn ngày nhận / trả phòng để xem phòng còn trống và giá đúng đêm đó.")}</div>
+            )}
             <button
               type="button"
               onClick={submitSearch}
               disabled={Boolean(dateErr) || searching}
-              className="flex items-center justify-center gap-2 rounded-[14px] px-5 py-2.5 text-[15px] font-bold text-white transition hover:brightness-110 active:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
-              style={{ background: TH.G }}
+              className="whitespace-nowrap rounded-2xl bg-sunset-500 px-7 py-[15px] text-center text-base font-extrabold text-white transition hover:bg-sunset-600 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
-                <circle cx="11" cy="11" r="7" />
-                <path d="m20.5 20.5-4.2-4.2" />
-              </svg>
-              {tr("Tìm kiếm")}
+              {tr("Tìm homestay →")}
             </button>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 px-1 py-0.5">
-            <div className="flex flex-wrap items-center gap-1.5">
-              {[["all", tr("Tất cả")], ["Homestay", "Homestay"], ["Bungalow", "Bungalow"]].map(([k, n]) => (
-                <button key={k} type="button" onClick={() => setType(k)} className="rounded-full px-3.5 py-2 text-sm font-bold transition" style={{ background: type === k ? TH.G : "oklch(0.95 0.01 230)", color: type === k ? "white" : "oklch(0.35 0.02 160)" }}>{tr(n)}</button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
-              {hasFilter && <button type="button" onClick={clearAll} className="px-3 py-2 text-sm font-bold text-gray-500">{tr("Xoá lọc")}</button>}
-              <span className="text-sm font-semibold text-gray-500">
-                {shownCount}{" "}{view === "home" ? "homestay" : tr("loại phòng")}{hasDates ? tr(" · {0} đêm", [nights]) : ""}
-                {hiddenFull > 0 && <span className="text-gray-400">{" "}{tr("· đã ẩn {0} loại hết phòng", [hiddenFull])}</span>}
-                {hiddenPolicyHomes > 0 && (
-                  <span className="block text-[13px] font-medium text-amber-700">
-                    {tr("⚠️ {0} homestay không bán lẻ đêm cuối tuần nên đã ẩn — chọn thêm đêm thứ 6 hoặc chủ nhật để xem.", [hiddenPolicyHomes])}
-                  </span>
-                )}
-              </span>
-            </div>
-          </div>
-          {/* Tiện ích phòng (chọn nhiều — phòng phải có đủ các tiện ích đã chọn) */}
-          <div className="flex flex-wrap gap-1.5 px-1 pb-1">
-            {AMENITIES.map((a) => {
-              const on = amen.has(a.key);
-              return (
-                <button
-                  key={a.key}
-                  type="button"
-                  onClick={() => toggleAmen(a.key)}
-                  className="rounded-full px-3 py-1.5 text-[13px] font-bold transition"
-                  style={{ background: on ? "oklch(0.95 0.05 155)" : "oklch(0.97 0.005 230)", color: on ? "oklch(0.32 0.09 155)" : "oklch(0.45 0.02 160)", boxShadow: on ? "inset 0 0 0 1.5px oklch(0.55 0.1 155)" : "inset 0 0 0 1px oklch(0.92 0.01 230)" }}
-                >
-                  {tr(a.icon)} {tr(a.label)}
-                </button>
-              );
-            })}
-          </div>
-          {dateErr && <div className="px-1.5 pb-1 text-[13px] font-semibold text-red-600">{tr(dateErr)}</div>}
+          {dateErr && <div className="text-[13px] font-bold text-[oklch(0.55_0.19_28)]">{tr(dateErr)}</div>}
         </div>
       </div>
 
-      {/* LIST */}
+      {/* LIST — cột lọc trái (mobile: bottom sheet) + sắp xếp & công tắc chế độ + lưới thẻ */}
       <main ref={listRef} className="container-page pb-24 pt-9">
-        {/* Lọc nhanh ngay trên kết quả — dropdown chữ nhỏ: theo TÊN homestay & theo KHU VỰC */}
-        {/* Desktop: bộ lọc nhà/khu vực (trái) + công tắc chế độ (phải) cùng MỘT hàng; mobile: lọc 1 hàng, công tắc full ngang bên dưới. */}
-        <div className="mb-5 md:mt-3 md:flex md:items-center md:justify-between md:gap-5">
-        {(homeNames.length > 1 || zones.length > 1) && (
-          <div className="mb-3 flex min-w-0 flex-nowrap items-center gap-x-3 sm:gap-x-5 md:mb-0 md:flex-1">
-            {homeNames.length > 1 && (
-              <label className="flex min-w-0 flex-1 items-center gap-1.5 text-[13px] font-semibold text-gray-500 sm:flex-initial sm:gap-2">
-                <span className="flex-none whitespace-nowrap">{tr("Xem theo homestay")}</span>
-                <select
-                  value={home}
-                  onChange={(e) => setHome(e.target.value)}
-                  className="w-full min-w-0 max-w-[260px] cursor-pointer truncate sm:w-auto border-0 bg-transparent p-0 text-[13px] font-extrabold outline-none"
-                  style={{ color: TH.G }}
-                >
-                  <option value="all">{tr("Tất cả homestay")}</option>
-                  {homeNames.map((n) => (
-                    <option key={n} value={n}>{tr(n)}</option>
-                  ))}
-                </select>
-              </label>
+        <div className="mb-4">
+          <h2 className="m-0 text-[clamp(22px,2.6vw,30px)] font-extrabold tracking-[-0.02em] text-ink">
+            {view === "home" ? tr("{0} homestay phù hợp", [homes.length]) : tr("{0} loại phòng phù hợp", [items.length])}
+          </h2>
+          <div className="mt-1 text-sm text-[oklch(0.48_0.02_160)]">
+            {hasDates ? tr("{0} đêm · {1} → {2}", [nights, dmy(initialFrom), dmy(initialTo)]) : tr("Chưa chọn ngày · giá hiển thị là giá 1 đêm")}
+            {hiddenFull > 0 && <span className="text-gray-400">{" "}{tr("· đã ẩn {0} loại hết phòng", [hiddenFull])}</span>}
+          </div>
+          {hiddenPolicyHomes > 0 && (
+            <div className="mt-1 text-[13px] font-medium text-amber-700">
+              {tr("⚠️ {0} homestay không bán lẻ đêm cuối tuần nên đã ẩn — chọn thêm đêm thứ 6 hoặc chủ nhật để xem.", [hiddenPolicyHomes])}
+            </div>
+          )}
+        </div>
+
+        <div className="grid items-start gap-5 min-[900px]:grid-cols-[260px_minmax(0,1fr)]">
+          <aside
+            className={`flex-col gap-4 overflow-y-auto border border-[oklch(0.92_0.01_160)] bg-white p-[18px] text-ink min-[900px]:sticky min-[900px]:top-[84px] min-[900px]:flex min-[900px]:max-h-[calc(100vh-100px)] min-[900px]:rounded-[20px] ${
+              sheet ? "fixed inset-x-0 bottom-0 z-[60] flex max-h-[85vh] rounded-t-[22px] pb-[calc(18px+env(safe-area-inset-bottom))]" : "hidden"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <b className="text-base">{tr("Bộ lọc")}</b>
+              <span className="flex items-center gap-3">
+                {sideCount > 0 && (
+                  <button type="button" onClick={clearSide} className="text-[13px] font-bold text-[oklch(0.5_0.15_45)]">{tr("Xoá lọc ({0})", [sideCount])}</button>
+                )}
+                <button type="button" onClick={() => setSheet(false)} aria-label={tr("Đóng")} className="flex h-8 w-8 items-center justify-center rounded-full bg-[oklch(0.95_0.005_160)] text-xl leading-none text-gray-600 min-[900px]:hidden">×</button>
+              </span>
+            </div>
+            <div className={groupCls}>
+              <span className={groupTitle}>{tr("LOẠI HÌNH")}</span>
+              <div className="flex flex-wrap gap-1.5">
+                {[["all", tr("Tất cả")], ["Homestay", "Homestay"], ["Bungalow", "Bungalow"]].map(([k, n]) => (
+                  <button key={k} type="button" onClick={() => setType(k)} className={chipCls(type === k)}>{tr(n)}</button>
+                ))}
+              </div>
+            </div>
+            {homeList.length > 1 && (
+              <div className={groupCls}>
+                <span className={groupTitle}>{tr("HOMESTAY")}</span>
+                <div className="flex max-h-[320px] flex-col gap-0.5 overflow-y-auto">
+                  {homeList.map((h) => {
+                    const on = fHome.includes(h.name);
+                    return (
+                      <button key={h.name} type="button" onClick={() => toggleIn(fHome, setFHome, h.name)} className="flex items-center gap-2.5 rounded-lg px-1 py-[7px] text-left hover:bg-[oklch(0.975_0.006_160)]">
+                        <span className="flex h-[18px] w-[18px] flex-none items-center justify-center rounded-[5px] border-2 text-[11px] font-extrabold text-white" style={{ borderColor: on ? TH.G : "oklch(0.8 0.01 160)", background: on ? TH.G : "white" }}>{on ? "✓" : ""}</span>
+                        <span className="min-w-0 flex-1 text-sm font-semibold">{tr(h.name)}</span>
+                        <span className="text-xs text-[oklch(0.55_0.02_160)]">{h.n}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             )}
             {zones.length > 1 && (
-              <label className="flex min-w-0 flex-1 items-center gap-1.5 text-[13px] font-semibold text-gray-500 sm:flex-initial sm:gap-2">
-                <span className="flex-none whitespace-nowrap">{tr("Khu vực")}</span>
-                <select
-                  value={zone}
-                  onChange={(e) => setZone(e.target.value)}
-                  className="w-full min-w-0 max-w-[220px] cursor-pointer truncate sm:w-auto border-0 bg-transparent p-0 text-[13px] font-extrabold outline-none"
-                  style={{ color: "oklch(0.52 0.12 50)" }}
-                >
-                  <option value="all">{tr("Mọi khu vực")}</option>
+              <div className={groupCls}>
+                <span className={groupTitle}>{tr("KHU VỰC")}</span>
+                <div className="flex flex-wrap gap-1.5">
                   {zones.map((z) => (
-                    <option key={z} value={z}>{tr(z.replace(/^Trung tâm Tà Xùa$/i, "Trung tâm"))}</option>
+                    <button key={z} type="button" onClick={() => toggleIn(fZone, setFZone, z)} className={chipCls(fZone.includes(z))}>
+                      {tr(zoneLabel(z))}
+                    </button>
                   ))}
-                </select>
-              </label>
+                </div>
+              </div>
             )}
-          </div>
-        )}
-          {/* Công tắc chế độ kết quả (trên lưới thẻ, căn phải): Theo nhà / Theo phòng.
-              Kiểu "người tí hon đẩy núm" theo claude.ai/design "Nut chuyen che do" — xem PushSwitch. */}
-          <div className="flex justify-end pt-4 md:ml-auto md:flex-none md:pt-0">
-            <div className="w-full sm:w-[400px] md:w-[340px] lg:w-[400px]">
-              <PushSwitch
-                value={view}
-                onChange={setView}
-                left={{ k: "home", name: tr("Theo homestay"), n: homes.length }}
-                right={{ k: "room", name: tr("Theo phòng"), n: items.length }}
-                ariaLabel={tr("Xem kết quả")}
-                flag={tr("Đi Tà Xùa thôi!")}
-                pushLabel={tr("ĐẨY")}
-                tip={(name) => tr("Đẩy sang {0}", [name])}
-              />
+            <div className={groupCls}>
+              <span className={groupTitle}>{tr("TIỆN ÍCH")}</span>
+              <div className="flex flex-wrap gap-1.5">
+                {AMENITIES.map((a) => (
+                  <button key={a.key} type="button" onClick={() => toggleAmen(a.key)} className={chipCls(amen.has(a.key))}>{tr(a.icon)} {tr(a.label)}</button>
+                ))}
+              </div>
             </div>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,300px),1fr))] sm:gap-[22px]">
+            <button type="button" onClick={() => setSheet(false)} className="rounded-[14px] p-[13px] text-center text-[15px] font-extrabold text-white min-[900px]:hidden" style={{ background: TH.G }}>
+              {view === "home" ? tr("Xem {0} homestay", [homes.length]) : tr("Xem {0} loại phòng", [items.length])}
+            </button>
+          </aside>
+          {sheet && <div onClick={() => setSheet(false)} className="fixed inset-0 z-[59] bg-[oklch(0.15_0.03_165_/.45)] min-[900px]:hidden" />}
+
+          <div className="flex min-w-0 flex-col gap-4">
+            {/* Sắp xếp + công tắc chế độ: desktop cùng hàng (công tắc bên phải); mobile công tắc hàng riêng phía trên. */}
+            <div className="flex flex-wrap items-center gap-2.5 min-[1100px]:flex-nowrap">
+              <div className="order-first w-full min-[1100px]:order-last min-[1100px]:w-[400px] min-[1100px]:flex-none">
+                <div className="ml-auto w-full sm:w-[400px]">
+                  <PushSwitch
+                    value={view}
+                    onChange={setView}
+                    left={{ k: "home", name: tr("Theo homestay"), n: homes.length }}
+                    right={{ k: "room", name: tr("Theo phòng"), n: items.length }}
+                    ariaLabel={tr("Xem kết quả")}
+                    flag={tr("Đi Tà Xùa thôi!")}
+                    pushLabel={tr("ĐẨY")}
+                    tip={(name) => tr("Đẩy sang {0}", [name])}
+                  />
+                </div>
+              </div>
+              <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto [scrollbar-width:none]">
+                {[["rec", "Phù hợp nhất"], ["priceAsc", "Giá thấp nhất"], ["priceDesc", "Giá cao nhất"], ["near", "Gần trung tâm"]].map(([k, n]) => {
+                  const on = sort === k;
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => setSort(k)}
+                      className="flex-none whitespace-nowrap rounded-full border px-[13px] py-2 text-[13px] font-bold transition"
+                      style={on ? { background: TH.G, color: "white", borderColor: TH.G } : { background: "white", color: "oklch(0.3 0.03 160)", borderColor: "oklch(0.9 0.01 160)" }}
+                    >
+                      {tr(n)}
+                    </button>
+                  );
+                })}
+              </div>
+              <button type="button" onClick={() => setSheet(true)} className="whitespace-nowrap rounded-full border-[1.5px] border-[oklch(0.85_0.03_158)] bg-white px-3.5 py-2 text-[13px] font-extrabold text-ink min-[900px]:hidden">
+                {tr("Bộ lọc")}{sideCount ? ` · ${sideCount}` : ""}
+              </button>
+            </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] sm:gap-[18px]">
           {view === "home" && homes.slice(0, limit).map((h, i) => (
             <Link
               key={h.slug}
@@ -971,7 +1048,22 @@ export function HomestayList({
             <button type="button" onClick={clearAll} className="mt-1.5 rounded-full px-5 py-2.5 text-sm font-bold text-white" style={{ background: TH.G }}>{tr("Xoá bộ lọc")}</button>
           </div>
         )}
+          </div>
+        </div>
       </main>
+    </div>
+  );
+}
+
+/** Nhóm trường có số thứ tự tròn — như ô tìm combo (Combo v3). */
+function SearchGroup({ n, title, children }: { n: number; title: string; children: ReactNode }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-2">
+      <div className="flex items-center gap-2 text-xs font-extrabold tracking-[0.08em] text-[oklch(0.45_0.06_158)]">
+        <span className="flex h-5 w-5 flex-none items-center justify-center rounded-full bg-forest-700 text-[11px] text-white">{n}</span>
+        {title}
+      </div>
+      {children}
     </div>
   );
 }

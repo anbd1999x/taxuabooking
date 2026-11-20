@@ -134,9 +134,19 @@ export function areaZone(area: string | null | undefined): string {
   if (/song lung|khung long/.test(n)) return "Sống lưng khủng long";
   if (/mong vang/.test(n)) return "Mống Vàng";
   if (/trung tam/.test(n)) return "Trung tâm Tà Xùa";
+  // "Bản Chung Trinh, xã Tà Xùa" / "Bản Chung Trinh, Tà Xùa" … ⇒ một khu "Chung Chinh".
+  if (/chung (trinh|chinh|ching)/.test(n)) return "Chung Chinh";
   const head = raw.split(",")[0].trim();
   return !head || /^(xa\s+)?ta xua$/.test(head.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")) ? "Khác" : head;
 }
+
+/** Nhãn khu vực hiển thị ở bộ lọc: "Trung tâm Tà Xùa" ⇒ "Trung tâm". */
+export function zoneLabel(zone: string): string {
+  return zone === "Trung tâm Tà Xùa" ? "Trung tâm" : zone;
+}
+
+/** Khu vực dùng làm lựa chọn lọc (bỏ "Khác" = chỉ ghi "Tà Xùa" / để trống — không lọc theo khu được). */
+export const isFilterZone = (zone: string) => zone !== "Khác";
 
 export function categoryBySlug(slug: string): CategoryMeta | undefined {
   return CATEGORY_LIST.find((c) => c.slug === slug);

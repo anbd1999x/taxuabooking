@@ -5,7 +5,8 @@ import Link from "@/components/Link";
 import Image from "next/image";
 import { HeroSearch } from "@/components/home/HeroSearch";
 import { HomeHero } from "@/components/home/HomeHero";
-import { HomeSky, HomeReveal, HomeMobileBar, REVEAL_CSS } from "@/components/home/HomeMotion";
+import { HomeSky, HomeReveal, HomeMobileBar } from "@/components/home/HomeMotion";
+import { REVEAL_CSS } from "@/components/home/reveal-css";
 import { HomeCabin } from "@/components/home/HomeCabin";
 import { FeaturedGrid } from "@/components/home/FeaturedGrid";
 import {
