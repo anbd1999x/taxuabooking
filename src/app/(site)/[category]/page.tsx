@@ -295,7 +295,7 @@ async function CategoryBody({
               </p>
             </div>
           ) : (
-            <ComboResults result={result} />
+            <ComboResults result={result} activeFilters={activeFilters} roomKind={roomKind} />
           )}
         </div>
         </ScrollToResults>

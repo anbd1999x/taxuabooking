@@ -35,7 +35,6 @@ const O = "oklch(0.68 0.18 45)"; // cam điểm nhấn
 const MUTED = "oklch(0.5 0.02 160)";
 const LINE = "oklch(0.92 0.01 160)";
 /** Dropdown chữ mảnh của thanh lọc (đồng bộ với ComboResults). */
-const SEL = "min-w-0 max-w-[240px] cursor-pointer truncate border-0 bg-transparent p-0 text-[13px] font-extrabold outline-none";
 
 function vnd(n: number): string {
   return new Intl.NumberFormat("vi-VN").format(Math.round(n)) + "đ";
@@ -117,21 +116,8 @@ export function ComboCustom({
   const home = homes.find((h) => h.serviceId === homeId) ?? homes[0];
   const groups = useMemo(() => (home ? listRooms(home) : []), [home]);
 
-  // ----- Bộ lọc danh sách homestay (giống thanh lọc của Combo gợi ý): nhà · khu vực · sắp xếp -----
-  const [zone, setZone] = useState("all");
-  const [homeName, setHomeName] = useState("all");
-  const [sort, setSort] = useState("match"); // match | priceAsc | priceDesc | near
-  const zones = useMemo(() => [...new Set(homes.map((h) => h.area).filter((a): a is string => Boolean(a)))], [homes]);
-  const homeNames = useMemo(() => [...new Set(homes.map((h) => h.title))].sort((a, b) => a.localeCompare(b, "vi")), [homes]);
-  const shownHomes = useMemo(() => {
-    const fromOf = (h: ComboHomeOption) => Math.min(...h.rooms.map((r) => r.roomCost));
-    const distOf = (h: ComboHomeOption) => h.distanceKm ?? (/trung tâm/i.test(h.area ?? "") ? 0 : Number.POSITIVE_INFINITY);
-    const arr = homes.filter((h) => (zone === "all" || h.area === zone) && (homeName === "all" || h.title === homeName));
-    if (sort === "priceAsc") arr.sort((a, b) => fromOf(a) - fromOf(b));
-    else if (sort === "priceDesc") arr.sort((a, b) => fromOf(b) - fromOf(a));
-    else if (sort === "near") arr.sort((a, b) => distOf(a) - distOf(b) || fromOf(a) - fromOf(b));
-    return arr; // "match": giữ thứ tự server (nổi bật / ưu tiên)
-  }, [homes, zone, homeName, sort]);
+  // Danh sách homestay theo thứ tự server (nổi bật / ưu tiên).
+  const shownHomes = homes;
   // ----- Băng trượt homestay: mỗi trang 2 × 2 thẻ, vuốt ngang / bấm mũi tên để sang trang -----
   const homePages = useMemo(() => {
     const pages: ComboHomeOption[][] = [];
@@ -348,54 +334,10 @@ export function ComboCustom({
     <div className={`flex flex-col gap-[18px] text-ink ${stage !== "done" ? "max-[1079px]:pb-[84px]" : ""}`}>
       <style>{`@keyframes cc-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}@keyframes cc-bump{0%{transform:scale(1)}40%{transform:scale(1.08)}100%{transform:scale(1)}}`}</style>
 
-      {/* Như Combo gợi ý — desktop: bộ lọc homestay (trái) + công tắc chế độ (phải) cùng MỘT hàng; mobile: công tắc full ngang bên dưới.
-          Bộ lọc áp cho danh sách homestay ở Bước 1. */}
-      <div className="-mb-1 lg:flex lg:items-center lg:justify-between lg:gap-4">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-2 lg:flex-1 lg:flex-nowrap lg:gap-x-4">
-          {homeNames.length > 1 && (
-            <label className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-gray-500 lg:shrink">
-              <span className="flex-none whitespace-nowrap">{t("Xem theo homestay")}</span>
-              <select
-                value={homeName}
-                onChange={(e) => {
-                  setHomeName(e.target.value);
-                  // Chọn đích danh một nhà ⇒ chọn luôn nhà đó cho combo.
-                  const h = homes.find((x) => x.title === e.target.value);
-                  if (h && h.serviceId !== home?.serviceId) pickHome(h);
-                }}
-                className={SEL}
-                style={{ color: G }}
-              >
-                <option value="all">{t("Tất cả homestay")}</option>
-                {homeNames.map((n) => <option key={n} value={n}>{t(n)}</option>)}
-              </select>
-            </label>
-          )}
-          {zones.length > 1 && (
-            <label className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-gray-500 lg:shrink">
-              <span className="flex-none whitespace-nowrap">{t("Khu vực")}</span>
-              <select value={zone} onChange={(e) => setZone(e.target.value)} className={SEL} style={{ color: "oklch(0.52 0.12 50)" }}>
-                <option value="all">{t("Mọi khu vực")}</option>
-                {zones.map((z) => <option key={z} value={z}>{t(z.replace(/^Trung tâm Tà Xùa$/i, "Trung tâm"))}</option>)}
-              </select>
-            </label>
-          )}
-          <label className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-gray-500 lg:shrink">
-            <span className="flex-none whitespace-nowrap">{t("Sắp xếp")}</span>
-            <select value={sort} onChange={(e) => setSort(e.target.value)} className={SEL} style={{ color: G }}>
-              <option value="match">{t("Phù hợp nhất")}</option>
-              <option value="priceAsc">{t("Giá thấp → cao")}</option>
-              <option value="priceDesc">{t("Giá cao → thấp")}</option>
-              <option value="near">{t("Gần trung tâm nhất")}</option>
-            </select>
-          </label>
-        </div>
-        <div className="flex justify-end pt-5 lg:ml-auto lg:flex-none lg:pt-0"><ComboModeSlot /></div>
-      </div>
-
       {/* Tiêu đề (ngày / điểm đón / số khách đổi ở ô tìm kiếm phía trên) */}
-      <div style={{ animation: "cc-rise .4s ease both" }}>
-        <div>
+      {/* Tiêu đề (trái) + công tắc chế độ (phải, thẳng cột khung bill) — khung bill và khung chọn homestay bắt đầu cùng độ cao. */}
+      <div className="grid grid-cols-1 items-end gap-4 min-[1080px]:grid-cols-[minmax(0,1fr)_400px] min-[1080px]:gap-5" style={{ animation: "cc-rise .4s ease both" }}>
+        <div className="min-w-0">
           {result.planCount > 0 && (
             <Link href={suggestHref} scroll={false} className="text-sm font-bold text-forest-700 hover:text-sunset-600">
               ← {t("{0} phương án combo gợi ý", [result.planCount])}
@@ -405,6 +347,9 @@ export function ComboCustom({
           <p className="mt-1.5 max-w-[640px] text-[15px]" style={{ color: "oklch(0.48 0.02 160)", textWrap: "pretty" }}>
             {t("Chọn bao nhiêu phòng cũng được, chọn nhà xe bạn thích. Giá combo và khuyến mãi tự tính lại ngay.")}
           </p>
+        </div>
+        <div className="flex justify-end">
+          <ComboModeSlot className="min-[1080px]:w-full" />
         </div>
       </div>
 

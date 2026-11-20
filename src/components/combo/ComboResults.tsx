@@ -4,7 +4,9 @@ import { dmy } from "@/lib/date-format";
 import { trackLeadConversion } from "@/lib/ads";
 import { SupportHoursNote } from "@/components/SupportHours";
 import { ItineraryLink } from "@/components/itinerary/ItineraryLink";
-import { We } from "@/components/SiteContact";
+import { SitePhone, We } from "@/components/SiteContact";
+import { useSearchParams } from "next/navigation";
+import { COMBO_FILTER_OPTIONS, ROOM_KIND_OPTIONS } from "@/components/combo/ComboSearch";
 import Link from "@/components/Link";
 import Image from "next/image";
 import { createPortal } from "react-dom";
@@ -22,7 +24,7 @@ import { cabinAllocation, busCostPerPerson, cabinSeatTotal } from "@/lib/combo-p
 import { vnPhoneError } from "@/lib/phone";
 import { BookingEmailField, emailLooksValid } from "@/components/BookingEmailField";
 import { PriceLine } from "@/components/WebPromo";
-import { showGlobalLoading } from "@/components/useSearchNav";
+import { showGlobalLoading, useSearchNav } from "@/components/useSearchNav";
 import { CommitmentLink } from "@/components/trust/parts";
 import { useT } from "@/components/i18n/I18nProvider";
 import { ComboModeSlot } from "@/components/combo/ComboModeSwitch";
@@ -32,9 +34,6 @@ import { useComboBike, comboBikePayload, ComboBikeSummary, ComboBikePicker, Comb
 const G = "oklch(0.29 0.055 160)"; // xanh rừng
 const O = "oklch(0.68 0.18 45)"; // cam điểm nhấn
 
-/** Style select trong thanh lọc kết quả. */
-/** Dropdown chữ mảnh trong thanh lọc kết quả (không khung, như trang danh sách homestay). */
-const SEL = "min-w-0 max-w-[240px] cursor-pointer truncate border-0 bg-transparent p-0 text-[13px] font-extrabold outline-none";
 
 const FEAT: [keyof ComboRoomFeatures, string][] = [
   ["cloudView", "⛅ View mây"],
@@ -64,41 +63,46 @@ interface PlanEntry {
   score: number; // điểm tổng hợp giá + tiện ích + vị trí (thấp = tốt)
 }
 
-export function ComboResults({ result }: { result: ComboSearchResult }) {
+export function ComboResults({
+  result,
+  activeFilters = [],
+  roomKind = "all",
+}: {
+  result: ComboSearchResult;
+  /** Tiện ích đang lọc (server, ?f=) — bật / tắt ở cột lọc bên trái là tìm lại. */
+  activeFilters?: string[];
+  /** Loại phòng đang lọc (server, ?kind=). */
+  roomKind?: string;
+}) {
   const tr = useT();
   const { homes, buses, adults, childrenAges, nights, origin, budget, priceMax, priceMin, checkIn, checkOut, fromKey, toKey, comboDiscount } = result;
   const exactBudget = priceMax == null && priceMin == null ? budget : null;
+  const sp = useSearchParams();
+  const { go } = useSearchNav();
 
-  const [zone, setZone] = useState("all");
-  const [homeName, setHomeName] = useState("all");
-  const [sort, setSort] = useState("match"); // match | priceAsc | priceDesc | near
+  // Lọc phía client: nhiều homestay / nhiều khu vực (theo thiết kế Combo v3).
+  const [fHome, setFHome] = useState<string[]>([]);
+  const [fArea, setFArea] = useState<string[]>([]);
+  const [sort, setSort] = useState("match"); // match | priceAsc | rating | near
+  const [sheet, setSheet] = useState(false); // mobile: bộ lọc dạng bottom sheet
+  useBodyScrollLock(sheet);
   const zones = useMemo(() => [...new Set(homes.map((h) => h.area).filter((a): a is string => Boolean(a)))], [homes]);
-  const homeNames = useMemo(
-    () => [...new Set(homes.map((h) => h.title))].sort((a, b) => a.localeCompare(b, "vi")),
-    [homes],
-  );
 
-  const entries = useMemo<PlanEntry[]>(() => {
-    const distOf = (h: ComboHomeOption) =>
-      h.distanceKm ?? (/trung tâm/i.test(h.area ?? "") ? 0 : Number.POSITIVE_INFINITY);
-    // Giá rẻ nhất xét theo xe RẺ NHẤT CÒN ĐỦ CHỖ cho số tính phí của home (trẻ miễn phí ở cùng).
-    // Tiền xe/khách rẻ nhất theo cách xếp mặc định (cả đoàn nằm ghép = 1 vé/người).
+  const distOf = (h: ComboHomeOption) => h.distanceKm ?? (/trung tâm/i.test(h.area ?? "") ? 0 : Number.POSITIVE_INFINITY);
+
+  // Toàn bộ phương án (chưa lọc client) — để đếm số combo từng homestay trong cột lọc.
+  const all = useMemo<PlanEntry[]>(() => {
+    // Tiền xe/khách rẻ nhất theo cách xếp mặc định (cả đoàn nằm ghép = 1 vé/người), xe còn đủ chỗ.
     const cheapestFareFor = (billable: number) => {
       const costs = buses.map((b) => busCostPerPerson(b, billable)).filter((c): c is number => c != null);
       return costs.length ? Math.min(...costs) : 0;
     };
-
     const arr: PlanEntry[] = [];
     for (const home of homes) {
-      if (zone !== "all" && home.area !== zone) continue;
-      if (homeName !== "all" && home.title !== homeName) continue;
       const cheapestFare = cheapestFareFor(home.billable);
-      for (const plan of home.plans) {
-        arr.push({ home, plan, bestPrice: planPP(plan, home.billable, cheapestFare, comboDiscount), score: 0 });
-      }
+      for (const plan of home.plans) arr.push({ home, plan, bestPrice: planPP(plan, home.billable, cheapestFare, comboDiscount), score: 0 });
     }
-    if (arr.length === 0) return arr;
-
+    if (!arr.length) return arr;
     const priceOf = (e: PlanEntry) => (budget != null ? Math.abs(e.bestPrice - budget) : e.bestPrice);
     const pVals = arr.map(priceOf);
     const pMin = Math.min(...pVals);
@@ -110,134 +114,276 @@ export function ComboResults({ result }: { result: ComboSearchResult }) {
       const sAmen = 1 - e.plan.amenityScore;
       e.score = 0.55 * sPrice + 0.25 * sAmen + 0.2 * sDist;
     }
+    return arr;
+  }, [homes, buses, budget, comboDiscount]);
 
-    // Ưu tiên (Nổi bật lên đầu) CHỈ áp dụng ở trạng thái MẶC ĐỊNH: mọi mức giá +
-    // sắp xếp "Tối ưu (phù hợp nhất)". Khi khách đã chọn khoảng giá hoặc đổi sắp xếp
-    // → bỏ ưu tiên, xếp đúng theo bộ lọc/sắp xếp.
+  const entries = useMemo<PlanEntry[]>(() => {
+    const arr = all.filter((e) => (!fHome.length || fHome.includes(e.home.serviceId)) && (!fArea.length || fArea.includes(e.home.area ?? "")));
+    // Ưu tiên (Nổi bật lên đầu) CHỈ áp dụng ở trạng thái MẶC ĐỊNH: mọi mức giá + sắp xếp "Tối ưu".
     const prRank = (e: PlanEntry) => (e.home.featured ? (e.home.priorityOrder || 0) + 1 : 0);
     const keepPriority = priceMax == null && priceMin == null && budget == null && sort === "match";
-    arr.sort((a, b) => {
+    return arr.sort((a, b) => {
       if (keepPriority) {
         const pr = prRank(b) - prRank(a);
         if (pr !== 0) return pr;
       }
       if (sort === "priceAsc") return a.bestPrice - b.bestPrice;
-      if (sort === "priceDesc") return b.bestPrice - a.bestPrice;
+      if (sort === "rating") return (b.home.rating ?? 0) - (a.home.rating ?? 0) || a.bestPrice - b.bestPrice;
       if (sort === "near") return distOf(a.home) - distOf(b.home) || a.bestPrice - b.bestPrice;
       return a.score - b.score || a.bestPrice - b.bestPrice;
     });
-    return arr;
-  }, [homes, buses, budget, priceMax, priceMin, zone, homeName, sort]);
+  }, [all, fHome, fArea, sort, priceMax, priceMin, budget]);
 
-  const bestPlanId = buses.length > 0 && entries.length > 0 ? entries[0].plan.id : null;
+  const bestPlanId = buses.length > 0 && entries.length > 0 && sort === "match" ? entries[0].plan.id : null;
 
+  // Hiện dần từng thẻ (không có nút "Xem thêm"); đổi bộ lọc / sắp xếp ⇒ hiện dần lại từ đầu.
+  const sig = `${fHome.join(",")}|${fArea.join(",")}|${sort}`;
+  const [seenSig, setSeenSig] = useState(sig);
   const [visible, setVisible] = useState(Math.min(3, entries.length));
+  if (seenSig !== sig) {
+    setSeenSig(sig);
+    setVisible(Math.min(3, entries.length));
+  }
   useEffect(() => {
     if (visible >= entries.length) return;
     const t = setTimeout(() => setVisible((v) => Math.min(entries.length, v + 1)), 140);
     return () => clearTimeout(t);
   }, [visible, entries.length]);
 
-  return (
-    <div>
-      {/* Tiêu đề danh sách */}
-      <div className="mb-3">
-        <div className="text-[clamp(22px,2.6vw,28px)] font-extrabold tracking-[-0.02em] text-ink">
-          {tr("{0} phương án combo", [entries.length])}
-        </div>
-        <ItineraryLink nights={nights} className="mt-1.5 inline-flex items-center gap-1.5 text-sm font-bold text-forest-700 hover:text-sunset-500" />
-        <div className="mt-1 text-sm text-gray-500">
-          {buses.length}{" "}{tr("nhà xe ·")}{" "}{adults}{" "}{tr("người lớn")}{childrenAges.length > 0 ? tr(" · {0} trẻ em ({1} tuổi)", [childrenAges.length, childrenAges.join(", ")]) : ""} · {nights}{" "}{tr("đêm (")}{fmtDayKey(checkIn)} → {fmtDayKey(checkOut)})
-          {origin && <>{" "}{tr("· đón tại")}{" "}<span className="font-bold text-ink">{tr(origin)}</span></>}
-          {priceMax != null ? (
-            <>{" "}{tr("· mức giá")}{" "}<span className="font-semibold text-forest-700">{tr("dưới {0}", [tr(vnd(priceMax))])}</span>{tr("/khách")}</>
-          ) : priceMin != null ? (
-            <>{" "}{tr("· mức giá")}{" "}<span className="font-semibold text-forest-700">{tr("trên {0}", [tr(vnd(priceMin))])}</span>{tr("/khách")}</>
-          ) : budget != null ? (
-            <>{" "}{tr("· khớp giá mong muốn")}{" "}<span className="font-semibold text-forest-700">{tr(vnd(budget))}</span>{tr("/khách")}</>
-          ) : null}
-        </div>
-      </div>
+  // Bộ lọc server (loại phòng / tiện ích): đổi là tìm lại với cùng tham số.
+  function navServer(mut: (q: URLSearchParams) => void) {
+    const q = new URLSearchParams(sp?.toString() ?? "");
+    mut(q);
+    go(`/combo?${q.toString()}`);
+  }
+  const toggleAmen = (k: string) =>
+    navServer((q) => {
+      const cur = new Set(activeFilters);
+      if (cur.has(k)) cur.delete(k);
+      else cur.add(k);
+      if (cur.size) q.set("f", [...cur].join(","));
+      else q.delete("f");
+    });
+  const pickKind = (k: string) =>
+    navServer((q) => {
+      if (k === "all") q.delete("kind");
+      else q.set("kind", k);
+    });
 
-      {/* Thanh lọc kết quả: Xem theo nhà · Khu vực · Sắp xếp — dropdown CHỮ MẢNH,
-          không khung (đồng bộ kiểu lọc nhanh của trang danh sách homestay). */}
-      {/* Desktop: bộ lọc (trái) + công tắc chế độ combo (phải) cùng MỘT hàng; mobile: công tắc full ngang bên dưới. */}
-      <div className="mb-4 lg:flex lg:items-center lg:justify-between lg:gap-4">
-      <div className="flex min-w-0 flex-wrap items-center gap-x-5 gap-y-2 lg:flex-1 lg:flex-nowrap lg:gap-x-4">
-        {homeNames.length > 1 && (
-          <label className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-gray-500 lg:shrink">
-            <span className="flex-none whitespace-nowrap">{tr("Xem theo homestay")}</span>
-            <select value={homeName} onChange={(e) => setHomeName(e.target.value)} className={SEL} style={{ color: "oklch(0.29 0.055 160)" }}>
-              <option value="all">{tr("Tất cả homestay")}</option>
-              {homeNames.map((n) => (
-                <option key={n} value={n}>{tr(n)}</option>
-              ))}
-            </select>
-          </label>
-        )}
-        {zones.length > 1 && (
-          <label className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-gray-500 lg:shrink">
-            <span className="flex-none whitespace-nowrap">{tr("Khu vực")}</span>
-            <select value={zone} onChange={(e) => setZone(e.target.value)} className={SEL} style={{ color: "oklch(0.52 0.12 50)" }}>
-              <option value="all">{tr("Mọi khu vực")}</option>
-              {zones.map((z) => (
-                <option key={z} value={z}>{tr(z.replace(/^Trung tâm Tà Xùa$/i, "Trung tâm"))}</option>
-              ))}
-            </select>
-          </label>
-        )}
-        <label className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-gray-500 lg:shrink">
-          <span className="flex-none whitespace-nowrap">{tr("Sắp xếp")}</span>
-          <select value={sort} onChange={(e) => setSort(e.target.value)} className={SEL} style={{ color: "oklch(0.29 0.055 160)" }}>
-            <option value="match">{budget != null ? tr("Tối ưu (khớp giá · tiện ích · vị trí)") : tr("Tối ưu (giá · tiện ích · vị trí)")}</option>
-            <option value="priceAsc">{tr("Giá thấp → cao")}</option>
-            <option value="priceDesc">{tr("Giá cao → thấp")}</option>
-            <option value="near">{tr("Gần trung tâm nhất")}</option>
-          </select>
-        </label>
-      </div>
-        <div className="flex justify-end pt-5 lg:ml-auto lg:flex-none lg:pt-0"><ComboModeSlot /></div>
-      </div>
+  const toggle = (arr: string[], set: (v: string[]) => void, v: string) => set(arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v]);
+  const clientCount = fHome.length + fArea.length;
+  const serverCount = activeFilters.length + (roomKind !== "all" ? 1 : 0);
+  const fCount = clientCount + serverCount;
+  const clearAll = () => {
+    setFHome([]);
+    setFArea([]);
+    if (serverCount) navServer((q) => { q.delete("f"); q.delete("kind"); });
+  };
+  const homeList = useMemo(() => {
+    const m = new Map<string, { id: string; name: string; n: number }>();
+    for (const e of all) {
+      const cur = m.get(e.home.serviceId) ?? { id: e.home.serviceId, name: e.home.title, n: 0 };
+      cur.n++;
+      m.set(e.home.serviceId, cur);
+    }
+    return [...m.values()].sort((a, b) => a.name.localeCompare(b.name, "vi"));
+  }, [all]);
 
-      <div className="flex flex-col gap-4">
-        {entries.slice(0, visible).map((e) => (
-          <ComboPlanCard
-            key={e.plan.id}
-            home={e.home}
-            plan={e.plan}
-            buses={buses}
-            people={e.home.billable}
-            freeChildren={e.home.freeChildren}
-            adults={adults}
-            childrenAges={childrenAges}
-            nights={nights}
-            budget={exactBudget}
-            best={e.plan.id === bestPlanId}
-            checkIn={checkIn}
-            checkOut={checkOut}
-            fromKey={fromKey}
-            toKey={toKey}
-            origin={origin}
-            comboDiscount={comboDiscount}
-          />
-        ))}
-      </div>
+  const chk = (on: boolean) => (
+    <span className="flex h-[18px] w-[18px] flex-none items-center justify-center rounded-[5px] border-2 text-[11px] font-extrabold text-white" style={{ borderColor: on ? G : "oklch(0.8 0.01 160)", background: on ? G : "white" }}>
+      {on ? "✓" : ""}
+    </span>
+  );
+  const chip = (on: boolean) =>
+    `cursor-pointer rounded-full border px-[11px] py-1.5 text-[13px] font-bold transition ${on ? "border-forest-700 bg-forest-700 text-white" : "border-[oklch(0.9_0.01_160)] bg-white text-[oklch(0.3_0.03_160)] hover:border-forest-300"}`;
+  const groupCls = "flex flex-col gap-2 border-t border-[oklch(0.94_0.006_160)] pt-3.5";
+  const groupTitle = "text-xs font-extrabold tracking-[0.08em] text-[oklch(0.45_0.06_158)]";
 
-      {visible < entries.length && <p className="mt-4 text-center text-sm text-gray-400">{tr("Đang hiện thêm…")}</p>}
-
-      {homes.length > 0 && entries.length === 0 && (
-        <div className="flex flex-col items-center gap-2.5 rounded-[22px] border border-dashed border-[oklch(0.85_0.02_230)] bg-white px-6 py-12 text-center">
-          <div className="text-[17px] font-extrabold text-ink">{tr("Không có phương án khớp bộ lọc")}</div>
-          <div className="max-w-[420px] text-sm text-gray-500">{tr("Thử chọn khu vực hoặc homestay khác cho ngày này.")}</div>
-          <button
-            type="button"
-            onClick={() => { setZone("all"); setHomeName("all"); }}
-            className="mt-1 rounded-full bg-forest-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-forest-700"
-          >
-            {tr("Xoá bộ lọc")}
+  const filterPanel = (
+    <>
+      <div className="flex items-center justify-between">
+        <b className="text-base">{tr("Bộ lọc")}</b>
+        <span className="flex items-center gap-3">
+          {fCount > 0 && (
+            <button type="button" onClick={clearAll} className="text-[13px] font-bold text-[oklch(0.5_0.15_45)]">
+              {tr("Xoá lọc ({0})", [fCount])}
+            </button>
+          )}
+          <button type="button" onClick={() => setSheet(false)} aria-label={tr("Đóng")} className="flex h-8 w-8 items-center justify-center rounded-full bg-[oklch(0.95_0.005_160)] text-xl leading-none text-gray-600 min-[900px]:hidden">
+            ×
           </button>
+        </span>
+      </div>
+      {homeList.length > 1 && (
+        <div className={groupCls}>
+          <span className={groupTitle}>{tr("HOMESTAY")}</span>
+          <div className="flex max-h-[320px] flex-col gap-0.5 overflow-y-auto">
+            {homeList.map((h) => {
+              const on = fHome.includes(h.id);
+              return (
+                <button key={h.id} type="button" onClick={() => toggle(fHome, setFHome, h.id)} className="flex items-center gap-2.5 rounded-lg px-1 py-[7px] text-left hover:bg-[oklch(0.975_0.006_160)]">
+                  {chk(on)}
+                  <span className="min-w-0 flex-1 text-sm font-semibold">{tr(h.name)}</span>
+                  <span className="text-xs text-[oklch(0.55_0.02_160)]">{h.n}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
+      {zones.length > 1 && (
+        <div className={groupCls}>
+          <span className={groupTitle}>{tr("KHU VỰC")}</span>
+          <div className="flex flex-wrap gap-1.5">
+            {zones.map((z) => (
+              <button key={z} type="button" onClick={() => toggle(fArea, setFArea, z)} className={chip(fArea.includes(z))}>
+                {tr(z.replace(/^Trung tâm Tà Xùa$/i, "Trung tâm"))}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className={groupCls}>
+        <span className={groupTitle}>{tr("LOẠI PHÒNG")}</span>
+        <div className="flex flex-wrap gap-1.5">
+          {ROOM_KIND_OPTIONS.map((o) => (
+            <button key={o.key} type="button" onClick={() => o.key !== roomKind && pickKind(o.key)} className={chip(roomKind === o.key)}>
+              {tr(o.label)}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className={groupCls}>
+        <span className={groupTitle}>{tr("TIỆN ÍCH")}</span>
+        <div className="flex flex-wrap gap-1.5">
+          {COMBO_FILTER_OPTIONS.map((o) => (
+            <button key={o.key} type="button" onClick={() => toggleAmen(o.key)} className={chip(activeFilters.includes(o.key))}>
+              {tr(o.icon)} {tr(o.label)}
+            </button>
+          ))}
+        </div>
+      </div>
+      <button type="button" onClick={() => setSheet(false)} className="rounded-[14px] bg-forest-700 p-[13px] text-center text-[15px] font-extrabold text-white min-[900px]:hidden">
+        {tr("Xem {0} combo", [entries.length])}
+      </button>
+    </>
+  );
+
+  const SORTS: [string, string][] = [
+    ["match", "Tối ưu"],
+    ["priceAsc", "Giá thấp nhất"],
+    ["rating", "Đánh giá cao"],
+    ["near", "Gần trung tâm"],
+  ];
+
+  return (
+    <div className="flex flex-col gap-[18px]">
+      {/* Tiêu đề kết quả + công tắc chế độ (núm đẩy) */}
+      <div className="flex flex-wrap items-end justify-between gap-3.5">
+        <div className="min-w-0">
+          <h2 className="m-0 text-[clamp(22px,2.6vw,30px)] font-extrabold tracking-[-0.02em] text-ink">{tr("{0} combo phù hợp", [entries.length])}</h2>
+          <div className="mt-1 text-sm text-[oklch(0.48_0.02_160)]">
+            {buses.length}{" "}{tr("nhà xe ·")}{" "}{adults}{" "}{tr("người lớn")}
+            {childrenAges.length > 0 ? tr(" · {0} trẻ em ({1} tuổi)", [childrenAges.length, childrenAges.join(", ")]) : ""} · {nights}{" "}{tr("đêm (")}{fmtDayKey(checkIn)} → {fmtDayKey(checkOut)})
+            {origin && <>{" "}{tr("· đón tại")}{" "}<span className="font-bold text-ink">{tr(origin)}</span></>}
+            {priceMax != null ? (
+              <>{" "}{tr("· mức giá")}{" "}<span className="font-semibold text-forest-700">{tr("dưới {0}", [tr(vnd(priceMax))])}</span>{tr("/khách")}</>
+            ) : priceMin != null ? (
+              <>{" "}{tr("· mức giá")}{" "}<span className="font-semibold text-forest-700">{tr("trên {0}", [tr(vnd(priceMin))])}</span>{tr("/khách")}</>
+            ) : budget != null ? (
+              <>{" "}{tr("· khớp giá mong muốn")}{" "}<span className="font-semibold text-forest-700">{tr(vnd(budget))}</span>{tr("/khách")}</>
+            ) : null}
+            {comboDiscount > 0 && <>{" "}{tr("· đã trừ {0}/người", [tr(vnd(comboDiscount))])}</>}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid items-start gap-5 min-[900px]:grid-cols-[260px_minmax(0,1fr)]">
+        {/* Cột lọc: desktop dính bên trái; mobile = bottom sheet */}
+        <aside
+          className={`flex-col gap-4 overflow-y-auto border border-[oklch(0.92_0.01_160)] bg-white p-[18px] min-[900px]:sticky min-[900px]:top-[84px] min-[900px]:flex min-[900px]:max-h-[calc(100vh-100px)] min-[900px]:rounded-[20px] ${
+            sheet ? "fixed inset-x-0 bottom-0 z-[60] flex max-h-[85vh] rounded-t-[22px] pb-[calc(18px+env(safe-area-inset-bottom))]" : "hidden"
+          }`}
+        >
+          {filterPanel}
+        </aside>
+        {sheet && <div onClick={() => setSheet(false)} className="fixed inset-0 z-[59] bg-[oklch(0.15_0.03_165_/.45)] min-[900px]:hidden" />}
+
+        <div className="flex min-w-0 flex-col gap-3">
+          {/* Sắp xếp + công tắc chế độ: desktop cùng một hàng (công tắc bên phải); mobile công tắc nằm riêng hàng trên. */}
+          <div className="flex flex-wrap items-center gap-2.5 min-[900px]:flex-nowrap">
+            <div className="order-first w-full min-[900px]:order-last min-[900px]:w-auto min-[900px]:flex-none">
+              <ComboModeSlot />
+            </div>
+            <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto [scrollbar-width:none]">
+              {SORTS.map(([k, name]) => {
+                const on = sort === k;
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => setSort(k)}
+                    className="flex-none whitespace-nowrap rounded-full border px-[13px] py-2 text-[13px] font-bold transition"
+                    style={on ? { background: G, color: "white", borderColor: G } : { background: "white", color: "oklch(0.3 0.03 160)", borderColor: "oklch(0.9 0.01 160)" }}
+                  >
+                    {tr(name)}
+                  </button>
+                );
+              })}
+            </div>
+            <button type="button" onClick={() => setSheet(true)} className="whitespace-nowrap rounded-full border-[1.5px] border-[oklch(0.85_0.03_158)] bg-white px-3.5 py-2 text-[13px] font-extrabold min-[900px]:hidden">
+              {tr("Bộ lọc")}{fCount ? ` · ${fCount}` : ""}
+            </button>
+          </div>
+
+          {nights >= 1 && (
+            <Link
+              href={`/lich-trinh?ngay=${nights + 1}`}
+              target="_blank"
+              className="flex items-center justify-between gap-2.5 rounded-[14px] bg-[oklch(0.96_0.025_155)] px-4 py-[11px] text-sm font-bold text-[oklch(0.32_0.08_158)] hover:text-sunset-600"
+            >
+              <span>{tr("Chưa biết đi đâu? Xem lịch trình gợi ý {0} ngày {1} đêm", [nights + 1, nights])}</span>
+              <span>→</span>
+            </Link>
+          )}
+
+          {entries.length === 0 && (
+            <div className="flex flex-col items-center gap-2.5 rounded-[20px] border-[1.5px] border-dashed border-[oklch(0.86_0.02_160)] bg-white px-5 py-10 text-center text-[oklch(0.5_0.02_160)]">
+              <div className="text-[17px] font-extrabold text-ink">{tr("Không có combo khớp bộ lọc")}</div>
+              <div className="max-w-[420px] text-sm">{tr("Bỏ bớt điều kiện hoặc chọn homestay / khu vực khác.")}{" "}{tr("Hoặc liên hệ")}{" "}<SitePhone /></div>
+              {fCount > 0 && (
+                <button type="button" onClick={clearAll} className="mt-1 rounded-full bg-forest-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-forest-700">
+                  {tr("Xoá bộ lọc")}
+                </button>
+              )}
+            </div>
+          )}
+
+          {entries.slice(0, visible).map((e) => (
+            <ComboPlanCard
+              key={e.plan.id}
+              home={e.home}
+              plan={e.plan}
+              buses={buses}
+              people={e.home.billable}
+              freeChildren={e.home.freeChildren}
+              adults={adults}
+              childrenAges={childrenAges}
+              nights={nights}
+              budget={exactBudget}
+              best={e.plan.id === bestPlanId}
+              checkIn={checkIn}
+              checkOut={checkOut}
+              fromKey={fromKey}
+              toKey={toKey}
+              origin={origin}
+              comboDiscount={comboDiscount}
+            />
+          ))}
+
+          {visible < entries.length && <p className="text-center text-sm text-gray-400">{tr("Đang hiện thêm…")}</p>}
+        </div>
+      </div>
     </div>
   );
 }
@@ -452,80 +598,86 @@ function ComboPlanCard({
     }
   }
 
+  // Tiết kiệm / khách = KM đặt web (phần phòng) + KM combo.
+  const savePP = webPromoPP + comboPromoPP;
+
   return (
-    <article className={`overflow-hidden rounded-[22px] bg-white ${best ? "ring-2 ring-sunset-400" : "ring-1 ring-black/[0.07]"}`}>
-      {best && (
-        <div className="bg-sunset-500 px-4 py-1.5 text-[13px] font-bold tracking-wide text-white">
-          {budget != null ? tr("Khớp giá nhất với mong muốn của bạn") : tr("Phương án tối ưu nhất (giá · tiện ích · vị trí)")}
-        </div>
-      )}
-      <div className="grid grid-cols-1 gap-0 lg:grid-cols-[260px_minmax(0,1fr)_280px]">
+    <article
+      className="overflow-hidden rounded-[20px] bg-white [animation:fade-up_.35s_ease_both] @container"
+      style={{ border: best ? `2px solid ${O}` : "1px solid oklch(0.92 0.01 160)" }}
+    >
+      <div className="grid grid-cols-1 @[480px]:grid-cols-[200px_minmax(0,1fr)] @[760px]:grid-cols-[230px_minmax(0,1fr)_230px]">
         {/* Ảnh — bấm mở gallery nhóm đầu */}
-        <button type="button" onClick={() => openRoom(0)} className="group relative block min-h-[200px] cursor-zoom-in text-left">
+        <button type="button" onClick={() => openRoom(0)} className="group relative block min-h-[190px] cursor-zoom-in text-left @[480px]:min-h-full">
           {cover ? (
-            <Image src={cover} alt={tr(title)} fill sizes="280px" className="object-cover" />
+            <Image src={cover} alt={tr(title)} fill sizes="(max-width: 640px) 100vw, 240px" className="object-cover" />
           ) : (
-            <div className="flex h-full min-h-[200px] items-center justify-center bg-gray-100 text-4xl">🛏️</div>
+            <div className="flex h-full min-h-[190px] items-center justify-center bg-gray-100 text-4xl">🛏️</div>
           )}
-          {home.area && (
-            <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-white px-2.5 py-1 text-xs font-bold text-[oklch(0.3_0.04_160)]">
-              {tr(home.area)}
-              {home.distanceKm != null && (home.distanceKm === 0 ? tr(" · trung tâm") : ` · ${home.distanceKm.toLocaleString("vi-VN")}km`)}
-            </span>
-          )}
-          <div className="pointer-events-none absolute bottom-3 left-3 right-3 flex items-center justify-between gap-2">
+          <div className="pointer-events-none absolute left-2.5 top-2.5 flex flex-wrap gap-1.5">
+            {home.area && (
+              <span className="rounded-full bg-white px-2.5 py-1 text-xs font-extrabold text-[oklch(0.3_0.04_160)]">
+                {tr(home.area)}
+                {home.distanceKm != null && (home.distanceKm === 0 ? tr(" · trung tâm") : ` · ${home.distanceKm.toLocaleString("vi-VN")}km`)}
+              </span>
+            )}
+            {best && (
+              <span className="rounded-full px-2.5 py-1 text-xs font-extrabold text-white" style={{ background: O }}>
+                {budget != null ? tr("Khớp giá nhất") : tr("Tối ưu nhất")}
+              </span>
+            )}
+          </div>
+          <div className="pointer-events-none absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between gap-2">
             <span className="rounded-full bg-forest-700 px-2.5 py-1 text-xs font-bold text-white">
               {plan.roomCount > 1 ? tr("Ghép {0} {1}", [plan.roomCount, plan.communal ? tr("giường") : tr("phòng")]) : tr("1 phòng")}{" "}{tr("· đủ")}{" "}{plan.capacity}{" "}{tr("chỗ")}
             </span>
-            {totalPics > 0 && (
-              <span className="rounded-full bg-black/55 px-2.5 py-1 text-xs font-bold text-white">{tr("{0} ảnh", [totalPics])}</span>
-            )}
+            {totalPics > 0 && <span className="rounded-full bg-black/55 px-2.5 py-1 text-xs font-bold text-white">{tr("{0} ảnh", [totalPics])}</span>}
           </div>
         </button>
 
-        {/* Thân: thông tin + chọn căn + chọn xe */}
-        <div className="flex min-w-0 flex-col gap-3.5 p-5">
+        {/* Thân: thông tin phòng + chọn căn + chọn nhà xe */}
+        <div className="flex min-w-0 flex-col gap-2.5 px-[18px] py-4">
           <div>
-            <div className="text-[13px] font-semibold text-gray-500">{tr(home.title)}</div>
-            <div className="text-[clamp(18px,2vw,21px)] font-extrabold leading-snug tracking-[-0.015em] text-ink">{tr(title)}</div>
-            <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-gray-500">
-              <span>
-                {plan.communal
-                  ? <>{tr("Giường cộng đồng cho {0} khách · {1} đêm", [people, nights])}</>
-                  : <>{tr("Đủ chỗ")}{" "}{plan.capacity}{" "}{tr("khách ·")}{" "}{nights}{" "}{tr("đêm · tiền phòng")}{" "}<b className="text-ink">{tr(vnd(plan.roomCost))}</b>{" "}{tr("cả kỳ")}</>}
-              </span>
-              {plan.extraGuests > 0 && (
-                <span className="rounded-full bg-[oklch(0.95_0.06_70)] px-2.5 py-0.5 text-xs font-bold text-[oklch(0.48_0.15_50)]">
-                  {tr("+{0} khách ở ghép · phụ thu {1}", [plan.extraGuests, tr(vnd(plan.extraCost))])}
-                </span>
-              )}
-              {freeChildren > 0 && (
-                <span className="rounded-full bg-[oklch(0.95_0.04_155)] px-2.5 py-0.5 text-xs font-bold text-[oklch(0.4_0.1_155)]">
-                  {tr("+{0} trẻ dưới {1} tuổi · miễn phí, ở cùng", [freeChildren, home.childFreeUnderAge])}
-                </span>
-              )}
+            <div className="text-[13px] font-semibold text-[oklch(0.5_0.02_160)]">
+              {tr(home.title)}
+              {home.rating != null && home.reviewCount > 0 && <> · ★ {home.rating.toLocaleString("vi-VN", { maximumFractionDigits: 1 })}</>}
             </div>
+            <div className="text-[19px] font-extrabold leading-[1.3] tracking-[-0.01em] text-ink">{tr(title)}</div>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] leading-[1.45] text-[oklch(0.4_0.02_160)]">
+            <span>
+              {plan.communal
+                ? tr("Giường cộng đồng cho {0} khách · {1} đêm", [people, nights])
+                : <>{tr("Đủ chỗ")}{" "}{plan.capacity}{" "}{tr("khách ·")}{" "}{nights}{" "}{tr("đêm · tiền phòng")}{" "}<b className="text-ink">{tr(vnd(plan.roomCost))}</b>{" "}{tr("cả kỳ")}</>}
+            </span>
+            {plan.extraGuests > 0 && (
+              <span className="rounded-full bg-[oklch(0.95_0.06_70)] px-2.5 py-0.5 text-xs font-bold text-[oklch(0.48_0.15_50)]">
+                {tr("+{0} khách ở ghép · phụ thu {1}", [plan.extraGuests, tr(vnd(plan.extraCost))])}
+              </span>
+            )}
+            {freeChildren > 0 && (
+              <span className="rounded-full bg-[oklch(0.95_0.04_155)] px-2.5 py-0.5 text-xs font-bold text-[oklch(0.4_0.1_155)]">
+                {tr("+{0} trẻ dưới {1} tuổi · miễn phí, ở cùng", [freeChildren, home.childFreeUnderAge])}
+              </span>
+            )}
           </div>
 
-          {/* Từng hạng phòng trong phương án: tên + info + xem phòng + chip chọn căn */}
-          <div className="flex flex-col gap-2">
+          {/* Từng hạng phòng: giá + chọn đúng căn (khi còn nhiều căn hơn số cần) */}
+          <div className="flex flex-col gap-1.5">
             {plan.groups.map((g, gi) => {
               const sel = pickedFor(gi, g);
               const hasChoice = g.options.length > g.count;
               return (
-                <div key={gi} className="flex flex-col gap-2.5 rounded-[14px] border border-[oklch(0.93_0.01_160)] bg-[oklch(0.975_0.008_160)] px-3.5 py-3">
-                  <div className="flex items-start justify-between gap-2.5">
-                    <div className="flex min-w-0 items-start gap-2.5">
-                      <span className="flex-none rounded-lg bg-forest-700 px-2 py-0.5 text-[13px] font-extrabold text-white">{g.count}×</span>
-                      <div className="min-w-0">
-                        <div className="text-[15px] font-bold leading-snug text-ink">{tr(g.room.typeName)}</div>
-                        <div className="mt-0.5 text-xs text-gray-500">
-                          {tr(vnd(g.unitCost))}/{plan.communal ? tr("người") : tr("phòng")}{" "}{tr("· tối đa")}{" "}{g.room.capacity}{" "}{tr("người")}
-                          {hasChoice ? tr(" · còn {0} căn", [g.options.length]) : ""}
-                        </div>
-                      </div>
+                <div key={gi} className="flex flex-col gap-2 rounded-xl bg-[oklch(0.975_0.008_160)] px-3 py-2">
+                  <div className="flex items-center justify-between gap-2.5">
+                    <div className="min-w-0 text-[13px]">
+                      <b className="text-ink">{g.count}× {tr(g.room.typeName)}</b>
+                      <span className="text-[oklch(0.5_0.02_160)]">
+                        {" · "}{tr(vnd(g.unitCost))}/{plan.communal ? tr("người") : tr("phòng")}{" "}{tr("· tối đa")}{" "}{g.room.capacity}{" "}{tr("người")}
+                        {hasChoice ? tr(" · còn {0} căn", [g.options.length]) : ""}
+                      </span>
                     </div>
-                    <button type="button" onClick={() => openRoom(gi)} className="flex-none text-[13px] font-bold text-forest-700 underline underline-offset-[3px] hover:text-sunset-600">
+                    <button type="button" onClick={() => openRoom(gi)} className="flex-none text-xs font-bold text-forest-700 underline underline-offset-[3px] hover:text-sunset-600">
                       {tr("Xem phòng")}
                     </button>
                   </div>
@@ -555,99 +707,108 @@ function ComboPlanCard({
             })}
           </div>
 
+          {/* Chọn nhà xe khứ hồi — danh sách radio dọc (xe không đủ chỗ hiện mờ) */}
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs font-extrabold tracking-[0.06em] text-[oklch(0.45_0.06_158)]">
+              {tr("CHỌN NHÀ XE KHỨ HỒI · {0} NHÀ XE", [buses.length])}
+            </span>
+            {buses.length === 0 ? (
+              <div className="rounded-xl bg-gray-50 px-3 py-2 text-sm text-gray-500">{tr("Chưa có nhà xe mở cả 2 chiều cho ngày này.")}</div>
+            ) : (
+              buses.map((b) => {
+                const ok = usableBuses.some((u) => u.serviceId === b.serviceId);
+                const on = ok && b.serviceId === bus?.serviceId;
+                const low = b.seatsAvailable <= 5;
+                return (
+                  <button
+                    key={b.serviceId}
+                    type="button"
+                    disabled={!ok}
+                    onClick={() => setBusId(b.serviceId)}
+                    className="grid grid-cols-[18px_minmax(0,1fr)_auto] items-center gap-2.5 rounded-xl border-[1.5px] px-3 py-2 text-left transition disabled:cursor-not-allowed"
+                    style={{ borderColor: on ? G : "oklch(0.92 0.01 160)", background: on ? "oklch(0.975 0.015 155)" : "white", opacity: ok ? 1 : 0.5 }}
+                  >
+                    <span className="flex h-[18px] w-[18px] items-center justify-center rounded-full border-2" style={{ borderColor: on ? G : "oklch(0.78 0.01 160)" }}>
+                      <span className="h-2 w-2 rounded-full" style={{ background: on ? G : "transparent" }} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-extrabold text-ink">{tr(b.title)}</span>
+                      <span className="block text-xs text-[oklch(0.5_0.02_160)]">{tr("Đi {0} · Về {1}", [tr(b.outboundTime), tr(b.returnTime)])}</span>
+                    </span>
+                    <span className="text-right">
+                      <span className="block text-sm font-extrabold text-ink">{tr(vnd(b.farePerPerson))}{tr("/vé")}</span>
+                      <span className="block text-[11px] font-bold" style={{ color: !ok ? "oklch(0.55 0.17 28)" : low ? "oklch(0.55 0.15 50)" : "oklch(0.4 0.1 155)" }}>
+                        {!ok ? tr("Không đủ {0} chỗ", [people]) : low ? tr("Còn {0} chỗ", [b.seatsAvailable]) : tr("Còn chỗ")}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+
           {amenities.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {amenities.map((a, i) => (
-                <span key={i} className="rounded-full bg-[oklch(0.95_0.025_155)] px-2.5 py-1 text-xs font-semibold text-[oklch(0.36_0.08_155)]">{tr(a)}</span>
+                <span key={i} className="rounded-full bg-[oklch(0.965_0.01_160)] px-[9px] py-1 text-xs font-semibold">{tr(a)}</span>
               ))}
             </div>
           )}
-
-          {/* Chọn xe */}
-          <div className="flex flex-col gap-2">
-            <div className="text-xs font-extrabold uppercase tracking-wide text-gray-500">{tr("Xe cabin khứ hồi")}</div>
-            {usableBuses.length === 0 ? (
-              <div className="rounded-xl bg-gray-50 px-3 py-2 text-sm text-gray-500">
-                {buses.length === 0
-                  ? tr("Chưa có nhà xe mở cả 2 chiều cho ngày này.")
-                  : tr("Chưa có nhà xe còn đủ {0} chỗ cho ngày này.", [people])}
-              </div>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {usableBuses.map((b) => {
-                  const on = b.serviceId === bus?.serviceId;
-                  const low = b.seatsAvailable <= 5;
-                  return (
-                    <button
-                      key={b.serviceId}
-                      type="button"
-                      onClick={() => setBusId(b.serviceId)}
-                      className="flex min-w-0 flex-1 items-center gap-3 rounded-[14px] border-[1.5px] p-2.5 text-left transition"
-                      style={{ borderColor: on ? G : "oklch(0.88 0.015 160)", background: on ? "oklch(0.96 0.025 155)" : "white", flexBasis: "240px", maxWidth: "360px" }}
-                    >
-                      <span className="flex h-[18px] w-[18px] flex-none items-center justify-center rounded-full border-2" style={{ borderColor: on ? G : "oklch(0.8 0.01 160)" }}>
-                        <span className="h-2 w-2 rounded-full" style={{ background: on ? G : "transparent" }} />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-extrabold text-ink">{tr(b.title)}</span>
-                        <span className="block text-xs text-gray-500">{tr("Đi {0} · Về {1}", [tr(b.outboundTime), tr(b.returnTime)])}</span>
-                      </span>
-                      <span className="flex-none text-right">
-                        <span className="block text-sm font-extrabold text-ink">{tr(vnd(b.farePerPerson))}</span>
-                        <span className="block text-[11px] font-bold" style={{ color: low ? "oklch(0.52 0.15 50)" : "oklch(0.45 0.1 155)" }}>{low ? tr("Còn {0}", [b.seatsAvailable]) : tr("Còn chỗ")}</span>
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
+          <div className="flex gap-3.5 text-[13px] font-bold">
+            <button type="button" onClick={() => openRoom(0)} className="text-forest-700 hover:text-sunset-600">{tr("Xem phòng")}</button>
+            {bus && <button type="button" onClick={() => setPreview("bus")} className="text-forest-700 hover:text-sunset-600">{tr("Xem xe")}</button>}
           </div>
         </div>
 
-        {/* Giá + đặt */}
-        <div className="flex flex-col gap-2.5 border-t border-gray-100 bg-[oklch(0.98_0.008_70)] p-5 lg:border-l lg:border-t-0">
-          {diff != null && (
-            <span className="self-start rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: Math.abs(diff) <= 50000 ? "oklch(0.95 0.05 155)" : "oklch(0.95 0.03 250)", color: Math.abs(diff) <= 50000 ? "oklch(0.38 0.1 155)" : "oklch(0.42 0.1 250)" }}>
-              {diff === 0 ? tr("Đúng giá mong muốn") : diff > 0 ? tr("Cao hơn {0}", [tr(vnd(diff))]) : tr("Thấp hơn {0}", [tr(vnd(-diff))])}
+        {/* Giá + đặt: cột phải (rộng) / hàng dưới cùng (hẹp) */}
+        <div className="col-span-full flex flex-col gap-2.5 border-t border-[oklch(0.93_0.01_160)] bg-[oklch(0.985_0.012_70)] px-[18px] py-4 @[480px]:flex-row @[480px]:items-center @[480px]:justify-between @[760px]:col-span-1 @[760px]:flex-col @[760px]:items-stretch @[760px]:border-l @[760px]:border-t-0">
+          <div className="flex flex-col gap-0.5">
+            {diff != null && (
+              <span className="mb-1 self-start rounded-full px-2.5 py-1 text-xs font-bold" style={{ background: Math.abs(diff) <= 50000 ? "oklch(0.95 0.05 155)" : "oklch(0.95 0.03 250)", color: Math.abs(diff) <= 50000 ? "oklch(0.38 0.1 155)" : "oklch(0.42 0.1 250)" }}>
+                {diff === 0 ? tr("Đúng giá mong muốn") : diff > 0 ? tr("Cao hơn {0}", [tr(vnd(diff))]) : tr("Thấp hơn {0}", [tr(vnd(-diff))])}
+              </span>
+            )}
+            <span className="text-xs text-[oklch(0.5_0.02_160)]">{tr("Trọn gói / khách")}</span>
+            {hasStrike && <span className="text-[13px] text-[oklch(0.55_0.02_160)] line-through">{tr(vnd(ppOld!))}</span>}
+            <span className="text-[26px] font-extrabold leading-[1.05] tracking-[-0.02em] text-[oklch(0.6_0.18_45)]">{tr(vnd(pricePerPerson))}</span>
+            <span className="text-xs font-bold text-[oklch(0.4_0.1_155)]">
+              {savePP > 0 ? <>{tr("Tiết kiệm {0}", [tr(vnd(savePP))])} · </> : null}
+              {tr("tổng {0}", [tr(vnd(total))])}
+              {freeChildren > 0 ? tr(" (+{0} trẻ miễn phí)", [freeChildren]) : ""}
             </span>
-          )}
-          <div>
-            <div className="text-xs text-gray-500">{tr("Trọn gói / khách")}</div>
-            <div className="flex flex-wrap items-baseline gap-x-2">
-              {hasStrike && <span className="whitespace-nowrap text-base font-semibold text-gray-400 line-through">{tr(vnd(ppOld!))}</span>}
-              <span className="whitespace-nowrap text-[26px] min-[380px]:text-[30px] font-extrabold leading-tight tracking-[-0.03em] text-sunset-600">{tr(vnd(pricePerPerson))}</span>
+            {/* Chi tiết giá luôn hiện */}
+            <div className="mt-2 border-t border-dashed border-[oklch(0.88_0.02_70)] pt-2 text-xs text-[oklch(0.5_0.02_160)]">
+              <div className="flex flex-col gap-1 leading-relaxed">
+                <div className="flex justify-between gap-2">
+                  <span>{plan.communal ? tr("Giường cộng đồng / khách") : tr("Tiền phòng ÷ {0} khách", [people])}</span>
+                  <span className="font-bold text-ink">{tr(vnd(roomShareOld))}</span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span>{tr("Vé khứ hồi")}{bus?.fareOrigin ? tr(" từ {0}", [tr(bus.fareOrigin)]) : ""}{" "}{tr("/ khách")}</span>
+                  <span className="font-bold text-ink">{tr(vnd(bus?.farePerPerson ?? 0))}</span>
+                </div>
+                <PriceLine className="text-xs" promo label={tr("🎁 Khuyến mãi khi đặt trên website")} amount={webPromoPP} />
+                <PriceLine className="text-xs" promo label={tr("🎁 Khuyến mãi combo khi đặt trên website")} amount={comboPromoPP} />
+              </div>
             </div>
-            <div className="mt-0.5 text-[13px] font-semibold text-gray-500">≈ {tr(vnd(total))} cho {people}{" "}{tr("người")}{freeChildren > 0 ? tr(" (+{0} trẻ miễn phí)", [freeChildren]) : ""}</div>
           </div>
-          <div className="flex flex-col gap-1.5 border-t border-dashed border-[oklch(0.88_0.02_70)] pt-2.5 text-xs leading-relaxed text-gray-500">
-            <div className="flex justify-between gap-2">
-              <span>{plan.communal ? tr("Giường cộng đồng / khách") : tr("Tiền phòng ÷ {0} khách", [people])}</span>
-              <span className="font-bold text-ink">{tr(vnd(roomShareOld))}</span>
-            </div>
-            <div className="flex justify-between gap-2"><span>{tr("Vé khứ hồi")}{bus?.fareOrigin ? tr(" từ {0}", [tr(bus.fareOrigin)]) : ""}{" "}{tr("/ khách")}</span><span className="font-bold text-ink">{tr(vnd(bus?.farePerPerson ?? 0))}</span></div>
-            <PriceLine className="text-xs" promo label={tr("🎁 Khuyến mãi khi đặt trên website")} amount={webPromoPP} />
-            <PriceLine className="text-xs" promo label={tr("🎁 Khuyến mãi combo khi đặt trên website")} amount={comboPromoPP} />
-          </div>
-          <div className="flex-1" />
-          {missing && <div className="text-xs font-bold text-sunset-600">{tr("Chọn đủ căn phòng để đặt")}</div>}
-
-          <button
-            type="button"
-            onClick={tryOpenForm}
-            disabled={!bus}
-            className="rounded-full py-3 text-center text-sm font-extrabold text-white transition hover:bg-sunset-500 disabled:opacity-50"
-            style={{ background: G }}
-          >
-            {tr("Đặt combo này →")}
-          </button>
-          <button type="button" onClick={() => openRoom(0)} className="text-center text-[13px] font-bold text-forest-700 hover:text-sunset-600">
-            {tr("Xem ảnh & chi tiết phòng")}
-          </button>
-          {bus && (
-            <button type="button" onClick={() => setPreview("bus")} className="text-center text-[13px] font-semibold text-gray-400 hover:text-forest-700">
-              {tr("Xem lộ trình xe")}
+          <div className="flex flex-col gap-1.5 @[760px]:mt-auto">
+            {missing && <div className="text-xs font-bold text-sunset-600">{tr("Chọn đủ căn phòng để đặt")}</div>}
+            <button
+              type="button"
+              onClick={tryOpenForm}
+              disabled={!bus}
+              className="whitespace-nowrap rounded-full px-[18px] py-3 text-center text-sm font-extrabold text-white transition hover:bg-[oklch(0.35_0.07_158)] disabled:opacity-50"
+              style={{ background: G }}
+            >
+              {tr("Đặt combo")}
             </button>
-          )}
+            {bus && (
+              <button type="button" onClick={() => setPreview("bus")} className="text-center text-[13px] font-semibold text-gray-500 hover:text-forest-700">
+                {tr("Xem lộ trình xe")}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
