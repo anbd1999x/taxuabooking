@@ -5,6 +5,9 @@ FROM node:22-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production
 COPY package.json ./
+# Chỉ chạy CPU: không để onnxruntime-node tải bản CUDA/GPU lúc cài (link GPU trả 404 ⇒ build hỏng).
+ENV ONNXRUNTIME_NODE_INSTALL_CUDA=skip
+ENV npm_config_onnxruntime_node_install_cuda=skip
 RUN npm install --omit=dev --no-audit --no-fund && npm cache clean --force
 COPY server.mjs ./
 ENV MODEL_DIR=/app/models
