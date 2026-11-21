@@ -12,7 +12,7 @@ import { trackAction } from "@/components/VisitTracker";
  * Màn hình rộng (≥1024px) có thêm nút Chat mở KHUNG CHAT NHANH: lời chào, câu hỏi gợi ý, ô soạn tin
  * ⇒ gửi qua Zalo (chép sẵn nội dung — Zalo không nhận nội dung soạn sẵn qua link) hoặc Messenger (?text=).
  * Không lưu tin nhắn trên web — khách nói chuyện với người trực qua Zalo / Messenger.
- * Điện thoại: đặt cao hơn để không đè thanh đặt phòng / thanh liên hệ dính đáy của từng trang.
+ * Chỉ hiện ở màn hình rộng (≥1024px) — điện thoại ẩn hẳn (đã có Gọi/Zalo trong menu và thanh dính đáy từng trang).
  */
 export function FloatingContact({ facebook }: { facebook: string }) {
   const t = useT();
@@ -84,7 +84,7 @@ export function FloatingContact({ facebook }: { facebook: string }) {
   return (
     <div
       data-track-ignore
-      className="fixed right-3 z-[44] flex flex-col items-end gap-2.5 bottom-[calc(88px+env(safe-area-inset-bottom))] lg:right-5 lg:bottom-6"
+      className="fixed right-5 bottom-6 z-[44] hidden flex-col items-end gap-2.5 lg:flex"
     >
       {/* Khung chat neo đúng góc phải dưới, ĐÈ lên cụm nút (đóng bằng nút × trong khung / Esc). */}
       {open && (
