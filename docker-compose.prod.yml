@@ -67,8 +67,19 @@ services:
       FACEBOOK_APP_ID: ${FACEBOOK_APP_ID:-}
       FACEBOOK_APP_SECRET: ${FACEBOOK_APP_SECRET:-}
       FACEBOOK_LOGIN_OFF: ${FACEBOOK_LOGIN_OFF:-}
+      # Tìm homestay theo ảnh — dịch vụ embedder nội bộ (xem service embedder bên dưới).
+      EMBEDDER_URL: http://embedder:8790
     volumes:
       - uploads:/app/public/uploads
+
+  # Tìm homestay theo ảnh: ảnh → vector CLIP. Mô hình (~90MB) nằm sẵn trong ảnh Docker, nạp 1 lần lúc
+  # khởi động và giữ thường trực (~380MB RAM). Chỉ app gọi nội bộ, KHÔNG phơi cổng ra ngoài.
+  embedder:
+    build: ./embedder
+    restart: unless-stopped
+    expose:
+      - "8790"
+    mem_limit: 900m
 
   web:
     image: nginx:1.27-alpine

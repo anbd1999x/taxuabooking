@@ -1510,3 +1510,53 @@ model RoadDistance {
 
   @@id([serviceId, placeId])
 }
+
+/// Vector CLIP của từng ảnh homestay (tìm kiếm theo ảnh). Một dòng = một ảnh nguồn ở ServiceImage /
+/// RoomTypeImage / RoomImage (`imageId` = id ảnh nguồn). Không khoá ngoại: tác vụ nền tự dọn dòng mồ côi.
+model ImageEmbedding {
+  imageId    String   @id
+  source     String // service | roomType | room
+  serviceId  String
+  roomTypeId String?
+  roomId     String?
+  url        String
+  vec        Bytes // Float32 little-endian, 512 chiều, đã chuẩn hoá |v| = 1 (ảnh lỗi: rỗng)
+  model      String // mô hình đã tính (đổi mô hình ⇒ tính lại)
+  createdAt  DateTime @default(now())
+
+  @@index([serviceId])
+}
+
+/// Chat trực tiếp khách ↔ admin (khung chat desktop trên trang khách, trả lời ở /admin/chat).
+/// Khách nhận diện bằng cookie httpOnly `tx_chat` = `token` (bí mật, không đăng nhập).
+model ChatThread {
+  id            String        @id @default(cuid())
+  token         String        @unique
+  visitorId     String? // cookie tx_vid — đối chiếu hành trình ở /admin/visits
+  name          String?
+  phone         String?
+  page          String? // trang khách đang xem khi nhắn gần nhất
+  locale        String?
+  ip            String?
+  status        String        @default("open") // open | closed
+  unreadAdmin   Int           @default(0) // số tin khách chưa được admin đọc
+  guestSeenAt   DateTime? // khách đã xem tin admin tới mốc này
+  lastMessageAt DateTime      @default(now())
+  lastGuestAt   DateTime?
+  createdAt     DateTime      @default(now())
+  messages      ChatMessage[]
+
+  @@index([lastMessageAt])
+}
+
+model ChatMessage {
+  id        String     @id @default(cuid())
+  threadId  String
+  thread    ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  from      String // guest | admin
+  body      String
+  adminName String?
+  createdAt DateTime   @default(now())
+
+  @@index([threadId, createdAt])
+}

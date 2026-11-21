@@ -11,6 +11,7 @@ import { payingChildren } from "@/lib/occupancy";
 import { comboQuote } from "@/lib/combo-pricing";
 import { CUSTOM_MAX_PEOPLE, CUSTOM_MAX_ROOMS, CUSTOM_MAX_TICKETS, cheapestPick, groupQty, groupRooms, pickedRooms, toQuoteRoom, type CustomRoomGroup } from "@/lib/combo-custom";
 import { ComboModeSlot } from "@/components/combo/ComboModeSwitch";
+import { useImageSearch, ImageSearchBar, ImageSearchChip, SimBadge, hitCover } from "@/components/image-search/ImageSearch";
 import { HomeDrawer, RoomViewer } from "@/components/combo/ComboCustomViews";
 import { NearbyButton } from "@/components/nearby/NearbyPopup";
 import { ComboSchedule } from "@/components/combo/ComboSchedule";
@@ -117,8 +118,20 @@ export function ComboCustom({
   const home = homes.find((h) => h.serviceId === homeId) ?? homes[0];
   const groups = useMemo(() => (home ? listRooms(home) : []), [home]);
 
-  // Danh sách homestay theo thứ tự server (nổi bật / ưu tiên).
-  const shownHomes = homes;
+  // Tìm theo ảnh (dùng chung với /homestay): chỉ hiện nhà có ảnh giống, giống nhất trước; tự chọn nhà giống nhất.
+  const { img, imgOn, dragging, clearImage, pickFile, dropProps, fileInput } = useImageSearch({
+    track: "Tìm combo tự chọn theo ảnh",
+    onResult: (ok, r) => {
+      if (!ok || !r) return;
+      const top = [...homes].filter((h) => r.homes[h.slug]).sort((a, b) => r.homes[b.slug].s - r.homes[a.slug].s)[0];
+      if (top && !(home && r.homes[home.slug])) pickHome(top);
+    },
+  });
+  // Danh sách homestay theo thứ tự server (nổi bật / ưu tiên); đang tìm theo ảnh ⇒ chỉ nhà giống, xếp theo độ giống.
+  const shownHomes = useMemo(
+    () => (imgOn && img ? homes.filter((h) => img.homes[h.slug]).sort((a, b) => img.homes[b.slug].s - img.homes[a.slug].s) : homes),
+    [homes, img, imgOn],
+  );
   // ----- Băng trượt homestay: mỗi trang 2 × 2 thẻ, vuốt ngang / bấm mũi tên để sang trang -----
   const homePages = useMemo(() => {
     const pages: ComboHomeOption[][] = [];
@@ -365,6 +378,12 @@ export function ComboCustom({
                 <div className="text-[13px]" style={{ color: MUTED }}>{t("Chưa biết home nào? Bấm “Xem home” để xem ảnh, đánh giá, tiện ích")}</div>
               </div>
             </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <ImageSearchChip onClick={pickFile} dropProps={dropProps} dragging={dragging} active={Boolean(img)} />
+              {!img && <span className="text-[12.5px]" style={{ color: MUTED }}>{t("Có ảnh phòng / view mình thích? Tìm home có ảnh giống")}</span>}
+            </div>
+            {fileInput}
+            {img && <ImageSearchBar img={img} foundLabel={t("{0} homestay có ảnh giống", [shownHomes.length])} onChange={pickFile} onClear={clearImage} />}
             {shownHomes.length === 0 && (
               <div className="rounded-2xl border border-dashed px-4 py-6 text-center text-sm font-semibold" style={{ borderColor: LINE, color: MUTED }}>{t("Không có homestay phù hợp")}</div>
             )}
@@ -383,7 +402,8 @@ export function ComboCustom({
               {page.map((h) => {
                 const on = h.serviceId === home?.serviceId;
                 const from = Math.min(...h.rooms.map((r) => r.roomCost));
-                const img = h.cover ?? h.rooms.find((r) => r.cover)?.cover ?? null;
+                const hit = imgOn && img ? img.homes[h.slug] : undefined;
+                const cover = hitCover(hit, h.cover ?? h.rooms.find((r) => r.cover)?.cover ?? null);
                 return (
                   <div
                     key={h.serviceId}
@@ -396,7 +416,8 @@ export function ComboCustom({
                     style={{ border: `2px solid ${on ? G : LINE}`, background: on ? "oklch(0.97 0.02 155)" : "white" }}
                   >
                     <div className="relative min-h-0 w-full flex-1 basis-0 overflow-hidden bg-[oklch(0.95_0.01_160)]">
-                      {img && <Image src={img} alt={t(h.title)} fill sizes="260px" className="object-cover" />}
+                      {cover && <Image src={cover} alt={t(h.title)} fill sizes="260px" className="object-cover" />}
+                      {hit && <SimBadge s={hit.s} className="bottom-2 right-2" />}
                       {h.area && <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-white px-[9px] py-1 text-xs font-bold">{t(h.area)}</span>}
                       {on && <span className="absolute right-2 top-2 flex h-[26px] w-[26px] items-center justify-center rounded-full text-sm font-extrabold text-white" style={{ background: G }}>✓</span>}
                     </div>

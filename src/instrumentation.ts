@@ -24,6 +24,8 @@ export async function register() {
   let lastBillCleanup = 0; // 0 ⇒ lượt đầu (sau 1 phút) dọn luôn
   const ROAD_WARM_MS = 30 * 60_000;
   let lastRoadWarm = 0;
+  const IMG_INDEX_MS = 10 * 60_000;
+  let lastImgIndex = 0;
   const tick = async () => {
     // Tự huỷ đơn chờ quá 6 giờ chưa ghi nhận thanh toán (src/lib/booking-auto-cancel.ts).
     try {
@@ -91,6 +93,23 @@ export async function register() {
           await warmRoadCache({ routes: 150, log: (m) => console.log(m) });
         } catch (err) {
           console.error("[road-cache] lỗi", err);
+        }
+      })();
+    }
+    // Tìm homestay theo ảnh: tính vector CLIP cho ảnh homestay mới đăng (container embedder), 10 phút/lần.
+    // Mốc SiteSetting `imgIndexAt` để 2 bản app không cùng chạy. Embedder không chạy ⇒ bỏ qua êm.
+    if (Date.now() - lastImgIndex >= IMG_INDEX_MS) {
+      lastImgIndex = Date.now();
+      void (async () => {
+        try {
+          const { prisma } = await import("./lib/prisma");
+          const row = await prisma.siteSetting.findUnique({ where: { key: "imgIndexAt" } });
+          if (row && Date.now() - Number(row.value) < IMG_INDEX_MS - 60_000) return;
+          await prisma.siteSetting.upsert({ where: { key: "imgIndexAt" }, create: { key: "imgIndexAt", value: String(Date.now()) }, update: { value: String(Date.now()) } });
+          const { indexImageEmbeddings } = await import("./lib/image-search");
+          await indexImageEmbeddings({ limit: 400, log: (m) => console.log(m) });
+        } catch (err) {
+          console.error("[img-index] lỗi", err);
         }
       })();
     }

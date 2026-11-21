@@ -41,6 +41,7 @@ const ADMIN_NAV: NavGroup[] = [
   {
     title: "Khách hàng",
     items: [
+      { href: "/admin/chat", label: "Chat với khách" },
       { href: "/admin/reviews", label: "Đánh giá" },
       { href: "/admin/feedback", label: "Góp ý" },
     ],
@@ -155,7 +156,7 @@ export function AdminShell({
         {badge > 0 && (
           <span
             className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-orange-500 px-1.5 text-xs font-bold text-white"
-            title={`${badge} đơn chưa xử lý`}
+            title={item.href === "/admin/chat" ? `${badge} cuộc chat có tin chưa đọc` : `${badge} đơn chưa xử lý`}
           >
             {badge > 99 ? "99+" : badge}
           </span>

@@ -12,6 +12,7 @@ import { useT } from "@/components/i18n/I18nProvider";
 import { TripFlag } from "@/components/TripFlag";
 import { PushSwitch } from "@/components/home/PushSwitch";
 import type { TFunc } from "@/lib/i18n/config";
+import { useImageSearch, ImageSearchBar, SimBadge, CameraIcon, hitCover, type ImgHit } from "@/components/image-search/ImageSearch";
 
 /**
  * Mỗi thẻ = một LOẠI phòng cụ thể: các phòng giống hệt nhau (cùng hạng + giá +
@@ -136,6 +137,18 @@ export function HomestayList({
   }, [sheet]);
   const [sort, setSort] = useState("rec"); // rec | priceAsc | priceDesc | near
   const [amen, setAmen] = useState<Set<AmenKey>>(new Set()); // tiện ích phải có (chọn nhiều)
+  // Tìm theo ảnh (module dùng chung với /combo): chọn / dán / thả ảnh → chỉ hiện nhà / phòng có ảnh giống, xếp "Giống ảnh".
+  const { img, imgOn, dragging: dragImg, searchImage, clearImage, pickFile, dropProps, fileInput } = useImageSearch({
+    onStart: () => {
+      setSort("img");
+      const el = listRef.current;
+      if (el) window.setTimeout(() => window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 12, behavior: "smooth" }), 80);
+    },
+    onResult: (ok) => { if (!ok) setSort((s) => (s === "img" ? "rec" : s)); },
+    onClear: () => setSort((s) => (s === "img" ? "rec" : s)),
+  });
+  /** Điểm giống của 1 thẻ phòng (server đã tính: ảnh phòng / hạng phòng, thiếu thì ảnh của nhà). */
+  const roomHit = (x: { id: string }): ImgHit | null => (imgOn && img ? (img.rooms[x.id] ?? null) : null);
 
   const sunRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
@@ -295,7 +308,7 @@ export function HomestayList({
   // Số thẻ đang dựng: bắt đầu 24, cuộn tới cuối danh sách thì thêm 24. Đổi bộ lọc / dữ liệu ⇒ về 24
   // (so khoá lọc thay vì setState trong effect).
   const PAGE = 24;
-  const fkey = JSON.stringify([view, q, ci, co, adults, childAges, price, type, fZone, fHome, sort, [...amen], all.length]);
+  const fkey = JSON.stringify([view, q, ci, co, adults, childAges, price, type, fZone, fHome, sort, [...amen], all.length, img?.preview ?? "", img?.status ?? ""]);
   const [lim, setLim] = useState({ k: fkey, n: PAGE });
   const limit = lim.k === fkey ? lim.n : PAGE;
   const moreRef = useRef<HTMLDivElement>(null);
@@ -317,7 +330,7 @@ export function HomestayList({
       el.style.opacity = "1";
       el.style.transform = "none";
     });
-  }, [view, q, ci, co, adults, childAges, price, type, fZone, fHome, sort, amen, all, limit]);
+  }, [view, q, ci, co, adults, childAges, price, type, fZone, fHome, sort, amen, all, limit, img]);
 
   // Mở trang với sẵn ngày (từ trang chủ) → cuộn xuống danh sách để thấy kết quả
   // ngay trên mobile. Không chạy khi đang gõ lọc trực tiếp.
@@ -421,11 +434,14 @@ export function HomestayList({
   const hiddenPolicyHomes = hasDates
     ? new Set(preFiltered.filter((x) => x.status === "full" && x.policyBlocked).map((x) => x.slug)).size
     : 0;
-  const matched = preFiltered.filter((x) => !hasDates || x.status !== "full");
+  const matched = preFiltered.filter(
+    (x) => (!hasDates || x.status !== "full") && (!imgOn || !img || (view === "home" ? Boolean(img.homes[x.slug]) : Boolean(img.rooms[x.id]))),
+  );
   const bySort = (a: HomestayCard, b: HomestayCard) => {
     if (sort === "priceAsc") return (a.price > 0 ? a.price : Infinity) - (b.price > 0 ? b.price : Infinity);
     if (sort === "priceDesc") return b.price - a.price;
     if (sort === "near") return distOf(a) - distOf(b);
+    if (sort === "img") return (roomHit(b)?.s ?? -1) - (roomHit(a)?.s ?? -1);
     return 0; // "rec": giữ thứ tự nổi bật/ưu tiên/tên từ server
   };
   // Ưu tiên (Nổi bật lên đầu) CHỈ áp dụng ở trạng thái MẶC ĐỊNH: mọi mức giá +
@@ -495,6 +511,7 @@ export function HomestayList({
     const list = [...m.values()]; // giữ thứ tự xuất hiện (ưu tiên / tên / gần trung tâm) của danh sách phòng
     if (sort === "priceAsc") list.sort((a, b) => (a.price > 0 ? a.price : Infinity) - (b.price > 0 ? b.price : Infinity));
     else if (sort === "priceDesc") list.sort((a, b) => b.price - a.price);
+    else if (sort === "img" && imgOn && img) list.sort((a, b) => (img.homes[b.slug]?.s ?? -1) - (img.homes[a.slug]?.s ?? -1));
     return list;
   })();
   const shownCount = view === "home" ? homes.length : items.length;
@@ -533,6 +550,7 @@ export function HomestayList({
   // Xoá lọc: về trạng thái không ngày (server trả "Chọn ngày để xem").
   function clearAll() {
     setQ(""); setCi(""); setCo(""); setAdults(0); setChildAges([]); setPrice("all"); setType("all"); setFZone([]); setFHome([]); setSort("rec"); setAmen(new Set());
+    clearImage();
     go(view === "home" ? "/homestay?view=home" : "/homestay", { replace: true });
   }
 
@@ -677,10 +695,37 @@ export function HomestayList({
             {/* 1 · LƯU TRÚ */}
             <SearchGroup n={1} title={tr("LƯU TRÚ")}>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)]">
-                <label className={`${cell} col-span-2 sm:col-span-1`}>
-                  <span className={lab}>{tr("Tìm kiếm")}</span>
-                  <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submitSearch(); }} placeholder={tr("Tên homestay, khu vực…")} className={inp} />
-                </label>
+                <div
+                  className={`${cell} relative col-span-2 pr-14 sm:col-span-1 ${dragImg ? "!border-forest-500 !bg-forest-50" : ""}`}
+                  // Kéo-thả ảnh vào ô ⇒ tìm theo ảnh (khớp lời gợi ý trong placeholder).
+                  {...dropProps}
+                >
+                  <label htmlFor="hs-q" className={lab}>{tr("Tìm kiếm")}</label>
+                  <input
+                    id="hs-q"
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") submitSearch(); }}
+                    onPaste={(e) => {
+                      // Dán ảnh (Ctrl+V ảnh chụp màn hình / ảnh copy từ Facebook) ⇒ tìm theo ảnh.
+                      const f = [...e.clipboardData.files].find((x) => x.type.startsWith("image/"));
+                      if (f) { e.preventDefault(); void searchImage(f); }
+                    }}
+                    placeholder={dragImg ? tr("Thả ảnh vào đây để tìm…") : tr("Tên homestay, khu vực… hoặc dán / thả ảnh 📷")}
+                    title={tr("Gõ tên homestay, khu vực — hoặc dán, kéo-thả, bấm 📷 để tìm theo ảnh mẫu")}
+                    className={`${inp} text-ellipsis placeholder:text-[14px] placeholder:font-semibold`}
+                  />
+                  <button
+                    type="button"
+                    onClick={pickFile}
+                    title={tr("Tìm theo ảnh")}
+                    aria-label={tr("Tìm homestay theo ảnh")}
+                    className="absolute right-2 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-xl bg-white text-forest-700 shadow-sm ring-1 ring-[oklch(0.88_0.02_160)] transition hover:bg-forest-50 hover:ring-forest-300"
+                  >
+                    <CameraIcon className="h-5 w-5" />
+                  </button>
+                  {fileInput}
+                </div>
                 <label className={cell}>
                   <span className={lab}>{tr("Nhận phòng")}</span>
                   <DateField value={ci} onChange={setCi} className={inp} displayClassName="text-base font-bold text-ink" ariaLabel={tr("Nhận phòng")} />
@@ -867,6 +912,7 @@ export function HomestayList({
           {sheet && <div onClick={() => setSheet(false)} className="fixed inset-0 z-[59] bg-[oklch(0.15_0.03_165_/.45)] min-[900px]:hidden" />}
 
           <div className="flex min-w-0 flex-col gap-4">
+            {img && <ImageSearchBar img={img} foundLabel={view === "home" ? tr("{0} homestay có ảnh giống", [homes.length]) : tr("{0} loại phòng có ảnh giống", [items.length])} onChange={pickFile} onClear={clearImage} />}
             {/* Sắp xếp + công tắc chế độ: desktop cùng hàng (công tắc bên phải); mobile công tắc hàng riêng phía trên. */}
             <div className="flex flex-wrap items-center gap-2.5 min-[1100px]:flex-nowrap">
               <div className="order-first w-full min-[1100px]:order-last min-[1100px]:w-[400px] min-[1100px]:flex-none">
@@ -884,7 +930,7 @@ export function HomestayList({
                 </div>
               </div>
               <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto [scrollbar-width:none]">
-                {[["rec", "Phù hợp nhất"], ["priceAsc", "Giá thấp nhất"], ["priceDesc", "Giá cao nhất"], ["near", "Gần trung tâm"]].map(([k, n]) => {
+                {[...(imgOn ? [["img", "📷 Giống ảnh"]] : []), ["rec", "Phù hợp nhất"], ["priceAsc", "Giá thấp nhất"], ["priceDesc", "Giá cao nhất"], ["near", "Gần trung tâm"]].map(([k, n]) => {
                   const on = sort === k;
                   return (
                     <button
@@ -904,7 +950,11 @@ export function HomestayList({
               </button>
             </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(min(100%,280px),1fr))] sm:gap-[18px]">
-          {view === "home" && homes.slice(0, limit).map((h, i) => (
+          {view === "home" && homes.slice(0, limit).map((h, i) => {
+            // Tìm theo ảnh: hiện ẢNH KHỚP NHẤT của nhà thay ảnh bìa — khách thấy ngay vì sao nhà này lên đầu.
+            const hit = imgOn && img ? img.homes[h.slug] : undefined;
+            const cover = hitCover(hit, h.cover);
+            return (
             <Link
               key={h.slug}
               href={`/homestay/${h.slug}${dateQS}${partyQS}`}
@@ -913,10 +963,11 @@ export function HomestayList({
               style={{ transform: "translateY(24px)", transitionProperty: "opacity, transform, box-shadow", transitionDuration: ".6s", transitionDelay: `${(i % 3) * 0.08}s` }}
             >
               <div className="relative aspect-[16/10] overflow-hidden bg-gray-100 sm:aspect-[4/3]">
-                {h.cover ? <Image src={h.cover} alt={tr(h.name)} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" /> : <div className="flex h-full items-center justify-center text-4xl">🏠</div>}
+                {cover ? <Image src={cover} alt={tr(h.name)} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" /> : <div className="flex h-full items-center justify-center text-4xl">🏠</div>}
                 {h.hot && (
                   <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-sunset-500 px-2 py-0.5 text-[11px] font-extrabold tracking-wide text-white shadow-sm sm:left-3 sm:top-3 sm:px-2.5 sm:py-1 sm:text-xs">🔥 HOT</span>
                 )}
+                {hit && <SimBadge s={hit.s} />}
               </div>
               <div className="flex flex-1 flex-col gap-1 p-3 sm:gap-2 sm:p-5 sm:pt-[18px]">
                 <div className="line-clamp-1 text-[11px] font-semibold text-gray-500 sm:text-[13px]">
@@ -963,8 +1014,12 @@ export function HomestayList({
                 </div>
               </div>
             </Link>
-          ))}
-          {view === "room" && items.slice(0, limit).map((s, i) => (
+            );
+          })}
+          {view === "room" && items.slice(0, limit).map((s, i) => {
+            const hit = roomHit(s);
+            const cover = hitCover(hit, s.cover);
+            return (
             <Link
               key={s.id}
               href={`/homestay/${s.slug}${dateQS}${partyQS}`}
@@ -973,11 +1028,12 @@ export function HomestayList({
               style={{ transform: "translateY(24px)", transitionProperty: "opacity, transform, box-shadow", transitionDuration: ".6s", transitionDelay: `${(i % 3) * 0.08}s` }}
             >
               <div className="relative aspect-[16/10] overflow-hidden bg-gray-100 sm:aspect-[4/3]">
-                {s.cover ? <Image src={s.cover} alt={s.typeName ? `${tr(s.typeName)}${s.roomName ? ` · ${tr(s.roomName)}` : ""}` : tr(s.name)} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" /> : <div className="flex h-full items-center justify-center text-4xl">🏠</div>}
+                {cover ? <Image src={cover}alt={s.typeName ? `${tr(s.typeName)}${s.roomName ? ` · ${tr(s.roomName)}` : ""}` : tr(s.name)} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" /> : <div className="flex h-full items-center justify-center text-4xl">🏠</div>}
                 {/* Trên ảnh chỉ hiện badge HOT khi được tick Nổi bật (nhiều chip dễ chồng nhau trên mobile). */}
                 {(s.roomFeatured || s.featured) && (
                   <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-sunset-500 px-2 py-0.5 text-[11px] font-extrabold tracking-wide text-white shadow-sm sm:left-3 sm:top-3 sm:px-2.5 sm:py-1 sm:text-xs">🔥 HOT</span>
                 )}
+                {hit && <SimBadge s={hit.s} />}
               </div>
               <div className="flex flex-1 flex-col gap-1 p-3 sm:gap-2 sm:p-5 sm:pt-[18px]">
                 <div className="line-clamp-1 text-[11px] font-semibold text-gray-500 sm:text-[13px]">
@@ -1032,7 +1088,8 @@ export function HomestayList({
                 </div>
               </div>
             </Link>
-          ))}
+            );
+          })}
         </div>
         {shownCount > limit && (
           <div ref={moreRef} className="mt-6 flex justify-center">

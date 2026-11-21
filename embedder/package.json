@@ -1,0 +1,14 @@
+{
+  "name": "taxua-embedder",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Dịch vụ nội bộ: ảnh → vector CLIP (tìm homestay theo ảnh). Chỉ app gọi, không phơi ra Internet.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "download": "node server.mjs --download"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "3.7.6"
+  }
+}

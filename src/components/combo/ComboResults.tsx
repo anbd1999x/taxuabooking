@@ -32,6 +32,7 @@ import { ComboModeSlot } from "@/components/combo/ComboModeSwitch";
 import { ComboSchedule } from "@/components/combo/ComboSchedule";
 import { NearbyButton } from "@/components/nearby/NearbyPopup";
 import { useComboBike, comboBikePayload, ComboBikeSummary, ComboBikePicker, ComboBikeDoneNote } from "@/components/combo/ComboBike";
+import { useImageSearch, ImageSearchBar, ImageSearchChip, SimBadge, hitCover, type ImgHit } from "@/components/image-search/ImageSearch";
 
 const G = "oklch(0.29 0.055 160)"; // xanh rừng
 const O = "oklch(0.68 0.18 45)"; // cam điểm nhấn
@@ -85,7 +86,26 @@ export function ComboResults({
   // Lọc phía client: nhiều homestay / nhiều khu vực (theo thiết kế Combo v3).
   const [fHome, setFHome] = useState<string[]>([]);
   const [fArea, setFArea] = useState<string[]>([]);
-  const [sort, setSort] = useState("match"); // match | priceAsc | rating | near
+  const [sort, setSort] = useState("match"); // match | priceAsc | rating | near | img
+  // Tìm theo ảnh (dùng chung với /homestay): chỉ giữ phương án của nhà có ảnh giống, xếp "Giống ảnh".
+  const { img, imgOn, dragging, clearImage, pickFile, dropProps, fileInput } = useImageSearch({
+    track: "Tìm combo theo ảnh",
+    onStart: () => setSort("img"),
+    onResult: (ok) => { if (!ok) setSort((s) => (s === "img" ? "match" : s)); },
+    onClear: () => setSort((s) => (s === "img" ? "match" : s)),
+  });
+  /** Điểm giống của 1 phương án = phòng giống nhất trong phương án; không có thì ảnh của nhà (hạ nhẹ). */
+  const planHit = (e: PlanEntry): ImgHit | null => {
+    if (!imgOn || !img || !img.homes[e.home.slug]) return null;
+    let best: ImgHit | null = null;
+    for (const id of e.plan.roomIds) {
+      const h = img.rooms[id];
+      if (h && (!best || h.s > best.s)) best = h;
+    }
+    if (best) return best;
+    const h = img.homes[e.home.slug];
+    return { s: h.s * 0.97, url: h.url };
+  };
   const [sheet, setSheet] = useState(false); // mobile: bộ lọc dạng bottom sheet
   useBodyScrollLock(sheet);
   // Khu vực quy về khu chuẩn (areaZone) — bỏ "Khác" (home chỉ ghi "Tà Xùa").
@@ -121,7 +141,12 @@ export function ComboResults({
   }, [homes, buses, budget, comboDiscount]);
 
   const entries = useMemo<PlanEntry[]>(() => {
-    const arr = all.filter((e) => (!fHome.length || fHome.includes(e.home.serviceId)) && (!fArea.length || fArea.includes(areaZone(e.home.area))));
+    const arr = all.filter(
+      (e) =>
+        (!fHome.length || fHome.includes(e.home.serviceId)) &&
+        (!fArea.length || fArea.includes(areaZone(e.home.area))) &&
+        (!imgOn || Boolean(img?.homes[e.home.slug])),
+    );
     // Ưu tiên (Nổi bật lên đầu) CHỈ áp dụng ở trạng thái MẶC ĐỊNH: mọi mức giá + sắp xếp "Tối ưu".
     const prRank = (e: PlanEntry) => (e.home.featured ? (e.home.priorityOrder || 0) + 1 : 0);
     const keepPriority = priceMax == null && priceMin == null && budget == null && sort === "match";
@@ -133,15 +158,17 @@ export function ComboResults({
       if (sort === "priceAsc") return a.bestPrice - b.bestPrice;
       if (sort === "rating") return (b.home.rating ?? 0) - (a.home.rating ?? 0) || a.bestPrice - b.bestPrice;
       if (sort === "near") return distOf(a.home) - distOf(b.home) || a.bestPrice - b.bestPrice;
+      if (sort === "img") return (planHit(b)?.s ?? -1) - (planHit(a)?.s ?? -1) || a.bestPrice - b.bestPrice;
       return a.score - b.score || a.bestPrice - b.bestPrice;
     });
-  }, [all, fHome, fArea, sort, priceMax, priceMin, budget]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- planHit chỉ phụ thuộc img / imgOn
+  }, [all, fHome, fArea, sort, priceMax, priceMin, budget, img, imgOn]);
 
   const allHomeIds = useMemo(() => homes.map((h) => h.serviceId), [homes]);
   const bestPlanId = buses.length > 0 && entries.length > 0 && sort === "match" ? entries[0].plan.id : null;
 
   // Hiện dần từng thẻ (không có nút "Xem thêm"); đổi bộ lọc / sắp xếp ⇒ hiện dần lại từ đầu.
-  const sig = `${fHome.join(",")}|${fArea.join(",")}|${sort}`;
+  const sig = `${fHome.join(",")}|${fArea.join(",")}|${sort}|${img?.preview ?? ""}|${img?.status ?? ""}`;
   const [seenSig, setSeenSig] = useState(sig);
   const [visible, setVisible] = useState(Math.min(3, entries.length));
   if (seenSig !== sig) {
@@ -274,6 +301,7 @@ export function ComboResults({
   );
 
   const SORTS: [string, string][] = [
+    ...(imgOn ? ([["img", "📷 Giống ảnh"]] as [string, string][]) : []),
     ["match", "Tối ưu"],
     ["priceAsc", "Giá thấp nhất"],
     ["rating", "Đánh giá cao"],
@@ -314,12 +342,15 @@ export function ComboResults({
         {sheet && <div onClick={() => setSheet(false)} className="fixed inset-0 z-[59] bg-[oklch(0.15_0.03_165_/.45)] min-[900px]:hidden" />}
 
         <div className="flex min-w-0 flex-col gap-3">
+          {fileInput}
+          {img && <ImageSearchBar img={img} foundLabel={tr("{0} combo có ảnh giống", [entries.length])} onChange={pickFile} onClear={clearImage} />}
           {/* Sắp xếp + công tắc chế độ: desktop cùng một hàng (công tắc bên phải); mobile công tắc nằm riêng hàng trên. */}
           <div className="flex flex-wrap items-center gap-2.5 min-[900px]:flex-nowrap">
             <div className="order-first w-full min-[900px]:order-last min-[900px]:w-auto min-[900px]:flex-none">
               <ComboModeSlot />
             </div>
             <div className="flex min-w-0 flex-1 gap-1.5 overflow-x-auto [scrollbar-width:none]">
+              <ImageSearchChip onClick={pickFile} dropProps={dropProps} dragging={dragging} active={Boolean(img)} />
               {SORTS.map(([k, name]) => {
                 const on = sort === k;
                 return (
@@ -383,6 +414,7 @@ export function ComboResults({
               origin={origin}
               comboDiscount={comboDiscount}
               allHomeIds={allHomeIds}
+              imgHit={planHit(e)}
             />
           ))}
 
@@ -411,7 +443,10 @@ function ComboPlanCard({
   origin,
   comboDiscount,
   allHomeIds,
+  imgHit,
 }: {
+  /** Tìm theo ảnh: ảnh khớp nhất của phương án (đổi ảnh bìa + nhãn "Giống N%"). */
+  imgHit?: ImgHit | null;
   /** Mọi homestay trong kết quả (popup "Xung quanh có gì?" cho chọn home để tính khoảng cách). */
   allHomeIds: string[];
   home: ComboHomeOption;
@@ -483,7 +518,7 @@ function ComboPlanCard({
   // Tiêu đề = gộp theo hạng ("2× Phòng đôi + 1× Phòng đơn"); cover = ảnh phòng đại diện.
   // Dịch TỪNG tên hạng phòng trước khi ghép (tr() cả chuỗi ghép không khớp khoá nào ⇒ trước đây luôn hiện tiếng Việt).
   const title = plan.groups.map((g) => `${g.count}× ${tr(g.room.typeName)}`).join(" + ");
-  const cover = plan.groups[0]?.room.cover ?? home.cover;
+  const cover = hitCover(imgHit, plan.groups[0]?.room.cover ?? home.cover);
   const totalPics = plan.groups.reduce((n, g) => n + (g.room.images.length || (g.room.cover ? 1 : 0)), 0);
 
   const amenities = useMemo(() => {
@@ -622,6 +657,7 @@ function ComboPlanCard({
           ) : (
             <div className="flex h-full min-h-[190px] items-center justify-center bg-gray-100 text-4xl">🛏️</div>
           )}
+          {imgHit && <SimBadge s={imgHit.s} className="right-2.5 top-2.5" />}
           <div className="pointer-events-none absolute left-2.5 top-2.5 flex flex-wrap gap-1.5">
             {home.area && (
               <span className="rounded-full bg-white px-2.5 py-1 text-xs font-extrabold text-[oklch(0.3_0.04_160)]">

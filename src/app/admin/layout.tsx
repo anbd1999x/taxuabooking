@@ -29,11 +29,14 @@ export default async function AdminLayout({
   const badges: Record<string, number> = {};
   const hideNav: string[] = [];
   if (session.role === "ADMIN") {
-    const [count, fbCount, venueReview] = await Promise.all([
+    const [count, fbCount, venueReview, chatUnread] = await Promise.all([
       prisma.bookingRequest.count({ where: { status: "NEW" } }),
       prisma.feedback.count({ where: { status: "NEW", hidden: false } }),
       prisma.ticketVenue.count({ where: { review: "pending" } }),
+      prisma.chatThread.count({ where: { unreadAdmin: { gt: 0 } } }),
     ]);
+    // Cuộc chat có tin khách chưa đọc (khung chat trên website).
+    if (chatUnread > 0) badges["/admin/chat"] = chatUnread;
     if (count > 0) badges["/admin/bookings"] = count;
     if (fbCount > 0) badges["/admin/feedback"] = fbCount;
     // Địa điểm vé / đặt bàn đối tác gửi duyệt.
