@@ -6,6 +6,7 @@ import { SearchLoadingOverlay } from "@/components/useSearchNav";
 import { TrustPopup } from "@/components/TrustPopup";
 import { CommitmentEnabledProvider } from "@/components/trust/CommitmentLink";
 import { BackgroundMusic } from "@/components/BackgroundMusic";
+import { FloatingContact } from "@/components/FloatingContact";
 import { getSettings } from "@/lib/queries";
 import { prisma } from "@/lib/prisma";
 import { PUBLIC_VENUE } from "@/lib/ticket-core";
@@ -47,6 +48,11 @@ export default async function SiteLayout({
   ]);
   const trustConfig = parseTrustPopup(settings[TRUST_POPUP_KEY]);
   const trustPopup = { ...trustConfig, people: visiblePeople(trustConfig) }; // người bị ẩn không hiện ở popup
+  // Facebook cho nút nổi: chủ sở hữu đầu tiên đang hiện (cùng quy tắc với Footer — link chưa nhập ⇒ link mặc định).
+  const FB_DEFAULT = ["https://www.facebook.com/an.danh.bui.2025", "https://www.facebook.com/tanglinhvxhg"];
+  const fbIdx = trustConfig.people.findIndex((p) => !p.hidden);
+  const fbPerson = trustConfig.people[fbIdx];
+  const facebook = fbPerson && /facebook\.com\/.+/.test(fbPerson.facebook) ? fbPerson.facebook : FB_DEFAULT[Math.max(0, fbIdx)] ?? FB_DEFAULT[0];
 
   return (
     <LocaleProvider>
@@ -60,6 +66,7 @@ export default async function SiteLayout({
       </main>
       <Footer settings={settings} />
       <BackgroundMusic />
+      <FloatingContact facebook={facebook} />
       <LocationPrompt />
     </SiteContactProvider>
     </LocaleProvider>
