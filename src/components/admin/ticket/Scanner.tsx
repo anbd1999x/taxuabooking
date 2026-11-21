@@ -73,6 +73,12 @@ export function Scanner({ venues, who, initial }: { venues: TkVenueRef[]; who: s
   const sessionOpts = shows.venueId === showVenueId ? shows.list : [];
 
   const check = useCallback(async (code: string, deliver = false) => {
+    // Súng quét gõ như bàn phím: bộ gõ tiếng Việt (Unikey/EVKey) đang bật sẽ biến "aa" thành "â"… ⇒ mã hỏng, báo rõ cách sửa.
+    if (/[^\x20-\x7e]/.test(code)) {
+      openRef.current = true;
+      setRes({ kind: "none", title: "Mã bị bộ gõ tiếng Việt làm sai", sub: "Tắt Unikey / EVKey (chuyển sang gõ tiếng Anh) rồi quét lại", code });
+      return;
+    }
     setBusy(true);
     try {
       const r = await fetch("/api/admin/ticket", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ op: "scan", venueId: venueRef.current, code, deliver, sessionId: sessionRef.current || undefined }) });
@@ -100,6 +106,32 @@ export function Scanner({ venues, who, initial }: { venues: TkVenueRef[]; who: s
     last.current = { code: last.current.code, at: Date.now() };
     setRes(null);
   }, []);
+
+  // Súng quét QR cầm tay (USB / Bluetooth, chế độ bàn phím): súng "gõ" nội dung mã rất nhanh rồi Enter.
+  // Bắt ở cấp trang để quét được cả khi popup kết quả đang mở / con trỏ không nằm trong ô nhập.
+  // Ô nhập tay (hoặc ô khác) đang được chọn ⇒ để form của ô đó xử lý.
+  useEffect(() => {
+    let buf = "", lastAt = 0;
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable)) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const now = Date.now();
+      if (now - lastAt > 100) buf = ""; // người gõ tay chậm hơn nhiều so với súng (vài ms / ký tự)
+      lastAt = now;
+      if (e.key === "Enter") {
+        if (buf.length >= 6) {
+          e.preventDefault(); // không để Enter bấm nhầm nút đang được chọn trong popup
+          last.current = { code: buf, at: now };
+          void check(buf);
+        }
+        buf = "";
+      } else if (e.key === "Backspace") buf = buf.slice(0, -1);
+      else if (e.key.length === 1) buf += e.key;
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [check]);
 
   // Camera + vòng đọc QR.
   useEffect(() => {
@@ -202,8 +234,9 @@ export function Scanner({ venues, who, initial }: { venues: TkVenueRef[]; who: s
         {cam === "on" && <div style={{ position: "absolute", left: 0, right: 0, bottom: 12, textAlign: "center", fontSize: 12, fontWeight: 700, color: "white", opacity: 0.85 }}>Đưa mã QR vào khung</div>}
       </div>
 
-      <form onSubmit={(e) => { e.preventDefault(); if (manual.trim() && !busy) void check(manual.trim()); }} style={{ margin: "12px 16px 0", display: "flex", gap: 6 }}>
-        <input value={manual} onChange={(e) => setManual(e.target.value.toUpperCase())} placeholder="Nhập mã tay TX-VE-…" autoCapitalize="characters" autoComplete="off" style={{ ...inputCls, flex: 1, padding: "11px 14px", borderRadius: 14, fontFamily: "ui-monospace,monospace" }} />
+      <form onSubmit={(e) => { e.preventDefault(); if (manual.trim() && !busy) { void check(manual.trim()); setManual(""); } }} style={{ margin: "12px 16px 0", display: "flex", gap: 6 }}>
+        {/* KHÔNG đổi chữ hoa: nội dung QR (token) phân biệt hoa thường — súng quét gõ vào ô này. Mã TX-VE-… máy chủ tự so không phân biệt hoa thường. */}
+        <input value={manual} onChange={(e) => setManual(e.target.value)} placeholder="Nhập mã tay TX-VE-… / bắn súng quét" autoCapitalize="characters" autoComplete="off" style={{ ...inputCls, flex: 1, padding: "11px 14px", borderRadius: 14, fontFamily: "ui-monospace,monospace" }} />
         <button type="submit" disabled={busy} style={{ cursor: "pointer", fontSize: 14, fontWeight: 800, padding: "11px 16px", borderRadius: 14, background: G, color: "white", border: "none", fontFamily: "inherit" }}>Kiểm tra</button>
       </form>
 

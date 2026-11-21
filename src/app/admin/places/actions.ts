@@ -4,7 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { toDTO, type PlaceInput, type PlaceDTO } from "./place-dto";
-import { parseLatLng, resolveMapLatLng } from "@/lib/map-link";
+import { mapLinkProblem, parseLatLng, resolveMapLatLng } from "@/lib/map-link";
 
 export interface ActionState {
   ok?: boolean;
@@ -72,10 +72,10 @@ export async function savePlace(input: PlaceInput): Promise<ActionState & { plac
   if (latLngText && !geo) return { error: 'Toạ độ không hợp lệ — nhập dạng "21.2652, 104.5386" (vĩ độ, kinh độ) hoặc để trống để tự lấy từ link Google Maps.' };
   const prev = input.id ? await prisma.place.findUnique({ where: { id: input.id }, select: { mapUrl: true, lat: true, lng: true } }) : null;
   if (geo && prev && (prev.mapUrl ?? "") !== mapUrl && prev.lat === geo.lat && prev.lng === geo.lng) geo = null;
-  let geoNote = "";
   if (!geo && mapUrl) {
     geo = await resolveMapLatLng(mapUrl);
-    if (!geo && kind === "CHECKIN") geoNote = " · chưa lấy được toạ độ từ link Google Maps — nhập tay ở tab Bản đồ";
+    // Link hỏng (VD dán thừa ký tự ⇒ 404): báo rõ, KHÔNG lưu đè làm mất toạ độ cũ.
+    if (!geo) return { error: await mapLinkProblem(mapUrl).catch(() => "Không đọc được toạ độ từ link Google Maps.") };
   }
 
   const data = {
@@ -114,7 +114,7 @@ export async function savePlace(input: PlaceInput): Promise<ActionState & { plac
   revalidate(slug);
   return {
     ok: true,
-    message: (input.id ? `Đã lưu "${name}"` : `Đã tạo "${name}"`) + geoNote,
+    message: (input.id ? `Đã lưu "${name}"` : `Đã tạo "${name}"`),
     place: toDTO(saved),
   };
 }

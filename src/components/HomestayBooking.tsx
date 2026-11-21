@@ -345,6 +345,7 @@ export function HomestayBooking({
       status: "ok" | "low" | "full";
       isEnd: boolean;
       inRange: boolean;
+      hol?: boolean;
     };
     const cells: Cell[] = [];
     for (let i = 0; i < lead; i++)
@@ -368,11 +369,11 @@ export function HomestayBooking({
       const status = free === 0 ? "full" : free <= 2 ? "low" : "ok";
       const isEnd = k === ci || k === coEff;
       const inRange = Boolean(ci && coEff && k > ci && k < coEff);
-      cells.push({ key: k, day: d, inWindow, free, minP, status, isEnd, inRange });
+      cells.push({ key: k, day: d, inWindow, free, minP, status, isEnd, inRange, hol: holSet.has(k) });
     }
     while (cells.length % 7) cells.push({ key: null, day: 0, inWindow: false, free: 0, minP: null, status: "ok", isEnd: false, inRange: false });
     return cells;
-  }, [cursor, rooms, occ, start, end, ci, co]);
+  }, [cursor, rooms, occ, start, end, ci, co, holSet]);
 
   const canPrev = cursor.y > start.getUTCFullYear() || (cursor.y === start.getUTCFullYear() && cursor.m > start.getUTCMonth());
   const canNext = cursor.y < end.getUTCFullYear() || (cursor.y === end.getUTCFullYear() && cursor.m < end.getUTCMonth());
@@ -560,6 +561,12 @@ export function HomestayBooking({
               <Legend color="bg-forest-500" label={tr("Còn phòng")} />
               <Legend color="bg-amber-500" label={tr("Còn ít")} />
               <Legend color="bg-gray-400" label={tr("Hết phòng")} />
+              {holidayKeys.length > 0 && (
+                <span className="flex items-center gap-1.5 whitespace-nowrap">
+                  <span className="h-3 w-3 rounded border border-yellow-400 bg-yellow-100" />
+                  {tr("Ngày lễ")}
+                </span>
+              )}
             </div>
           </div>
           <div className="rounded-2xl bg-white p-3 ring-1 ring-black/5 sm:p-5">
@@ -598,14 +605,18 @@ export function HomestayBooking({
                     type="button"
                     onClick={() => !disabled && pickDay(c.key!)}
                     disabled={disabled}
-                    title={c.inWindow ? (c.status === "full" ? tr("Hết phòng") : c.free + tr(" phòng trống")) : ""}
+                    title={c.inWindow ? (c.hol ? tr("Ngày lễ") + " · " : "") + (c.status === "full" ? tr("Hết phòng") : c.free + tr(" phòng trống")) : ""}
                     className={[
                       "flex h-16 flex-col justify-between rounded-xl border px-1.5 py-1.5 text-left transition",
                       c.isEnd
                         ? "border-forest-700 bg-forest-700 text-white"
                         : c.inRange
-                          ? "border-forest-300 bg-forest-100"
-                          : c.inWindow
+                          ? c.hol
+                            ? "border-yellow-400 bg-yellow-100"
+                            : "border-forest-300 bg-forest-100"
+                          : c.hol && c.inWindow
+                            ? "border-yellow-300 bg-yellow-50 hover:border-yellow-500 hover:bg-yellow-100"
+                            : c.inWindow
                             ? "border-gray-200 bg-white hover:border-forest-400 hover:bg-forest-50"
                             : "border-transparent",
                       !c.inWindow ? "cursor-default opacity-30" : c.status === "full" ? "cursor-not-allowed opacity-60" : "cursor-pointer",

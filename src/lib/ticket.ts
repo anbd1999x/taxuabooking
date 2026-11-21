@@ -666,7 +666,9 @@ export async function scanTicket(owner: "all" | string, by: string, raw: string,
   const none: ScanResult = { kind: "none", title: "Không tìm thấy mã", sub: "Kiểm tra lại mã hoặc tra cứu theo số điện thoại" };
   if (input.length < 6 || input.length > 60) return none;
   const inc = { order: { include: { session: true, venue: { select: { id: true, name: true, ownerId: true } }, tickets: { select: { id: true, kind: true, code: true, usedAt: true } }, items: { select: { qty: true, name: true } } } } } as const;
-  let t = await prisma.ticket.findFirst({ where: { OR: [{ token: input }, { code: input.toUpperCase() }] }, include: inc });
+  // Súng quét gõ như bàn phím: máy bật Caps Lock ⇒ chữ hoa/thường bị đảo ngược ⇒ thử thêm bản đảo chữ của token.
+  const swapped = [...input].map((c) => (c === c.toUpperCase() ? c.toLowerCase() : c.toUpperCase())).join("");
+  let t = await prisma.ticket.findFirst({ where: { OR: [{ token: input }, { token: swapped }, { code: input.toUpperCase() }] }, include: inc });
   if (!t) {
     const o = await prisma.ticketOrder.findUnique({ where: { code: input.toUpperCase() }, select: { id: true } });
     if (o) {

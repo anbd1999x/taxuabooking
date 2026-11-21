@@ -129,7 +129,18 @@ export async function getMailLastResult(): Promise<MailLastResult | null> {
   }
 }
 
+/**
+ * Tên miền dành riêng cho thử nghiệm (RFC 2606 / 6761): example.com|net|org, *.test, *.example, *.invalid, *.localhost.
+ * Không bao giờ nhận thư ⇒ gửi tới chỉ sinh thư báo lỗi (bounce) về hộp thư lienhe@ và làm xấu uy tín máy chủ gửi.
+ * Script kiểm thử / dữ liệu mẫu dùng các địa chỉ này nên chặn ngay ở đây cho mọi luồng gửi.
+ */
+export function isTestAddress(to: string): boolean {
+  const d = to.trim().toLowerCase().split("@").pop()?.replace(/\.$/, "") ?? "";
+  return /(^|\.)example\.(com|net|org)$/.test(d) || /\.(test|example|invalid|localhost)$/.test(d) || d === "localhost";
+}
+
 export async function sendMail(opts: { to: string; subject: string; html: string; text: string }): Promise<MailResult> {
+  if (isTestAddress(opts.to)) return { ok: false, error: "Địa chỉ thử nghiệm (example.com…), không gửi." };
   const c = await loadConfig();
   if (!c.pass) return { ok: false, error: "Chưa có mật khẩu hộp thư gửi (nhập ở /admin/popup)." };
   const base = { at: new Date().toISOString(), to: opts.to, subject: opts.subject };

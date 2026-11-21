@@ -75,6 +75,20 @@ function safeDecode(s: string): string {
   try { return decodeURIComponent(s.replace(/\+/g, " ")); } catch { return s; }
 }
 
+/**
+ * Câu báo lỗi cho admin khi không lấy được toạ độ từ link (gọi SAU khi resolveMapLatLng trả null).
+ * Hay gặp nhất: dán thừa / thiếu ký tự ⇒ Google trả 404.
+ */
+export async function mapLinkProblem(url: string): Promise<string> {
+  const raw = url.trim();
+  const tail = " Mở thử link trong trình duyệt, hoặc nhập toạ độ tay vào ô Toạ độ (chuột phải vào ghim trên Google Maps → bấm dòng số để copy).";
+  if (!/^https?:\/\//i.test(raw)) return "Link Google Maps phải bắt đầu bằng https://." + tail;
+  const res = await get(raw);
+  if (!res) return "Không mở được link Google Maps (mất mạng / quá thời gian)." + tail;
+  if (res.status === 404) return "Link Google Maps không tồn tại — có thể bị dán thừa hoặc thiếu ký tự." + tail;
+  return "Không đọc được toạ độ từ link Google Maps này (link phải trỏ tới một địa điểm ở khu vực Tà Xùa)." + tail;
+}
+
 export async function resolveMapLatLng(url: string | null | undefined): Promise<LatLng | null> {
   const raw = (url ?? "").trim();
   if (!/^https?:\/\//i.test(raw)) return null;

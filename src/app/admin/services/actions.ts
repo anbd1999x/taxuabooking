@@ -16,7 +16,7 @@ import {
 } from "@/lib/partner-access";
 import { serviceInputSchema, availabilityBulkSchema } from "@/lib/validation";
 import { slugify } from "@/lib/utils";
-import { parseLatLng, resolveMapLatLng } from "@/lib/map-link";
+import { mapLinkProblem, parseLatLng, resolveMapLatLng } from "@/lib/map-link";
 import { CATEGORIES } from "@/lib/constants";
 import {
   parseDateOnly,
@@ -77,7 +77,11 @@ async function serviceGeo(
     if (geo && prev && !sameUrl && prev.lat === geo.lat && prev.lng === geo.lng) geo = null;
     if (!geo && !text && latLngText === undefined && sameUrl && prev?.lat != null && prev.lng != null) return { lat: prev.lat, lng: prev.lng };
   }
-  if (!geo && url) geo = await resolveMapLatLng(url).catch(() => null);
+  if (!geo && url) {
+    geo = await resolveMapLatLng(url).catch(() => null);
+    // Link hỏng (VD dán thừa ký tự ⇒ 404): báo rõ, KHÔNG lặng lẽ xoá toạ độ cũ.
+    if (!geo) return { error: await mapLinkProblem(url).catch(() => "Không đọc được toạ độ từ link Google Maps.") };
+  }
   return { lat: geo?.lat ?? null, lng: geo?.lng ?? null };
 }
 
