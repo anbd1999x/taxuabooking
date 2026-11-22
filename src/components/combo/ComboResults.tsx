@@ -3,7 +3,7 @@
 import { dmy } from "@/lib/date-format";
 import { trackLeadConversion } from "@/lib/ads";
 import { SupportHoursNote } from "@/components/SupportHours";
-import { ItineraryLink } from "@/components/itinerary/ItineraryLink";
+import { ItineraryLink, itineraryHref } from "@/components/itinerary/ItineraryLink";
 import { SitePhone, We } from "@/components/SiteContact";
 import { useSearchParams } from "next/navigation";
 import { areaZone, isFilterZone, zoneLabel } from "@/lib/constants";
@@ -798,10 +798,21 @@ function ComboPlanCard({
               ))}
             </div>
           )}
-          <div className="flex gap-3.5 text-[13px] font-bold">
+          <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 text-[13px] font-bold">
             <button type="button" onClick={() => openRoom(0)} className="text-forest-700 hover:text-sunset-600">{tr("Xem phòng")}</button>
             {bus && <button type="button" onClick={() => setPreview("bus")} className="text-forest-700 hover:text-sunset-600">{tr("Xem xe")}</button>}
             <NearbyButton homeIds={[home.serviceId, ...allHomeIds.filter((x) => x !== home.serviceId)]} context="combo" className="inline-flex items-center gap-1.5 text-[13px] font-bold text-forest-700 hover:text-sunset-600" />
+            {/* Lịch trình & chi phí đúng phương án này (phòng + vé cabin đang chọn + giảm combo), mở tab mới. */}
+            {nights >= 1 && (
+              <Link
+                href={itineraryHref(nights, { roomTotal: plan.roomCost, rooms: plan.roomIds.length, pax: people, bus: bus ? { transport: "cabin", total: cabinCost } : null, discount: plan.noDiscount ? 0 : comboDiscount * people })}
+                target="_blank"
+                className="inline-flex items-center gap-1.5 text-forest-700 hover:text-sunset-600"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3-6-3z" /><path d="M9 3v15M15 6v15" /></svg>
+                {tr("Lịch trình & chi phí")}
+              </Link>
+            )}
           </div>
         </div>
 
