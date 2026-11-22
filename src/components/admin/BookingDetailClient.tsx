@@ -3,6 +3,7 @@
 import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import type { BookingStatus } from "@prisma/client";
 import { showToast } from "./Toast";
+import { MoneyTextInput } from "./MoneyInput";
 import {
   saveBookingStage,
   recordBookingPayment,
@@ -564,14 +565,10 @@ export function SurchargePanel({
               placeholder="Nội dung, VD: Thêm 1 người lớn"
               className="min-w-0 flex-1 rounded-lg border-[1.5px] border-gray-200 bg-white px-3 py-2 text-sm"
             />
-            <input
+            <MoneyTextInput
               name="amount"
               value={amt}
-              onChange={(e) => {
-                const d = e.target.value.replace(/\D/g, "");
-                setAmt(d ? Number(d).toLocaleString("vi-VN") : "");
-              }}
-              inputMode="numeric"
+              onChange={setAmt}
               placeholder="Số tiền"
               className="rounded-lg border-[1.5px] border-gray-200 bg-white px-3 py-2 text-sm font-bold sm:w-36"
             />
@@ -640,17 +637,16 @@ export function ProviderExtraForm({ id, extra, onDone }: { id: string; extra: nu
   const [amt, setAmt] = useState(extra > 0 ? String(extra) : "");
   const [state, action, pending] = useActionState<BookingActionState, FormData>(saveProviderExtra, {});
   useResultToast(state, onDone);
-  const shown = amt ? Number(amt).toLocaleString("vi-VN") : "";
   return (
     <form action={action} className="flex flex-wrap items-end gap-2">
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="amount" value={amt || "0"} />
       <label className="flex min-w-[160px] flex-1 flex-col gap-1">
         <span className="text-[12px] font-semibold text-gray-600">Tiền thu thêm của khách (đ)</span>
-        <input
-          inputMode="numeric"
-          value={shown}
-          onChange={(e) => setAmt(e.target.value.replace(/\D/g, "").slice(0, 9))}
+        <MoneyTextInput
+          value={amt}
+          onChange={setAmt}
+          maxDigits={9}
           placeholder="VD: 140.000 (quá giờ)"
           className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-ink"
         />

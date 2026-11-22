@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { MoneyTextInput } from "@/components/admin/MoneyInput";
 import { BANKS, MEAL_MIN_DEFAULT, MEAL_MIN_RANGE, REVIEW_LABEL, VENUE_KINDS, WEB_CONFIRM_MIN, type TkMenu, type TkTable, type TkTier, type VenueKind } from "@/lib/ticket-core";
 import { showToast } from "@/components/admin/Toast";
 import { Act, Badge, Head, MUTED, O, RED, card, inputCls, lbl, type Ctx } from "./ui";
@@ -14,13 +15,12 @@ const placesFor = (places: PlaceRef[], kind: VenueKind) => places.filter((p) => 
 function PlaceOptions({ places }: { places: PlaceRef[] }) {
   return <>{places.map((p) => <option key={p.id} value={p.id}>{PLACE_KIND[p.kind] ?? p.kind} · {p.name}</option>)}</>;
 }
-const vnd = (s: string) => (s ? Number(s).toLocaleString("vi-VN") : "");
 const rowCss: React.CSSProperties = { display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end", padding: "10px 12px", borderRadius: 14, border: "1px solid oklch(0.92 0.01 160)" };
 const small: React.CSSProperties = { ...inputCls, fontSize: 14, padding: "8px 10px" };
 const chk: React.CSSProperties = { display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", paddingBottom: 9 };
 
 function Money({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
-  return <input style={small} inputMode="numeric" value={vnd(value)} placeholder={placeholder} onChange={(e) => onChange(digits(e.target.value))} />;
+  return <MoneyTextInput style={small} value={value} placeholder={placeholder} onChange={onChange} />;
 }
 
 /** Tab THIẾT LẬP: thông tin địa điểm, hạng vé, thực đơn kèm, bàn; tạo địa điểm mới (admin: duyệt sẵn; đối tác: bản nháp → gửi duyệt). */

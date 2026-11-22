@@ -5,6 +5,7 @@ import QRCode from "qrcode";
 import { DINE_CATS, DINE_DESC_MAX, DINE_FEE_PRESETS, DINE_LATE_MIN, DINE_MAX_IMAGES, isFee, ago, hm, money, orderQty, tableState, type DineData, type DineMenuVM, type DineOrderVM, type DineStatus, type TableState } from "@/lib/dine-core";
 import { BANKS, bankName, vietQrPayload } from "@/lib/ticket-core";
 import { showToast } from "@/components/admin/Toast";
+import { MoneyTextInput } from "@/components/admin/MoneyInput";
 import { usePublishTabs } from "@/components/admin/module-tabs";
 import { Empty, G, Head, MUTED, O, RED, VenuePick, h, printHtml, short, useWidth, type Ctx } from "./ui";
 
@@ -410,7 +411,7 @@ export function DineTab({ ctx }: { ctx: Ctx }) {
                   <input value={nm.name} onChange={(e) => setNm({ ...nm, name: e.target.value })} placeholder="Tên món" style={inp} />
                   <input value={nm.group} list="dn-groups" onChange={(e) => setNm({ ...nm, group: e.target.value })} placeholder="Nhóm món" style={inp} />
                   <datalist id="dn-groups">{groups.map((g) => <option key={g} value={g} />)}</datalist>
-                  <input value={nm.price ? Number(nm.price).toLocaleString("vi-VN") : ""} onChange={(e) => setNm({ ...nm, price: e.target.value.replace(/\D/g, "") })} inputMode="numeric" placeholder="Giá" style={inp} />
+                  <MoneyTextInput value={nm.price} onChange={(d) => setNm({ ...nm, price: d })} placeholder="Giá" style={inp} />
                 </div>
                 <textarea value={nm.desc} maxLength={DINE_DESC_MAX} rows={3} onChange={(e) => setNm({ ...nm, desc: e.target.value })} placeholder="Mô tả chi tiết món: nguyên liệu, khẩu phần (VD: nồi 3–4 người), độ cay, cách chế biến…" style={{ ...inp, resize: "vertical", lineHeight: 1.45 }} />
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -525,7 +526,7 @@ function MenuRow({ m, wide, busy, venueId, call }: { m: DineMenuVM; wide: boolea
         <div style={{ fontSize: 12, color: MUTED }}>{m.group || "Chưa có nhóm"} · đã bán {m.sold} (30 ngày)</div>
         <textarea value={desc} maxLength={DINE_DESC_MAX} rows={desc.length > 70 ? 3 : 2} onChange={(e) => setDesc(e.target.value)} onBlur={() => desc !== m.desc && call("menuPatch", { id: m.id, desc })} placeholder="Mô tả chi tiết món (nguyên liệu, khẩu phần, độ cay…)" style={{ width: "100%", fontSize: 12, lineHeight: 1.4, padding: "4px 6px", marginTop: 3, borderRadius: 7, border: "1px solid oklch(0.92 0.01 160)", fontFamily: "inherit", color: "oklch(0.35 0.02 160)", resize: "vertical" }} />
       </div>
-      <input value={Number(price || 0).toLocaleString("vi-VN")} inputMode="numeric" onChange={(e) => setPrice(e.target.value.replace(/\D/g, ""))} onBlur={() => Number(price) !== m.price && call("menuPatch", { id: m.id, price })} style={{ ...inp, fontWeight: 800, textAlign: "right", padding: "8px 10px" }} />
+      <MoneyTextInput value={String(price ?? "")} placeholder="0" onChange={setPrice} onBlur={() => Number(price) !== m.price && call("menuPatch", { id: m.id, price })} style={{ ...inp, fontWeight: 800, textAlign: "right", padding: "8px 10px" }} />
       <div style={{ display: "flex", gap: 4, justifyContent: "flex-end", gridColumn: wide ? "auto" : "1 / -1", alignItems: "center" }}>
         <button type="button" disabled={busy} onClick={() => call("menuPatch", { id: m.id, hot: !m.hot })} style={chip(m.hot, O, "white")}>Bán chạy</button>
         <button type="button" disabled={busy} onClick={() => call("menuPatch", { id: m.id, avail: !m.avail })} style={chip(m.avail, "oklch(0.94 0.05 155)", "oklch(0.36 0.1 155)")}>{m.avail ? "Còn món" : "Hết món"}</button>
@@ -573,7 +574,7 @@ function FeeForm({ busy, onAdd }: { busy: boolean; onAdd: (reason: string, amoun
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) 110px", gap: 6 }}>
         <input value={reason} maxLength={60} onChange={(e) => setReason(e.target.value)} placeholder="Lý do phụ thu" style={{ ...inp, padding: 8, fontSize: 13 }} />
-        <input value={amount ? Number(amount).toLocaleString("vi-VN") : ""} inputMode="numeric" onChange={(e) => setAmount(e.target.value.replace(/\D/g, ""))} placeholder="Số tiền" style={{ ...inp, padding: 8, fontSize: 13, textAlign: "right", fontWeight: 800 }} />
+        <MoneyTextInput value={amount} onChange={setAmount} placeholder="Số tiền" style={{ ...inp, padding: 8, fontSize: 13, textAlign: "right", fontWeight: 800 }} />
       </div>
       <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
         <button type="button" onClick={() => setOpen(false)} style={{ cursor: "pointer", fontSize: 12, fontWeight: 800, padding: "7px 12px", borderRadius: 999, border: "1px solid oklch(0.88 0.015 160)", background: "white", fontFamily: "inherit" }}>Đóng</button>

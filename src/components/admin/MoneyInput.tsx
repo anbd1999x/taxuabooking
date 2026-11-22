@@ -113,3 +113,36 @@ export function MoneyValueInput({
     />
   );
 }
+
+/**
+ * Biến thể giữ giá trị là CHUỖI số (state sẵn có kiểu string): cùng cách gõ — đang focus hiện số thô
+ * (giá trị = đúng chữ khách gõ ⇒ React không ghi đè, con trỏ không nhảy), rời ô mới hiện dấu chấm.
+ * Nhận mọi thuộc tính của <input> (name, style, className, onBlur…); `onChange` trả chuỗi chỉ gồm chữ số.
+ */
+export function MoneyTextInput({
+  value,
+  onChange,
+  onFocus,
+  onBlur,
+  maxDigits = 12,
+  ...rest
+}: Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange"> & {
+  value: string;
+  onChange: (digits: string) => void;
+  maxDigits?: number;
+}) {
+  const [focused, setFocused] = useState(false);
+  const raw = String(value ?? "").replace(/\D/g, "");
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      autoComplete="off"
+      {...rest}
+      value={focused ? raw : group(raw)}
+      onChange={(e) => onChange(e.target.value.replace(/\D/g, "").slice(0, maxDigits))}
+      onFocus={(e) => { setFocused(true); onFocus?.(e); }}
+      onBlur={(e) => { setFocused(false); onBlur?.(e); }}
+    />
+  );
+}
