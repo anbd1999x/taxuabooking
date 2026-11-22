@@ -1,6 +1,7 @@
 "use client";
 
 import type { ItCost, Transport } from "@/lib/itinerary";
+import { MoneyValueInput } from "./MoneyInput";
 
 /** Mục "Bảng giá xe & phòng" ở /admin/itinerary: giá dùng tính phần combo trên trang /lich-trinh. */
 
@@ -9,16 +10,11 @@ const ICON_BTN = "flex h-[30px] w-[28px] flex-none items-center justify-center r
 const CARD = "flex flex-col gap-2.5 rounded-[18px] border border-gray-200 bg-white p-4";
 const LBL = "flex flex-col gap-1 text-xs font-bold text-gray-500";
 
+/** Ô nhập tiền của trang lịch trình: dùng `MoneyValueInput` chung (gõ số thô, rời ô mới thêm dấu chấm — không nhảy con trỏ). */
 export function MoneyInput({ value, onChange, className = "" }: { value: number; onChange: (n: number) => void; className?: string }) {
   return (
     <div className={`relative ${className}`}>
-      <input
-        value={value ? value.toLocaleString("vi-VN") : ""}
-        inputMode="numeric"
-        placeholder="0"
-        onChange={(e) => onChange(Math.min(50_000_000, Number(e.target.value.replace(/\D/g, "")) || 0))}
-        className={`${INPUT} w-full pr-6 text-right font-bold`}
-      />
+      <MoneyValueInput value={value} onChange={onChange} className={`${INPUT} w-full pr-6 text-right font-bold`} />
       <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400">đ</span>
     </div>
   );

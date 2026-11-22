@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /** Thêm dấu chấm phân cách nghìn: "1234567" → "1.234.567". */
 function group(digits: string): string {
@@ -61,5 +61,55 @@ export function MoneyInput({
         className={className}
       />
     </>
+  );
+}
+
+/**
+ * Biến thể ĐIỀU KHIỂN bằng state (form tự lưu, VD /admin/itinerary): cùng cách gõ như `MoneyInput` —
+ * đang focus hiện số thô, rời ô mới thêm dấu chấm — nhưng báo số qua `onChange` mỗi lần gõ.
+ * Giá trị đổi từ bên ngoài (khôi phục mặc định, đổi lịch trình) chỉ ghi vào ô khi ô KHÔNG được focus.
+ */
+export function MoneyValueInput({
+  value,
+  onChange,
+  placeholder = "0",
+  className,
+  max = 50_000_000,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  placeholder?: string;
+  className?: string;
+  max?: number;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || document.activeElement === el) return;
+    const want = value ? group(String(value)) : "";
+    if (el.value !== want) el.value = want;
+  }, [value]);
+  return (
+    <input
+      ref={ref}
+      type="text"
+      inputMode="numeric"
+      autoComplete="off"
+      defaultValue={value ? group(String(value)) : ""}
+      placeholder={placeholder}
+      onInput={(e) => onChange(Math.min(max, Number(e.currentTarget.value.replace(/\D/g, "").slice(0, 12)) || 0))}
+      onFocus={(e) => {
+        const el = e.currentTarget;
+        const digits = el.value.replace(/\D/g, "");
+        if (el.value !== digits) el.value = digits;
+      }}
+      onBlur={(e) => {
+        const el = e.currentTarget;
+        const n = Math.min(max, Number(el.value.replace(/\D/g, "").slice(0, 12)) || 0);
+        el.value = n ? group(String(n)) : "";
+        if (n !== value) onChange(n);
+      }}
+      className={className}
+    />
   );
 }
