@@ -67,7 +67,7 @@ export function ItineraryView({ plans, places, cost, zalo, prep, initialPlan }: 
       id: p.id,
       name,
       title: p.nights ? tr("{0} ngày {1} đêm", [p.nights + 1, p.nights]) : tr("Trong ngày"),
-      meta: group.map((x) => tr(cost.transports[x.transport].name)).join(" · "),
+      meta: group.map((x) => { const n = tr(cost.transports[x.transport].name); return n.charAt(0).toUpperCase() + n.slice(1); }).join(" · "),
     };
   });
   const activeHero = heroPlans.find((h) => h.name === plan.name)?.id ?? plan.id;

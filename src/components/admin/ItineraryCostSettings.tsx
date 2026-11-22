@@ -78,7 +78,7 @@ export function ItineraryCostSettings({ cost, onChange }: { cost: ItCost; onChan
           return (
             <div key={k} className={CARD}>
               <div className="text-[15px] font-extrabold text-ink">Thẻ cách đi: {k === "cabin" ? "xe cabin" : "limousine"}</div>
-              <label className={LBL}>Tên hiển thị
+              <label className={LBL}>Tên cách đi (thẻ hiện “Combo … + phòng”)
                 <input value={t.name} maxLength={40} onChange={(e) => onChange((c) => { c.transports[k].name = e.target.value; })} className={`${INPUT} font-semibold`} />
               </label>
               <label className={LBL}>Giờ đi / tới

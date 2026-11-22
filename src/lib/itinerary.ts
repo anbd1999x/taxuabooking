@@ -61,7 +61,7 @@ export interface ItPlan {
   days: ItDay[];
 }
 export interface ItTransport {
-  name: string; // "Xe cabin đêm"
+  name: string; // "cabin đêm" — thẻ hiện "Combo cabin đêm + phòng"
   when: string; // "Đi 21h30 tối hôm trước · sáng sớm tới Tà Xùa"
   tags: string[];
 }
@@ -110,8 +110,8 @@ export const DEFAULT_COST: ItCost = {
   perRoom: 2,
   perBike: 2,
   transports: {
-    cabin: { name: "Xe cabin đêm", when: "Đi 21h30 tối hôm trước · sáng sớm tới Tà Xùa", tags: ["Săn mây ngay sáng đầu", "Tiết kiệm 1 ngày phép", "Cabin đôi riêng tư"] },
-    limo: { name: "Limousine sáng", when: "Đi 6h30 sáng · khoảng 12h30 tới Tà Xùa", tags: ["Ngủ đủ giấc ở nhà", "Tới kịp hoàng hôn", "Hợp gia đình, người lớn tuổi"] },
+    cabin: { name: "cabin đêm", when: "Đi 21h30 tối hôm trước · sáng sớm tới Tà Xùa", tags: ["Săn mây ngay sáng đầu", "Tiết kiệm 1 ngày phép", "Cabin đôi riêng tư"] },
+    limo: { name: "limousine sáng", when: "Đi 6h30 sáng · khoảng 12h30 tới Tà Xùa", tags: ["Ngủ đủ giấc ở nhà", "Tới kịp hoàng hôn", "Hợp gia đình, người lớn tuổi"] },
   },
   note: "Giá phòng tính từ 400k/đêm (trong tuần), 600k/đêm (cuối tuần), phòng 2 người. Ăn uống, vé là giá tham khảo tại thời điểm cập nhật. Giá chính thức là giá chốt bill qua Zalo.",
 };

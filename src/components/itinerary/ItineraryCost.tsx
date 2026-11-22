@@ -87,6 +87,7 @@ export function ItineraryCost({
   const cards = plans.filter((p) => p.name === plan.name);
   const nightsTxt = (p: CostPlan) => (p.nights ? tr("Ở {0} đêm", [p.nights]) : tr("Trong ngày"));
   const trName = (t: Transport) => tr(cost.transports[t].name);
+  const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1);
   const setSkip = (k: string, v: boolean) => setSkips((s) => ({ ...s, [plan.id]: { ...(s[plan.id] ?? {}), [k]: v } }));
   const pickDur = (name: string) => {
     const same = plans.find((p) => p.name === name && p.transport === plan.transport) ?? plans.find((p) => p.name === name);
@@ -175,7 +176,7 @@ export function ItineraryCost({
                       <span className="h-2.5 w-2.5 rounded-full" style={{ background: on ? G : "transparent" }} />
                     </span>
                     <div>
-                      <div className="text-[17px] font-extrabold">{tr(t.name)}</div>
+                      <div className="text-[17px] font-extrabold">{tr("Combo {0} + phòng", [tr(t.name)])}</div>
                       {t.when && <div className="text-[13px] text-[oklch(0.48_0.02_160)]">{tr(t.when)}</div>}
                     </div>
                   </div>
@@ -234,7 +235,7 @@ export function ItineraryCost({
             <div>
               <div className="text-xs font-bold opacity-80">{tr("TRONG COMBO · đặt trên Tà Xùa Booking")}</div>
               <div className="text-base font-extrabold">
-                {tr("{0} khứ hồi + {1} phòng × {2} đêm + ăn sáng", [trName(plan.transport), R.rooms, plan.nights])}
+                {tr("{0} khứ hồi + {1} phòng × {2} đêm + ăn sáng", [cap(trName(plan.transport)), R.rooms, plan.nights])}
               </div>
               <div className="mt-0.5 text-xs opacity-85">
                 {tr("Xe {0} × {1} người · phòng {2} × {3} phòng × {4} đêm ({5})", [K(R.trPrice), pax, K(R.room), R.rooms, plan.nights, weekend ? tr("cuối tuần") : tr("trong tuần")])}
