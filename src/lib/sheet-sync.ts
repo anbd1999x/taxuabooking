@@ -739,8 +739,10 @@ function isPureCheckout(raw: string): boolean {
  * - Mặc định: ô ngày khách TRẢ phòng (buổi sáng) ⇒ đêm đó trống.
  * - "Ở xong": sau khi khách đi, chủ nhà đổi MỌI đêm khách đã ở thành "Check out" (vd Nhà của An)
  *   ⇒ nhận diện khi có phòng ghi "Check out" ở 2 NGÀY LIỀN NHAU (quy ước mặc định không thể có).
- * Sheet theo quy ước "ở xong": ô "Check out" của ngày ĐÃ QUA tính là ĐÃ ĐẶT (lịch quá khứ khớp
- * sheet). Ngày từ hôm nay trở đi giữ quy tắc cũ — không ảnh hưởng tình trạng bán.
+ * Sheet theo quy ước "ở xong": ô "Check out" của ngày ĐÃ QUA và HÔM NAY tính là ĐÃ ĐẶT — chủ nhà ghi
+ * "Check out" vào ĐÊM CUỐI khách còn ở (vd Bản Mây: đoàn 5 phòng ở đêm 21–22, ô gộp "Check out" ngày 22,
+ * trả phòng sáng 23 ⇒ đêm 22 khách VẪN ĐANG Ở; trước đây chỉ tính ngày đã qua nên đêm hôm nay bị mở bán).
+ * Ngày từ mai trở đi giữ quy tắc cũ (đơn tương lai chủ nhà ghi "Đã đặt").
  */
 function applyCheckoutAsStay(entries: SheetEntry[], ref: Date): number {
   const days = new Map<string, Set<number>>();
@@ -755,7 +757,7 @@ function applyCheckoutAsStay(entries: SheetEntry[], ref: Date): number {
   if (!stayStyle) return 0;
   let n = 0;
   for (const e of entries) {
-    if (e.checkout && e.date < ref && e.status === "AVAILABLE") {
+    if (e.checkout && e.date <= ref && e.status === "AVAILABLE") {
       e.status = "BOOKED";
       n++;
     }
@@ -1575,7 +1577,7 @@ export async function syncServiceSheet(
       throw new Error("Không khớp được phòng nào. Hãy đảm bảo tên phòng trong sheet trùng tên phòng trong app.");
     }
 
-    // Sheet ghi "Check out" cho cả các đêm khách đã ở ⇒ quá khứ tính là đã đặt.
+    // Sheet ghi "Check out" cho cả các đêm khách đã ở ⇒ quá khứ + hôm nay tính là đã đặt.
     applyCheckoutAsStay(entries, ref);
 
     // Khử trùng lặp (tab trùng tháng): mỗi (phòng, ngày) lấy giá trị ở tab xuất hiện trước.
