@@ -21,6 +21,32 @@ function ensureConfigured(): boolean {
 }
 
 /**
+ * urgency "high": iPhone tắt màn hình / tiết kiệm pin vẫn giao ngay
+ * (mặc định "normal" có thể bị APNs hoãn tới khi mở máy).
+ */
+const PUSH_OPTS = { TTL: 6 * 3600, urgency: "high" as const };
+
+/** Gửi thử tới ĐÚNG 1 thiết bị (nút "Thử" ở header admin). Trả mã HTTP của dịch vụ push. */
+export async function pushTest(endpoint: string, userId: string): Promise<{ ok: boolean; status: number | null }> {
+  if (!ensureConfigured()) return { ok: false, status: null };
+  const s = await prisma.pushSubscription.findUnique({ where: { endpoint } });
+  if (!s || s.userId !== userId) return { ok: false, status: 404 };
+  try {
+    const r = await webpush.sendNotification(
+      { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+      JSON.stringify({ title: "🔔 Thông báo thử", body: "Thiết bị này đã nhận được thông báo từ Tà Xùa Booking.", url: "/admin", tag: "push-test" }),
+      PUSH_OPTS,
+    );
+    return { ok: true, status: r.statusCode };
+  } catch (err) {
+    const status = (err as { statusCode?: number }).statusCode ?? null;
+    console.warn("[push] gửi thử lỗi", status, s.endpoint.slice(0, 60));
+    if (status === 404 || status === 410) await prisma.pushSubscription.delete({ where: { id: s.id } }).catch(() => {});
+    return { ok: false, status };
+  }
+}
+
+/**
  * Gửi 1 thông báo tới MỌI thiết bị admin đã bật; dọn subscription chết (404/410).
  * Trả về số thiết bị nhận thành công (-1 = chưa cấu hình VAPID).
  * `tag` trùng thì thông báo mới thay thông báo cũ trên máy.
@@ -42,11 +68,12 @@ export async function pushToAdmins(msg: {
         await webpush.sendNotification(
           { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
           payload,
-          { TTL: 6 * 3600 },
+          PUSH_OPTS,
         );
         ok++;
       } catch (err) {
         const status = (err as { statusCode?: number }).statusCode;
+        console.warn("[push] gửi lỗi", status, s.endpoint.slice(0, 60));
         // Subscription hết hạn / người dùng tắt → xoá để lần sau không gửi nữa.
         if (status === 404 || status === 410) {
           await prisma.pushSubscription.delete({ where: { id: s.id } }).catch(() => {});
@@ -75,7 +102,7 @@ export async function pushToUsers(
   await Promise.allSettled(
     subs.map(async (s) => {
       try {
-        await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, { TTL: 6 * 3600 });
+        await webpush.sendNotification({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, payload, PUSH_OPTS);
         ok++;
       } catch (err) {
         const status = (err as { statusCode?: number }).statusCode;

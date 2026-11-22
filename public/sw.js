@@ -16,7 +16,26 @@ self.addEventListener("push", (event) => {
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",
       data: { url: data.url || "/admin/bookings" },
+      ...(data.tag ? { tag: data.tag, renotify: true } : {}),
     }),
+  );
+});
+
+/* Trình duyệt tự đổi đăng ký (hết hạn / xoay khoá) → đăng ký lại và báo server. */
+self.addEventListener("pushsubscriptionchange", (event) => {
+  const key = event.oldSubscription && event.oldSubscription.options && event.oldSubscription.options.applicationServerKey;
+  if (!key) return;
+  event.waitUntil(
+    self.registration.pushManager
+      .subscribe({ userVisibleOnly: true, applicationServerKey: key })
+      .then((sub) =>
+        fetch("/api/push/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(sub.toJSON()),
+        }),
+      )
+      .catch(() => {}),
   );
 });
 

@@ -11,7 +11,17 @@ function urlB64ToUint8Array(base64: string): Uint8Array {
   return out;
 }
 
-type PushState = "loading" | "unsupported" | "install" | "off" | "on" | "denied" | "busy";
+/** Lưu đăng ký của thiết bị này lên server (upsert theo endpoint). */
+async function saveSub(sub: PushSubscription): Promise<boolean> {
+  const res = await fetch("/api/push/subscribe", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(sub.toJSON()),
+  }).catch(() => null);
+  return !!res?.ok;
+}
+
+type PushState ="loading" | "unsupported" | "install" | "off" | "on" | "denied" | "busy";
 
 /**
  * Nút bật/tắt Web Push thông báo đơn mới (header admin).
@@ -21,6 +31,7 @@ type PushState = "loading" | "unsupported" | "install" | "off" | "on" | "denied"
 export function PushToggle({ vapidKey }: { vapidKey: string }) {
   const [state, setState] = useState<PushState>("loading");
   const [showHint, setShowHint] = useState(false);
+  const [testMsg, setTestMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (!vapidKey) return setState("unsupported");
@@ -36,9 +47,14 @@ export function PushToggle({ vapidKey }: { vapidKey: string }) {
         return;
       }
       const reg = await navigator.serviceWorker.register("/sw.js");
+      reg.update().catch(() => {});
       const sub = await reg.pushManager.getSubscription();
-      if (sub) setState("on");
-      else setState(Notification.permission === "denied" ? "denied" : "off");
+      if (sub && Notification.permission === "granted") {
+        // Luôn gửi lại đăng ký hiện tại: endpoint có thể đã đổi (iOS cài lại app, APNs xoay khoá)
+        // hoặc server đã xoá — nếu không, nút hiện "Đang bật" mà server gửi vào endpoint cũ.
+        const ok = await saveSub(sub);
+        setState(ok ? "on" : "off");
+      } else setState(Notification.permission === "denied" ? "denied" : "off");
     })().catch(() => setState("unsupported"));
   }, [vapidKey]);
 
@@ -52,12 +68,7 @@ export function PushToggle({ vapidKey }: { vapidKey: string }) {
         userVisibleOnly: true,
         applicationServerKey: urlB64ToUint8Array(vapidKey) as unknown as BufferSource,
       });
-      const res = await fetch("/api/push/subscribe", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(sub.toJSON()),
-      });
-      if (!res.ok) {
+      if (!(await saveSub(sub))) {
         await sub.unsubscribe().catch(() => {});
         return setState("off");
       }
@@ -65,6 +76,30 @@ export function PushToggle({ vapidKey }: { vapidKey: string }) {
     } catch {
       setState("off");
     }
+  }
+
+  async function sendTest() {
+    setTestMsg("…");
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlB64ToUint8Array(vapidKey) as unknown as BufferSource,
+        });
+      }
+      await saveSub(sub);
+      const r = (await fetch("/api/push/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint: sub.endpoint }),
+      }).then((x) => x.json())) as { ok?: boolean; status?: number | null; error?: string };
+      setTestMsg(r.ok ? "Đã gửi ✓" : r.error || `Lỗi ${r.status ?? ""}`.trim());
+    } catch {
+      setTestMsg("Lỗi");
+    }
+    setTimeout(() => setTestMsg(null), 6000);
   }
 
   async function disable() {
@@ -123,9 +158,14 @@ export function PushToggle({ vapidKey }: { vapidKey: string }) {
   }
   if (state === "on") {
     return (
-      <button type="button" onClick={disable} title="Đang nhận thông báo đơn mới — bấm để tắt" className={`${btn} bg-forest-50 text-forest-700 ring-1 ring-forest-200 hover:bg-forest-100`}>
-        🔔 Đang bật
-      </button>
+      <div className="flex items-center gap-1">
+        <button type="button" onClick={disable} title="Đang nhận thông báo đơn mới — bấm để tắt" className={`${btn} bg-forest-50 text-forest-700 ring-1 ring-forest-200 hover:bg-forest-100`}>
+          🔔 Đang bật
+        </button>
+        <button type="button" onClick={sendTest} disabled={testMsg === "…"} title="Gửi một thông báo thử tới thiết bị này" className={`${btn} bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-gray-50`}>
+          {testMsg ?? "Thử"}
+        </button>
+      </div>
     );
   }
   return (
