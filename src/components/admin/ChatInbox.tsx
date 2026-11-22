@@ -121,6 +121,10 @@ export function ChatInbox({ initialThreadId }: { initialThreadId: string | null 
   }, [msgs.length, active]);
 
   const cur = threads.find((t) => t.id === active) ?? null;
+  const vp = useMobileViewport(!!active);
+  useEffect(() => {
+    if (vp) listEnd.current?.scrollIntoView({ block: "end" });
+  }, [vp?.height]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function send(body?: string) {
     const b = (body ?? text).trim();
@@ -162,7 +166,7 @@ export function ChatInbox({ initialThreadId }: { initialThreadId: string | null 
   );
 
   return (
-    <div className="grid h-[calc(100vh-190px)] min-h-[480px] overflow-hidden rounded-2xl border border-gray-200 bg-white md:grid-cols-[320px_minmax(0,1fr)]">
+    <div className="grid h-[calc(100dvh-150px)] min-h-[360px] overflow-hidden rounded-2xl border border-gray-200 bg-white sm:h-[calc(100dvh-190px)] md:min-h-[480px] md:grid-cols-[320px_minmax(0,1fr)]">
       {/* Danh sách cuộc chat */}
       <aside className={`flex min-h-0 flex-col border-gray-200 md:border-r ${active ? "hidden md:flex" : "flex"}`}>
         <div className="flex gap-1.5 border-b border-gray-100 p-3">
@@ -201,24 +205,28 @@ export function ChatInbox({ initialThreadId }: { initialThreadId: string | null 
       </aside>
 
       {/* Cuộc chat đang mở */}
-      <section className={`min-h-0 flex-col ${active ? "flex" : "hidden md:flex"}`}>
+      {/* Điện thoại: cuộc chat mở toàn màn hình (như app nhắn tin), co theo bàn phím (visualViewport). */}
+      <section
+        style={vp ?? undefined}
+        className={`min-h-0 flex-col max-md:fixed max-md:inset-x-0 max-md:top-0 max-md:z-40 max-md:h-dvh max-md:bg-white ${active ? "flex" : "hidden md:flex"}`}
+      >
         {!active || !cur ? (
           <div className="flex flex-1 items-center justify-center p-6 text-sm text-gray-400">{active && !loaded ? "Đang tải…" : "Chọn một cuộc trò chuyện bên trái."}</div>
         ) : (
           <>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-gray-100 px-4 py-3">
-              <button type="button" onClick={() => setActive(null)} className="text-lg text-gray-500 md:hidden" aria-label="Quay lại">←</button>
+            <div className="flex items-center gap-2 border-b border-gray-100 px-2 py-2 pt-[max(8px,env(safe-area-inset-top))] md:gap-3 md:px-4 md:py-3">
+              <button type="button" onClick={() => setActive(null)} className="flex h-10 w-10 flex-none items-center justify-center rounded-full text-xl text-gray-600 hover:bg-gray-100 md:hidden" aria-label="Quay lại">←</button>
               <div className="min-w-0 flex-1">
-                <div className="font-extrabold text-ink">{label(cur)}</div>
-                <div className="flex flex-wrap gap-x-3 text-xs text-gray-500">
+                <div className="truncate font-extrabold text-ink">{label(cur)}</div>
+                <div className="flex gap-x-3 overflow-hidden whitespace-nowrap text-xs text-gray-500 md:flex-wrap">
                   {cur.phone && <a href={`tel:${cur.phone.replace(/[^\d+]/g, "")}`} className="font-semibold text-forest-700">📞 {cur.phone}</a>}
                   {cur.phone && <a href={`https://zalo.me/${cur.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="font-semibold text-[#0068FF]">Zalo</a>}
-                  {cur.page && <a href={cur.page} target="_blank" rel="noreferrer" className="max-w-[260px] truncate hover:text-forest-700">Đang xem: {cur.page}</a>}
+                  {cur.page && <a href={cur.page} target="_blank" rel="noreferrer" className="min-w-0 max-w-[260px] truncate hover:text-forest-700">Đang xem: {cur.page}</a>}
                   {cur.locale && cur.locale !== "vi" && <span>Ngôn ngữ: {cur.locale}</span>}
-                  {cur.ip && <span>IP {cur.ip}</span>}
+                  {cur.ip && <span className="hidden md:inline">IP {cur.ip}</span>}
                 </div>
               </div>
-              <div className="flex gap-1.5">
+              <div className="flex flex-none gap-1">
                 {cur.status === "open" ? (
                   <button type="button" onClick={() => act("close")} className="rounded-full bg-gray-100 px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-200">Đóng</button>
                 ) : (
@@ -228,7 +236,7 @@ export function ChatInbox({ initialThreadId }: { initialThreadId: string | null 
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto bg-[oklch(0.975_0.006_160)] px-4 py-4">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[oklch(0.975_0.006_160)] px-3 py-3 md:px-4 md:py-4">
               <div className="flex flex-col gap-2">
                 {msgs.map((m, i) => {
                   const mine = m.from === "admin";
@@ -239,7 +247,7 @@ export function ChatInbox({ initialThreadId }: { initialThreadId: string | null 
                       <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                         <div
                           title={`${hm(m.at)}${m.adminName ? ` · ${m.adminName}` : ""}`}
-                          className={`max-w-[75%] whitespace-pre-wrap break-words rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${mine ? "rounded-br-sm bg-forest-700 text-white" : "rounded-bl-sm bg-white text-ink shadow-sm ring-1 ring-black/5"}`}
+                          className={`max-w-[85%] whitespace-pre-wrap md:max-w-[75%] break-words rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${mine ? "rounded-br-sm bg-forest-700 text-white" : "rounded-bl-sm bg-white text-ink shadow-sm ring-1 ring-black/5"}`}
                         >
                           {m.body}
                         </div>
@@ -254,7 +262,7 @@ export function ChatInbox({ initialThreadId }: { initialThreadId: string | null 
               </div>
             </div>
 
-            <div className="border-t border-gray-100 p-3">
+            <div className="border-t border-gray-100 bg-white p-2 pb-[max(8px,env(safe-area-inset-bottom))] md:p-3">
               <div className="mb-2 flex gap-1.5 overflow-x-auto [scrollbar-width:none]">
                 {QUICK.map((q) => (
                   <button key={q} type="button" onClick={() => setText(q)} className="flex-none whitespace-nowrap rounded-full bg-forest-50 px-3 py-1 text-xs font-semibold text-forest-800 ring-1 ring-forest-100 hover:bg-forest-100">
@@ -274,10 +282,12 @@ export function ChatInbox({ initialThreadId }: { initialThreadId: string | null 
                   }}
                   rows={2}
                   maxLength={1000}
-                  placeholder="Nhập trả lời… (Enter để gửi, Shift+Enter xuống dòng)"
-                  className="min-h-[44px] flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-forest-500"
+                  placeholder="Nhập trả lời…"
+                  enterKeyHint="send"
+                  /* text-base trên điện thoại: chữ < 16px làm iOS tự phóng to khi chạm ô nhập */
+                  className="max-h-32 min-h-[44px] min-w-0 flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2 text-base outline-none focus:border-forest-500 max-md:[field-sizing:content] md:text-sm"
                 />
-                <button type="button" onClick={() => void send()} disabled={sending || !text.trim()} className="rounded-xl bg-forest-700 px-4 py-2.5 text-sm font-extrabold text-white hover:bg-forest-800 disabled:opacity-50">
+                <button type="button" onClick={() => void send()} disabled={sending || !text.trim()} className="h-11 flex-none rounded-xl bg-forest-700 px-4 text-sm font-extrabold text-white hover:bg-forest-800 disabled:opacity-50">
                   Gửi
                 </button>
               </div>
@@ -288,6 +298,35 @@ export function ChatInbox({ initialThreadId }: { initialThreadId: string | null 
       </section>
     </div>
   );
+}
+
+/**
+ * Điện thoại đang mở cuộc chat: khung chat bám đúng phần màn hình nhìn thấy (visualViewport) —
+ * iOS mở bàn phím không co 100dvh, nên ô nhập sẽ bị bàn phím che nếu không làm vậy.
+ * Đồng thời khoá cuộn trang phía sau. Máy tính (≥ md) trả null.
+ */
+function useMobileViewport(on: boolean): { height: number; top: number } | null {
+  const [vp, setVp] = useState<{ height: number; top: number } | null>(null);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    const vv = window.visualViewport;
+    if (!on || !mq.matches) {
+      setVp(null);
+      return;
+    }
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const update = () => setVp(vv ? { height: Math.round(vv.height), top: Math.round(vv.offsetTop) } : null);
+    update();
+    vv?.addEventListener("resize", update);
+    vv?.addEventListener("scroll", update);
+    return () => {
+      document.body.style.overflow = prev;
+      vv?.removeEventListener("resize", update);
+      vv?.removeEventListener("scroll", update);
+    };
+  }, [on]);
+  return vp;
 }
 
 /** Tiếng "ting" ngắn bằng WebAudio (không cần tệp âm thanh). */
