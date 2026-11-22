@@ -88,7 +88,7 @@ export function Header({ customerName = null, showCommitment = true, showTickets
   const onDark = !solid;
 
   const GUIDE_LINKS = [
-    { href: "/lich-trinh", label: t("Lịch trình Tà Xùa") },
+    { href: "/lich-trinh", label: t("Lịch trình & chi phí") },
     { href: "/ban-do", label: t("Bản đồ check-in") },
     { href: "/kinh-nghiem", label: t("Kinh nghiệm Tà Xùa") },
     { href: "/nha-hang", label: t("Nhà hàng Tà Xùa") },
