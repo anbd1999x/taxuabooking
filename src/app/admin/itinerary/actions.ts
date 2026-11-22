@@ -22,7 +22,8 @@ export async function saveItinerary(input: ItineraryConfig): Promise<ItineraryAc
     for (const [i, d] of p.days.entries()) {
       if (!d.stops.length) return { error: `"${label}" – Ngày ${i + 1}: chưa có điểm dừng nào.` };
       if (d.stops.some((s) => !s.time)) return { error: `"${label}" – Ngày ${i + 1}: có điểm thiếu giờ (định dạng HH:MM).` };
-      if (d.stops.some((s) => !s.placeId && !s.name)) return { error: `"${label}" – Ngày ${i + 1}: điểm tự nhập cần có tên.` };
+      if (d.stops.some((s) => !s.placeId && !s.name && !s.title)) return { error: `"${label}" – Ngày ${i + 1}: điểm tự nhập cần có tên địa điểm hoặc hoạt động.` };
+      if (d.stops.some((s) => s.subs.some((x) => !x.name))) return { error: `"${label}" – Ngày ${i + 1}: có điểm con chưa đặt tên.` };
     }
   }
   // Chỉ giữ id địa điểm còn tồn tại (tránh trỏ tới quán đã xoá).

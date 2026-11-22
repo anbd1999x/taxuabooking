@@ -4,6 +4,8 @@ import { placeShareImage } from "@/lib/og-source";
 import { prisma } from "@/lib/prisma";
 import { loadItinerary } from "@/lib/itinerary-store";
 import { PLACE_KIND_TO_STOP, type FeaturedKey, type StopKind } from "@/lib/itinerary";
+import { getSettings } from "@/lib/queries";
+import { SITE } from "@/lib/site";
 import { isVideoUrl } from "@/lib/utils";
 import { ItineraryView, type ItineraryPlace, type ViewPlan } from "@/components/itinerary/ItineraryView";
 import { getT } from "@/lib/i18n/server";
@@ -12,9 +14,9 @@ import { i18nMeta } from "@/lib/i18n/meta";
 export const dynamic = "force-dynamic";
 
 const META = {
-  title: "Lịch trình Tà Xùa 2N1Đ, 3N2Đ — đi đâu, ăn gì",
+  title: "Lịch trình & chi phí đi Tà Xùa 2N1Đ, 3N2Đ",
   description:
-    "Lịch trình Tà Xùa theo giờ cho chuyến xe cabin đêm từ Hà Nội: 2 ngày 1 đêm và 3 ngày 2 đêm, kèm điểm check-in săn mây, quán cafe và quán ăn nên ghé.",
+    "Lịch trình Tà Xùa theo giờ từ Hà Nội (xe cabin đêm hoặc limousine): 2 ngày 1 đêm, 3 ngày 2 đêm, tự tính chi phí theo số người — xe, phòng, ăn uống, vé check-in.",
   path: "/lich-trinh",
 };
 
@@ -71,25 +73,31 @@ export default async function ItineraryPage({ searchParams }: { searchParams: Pr
       id: p.id,
       name: p.name || tr("Lịch trình"),
       sub: p.sub,
+      transport: p.transport,
+      nights: p.nights,
       days: p.days
         .map((d) => ({
+          label: d.label,
           title: d.title,
           stops: d.stops.flatMap((s) => {
             const pl = s.placeId ? byId.get(s.placeId) : undefined;
             const name = pl?.name ?? s.name;
-            if (!name) return [];
-            // "1,5 km từ trung tâm" / "300 m từ trung tâm" (ô địa chỉ của điểm check-in) → km
-            const m = pl?.kind === "checkin" ? pl.badge.match(/([\d.,]+)\s*(km|m)\b/i) : null;
-            const km = m ? parseFloat(m[1].replace(",", ".")) / (m[2].toLowerCase() === "m" ? 1000 : 1) : null;
+            if (!name && !s.title) return [];
+            const kind = (pl?.kind ?? "move") as StopKind;
             return [{
               time: s.time,
-              name,
+              end: s.end,
+              // tên hoạt động (nếu có) làm dòng chính, địa điểm thành dòng nhỏ
+              title: s.title || name,
+              place: s.title && name !== s.title ? name : "",
               note: s.note,
-              kind: (pl?.kind ?? "move") as StopKind,
+              kind,
               placeId: pl?.id ?? null,
-              km: km != null && Number.isFinite(km) ? km : null,
-              thumb: pl?.media.find((x) => !x.video)?.url ?? null,
-              fact: pl?.facts[1] ?? null,
+              cost: s.cost,
+              unit: s.unit,
+              cat: s.cat || (kind === "cafe" || kind === "food" ? "an" : "ve"),
+              incl: s.incl,
+              subs: s.subs,
             }];
           }),
         }))
@@ -102,5 +110,7 @@ export default async function ItineraryPage({ searchParams }: { searchParams: Pr
       ? [...plans].sort((a, b) => Math.abs(a.days.length - wantDays) - Math.abs(b.days.length - wantDays))[0].id
       : undefined;
 
-  return <ItineraryView plans={plans} places={places} prep={config.prep} initialPlan={initialPlan} />;
+  const settings = await getSettings();
+  const zalo = "https://zalo.me/" + (settings.contactZalo || SITE.defaultZalo).replace(/D/g, "");
+  return <ItineraryView plans={plans} places={places} cost={config.cost} zalo={zalo} prep={config.prep} initialPlan={initialPlan} />;
 }
