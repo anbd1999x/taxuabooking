@@ -16,7 +16,8 @@ self.addEventListener("push", (event) => {
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",
       data: { url: data.url || "/admin/bookings" },
-      ...(data.tag ? { tag: data.tag, renotify: true } : {}),
+      // Không dùng `tag`: iOS Safari bỏ qua `renotify` ⇒ thông báo cùng tag thay thế IM LẶNG
+      // (không rung, không banner) — lần 2 trở đi coi như mất.
     }),
   );
 });
