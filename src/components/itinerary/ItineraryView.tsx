@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "@/components/Link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MediaSlider, type MediaItem } from "./MediaSlider";
 import { ItineraryHero, type HeroPlan } from "./ItineraryHero";
 import type { ItCost } from "@/lib/itinerary";
@@ -23,6 +23,7 @@ export interface ItineraryPlace {
   media: MediaItem[]; // ảnh bìa + ảnh/video khác (rỗng = nền màu kèm tên)
   href: string | null; // trang chi tiết quán (điểm check-in không có)
   mapUrl: string;
+  detailHtml?: string | null; // bài mô tả chi tiết (điểm check-in, đã dựng HTML ở server)
 }
 
 export type ViewPlan = CostPlan;
@@ -39,6 +40,7 @@ export function ItineraryView({ plans, places, cost, zalo, prep, initialPlan }: 
   const [planKey, setPlanKey] = useState((initialPlan && plans.some((p) => p.id === initialPlan) ? initialPlan : plans[0]?.id) ?? "");
   const [tab, setTab] = useState<Tab>("checkin");
   const [only, setOnly] = useState(false);
+  const [reading, setReading] = useState<ItineraryPlace | null>(null);
   const plan = plans.find((p) => p.id === planKey) ?? plans[0] ?? EMPTY_PLAN;
 
   // Địa điểm nào xuất hiện ở ngày nào của lịch trình đang chọn (mục "Nên ghé").
@@ -170,6 +172,11 @@ export function ItineraryView({ plans, places, cost, zalo, prep, initialPlan }: 
                         <b>{tr("Mẹo:")}</b> {tr(p.tip)}
                       </div>
                     )}
+                    {p.detailHtml && (
+                      <button type="button" onClick={() => setReading(p)} className="self-start text-sm font-extrabold text-[oklch(0.45_0.1_160)] hover:text-sunset-500">
+                        {tr("Đọc thêm về {0} →", [tr(p.name)])}
+                      </button>
+                    )}
                     <div className="flex-1" />
                     <div className="flex items-center justify-between gap-3 border-t border-[oklch(0.94_0.01_160)] pt-2.5 text-sm font-bold text-[oklch(0.4_0.08_160)]">
                       <a href={p.mapUrl} target="_blank" rel="noopener noreferrer" className="hover:text-sunset-500">{tr("Chỉ đường Google Maps ↗")}</a>
@@ -186,6 +193,47 @@ export function ItineraryView({ plans, places, cost, zalo, prep, initialPlan }: 
             </div>
           )}
         </section>
+      </div>
+      {reading?.detailHtml && <PlaceReader place={reading} onClose={() => setReading(null)} />}
+    </div>
+  );
+}
+
+/** Hộp đọc bài mô tả chi tiết của điểm check-in (điện thoại = trượt từ dưới lên, máy tính = hộp giữa). */
+function PlaceReader({ place, onClose }: { place: ItineraryPlace; onClose: () => void }) {
+  const tr = useT();
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", esc);
+    return () => { document.body.style.overflow = prev; window.removeEventListener("keydown", esc); };
+  }, [onClose]);
+  const cover = place.media.find((m) => !m.video)?.url;
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-6" role="dialog" aria-modal="true" aria-label={tr(place.name)}>
+      <div onClick={onClose} className="absolute inset-0 bg-[oklch(0.15_0.03_165/.5)]" />
+      <div className="relative flex max-h-[88dvh] w-full max-w-[720px] flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
+        {cover && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={cover} alt={tr("{0} – Tà Xùa", [tr(place.name)])} className="h-44 w-full flex-none object-cover sm:h-56" />
+        )}
+        <button type="button" onClick={onClose} aria-label={tr("Đóng")} className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 text-lg font-extrabold text-ink shadow">×</button>
+        <div className="overflow-y-auto px-5 pb-[calc(20px+env(safe-area-inset-bottom))] pt-4 sm:px-7">
+          <div className="text-xs font-extrabold tracking-[.1em] text-[oklch(0.5_0.1_158)]">{tr("ĐIỂM CHECK-IN")} · {tr(place.badge)}</div>
+          <h3 className="mt-1 text-2xl font-extrabold tracking-[-.02em] text-ink">{tr(place.name)}</h3>
+          {place.facts.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {place.facts.map((f) => (
+                <span key={f} className="rounded-full bg-[oklch(0.95_0.025_155)] px-[9px] py-1 text-xs font-bold text-[oklch(0.36_0.08_155)]">{tr(f)}</span>
+              ))}
+            </div>
+          )}
+          <div className="mt-2 text-[15px] leading-[1.7] text-[oklch(0.35_0.02_160)] [&_a]:font-semibold [&_a]:text-forest-700 [&_a]:underline [&_h2]:mt-5 [&_h2]:text-[18px] [&_h2]:font-extrabold [&_h2]:text-ink [&_h3]:mt-4 [&_h3]:text-base [&_h3]:font-bold [&_h3]:text-ink [&_img]:my-4 [&_img]:w-full [&_img]:rounded-2xl [&_li]:my-1 [&_p]:my-3 [&_ul]:my-3 [&_ul]:list-inside [&_ul]:list-disc [&_strong]:text-ink" dangerouslySetInnerHTML={{ __html: place.detailHtml! }} />
+          <a href={place.mapUrl} target="_blank" rel="noopener noreferrer" className="mt-5 block rounded-full border-[1.5px] border-[oklch(0.88_0.015_160)] p-3 text-center text-sm font-extrabold text-[oklch(0.4_0.08_160)] hover:text-sunset-500">
+            {tr("Chỉ đường Google Maps ↗")}
+          </a>
+        </div>
       </div>
     </div>
   );

@@ -8,7 +8,8 @@ import { getSettings } from "@/lib/queries";
 import { SITE } from "@/lib/site";
 import { isVideoUrl } from "@/lib/utils";
 import { ItineraryView, type ItineraryPlace, type ViewPlan } from "@/components/itinerary/ItineraryView";
-import { getT } from "@/lib/i18n/server";
+import { getT, tLong } from "@/lib/i18n/server";
+import { renderMarkdown } from "@/lib/markdown";
 import { i18nMeta } from "@/lib/i18n/meta";
 
 export const dynamic = "force-dynamic";
@@ -31,10 +32,18 @@ export default async function ItineraryPage({ searchParams }: { searchParams: Pr
   const rows = await prisma.place.findMany({
     where: { published: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    select: { id: true, kind: true, slug: true, name: true, area: true, address: true, price: true, hours: true, tags: true, desc: true, tip: true, coverImage: true, images: true, mapUrl: true },
+    select: { id: true, kind: true, slug: true, name: true, area: true, address: true, price: true, hours: true, tags: true, desc: true, tip: true, content: true, coverImage: true, images: true, mapUrl: true },
   });
   const { config } = await loadItinerary(rows);
 
+  // Điểm check-in không có trang riêng ⇒ bài mô tả chi tiết (markdown) mở ngay trên thẻ "Nên ghé" (đã dịch theo ngôn ngữ).
+  const detail = new Map(
+    await Promise.all(
+      rows
+        .filter((p) => p.kind === "CHECKIN" && p.content?.trim())
+        .map(async (p) => [p.id, renderMarkdown((await tLong(p.content!.trim())) ?? "")] as const),
+    ),
+  );
   const all: ItineraryPlace[] = rows.flatMap((p) => {
     const kind = PLACE_KIND_TO_STOP[p.kind];
     if (!kind) return [];
@@ -56,6 +65,7 @@ export default async function ItineraryPage({ searchParams }: { searchParams: Pr
         .slice(0, 12)
         .map((url) => ({ url, video: isVideoUrl(url) })),
       href: kind !== "checkin" && p.slug ? `/${kind === "cafe" ? "cafe" : "nha-hang"}/${p.slug}` : null,
+      detailHtml: detail.get(p.id) ?? null,
       mapUrl: p.mapUrl || "https://maps.google.com/?q=" + encodeURIComponent(`${p.name} Tà Xùa Bắc Yên Sơn La`),
     }];
   });

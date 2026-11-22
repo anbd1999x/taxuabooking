@@ -2448,5 +2448,7 @@
  "Limousine {0}": "Limousine {0}",
  "Phòng {0}": "Room {0}",
  "Xe khứ hồi / người · phòng {0}/đêm × {1} phòng × {2} đêm, chia {3} người": "Round-trip bus per person · room {0}/night × {1} room(s) × {2} night(s), split among {3} people",
- "Combo {0} + phòng": "Combo: {0} + room"
+ "Combo {0} + phòng": "Combo: {0} + room",
+ "Đọc thêm về {0} →": "Read more about {0} →",
+ "ĐIỂM CHECK-IN": "CHECK-IN SPOT"
 }
