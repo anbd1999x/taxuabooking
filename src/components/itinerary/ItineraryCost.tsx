@@ -134,7 +134,6 @@ export function ItineraryCost({
   const sumTitle = `${tr(plan.name)} · ${R.noBus ? tr("tự túc xe") : trName(plan.transport)} · ${tr("{0} người", [pax])} · ${R.fixed ? tr("theo phòng bạn chọn") : weekend ? tr("cuối tuần") : tr("trong tuần")}`;
   const cats = CATS.map(([k, name, c]) => ({ k, name: k === "combo" && R.noBus ? tr("Phòng + ăn sáng") : tr(name), c, v: R.cat[k], pct: Math.round((R.cat[k] / Math.max(1, R.total)) * 100) }));
   const unitWord = (u: CostUnit) => (u === "bike" ? tr("xe") : u === "pp" ? tr("người") : tr("đoàn"));
-  const timeTxt = (s: CostStop) => (s.end ? `${hLabel(s.time)} – ${hLabel(s.end)}` : hLabel(s.time));
   const comboHref = "/combo";
 
   return (
@@ -362,7 +361,11 @@ export function ItineraryCost({
                     const off = r.kind === "cost" && r.off;
                     return (
                       <div key={r.key} className="grid grid-cols-[62px_14px_minmax(0,1fr)] gap-2.5 rounded-[14px] p-2 transition-opacity hover:bg-[oklch(0.975_0.008_155)] sm:grid-cols-[96px_14px_minmax(0,1fr)]" style={{ opacity: off ? 0.45 : 1 }}>
-                        <span className="whitespace-nowrap pt-0.5 text-[13px] font-extrabold text-[oklch(0.4_0.03_160)]">{timeTxt(s)}</span>
+                        {/* Điện thoại: giờ kết thúc xuống dòng (cột giờ hẹp — "05:30 – 06:30" một dòng tràn đè lên timeline). */}
+                        <span className="min-w-0 pt-0.5 text-[13px] font-extrabold leading-tight text-[oklch(0.4_0.03_160)]">
+                          <span className="whitespace-nowrap">{hLabel(s.time)}</span>
+                          {s.end && <span className="block whitespace-nowrap text-[12px] font-bold opacity-70 sm:inline sm:text-[13px] sm:font-extrabold sm:opacity-100"> – {hLabel(s.end)}</span>}
+                        </span>
                         <span className="flex flex-col items-center">
                           <span className="mt-[3px] h-3 w-3 flex-none rounded-full border-[3px] bg-white" style={{ borderColor: c }} />
                           <span className="mt-[3px] w-0.5 flex-1" style={{ background: last ? "transparent" : "oklch(0.92 0.01 160)" }} />
