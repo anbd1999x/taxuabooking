@@ -666,7 +666,8 @@ export interface PayoutProofItem {
 }
 
 /**
- * Ảnh UỶ NHIỆM CHI khi sàn trả tiền cho nhà cung cấp (một bên room | bus của đơn).
+ * Ảnh chứng từ thanh toán của đơn: side room | bus = UỶ NHIỆM CHI sàn trả nhà cung cấp;
+ * side customer = ẢNH CHUYỂN KHOẢN của khách (dưới form "Ghi nhận tiền thu").
  * Tải nhiều ảnh, nhiều lần (mỗi lần chuyển khoản một ảnh); bấm ảnh để xem lớn; × để xoá ảnh tải nhầm.
  */
 export function PayoutProofs({
@@ -676,10 +677,11 @@ export function PayoutProofs({
   onDone,
 }: {
   id: string;
-  side: "room" | "bus";
+  side: "room" | "bus" | "customer";
   proofs: PayoutProofItem[];
   onDone?: () => void;
 }) {
+  const what = side === "customer" ? "ảnh chuyển khoản của khách" : "ảnh uỷ nhiệm chi";
   const [proofs, setProofs] = useState(initial);
   const [seen, setSeen] = useState(initial);
   if (seen !== initial) {
@@ -716,13 +718,13 @@ export function PayoutProofs({
     }
     if (inputRef.current) inputRef.current.value = "";
     if (ok) {
-      showToast(ok > 1 ? `Đã tải ${ok} ảnh uỷ nhiệm chi` : "Đã tải ảnh uỷ nhiệm chi", "ok");
+      showToast(ok > 1 ? `Đã tải ${ok} ${what}` : `Đã tải ${what}`, "ok");
       onDone?.();
     }
   }
 
   async function remove(p: PayoutProofItem) {
-    if (!confirm("Xoá ảnh uỷ nhiệm chi này? (Số tiền đã trả không đổi)")) return;
+    if (!confirm(side === "customer" ? "Xoá ảnh chuyển khoản này? (Số tiền đã thu không đổi)" : "Xoá ảnh uỷ nhiệm chi này? (Số tiền đã trả không đổi)")) return;
     const res = await deletePayoutProof(p.id);
     if (res.error) return showToast(res.error, "error");
     setProofs((list) => list.filter((x) => x.id !== p.id));
@@ -740,7 +742,7 @@ export function PayoutProofs({
     <div className="flex flex-col gap-1.5 rounded-lg bg-gray-50 p-2">
       <div className="flex items-center justify-between gap-2">
         <span className="text-[12px] font-bold text-gray-600">
-          Ảnh uỷ nhiệm chi{proofs.length ? ` (${proofs.length})` : ""}
+          {side === "customer" ? "Ảnh chuyển khoản của khách" : "Ảnh uỷ nhiệm chi"}{proofs.length ? ` (${proofs.length})` : ""}
         </span>
         <label className={`cursor-pointer whitespace-nowrap rounded-full border-[1.5px] border-forest-200 bg-white px-2.5 py-1 text-xs font-bold text-forest-700 hover:bg-forest-50 ${busy ? "pointer-events-none opacity-60" : ""}`}>
           {busy ? `Đang tải ${busy} ảnh…` : "📎 Tải ảnh"}
@@ -753,7 +755,7 @@ export function PayoutProofs({
             <div key={p.id} className="group relative">
               <button type="button" onClick={() => setView(p.url)} className="block aspect-square w-full overflow-hidden rounded-md bg-white ring-1 ring-black/10" title={`${when(p.createdAt)}${p.createdBy ? " · " + p.createdBy : ""}`}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={p.url} alt="Uỷ nhiệm chi" className="h-full w-full object-cover" loading="lazy" />
+                <img src={p.url} alt={side === "customer" ? "Ảnh chuyển khoản" : "Uỷ nhiệm chi"} className="h-full w-full object-cover" loading="lazy" />
               </button>
               <button
                 type="button"

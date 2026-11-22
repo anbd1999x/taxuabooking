@@ -29,6 +29,8 @@ export interface BookingEditProps {
     price: number | null; // tổng khách trả
     collected: number; // đã thu của khách
     payouts: { side: PayoutSide; kind: string; name: string; gross: number; discount: number; payable: number; paid: number; remaining: number; autoPayable: number; overridden: boolean; proofs: { id: string; url: string; createdAt: string; createdBy: string | null }[] }[];
+    /** Ảnh chuyển khoản của khách (mục "Đã thu"). */
+    customerProofs: { id: string; url: string; createdAt: string; createdBy: string | null }[];
   };
 }
 
@@ -143,6 +145,7 @@ export async function loadBookingEdit(id: string): Promise<BookingEditProps | nu
       price: total,
       collected: toNumber(b.amountCollected) ?? 0,
       payouts,
+      customerProofs: proofRows.filter((p) => p.side === "customer").map((p) => ({ id: p.id, url: p.url, createdAt: p.createdAt.toISOString(), createdBy: p.createdBy })),
     },
     code: b.code,
     categories: CATEGORY_LIST.map((c) => ({ key: c.key, label: c.shortLabel, kind: c.availabilityKind })),

@@ -8,7 +8,9 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 /**
- * Tải ẢNH UỶ NHIỆM CHI khi sàn trả tiền cho nhà cung cấp của một đơn (side room | bus) → lưu SupplierPayoutProof.
+ * Tải ảnh chứng từ thanh toán của một đơn → lưu SupplierPayoutProof:
+ *  - side room | bus = ẢNH UỶ NHIỆM CHI khi sàn trả tiền cho nhà cung cấp;
+ *  - side customer   = ẢNH CHUYỂN KHOẢN của khách (mục "Đã thu").
  * Mỗi lần gọi 1 ảnh; tải nhiều lần được (nhiều lần chuyển khoản). Chỉ ADMIN.
  */
 export async function POST(request: Request) {
@@ -25,13 +27,13 @@ export async function POST(request: Request) {
   }
   const bookingId = String(fd.get("bookingId") ?? "");
   const side = String(fd.get("side") ?? "");
-  if (!bookingId || (side !== "room" && side !== "bus")) return NextResponse.json({ error: "Dữ liệu không hợp lệ." }, { status: 400 });
+  if (!bookingId || (side !== "room" && side !== "bus" && side !== "customer")) return NextResponse.json({ error: "Dữ liệu không hợp lệ." }, { status: 400 });
   const b = await prisma.bookingRequest.findUnique({ where: { id: bookingId }, select: { id: true } });
   if (!b) return NextResponse.json({ error: "Không tìm thấy đơn." }, { status: 404 });
   const file = fd.get("file");
   if (!(file instanceof File) || file.size === 0) return NextResponse.json({ error: "Chưa chọn tệp." }, { status: 400 });
   const mime = resolveMediaType(file.type, file.name);
-  if (!mime.startsWith("image/")) return NextResponse.json({ error: "Chỉ nhận ảnh (chụp / ảnh màn hình uỷ nhiệm chi)." }, { status: 400 });
+  if (!mime.startsWith("image/")) return NextResponse.json({ error: side === "customer" ? "Chỉ nhận ảnh (chụp / ảnh màn hình chuyển khoản)." : "Chỉ nhận ảnh (chụp / ảnh màn hình uỷ nhiệm chi)." }, { status: 400 });
   const res = await processAndSaveMedia({ buf: Buffer.from(await file.arrayBuffer()), mime, filename: file.name, standalone: true });
   if ("error" in res) return NextResponse.json({ error: res.error }, { status: res.status });
 
@@ -39,7 +41,10 @@ export async function POST(request: Request) {
   const proof = await prisma.$transaction(async (tx) => {
     const p = await tx.supplierPayoutProof.create({ data: { bookingId, side, url: res.url, createdBy: by } });
     await tx.bookingLog.create({
-      data: { bookingId, kind: "SUPPLIER", title: `Tải ảnh uỷ nhiệm chi (${side === "bus" ? "nhà xe" : "nhà cung cấp"})`, body: null, by },
+      data:
+        side === "customer"
+          ? { bookingId, kind: "PAYMENT", title: "Tải ảnh chuyển khoản của khách", body: null, by }
+          : { bookingId, kind: "SUPPLIER", title: `Tải ảnh uỷ nhiệm chi (${side === "bus" ? "nhà xe" : "nhà cung cấp"})`, body: null, by },
     });
     return p;
   });

@@ -116,6 +116,7 @@ export function EditBookingPopup({
                         </div>
                       </div>
                       <PaymentRecordForm id={bookingId} price={ops.price} collected={ops.collected} onDone={reload} />
+                      <PayoutProofs id={bookingId} side="customer" proofs={ops.customerProofs ?? []} onDone={reload} />
                     </section>
 
                     <section className={box}>

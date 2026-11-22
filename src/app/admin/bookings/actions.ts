@@ -1206,7 +1206,8 @@ export async function deletePayoutProof(proofId: string): Promise<BookingActionS
   const p = await prisma.supplierPayoutProof.findUnique({ where: { id: proofId } });
   if (!p) return { error: "Ảnh đã bị xoá." };
   await prisma.supplierPayoutProof.delete({ where: { id: proofId } });
-  await log(prisma, p.bookingId, "SUPPLIER", `Xoá ảnh uỷ nhiệm chi (${p.side === "bus" ? "nhà xe" : "nhà cung cấp"})`, null, await sessionName());
+  if (p.side === "customer") await log(prisma, p.bookingId, "PAYMENT", "Xoá ảnh chuyển khoản của khách", null, await sessionName());
+  else await log(prisma, p.bookingId, "SUPPLIER", `Xoá ảnh uỷ nhiệm chi (${p.side === "bus" ? "nhà xe" : "nhà cung cấp"})`, null, await sessionName());
   revalidatePath(`/admin/bookings/${p.bookingId}`);
   return { ok: true, message: "Đã xoá ảnh" };
 }

@@ -903,6 +903,11 @@ export default async function BookingDetailPage({
               </div>
             </div>
             <PaymentRecordForm id={b.id} price={price} collected={collected} />
+            <PayoutProofs
+              id={b.id}
+              side="customer"
+              proofs={proofRows.filter((p) => p.side === "customer").map((p) => ({ id: p.id, url: p.url, createdAt: p.createdAt.toISOString(), createdBy: p.createdBy }))}
+            />
             {b.category === "COMBO" && (b.roomAmount != null || b.busAmount != null) && (
               <div className="flex flex-col gap-1.5 text-[13px]">
                 <div className="text-xs font-bold text-gray-500">Chia tiền cho nhà cung cấp</div>
