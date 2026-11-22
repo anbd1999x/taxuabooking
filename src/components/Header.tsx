@@ -102,12 +102,12 @@ export function Header({ customerName = null, showCommitment = true, showTickets
     { href: "/cafe", label: t("Cafe Tà Xùa") },
     { href: "/huong-dan", label: t("Hướng dẫn đặt dịch vụ") },
     { href: "/tra-cuu", label: t("Tra cứu đơn hàng") },
-    { href: "/gop-y", label: t("Góp ý") },
   ];
-  // Menu cha "Về chúng tôi": Cam kết (với khách) + Hợp tác (với chủ dịch vụ, trang /hop-tac).
+  // Menu cha "Về chúng tôi": Cam kết (với khách) + Hợp tác (với chủ dịch vụ, trang /hop-tac) + Góp ý.
   const ABOUT_LINKS = [
     ...(showCommitment ? [{ href: "/cam-ket", label: t("Cam kết"), sub: t("Đền tới 100tr nếu dịch vụ sai cam kết") }] : []),
     { href: "/hop-tac", label: t("Hợp tác"), sub: t("Phần mềm miễn phí cho chủ dịch vụ") },
+    { href: "/gop-y", label: t("Góp ý"), sub: t("Gửi góp ý để Tà Xùa Booking phục vụ tốt hơn") },
   ];
 
   const navItem = cn(
