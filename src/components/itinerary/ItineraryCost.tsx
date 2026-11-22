@@ -241,9 +241,13 @@ export function ItineraryCost({
                 {tr("Xe {0} × {1} người · phòng {2} × {3} phòng × {4} đêm ({5})", [K(R.trPrice), pax, K(R.room), R.rooms, plan.nights, weekend ? tr("cuối tuần") : tr("trong tuần")])}
               </div>
             </div>
+            {/* Giá mỗi người lên trước (chữ to), tổng cả đoàn bên dưới (chữ nhỏ). */}
             <div className="text-right">
-              <div className="text-[22px] font-extrabold">{M(R.cat.combo)}</div>
-              <div className="text-xs opacity-85">{tr("{0} / người", [M(R.cat.combo / pax)])}</div>
+              <div className="whitespace-nowrap text-[22px] font-extrabold leading-tight">
+                {M(R.cat.combo / pax)}
+                <span className="text-sm font-bold opacity-85">{tr(" / người")}</span>
+              </div>
+              <div className="whitespace-nowrap text-xs opacity-85">{tr("{0} người: {1}", [pax, M(R.cat.combo)])}</div>
             </div>
           </div>
 
