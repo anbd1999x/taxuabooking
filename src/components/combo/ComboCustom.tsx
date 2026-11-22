@@ -20,6 +20,7 @@ import { vnPhoneError } from "@/lib/phone";
 import { BookingEmailField, emailLooksValid } from "@/components/BookingEmailField";
 import { showGlobalLoading } from "@/components/useSearchNav";
 import { CommitmentLink } from "@/components/trust/parts";
+import { ItineraryLink } from "@/components/itinerary/ItineraryLink";
 import { useT } from "@/components/i18n/I18nProvider";
 
 /**
@@ -825,6 +826,7 @@ export function ComboCustom({
                   <button type="button" onClick={() => { setStage("build"); setName(""); setPhone(""); setEmail(""); setNote(""); }} className="text-sm font-bold text-forest-700">{t("Ghép combo khác")}</button>
                 </div>
               )}
+              <ItineraryLink nights={nights} cost={nRooms > 0 ? { roomTotal: quote.roomCost + extraCost, rooms: nRooms, pax: billable, bus: bus ? { transport: "cabin", total: busTotal } : null, discount: comboKm } : undefined} />
               <CommitmentLink className="flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-forest-700 transition hover:text-forest-900" />
               <div className="text-center text-xs leading-normal" style={{ color: MUTED }}>{t("Chưa cần thanh toán. Giá chính thức là giá chốt bill qua Zalo.")}</div>
             </div>

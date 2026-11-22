@@ -8,6 +8,7 @@ import { getSettings } from "@/lib/queries";
 import { SITE } from "@/lib/site";
 import { isVideoUrl } from "@/lib/utils";
 import { ItineraryView, type ItineraryPlace, type ViewPlan } from "@/components/itinerary/ItineraryView";
+import type { CostPreset } from "@/components/itinerary/ItineraryCost";
 import { getT, tLong } from "@/lib/i18n/server";
 import { renderMarkdown } from "@/lib/markdown";
 import { i18nMeta } from "@/lib/i18n/meta";
@@ -26,9 +27,32 @@ export async function generateMetadata(): Promise<Metadata> {
   return i18nMeta({ ...META, image: await placeShareImage("CHECKIN") });
 }
 
-export default async function ItineraryPage({ searchParams }: { searchParams: Promise<{ ngay?: string }> }) {
+type SP = { ngay?: string; phong?: string; sophong?: string; khach?: string; xe?: string; ve?: string; giam?: string };
+
+/** Số nguyên ≥ 0 từ query (kẹp trần); không hợp lệ ⇒ null. */
+const qNum = (v: string | undefined, max: number) => {
+  const n = Number(v);
+  return v != null && v !== "" && Number.isFinite(n) && n >= 0 ? Math.min(max, Math.round(n)) : null;
+};
+
+export default async function ItineraryPage({ searchParams }: { searchParams: Promise<SP> }) {
   const tr = await getT();
-  const wantDays = Number((await searchParams).ngay);
+  const sp = await searchParams;
+  const wantDays = Number(sp.ngay);
+  // Link "Tham khảo lịch trình & chi phí" từ trang đặt homestay / combo: tiền phòng (+ vé xe) đang chọn.
+  const roomTotal = qNum(sp.phong, 500_000_000);
+  const presetTransport = sp.xe === "cabin" || sp.xe === "limo" ? sp.xe : null;
+  const preset: CostPreset | null =
+    roomTotal && roomTotal > 0
+      ? {
+          roomTotal,
+          rooms: Math.max(1, qNum(sp.sophong, 50) ?? 1),
+          pax: Math.max(1, Math.min(40, qNum(sp.khach, 40) ?? 2)),
+          busTotal: presetTransport ? (qNum(sp.ve, 500_000_000) ?? 0) : null,
+          discount: presetTransport ? (qNum(sp.giam, 50_000_000) ?? 0) : 0,
+          transport: presetTransport,
+        }
+      : null;
   const rows = await prisma.place.findMany({
     where: { published: true },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
@@ -114,13 +138,16 @@ export default async function ItineraryPage({ searchParams }: { searchParams: Pr
         .filter((d) => d.stops.length),
     }));
 
-  // ?ngay=N (từ trang đặt combo/phòng): mở sẵn lịch trình có số ngày khớp, không có thì lấy cái gần nhất.
+  // ?ngay=N (từ trang đặt combo/phòng): mở sẵn lịch trình có số đêm khớp (N − 1), không có thì lấy cái gần nhất;
+  // đặt combo ⇒ ưu tiên đúng cách đi (cabin / limousine) của vé đang chọn.
+  const wantNights = wantDays - 1;
+  const pool = preset?.transport && plans.some((p) => p.transport === preset.transport) ? plans.filter((p) => p.transport === preset.transport) : plans;
   const initialPlan =
-    Number.isFinite(wantDays) && wantDays >= 1 && plans.length
-      ? [...plans].sort((a, b) => Math.abs(a.days.length - wantDays) - Math.abs(b.days.length - wantDays))[0].id
+    Number.isFinite(wantDays) && wantDays >= 1 && pool.length
+      ? [...pool].sort((a, b) => Math.abs(a.nights - wantNights) - Math.abs(b.nights - wantNights))[0].id
       : undefined;
 
   const settings = await getSettings();
-  const zalo = "https://zalo.me/" + (settings.contactZalo || SITE.defaultZalo).replace(/D/g, "");
-  return <ItineraryView plans={plans} places={places} cost={config.cost} zalo={zalo} prep={config.prep} initialPlan={initialPlan} />;
+  const zalo = "https://zalo.me/" + (settings.contactZalo || SITE.defaultZalo).replace(/\D/g, "");
+  return <ItineraryView plans={plans} places={places} cost={config.cost} zalo={zalo} prep={config.prep} initialPlan={initialPlan} preset={preset} />;
 }

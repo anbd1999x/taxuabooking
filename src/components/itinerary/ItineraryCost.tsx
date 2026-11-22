@@ -4,7 +4,7 @@ import Link from "@/components/Link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/components/i18n/I18nProvider";
 import { cn } from "@/lib/utils";
-import { hLabel, planCost, costMult, type CostCat, type CostUnit, type Incl, type ItCost, type ItSub, type StopKind, type Transport } from "@/lib/itinerary";
+import { hLabel, planCost, costMult, type CostOverride, type CostCat, type CostUnit, type Incl, type ItCost, type ItSub, type StopKind, type Transport } from "@/lib/itinerary";
 
 /**
  * Lịch trình & chi phí (theo claude.ai/design `Lich trinh Chi phi Ta Xua.dc.html`):
@@ -36,6 +36,19 @@ export interface CostPlan {
   days: { label: string; title: string; stops: CostStop[] }[];
 }
 
+/**
+ * Lựa chọn khách đang đặt (link "Tham khảo lịch trình & chi phí" từ trang homestay / combo):
+ * tiền phòng đúng phòng đang chọn; transport = cách đi của vé combo (null = chỉ đặt phòng ⇒ tự túc xe).
+ */
+export interface CostPreset {
+  roomTotal: number;
+  rooms: number;
+  pax: number;
+  busTotal: number | null;
+  discount: number;
+  transport: Transport | null;
+}
+
 const G = "oklch(0.29 0.055 160)";
 const O = "oklch(0.68 0.18 45)";
 const DC = ["oklch(0.45 0.08 265)", "oklch(0.62 0.16 50)", "oklch(0.5 0.12 155)", "oklch(0.55 0.13 250)"];
@@ -51,10 +64,23 @@ const M = (n: number) => Math.round(n).toLocaleString("vi-VN") + "đ";
 const K = (n: number) => (n >= 1e6 ? (n / 1e6).toFixed(2).replace(/\.?0+$/, "").replace(".", ",") + "tr" : Math.round(n / 1000) + "k");
 
 export function ItineraryCost({
-  plans, cost, planId, onPlan, zalo, prep,
-}: { plans: CostPlan[]; cost: ItCost; planId: string; onPlan: (id: string) => void; zalo: string; prep: string[] }) {
+  plans, cost, planId, onPlan, zalo, prep, preset = null,
+}: { plans: CostPlan[]; cost: ItCost; planId: string; onPlan: (id: string) => void; zalo: string; prep: string[]; preset?: CostPreset | null }) {
   const tr = useT();
-  const [pax, setPax] = useState(2);
+  const [pax, setPax] = useState(preset?.pax ?? 2);
+  const [usePreset, setUsePreset] = useState(!!preset);
+  const pre = usePreset ? preset : null;
+  /** Tiền cố định theo lựa chọn đang đặt, cho TỪNG lịch trình: cùng cách đi với vé đang chọn ⇒ đúng tiền vé + giảm combo;
+   *  cách đi khác ⇒ vé theo bảng giá chung; chỉ đặt phòng ⇒ không tính xe. */
+  const ovFor = (t: Transport): CostOverride | null =>
+    pre
+      ? {
+          roomTotal: pre.roomTotal,
+          rooms: pre.rooms,
+          busTotal: pre.transport == null ? null : t === pre.transport ? pre.busTotal : undefined,
+          discount: pre.transport != null && t === pre.transport ? pre.discount : 0,
+        }
+      : null;
   const [weekend, setWeekend] = useState(true);
   const [cabinPrice, setCabinPrice] = useState(cost.cabinTiers[0]?.price ?? 0);
   const [skips, setSkips] = useState<Record<string, Record<string, boolean>>>({});
@@ -94,7 +120,7 @@ export function ItineraryCost({
   }, [sheet]);
 
   if (!plan) return null;
-  const opts = { pax, weekend, cabinPrice, skip };
+  const opts = { pax, weekend, cabinPrice, skip, override: ovFor(plan.transport) };
   const R = planCost(plan, cost, opts);
   const cards = plans.filter((p) => p.name === plan.name);
   const nightsTxt = (p: CostPlan) => (p.nights ? tr("Ở {0} đêm", [p.nights]) : tr("Trong ngày"));
@@ -105,8 +131,8 @@ export function ItineraryCost({
     const same = plans.find((p) => p.name === name && p.transport === plan.transport) ?? plans.find((p) => p.name === name);
     if (same) onPlan(same.id);
   };
-  const sumTitle = `${tr(plan.name)} · ${trName(plan.transport)} · ${tr("{0} người", [pax])} · ${weekend ? tr("cuối tuần") : tr("trong tuần")}`;
-  const cats = CATS.map(([k, name, c]) => ({ k, name: tr(name), c, v: R.cat[k], pct: Math.round((R.cat[k] / Math.max(1, R.total)) * 100) }));
+  const sumTitle = `${tr(plan.name)} · ${R.noBus ? tr("tự túc xe") : trName(plan.transport)} · ${tr("{0} người", [pax])} · ${R.fixed ? tr("theo phòng bạn chọn") : weekend ? tr("cuối tuần") : tr("trong tuần")}`;
+  const cats = CATS.map(([k, name, c]) => ({ k, name: k === "combo" && R.noBus ? tr("Phòng + ăn sáng") : tr(name), c, v: R.cat[k], pct: Math.round((R.cat[k] / Math.max(1, R.total)) * 100) }));
   const unitWord = (u: CostUnit) => (u === "bike" ? tr("xe") : u === "pp" ? tr("người") : tr("đoàn"));
   const timeTxt = (s: CostStop) => (s.end ? `${hLabel(s.time)} – ${hLabel(s.end)}` : hLabel(s.time));
   const comboHref = "/combo";
@@ -147,6 +173,24 @@ export function ItineraryCost({
             })}
           </div>
           <div className="flex w-full flex-wrap items-center gap-2.5 sm:w-auto">
+            {pre ? (
+              <div className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 rounded-xl bg-[oklch(0.95_0.04_155)] px-3 py-2 text-[13px] sm:w-auto">
+                <span className="font-extrabold text-[oklch(0.33_0.08_158)]">{tr("Theo lựa chọn của bạn")}</span>
+                <span className="font-semibold text-[oklch(0.38_0.04_160)]">
+                  {tr("{0} phòng · {1}", [pre.rooms, M(pre.roomTotal)])}
+                  {pre.transport ? ` · ${tr("vé xe {0}", [M(pre.busTotal ?? 0)])}` : ` · ${tr("tự túc xe")}`}
+                </span>
+                <button type="button" onClick={() => setUsePreset(false)} className="font-bold text-[oklch(0.45_0.1_160)] underline hover:text-sunset-500">
+                  {tr("Xem giá chung")}
+                </button>
+              </div>
+            ) : (
+            <>
+            {preset && (
+              <button type="button" onClick={() => setUsePreset(true)} className="w-full rounded-xl bg-[oklch(0.95_0.04_155)] px-3 py-2 text-left text-[13px] font-bold text-[oklch(0.33_0.08_158)] sm:w-auto">
+                {tr("↩ Tính theo phòng bạn đang chọn")}
+              </button>
+            )}
             {/* Điện thoại: 2 nút chia đều cả hàng, chữ 2 dòng (trước đây 1 dòng nowrap ⇒ tràn, mất nút "cuối tuần"). */}
             <div className="grid w-full grid-cols-2 gap-[3px] rounded-xl bg-[oklch(0.95_0.008_160)] p-[3px] sm:inline-flex sm:w-auto">
               {([[false, tr("Trong tuần"), cost.roomWd], [true, tr("Cuối tuần"), cost.roomWe]] as const).map(([we, name, price]) => (
@@ -165,6 +209,8 @@ export function ItineraryCost({
                 </button>
               ))}
             </div>
+            </>
+            )}
             <div className="flex items-center gap-2 rounded-full bg-[oklch(0.95_0.008_160)] py-1 pl-3 pr-1">
               <span className="whitespace-nowrap text-[13px] font-extrabold">{tr("Số người")}</span>
               <button type="button" aria-label={tr("Bớt người")} onClick={() => setPax((n) => Math.max(1, n - 1))} className="flex h-8 w-8 items-center justify-center rounded-full bg-white font-extrabold">−</button>
@@ -177,7 +223,7 @@ export function ItineraryCost({
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,300px),1fr))] gap-2.5">
           {cards.map((p) => {
             const on = p.id === plan.id;
-            const RR = planCost(p, cost, { ...opts, skip: {} });
+            const RR = planCost(p, cost, { ...opts, skip: {}, override: ovFor(p.transport) });
             const t = cost.transports[p.transport];
             return (
               <button
@@ -211,19 +257,22 @@ export function ItineraryCost({
                 )}
                 {/* Tách rõ mỗi người gồm những gì — tránh hiểu nhầm con số trên là giá xe. */}
                 <div className="flex w-full flex-wrap gap-x-3 gap-y-1 border-t border-[oklch(0.92_0.01_160)] pt-2 text-[13px] font-bold text-[oklch(0.38_0.06_158)]">
-                  <span>{p.transport === "cabin" ? tr("Xe cabin {0}", [M(RR.trPrice)]) : tr("Limousine {0}", [M(RR.trPrice)])}</span>
+                  <span>{RR.noBus ? tr("Tự túc xe") : p.transport === "cabin" ? tr("Xe cabin {0}", [M(RR.trPrice)]) : tr("Limousine {0}", [M(RR.trPrice)])}</span>
                   <span>+ {tr("Phòng {0}", [M(RR.phong / pax)])}</span>
+                  {RR.discount > 0 && <span>− {tr("Giảm combo {0}", [M(RR.discount / pax)])}</span>}
                   <span>+ {tr("Tự túc {0}", [M((RR.cat.xm + RR.cat.an + RR.cat.ve) / pax)])}</span>
                 </div>
                 <div className="-mt-1.5 text-[11px] font-semibold text-[oklch(0.5_0.02_160)]">
-                  {tr("Xe khứ hồi / người · phòng {0}/đêm × {1} phòng × {2} đêm, chia {3} người", [K(RR.room), RR.rooms, p.nights, pax])}
+                  {RR.fixed
+                    ? tr("Phòng đúng theo lựa chọn của bạn ({0} phòng), chia {1} người", [RR.rooms, pax])
+                    : tr("Xe khứ hồi / người · phòng {0}/đêm × {1} phòng × {2} đêm, chia {3} người", [K(RR.room), RR.rooms, p.nights, pax])}
                 </div>
               </button>
             );
           })}
         </div>
 
-        {plan.transport === "cabin" && cost.cabinTiers.length > 1 && (
+        {plan.transport === "cabin" && cost.cabinTiers.length > 1 && !R.fixedBus && !R.noBus && (
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[13px] font-extrabold text-[oklch(0.45_0.02_160)]">{tr("Hạng cabin")}</span>
             {cost.cabinTiers.map((t) => {
@@ -250,12 +299,18 @@ export function ItineraryCost({
           {plan.sub && <p className="px-1 text-sm text-[oklch(0.45_0.02_160)]">{tr(plan.sub)}</p>}
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] px-[18px] py-3.5 text-white" style={{ background: G }}>
             <div>
-              <div className="text-xs font-bold opacity-80">{tr("TRONG COMBO · đặt trên Tà Xùa Booking")}</div>
+              <div className="text-xs font-bold opacity-80">{R.noBus ? tr("ĐẶT PHÒNG HOMESTAY · tự túc xe") : tr("TRONG COMBO · đặt trên Tà Xùa Booking")}</div>
               <div className="text-base font-extrabold">
-                {tr("{0} khứ hồi + {1} phòng × {2} đêm + ăn sáng", [cap(trName(plan.transport)), R.rooms, plan.nights])}
+                {R.noBus
+                  ? tr("{0} phòng × {1} đêm + ăn sáng", [R.rooms, plan.nights])
+                  : tr("{0} khứ hồi + {1} phòng × {2} đêm + ăn sáng", [cap(trName(plan.transport)), R.rooms, plan.nights])}
               </div>
               <div className="mt-0.5 text-xs opacity-85">
-                {tr("Xe {0} × {1} người · phòng {2} × {3} phòng × {4} đêm ({5})", [K(R.trPrice), pax, K(R.room), R.rooms, plan.nights, weekend ? tr("cuối tuần") : tr("trong tuần")])}
+                {R.noBus
+                  ? tr("Tiền phòng đúng theo phòng bạn đang chọn: {0} · không tính tiền xe", [M(R.phong)])
+                  : R.fixed
+                    ? `${tr("Vé xe {0} · phòng {1} (theo lựa chọn của bạn)", [M(R.xe), M(R.phong)])}${R.discount ? tr(" · giảm combo −{0}", [M(R.discount)]) : ""}`
+                    : tr("Xe {0} × {1} người · phòng {2} × {3} phòng × {4} đêm ({5})", [K(R.trPrice), pax, K(R.room), R.rooms, plan.nights, weekend ? tr("cuối tuần") : tr("trong tuần")])}
               </div>
             </div>
             {/* Giá mỗi người lên trước (chữ to), tổng cả đoàn bên dưới (chữ nhỏ). */}

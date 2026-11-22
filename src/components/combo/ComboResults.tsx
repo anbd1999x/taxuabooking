@@ -964,7 +964,7 @@ function ComboPlanCard({
                 <button type="button" onClick={book} disabled={submitting} className="rounded-full bg-sunset-500 py-3.5 text-center text-sm font-bold text-white hover:bg-sunset-600 disabled:opacity-60">
                   {submitting ? tr("Đang gửi...") : tr("Gửi yêu cầu đặt combo")}
                 </button>
-                <ItineraryLink nights={nights} />
+                <ItineraryLink nights={nights} cost={{ roomTotal: plan.roomCost, rooms: plan.roomIds.length, pax: people, bus: bus ? { transport: "cabin", total: cabinCost } : null, discount: plan.noDiscount ? 0 : comboDiscount * people }} />
                 <CommitmentLink className="flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-forest-700 transition hover:text-forest-900" />
                 <p className="text-center text-xs leading-relaxed text-gray-500">{tr("Giá tham khảo · chủ dịch vụ gọi xác nhận, không thanh toán online.")}</p>
               </div>

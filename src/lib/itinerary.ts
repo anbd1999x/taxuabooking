@@ -342,6 +342,15 @@ export interface CostOpts {
   weekend: boolean;
   cabinPrice: number; // giá hạng cabin đang chọn
   skip: Record<string, boolean>; // khoá `${di}-${si}` hoặc `${di}-${si}-${xi}` = khách đã bỏ mục
+  /** Theo lựa chọn khách đang đặt (link từ trang homestay / combo): tiền CỐ ĐỊNH, không tính theo bảng giá chung. */
+  override?: CostOverride | null;
+}
+export interface CostOverride {
+  roomTotal: number; // tổng tiền phòng cả kỳ của các phòng đang chọn (gồm phụ thu ở ghép)
+  rooms: number; // số phòng đang chọn
+  /** tổng tiền vé xe cả đoàn; null = chỉ đặt phòng (tự túc xe); undefined = theo bảng giá chung (cách đi khác vé đang chọn) */
+  busTotal?: number | null;
+  discount: number; // giảm combo cả đoàn
 }
 export interface CostInput {
   transport: Transport;
@@ -354,13 +363,18 @@ export function costMult(unit: CostUnit, pax: number, perBike: number): number {
 /** Tổng chi phí của một lịch trình theo nhóm (combo / xe máy / ăn uống / vé). */
 export function planCost(plan: CostInput, cost: ItCost, o: CostOpts) {
   const pax = Math.max(1, o.pax);
-  const rooms = Math.ceil(pax / Math.max(1, cost.perRoom));
+  const ov = o.override ?? null;
+  const rooms = ov ? Math.max(1, ov.rooms) : Math.ceil(pax / Math.max(1, cost.perRoom));
   const bikes = Math.ceil(pax / Math.max(1, cost.perBike));
-  const trPrice = plan.transport === "cabin" ? o.cabinPrice : cost.limoPrice;
-  const room = o.weekend ? cost.roomWe : cost.roomWd;
-  const xe = trPrice * pax;
-  const phong = room * plan.nights * rooms;
-  const cat = { combo: xe + phong, xm: 0, an: 0, ve: 0 };
+  const noBus = !!ov && ov.busTotal === null;
+  const fixedBus = !!ov && ov.busTotal !== undefined;
+  const std = plan.transport === "cabin" ? o.cabinPrice : cost.limoPrice;
+  const xe = fixedBus ? (ov!.busTotal ?? 0) : std * pax;
+  const trPrice = fixedBus ? Math.round(xe / pax) : std; // vé / người
+  const phong = ov ? ov.roomTotal : (o.weekend ? cost.roomWe : cost.roomWd) * plan.nights * rooms;
+  const room = ov ? Math.round(phong / Math.max(1, rooms * Math.max(1, plan.nights))) : o.weekend ? cost.roomWe : cost.roomWd; // phòng / đêm
+  const discount = ov ? Math.min(ov.discount, xe + phong) : 0;
+  const cat = { combo: xe + phong - discount, xm: 0, an: 0, ve: 0 };
   let skipped = 0;
   let nSkip = 0;
   plan.days.forEach((d, di) =>
@@ -375,7 +389,7 @@ export function planCost(plan: CostInput, cost: ItCost, o: CostOpts) {
       }
     }),
   );
-  return { cat, total: cat.combo + cat.xm + cat.an + cat.ve, skipped, nSkip, xe, phong, trPrice, room, rooms, bikes };
+  return { cat, total: cat.combo + cat.xm + cat.an + cat.ve, skipped, nSkip, xe, phong, trPrice, room, rooms, bikes, noBus, fixedBus, discount, fixed: !!ov };
 }
 
 /** Giờ hiển thị kiểu "06h30" / "07h". */

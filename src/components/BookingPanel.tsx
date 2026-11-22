@@ -652,7 +652,7 @@ export function BookingPanel({
       >
         {submitting ? tr("Đang gửi...") : tr("Gửi yêu cầu đặt")}
       </button>
-      {kind === "stay" && avail && <ItineraryLink nights={avail.nights} className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-forest-700 transition hover:text-forest-900" />}
+      {kind === "stay" && avail && <ItineraryLink nights={avail.nights} cost={(() => { const so = avail.stayOptions?.find((o) => o.id === selectedId); return so?.pricePerUnit ? { roomTotal: so.pricePerUnit, rooms: 1, pax: so.capacity } : undefined; })()} className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-forest-700 transition hover:text-forest-900" />}
       <CommitmentLink />
       {isTransport && !legOk && (
         <p className="mt-2 text-center text-xs text-gray-500">{tQuote?.error ? tr(tQuote.error) : tr("Vui lòng chọn điểm đón và điểm đến.")}</p>

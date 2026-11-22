@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { MediaSlider, type MediaItem } from "./MediaSlider";
 import { ItineraryHero, type HeroPlan } from "./ItineraryHero";
 import type { ItCost } from "@/lib/itinerary";
-import { ItineraryCost, type CostPlan } from "./ItineraryCost";
+import { ItineraryCost, type CostPlan, type CostPreset } from "./ItineraryCost";
 import { cn } from "@/lib/utils";
 import { useT } from "@/components/i18n/I18nProvider";
 
@@ -35,7 +35,7 @@ const TABS: [Tab, string][] = [
 ];
 const EMPTY_PLAN: ViewPlan = { id: "", name: "", sub: "", transport: "cabin", nights: 0, days: [] };
 
-export function ItineraryView({ plans, places, cost, zalo, prep, initialPlan }: { plans: ViewPlan[]; places: ItineraryPlace[]; cost: ItCost; zalo: string; prep: string[]; initialPlan?: string }) {
+export function ItineraryView({ plans, places, cost, zalo, prep, initialPlan, preset }: { plans: ViewPlan[]; places: ItineraryPlace[]; cost: ItCost; zalo: string; prep: string[]; initialPlan?: string; preset?: CostPreset | null }) {
   const tr = useT();
   const [planKey, setPlanKey] = useState((initialPlan && plans.some((p) => p.id === initialPlan) ? initialPlan : plans[0]?.id) ?? "");
   const [tab, setTab] = useState<Tab>("checkin");
@@ -85,7 +85,7 @@ export function ItineraryView({ plans, places, cost, zalo, prep, initialPlan }: 
       <style>{`@keyframes lt-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}.lt-rise{animation:lt-rise .4s ease both}.lt-stop:hover{border-color:var(--lt-c)!important}@keyframes lt-blink{from{opacity:.35}to{opacity:1}}.lt-blink{animation:lt-blink .8s ease infinite alternate}@media (prefers-reduced-motion:reduce){.lt-rise,.lt-blink{animation:none}}@media (max-width:639px){.lt-compact [data-lt-card]{left:8px!important;top:8px!important;padding:5px 9px!important;border-radius:12px!important;gap:1px!important;max-width:calc(100% - 118px)!important}.lt-compact [data-lt-name]{font-size:13px!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lt-compact [data-lt-type]{display:none!important}.lt-compact [data-lt-ctrl]{right:8px!important;top:8px!important;gap:4px!important}.lt-compact [data-lt-ctrl] button{width:30px!important;height:30px!important;font-size:12px!important}}`}</style>
       <ItineraryHero plans={heroPlans} activeId={activeHero} onPick={jumpPlan} onTab={jumpTab} />
       <div className="container-page flex flex-col gap-7 pb-14 pt-8">
-        {plans.length > 0 && <ItineraryCost plans={plans} cost={cost} planId={plan.id} onPlan={setPlanKey} zalo={zalo} prep={prep} />}
+        {plans.length > 0 && <ItineraryCost plans={plans} cost={cost} planId={plan.id} onPlan={setPlanKey} zalo={zalo} prep={prep} preset={preset ?? null} />}
 
         {/* ĐIỂM NÊN GHÉ */}
         <section id="lt-places" className="flex scroll-mt-20 flex-col gap-4">

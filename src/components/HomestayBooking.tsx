@@ -1105,7 +1105,7 @@ export function HomestayBooking({
                 >
                   {submitting ? tr("Đang gửi...") : tr("Gửi yêu cầu đặt phòng")}
                 </button>
-                <ItineraryLink nights={nN} />
+                <ItineraryLink nights={nN} cost={hasSel && total ? { roomTotal: total, rooms: sels.length, pax: adults + childAges.length } : undefined} />
                 <CommitmentLink className="flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-forest-700 transition hover:text-forest-900" />
                 <p className="text-center text-xs leading-relaxed text-gray-500">
                   {tr("Giá tham khảo. Chủ nhà gọi xác nhận, không thanh toán online.")}
