@@ -146,17 +146,22 @@ export function ItineraryCost({
               );
             })}
           </div>
-          <div className="flex flex-wrap items-center gap-2.5">
-            <div className="inline-flex gap-[3px] rounded-xl bg-[oklch(0.95_0.008_160)] p-[3px]">
-              {([[false, tr("Trong tuần · phòng từ {0}", [K(cost.roomWd)])], [true, tr("Cuối tuần · phòng từ {0}", [K(cost.roomWe)])]] as const).map(([we, name]) => (
+          <div className="flex w-full flex-wrap items-center gap-2.5 sm:w-auto">
+            {/* Điện thoại: 2 nút chia đều cả hàng, chữ 2 dòng (trước đây 1 dòng nowrap ⇒ tràn, mất nút "cuối tuần"). */}
+            <div className="grid w-full grid-cols-2 gap-[3px] rounded-xl bg-[oklch(0.95_0.008_160)] p-[3px] sm:inline-flex sm:w-auto">
+              {([[false, tr("Trong tuần"), cost.roomWd], [true, tr("Cuối tuần"), cost.roomWe]] as const).map(([we, name, price]) => (
                 <button
                   key={String(we)}
                   type="button"
                   onClick={() => setWeekend(we)}
-                  className="whitespace-nowrap rounded-[9px] px-3 py-2 text-[13px] font-extrabold"
+                  className="flex min-w-0 flex-col items-center rounded-[9px] px-2 py-1.5 text-center sm:flex-row sm:gap-1 sm:whitespace-nowrap sm:px-3 sm:py-2"
                   style={{ background: weekend === we ? "white" : "transparent", color: weekend === we ? G : "oklch(0.45 0.02 160)", boxShadow: weekend === we ? "0 1px 4px oklch(0.2 0.03 160 / .15)" : "none" }}
                 >
-                  {name}
+                  <span className="text-[13px] font-extrabold">{name}</span>
+                  <span className="text-[11px] font-semibold opacity-80 sm:text-[13px] sm:font-extrabold sm:opacity-100">
+                    <span className="hidden sm:inline">· </span>
+                    {tr("phòng từ {0}", [K(price)])}
+                  </span>
                 </button>
               ))}
             </div>
