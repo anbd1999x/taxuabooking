@@ -62,6 +62,8 @@ export async function GET(req: Request) {
       providerId: String(info.id),
       email: info.email ?? null,
       name: info.name || info.email || "Khách",
+      // URL ảnh cố định theo id (Graph tự chuyển hướng tới ảnh hiện tại — không hết hạn như link ảnh ký sẵn).
+      avatar: `https://graph.facebook.com/${encodeURIComponent(String(info.id))}/picture?type=normal`,
     });
     return NextResponse.redirect(new URL(safeNext(next), origin));
   } catch {

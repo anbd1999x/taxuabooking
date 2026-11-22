@@ -61,7 +61,7 @@ export async function GET(req: Request) {
       headers: { Authorization: `Bearer ${tokens.access_token}` },
     });
     if (!uRes.ok) return fail("userinfo");
-    const info = (await uRes.json()) as { sub?: string; email?: string; name?: string; email_verified?: boolean };
+    const info = (await uRes.json()) as { sub?: string; email?: string; name?: string; email_verified?: boolean; picture?: string };
     if (!info.sub) return fail("userinfo");
 
     if (partner) {
@@ -77,6 +77,7 @@ export async function GET(req: Request) {
       providerId: String(info.sub),
       email: info.email ?? null,
       name: info.name || info.email || "Khách",
+      avatar: info.picture ?? null,
     });
     return NextResponse.redirect(new URL(safeNext(next), origin));
   } catch {

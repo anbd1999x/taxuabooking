@@ -33,6 +33,8 @@ function mins(d: Date, now: number): number {
 export default async function GopYPage() {
   const t = await getT();
   const [settings, customer] = await Promise.all([getSettings(), getCustomer()]);
+  // Ảnh của chính khách đang đăng nhập — gắn cho bình luận vừa gửi (hiện ngay, trước khi trang tải lại).
+  const myAvatar = customer ? ((await prisma.customerUser.findUnique({ where: { id: customer.id }, select: { avatar: true } }))?.avatar ?? null) : null;
   const now = Date.now();
 
   const rows = await prisma.feedback.findMany({
@@ -41,9 +43,10 @@ export default async function GopYPage() {
     take: 200,
     include: {
       _count: { select: { votes: true } },
+      customer: { select: { avatar: true } },
       comments: {
         orderBy: { createdAt: "asc" },
-        select: { id: true, authorName: true, content: true, isAdmin: true, createdAt: true },
+        select: { id: true, authorName: true, content: true, isAdmin: true, createdAt: true, customer: { select: { avatar: true } } },
       },
     },
   });
@@ -66,6 +69,7 @@ export default async function GopYPage() {
     areas: f.areas,
     message: f.message,
     authorName: f.anon ? t("Ẩn danh") : f.authorName,
+    avatar: f.anon ? null : (f.customer?.avatar ?? null),
     mine: Boolean(customer && f.customerId === customer.id),
     mins: mins(f.createdAt, now),
     mood: f.mood,
@@ -76,6 +80,7 @@ export default async function GopYPage() {
     comments: f.comments.map((c) => ({
       id: c.id,
       authorName: c.authorName,
+      avatar: c.isAdmin ? null : (c.customer?.avatar ?? null),
       content: c.content,
       isAdmin: c.isAdmin,
       mins: mins(c.createdAt, now),
@@ -173,7 +178,7 @@ export default async function GopYPage() {
 
           {/* Bảng công khai (full width) */}
           <div className="lg:col-span-2">
-            <FeedbackWall items={items} loggedIn={Boolean(customer)} />
+            <FeedbackWall items={items} loggedIn={Boolean(customer)} myAvatar={myAvatar} />
           </div>
 
           {/* Facebook */}

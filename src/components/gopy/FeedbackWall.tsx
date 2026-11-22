@@ -15,6 +15,7 @@ import { useT } from "@/components/i18n/I18nProvider";
 export interface WallComment {
   id: string;
   authorName: string;
+  avatar: string | null; // ảnh Google / Facebook của người viết (null = hiện chữ cái đầu)
   content: string;
   isAdmin: boolean;
   mins: number;
@@ -27,6 +28,7 @@ export interface WallItem {
   areas: string[];
   message: string;
   authorName: string; // đã xử lý ẩn danh ở server
+  avatar: string | null; // ẩn danh ⇒ null
   mine: boolean;
   mins: number;
   mood: number | null;
@@ -50,12 +52,35 @@ function Badge({ bg, fg, children }: { bg: string; fg: string; children: React.R
   );
 }
 
+/** Ảnh đại diện tròn: ảnh Google / Facebook nếu có (lỗi tải ⇒ chữ cái đầu), không thì vòng tròn chữ cái đầu tên. */
+function Avatar({ name, url, size = 28, admin = false }: { name: string; url: string | null; size?: number; admin?: boolean }) {
+  const [broken, setBroken] = useState(false);
+  const letter = (name.trim()[0] ?? "?").toUpperCase();
+  const box = { width: size, height: size, fontSize: Math.round(size * 0.42) };
+  if (url && !broken)
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={url} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => setBroken(true)} style={box} className="flex-none rounded-full object-cover ring-1 ring-black/5" />
+    );
+  return (
+    <span
+      aria-hidden
+      style={box}
+      className={`flex flex-none items-center justify-center rounded-full font-extrabold ${admin ? "bg-forest-700 text-white" : "bg-[oklch(0.93_0.03_155)] text-forest-800"}`}
+    >
+      {admin ? "TX" : letter}
+    </span>
+  );
+}
+
 export function FeedbackWall({
   items: initial,
   loggedIn,
+  myAvatar = null,
 }: {
   items: WallItem[];
   loggedIn: boolean;
+  myAvatar?: string | null;
 }) {
   const tr = useT();
   const [items, setItems] = useState<WallItem[]>(initial);
@@ -108,7 +133,7 @@ export function FeedbackWall({
   function onComment(f: WallItem) {
     const text = (drafts[f.id] ?? "").trim();
     if (!loggedIn || !text) return;
-    const optimistic: WallComment = { id: "tmp-" + Date.now(), authorName: tr("Bạn"), content: text, isAdmin: false, mins: 0 };
+    const optimistic: WallComment = { id: "tmp-" + Date.now(), authorName: tr("Bạn"), avatar: myAvatar, content: text, isAdmin: false, mins: 0 };
     setItems((prev) => prev.map((x) => (x.id === f.id ? { ...x, comments: [...x.comments, optimistic] } : x)));
     setDrafts((d) => ({ ...d, [f.id]: "" }));
     startTransition(async () => {
@@ -226,9 +251,12 @@ export function FeedbackWall({
                   <p className="text-[15px] leading-relaxed text-gray-800">{tr(f.message)}</p>
 
                   <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-xs text-gray-500">
-                    <span>
-                      <b className="text-gray-700">{tr(f.authorName)}</b>
-                      {f.mine && <span className="text-gray-400">{" "}{tr("(bạn)")}</span>} · {agoText(f.mins, tr)}
+                    <span className="flex items-center gap-1.5">
+                      <Avatar name={f.authorName} url={f.avatar} size={22} />
+                      <span>
+                        <b className="text-gray-700">{tr(f.authorName)}</b>
+                        {f.mine && <span className="text-gray-400">{" "}{tr("(bạn)")}</span>} · {agoText(f.mins, tr)}
+                      </span>
                     </span>
                     {f.mood ? <span>{tr("Chấm web {0}/5", [f.mood])}</span> : null}
                     <button
@@ -249,12 +277,15 @@ export function FeedbackWall({
                   {open && (
                     <div className="flex flex-col gap-2 border-l-2 border-gray-100 pl-3">
                       {f.comments.map((c) => (
-                        <div key={c.id} className="text-[13px] leading-snug">
-                          <b className={c.isAdmin ? "text-forest-700" : "text-gray-700"}>
-                            {c.isAdmin ? tr("Tà Xùa Booking") : tr(c.authorName)}
-                          </b>
-                          <span className="text-gray-400"> · {agoText(c.mins, tr)}</span>
-                          <div className="text-gray-600">{tr(c.content)}</div>
+                        <div key={c.id} className="flex gap-2 text-[13px] leading-snug">
+                          <Avatar name={c.authorName} url={c.avatar} size={26} admin={c.isAdmin} />
+                          <div className="min-w-0">
+                            <b className={c.isAdmin ? "text-forest-700" : "text-gray-700"}>
+                              {c.isAdmin ? tr("Tà Xùa Booking") : tr(c.authorName)}
+                            </b>
+                            <span className="text-gray-400"> · {agoText(c.mins, tr)}</span>
+                            <div className="text-gray-600">{tr(c.content)}</div>
+                          </div>
                         </div>
                       ))}
                       {loggedIn ? (

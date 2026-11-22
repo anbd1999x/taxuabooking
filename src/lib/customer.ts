@@ -117,7 +117,10 @@ export async function loginWithOAuth(input: {
   providerId: string;
   email: string | null;
   name: string;
+  /** ảnh đại diện từ Google / Facebook (chỉ nhận https) — hiện ở trang Góp ý */
+  avatar?: string | null;
 }): Promise<void> {
+  const avatar = input.avatar && /^https:\/\//.test(input.avatar) ? input.avatar.slice(0, 500) : null;
   let user = await prisma.customerUser.findFirst({
     where: { provider: input.provider, providerId: input.providerId },
   });
@@ -126,14 +129,17 @@ export async function loginWithOAuth(input: {
     if (byEmail) {
       user = await prisma.customerUser.update({
         where: { id: byEmail.id },
-        data: { provider: input.provider, providerId: input.providerId, name: byEmail.name || input.name },
+        data: { provider: input.provider, providerId: input.providerId, name: byEmail.name || input.name, ...(avatar ? { avatar } : {}) },
       });
     }
   }
   if (!user) {
     user = await prisma.customerUser.create({
-      data: { provider: input.provider, providerId: input.providerId, email: input.email, name: input.name || "Khách" },
+      data: { provider: input.provider, providerId: input.providerId, email: input.email, name: input.name || "Khách", avatar },
     });
+  } else if (avatar && user.avatar !== avatar) {
+    // Khách đổi ảnh Google / Facebook ⇒ lần đăng nhập sau cập nhật theo.
+    user = await prisma.customerUser.update({ where: { id: user.id }, data: { avatar } });
   }
   await setCookie({ id: user.id, name: user.name, phone: user.phone ?? "" });
 }

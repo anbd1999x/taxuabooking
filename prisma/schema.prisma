@@ -799,6 +799,7 @@ model CustomerUser {
   name             String
   provider         String            @default("phone") // phone | google | facebook
   providerId       String? // id từ nhà cung cấp OAuth
+  avatar           String? // ảnh đại diện từ Google / Facebook (cập nhật mỗi lần đăng nhập) — hiện ở trang Góp ý
   createdAt        DateTime          @default(now())
   reviews          Review[]
   feedbacks        Feedback[]
