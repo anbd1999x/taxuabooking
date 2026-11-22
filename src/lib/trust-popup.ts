@@ -22,7 +22,11 @@ export interface TrustPerson {
 export interface TrustPopupConfig {
   /** Hiện POPUP uy tín khi khách mới vào web. */
   enabled: boolean;
-  /** Hiện mục menu "Cam kết" + link "Xem cam kết uy tín" dưới các form đặt dịch vụ. */
+  /** Hiện mục "Cam kết" trên menu (Header › Về chúng tôi). */
+  showMenu: boolean;
+  /** Hiện link "Xem cam kết uy tín" dưới các form đặt dịch vụ. */
+  showFormLink: boolean;
+  /** = showMenu || showFormLink (suy ra) — tắt cả popup lẫn hai mục này thì trang /cam-ket ẩn luôn. */
   showLinks: boolean;
   people: TrustPerson[];
   /** Chủ sở hữu (0 hoặc 1) có SĐT dùng cho TOÀN BỘ trang web; null = chưa chọn (dùng cài đặt contactPhone cũ). */
@@ -50,6 +54,8 @@ function emptyPerson(name = "", phone = ""): TrustPerson {
 /** Cấu hình mặc định (khi chưa lưu trong DB) — khớp bản thiết kế. */
 export const DEFAULT_TRUST_POPUP: TrustPopupConfig = {
   enabled: true,
+  showMenu: true,
+  showFormLink: true,
   showLinks: true,
   sitePhoneOwner: null,
   people: [
@@ -80,10 +86,15 @@ export function parseTrustPopup(raw?: string | null): TrustPopupConfig {
     const five = Array.isArray(obj.fiveRules)
       ? obj.fiveRules.map((r) => String(r ?? "").trim()).filter(Boolean)
       : [];
+    // chưa có công tắc riêng (cấu hình cũ) ⇒ theo công tắc gộp "showLinks", cũ hơn nữa thì theo công tắc popup
+    const legacy = typeof obj.showLinks === "boolean" ? obj.showLinks : obj.enabled !== false;
+    const showMenu = typeof obj.showMenu === "boolean" ? obj.showMenu : legacy;
+    const showFormLink = typeof obj.showFormLink === "boolean" ? obj.showFormLink : legacy;
     return {
       enabled: obj.enabled !== false,
-      // chưa lưu công tắc riêng (cấu hình cũ) ⇒ đi theo công tắc popup như trước
-      showLinks: typeof obj.showLinks === "boolean" ? obj.showLinks : obj.enabled !== false,
+      showMenu,
+      showFormLink,
+      showLinks: showMenu || showFormLink,
       sitePhoneOwner: obj.sitePhoneOwner === 0 || obj.sitePhoneOwner === 1 ? obj.sitePhoneOwner : null,
       people: norm,
       fiveRules: five.length ? five : DEFAULT_FIVE_RULES,

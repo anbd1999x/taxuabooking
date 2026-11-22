@@ -60,9 +60,9 @@ export default async function SiteLayout({
       <VisitTracker />
       <TrustPopup config={trustPopup} />
       <SearchLoadingOverlay />
-      <Header customerName={customer?.name ?? null} showCommitment={trustPopup.showLinks} showTickets={hasTickets} />
+      <Header customerName={customer?.name ?? null} showCommitment={trustPopup.showMenu} showTickets={hasTickets} />
       <main className="flex-1">
-        <CommitmentEnabledProvider enabled={trustPopup.showLinks}>{children}</CommitmentEnabledProvider>
+        <CommitmentEnabledProvider enabled={trustPopup.showFormLink}>{children}</CommitmentEnabledProvider>
       </main>
       <Footer settings={settings} />
       <BackgroundMusic />

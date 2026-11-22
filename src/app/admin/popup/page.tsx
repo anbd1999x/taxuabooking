@@ -25,45 +25,40 @@ export default async function AdminPopupPage() {
   return (
     <div className="flex max-w-3xl flex-col gap-4">
       <header>
-        <h1 className="text-xl font-bold text-ink sm:text-2xl">Popup uy tín</h1>
+        <h1 className="text-xl font-bold text-ink sm:text-2xl">Cấu hình hệ thống</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Popup hiện khi khách mới vào web (mỗi phiên 1 lần — chuyển trang không hiện lại, đóng
-          trình duyệt rồi quay lại sẽ hiện lại). Cấu hình thông tin 2 chủ sở hữu dưới đây: ẩn/hiện từng người, và chọn
-          số điện thoại của một người để dùng cho toàn bộ trang web (chân trang, nút gọi, Zalo, trang liên hệ…).
+          Popup &amp; cam kết uy tín, chủ sở hữu và số điện thoại toàn web, thông tin pháp lý, giảm giá combo, lịch ngày lễ, email gửi khách.
         </p>
       </header>
 
-      <ActionForm action={saveTrustPopup} className="flex flex-col gap-5" success="Đã lưu popup uy tín.">
-        <label className="flex items-start gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
-          <input
-            type="checkbox"
-            name="enabled"
-            defaultChecked={config.enabled}
-            className="mt-0.5 h-4 w-4 accent-forest-600"
-          />
-          <span>
-            <span className="block text-sm font-semibold text-ink">Hiện popup uy tín</span>
-            <span className="mt-0.5 block text-xs text-gray-500">
-              Popup hiện khi khách mới vào web. Bỏ tick để không hiện popup nữa.
-            </span>
-          </span>
-        </label>
+      <h2 className="mt-2 text-base font-bold text-ink">Popup &amp; cam kết uy tín</h2>
+      <p className="-mt-2 text-sm text-gray-500">
+        Popup hiện khi khách mới vào web (mỗi phiên 1 lần — chuyển trang không hiện lại, đóng trình duyệt rồi quay lại sẽ hiện lại).
+        Cấu hình 2 chủ sở hữu bên dưới: ẩn/hiện từng người và chọn số điện thoại của một người dùng cho toàn bộ trang web
+        (chân trang, nút gọi, Zalo, trang liên hệ…).
+      </p>
 
-        <label className="flex items-start gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
-          <input
-            type="checkbox"
-            name="showLinks"
-            defaultChecked={config.showLinks}
-            className="mt-0.5 h-4 w-4 accent-forest-600"
-          />
-          <span>
-            <span className="block text-sm font-semibold text-ink">Hiện menu và link cam kết</span>
-            <span className="mt-0.5 block text-xs text-gray-500">
-              Mục “Cam kết” trên thanh menu và link “Xem cam kết uy tín” dưới các form đặt dịch vụ. Tắt cả hai công tắc
-              thì trang /cam-ket và trang điều khoản cũng ẩn luôn.
-            </span>
-          </span>
-        </label>
+      <ActionForm action={saveTrustPopup} className="flex flex-col gap-5" success="Đã lưu popup uy tín.">
+        <fieldset className="flex flex-col gap-1 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
+          <legend className="sr-only">Hiển thị uy tín trên web</legend>
+          <div className="mb-1 text-sm font-semibold text-ink">Hiển thị trên web <span className="text-xs font-normal text-gray-500">· tick chọn nhiều</span></div>
+          {(
+            [
+              ["enabled", config.enabled, "Hiện popup", "Popup uy tín hiện khi khách mới vào web."],
+              ["showMenu", config.showMenu, "Hiện menu uy tín", "Mục “Cam kết” trong menu “Về chúng tôi” (máy tính & điện thoại)."],
+              ["showFormLink", config.showFormLink, "Hiện “Xem cam kết uy tín” dưới form đặt", "Link nhỏ dưới các form đặt dịch vụ (homestay, cabin, combo, xe máy…)."],
+            ] as const
+          ).map(([name, on, label, hint]) => (
+            <label key={name} className="flex cursor-pointer items-start gap-3 rounded-xl px-2 py-2 hover:bg-gray-50">
+              <input type="checkbox" name={name} defaultChecked={on} className="mt-0.5 h-4 w-4 accent-forest-600" />
+              <span>
+                <span className="block text-sm font-semibold text-ink">{label}</span>
+                <span className="mt-0.5 block text-xs text-gray-500">{hint}</span>
+              </span>
+            </label>
+          ))}
+          <p className="px-2 pt-1 text-xs text-gray-500">Bỏ tick cả 3 thì trang /cam-ket và trang điều khoản cũng ẩn luôn.</p>
+        </fieldset>
 
         {[1, 2].map((i) => {
           const p = config.people[i - 1];

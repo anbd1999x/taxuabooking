@@ -101,7 +101,9 @@ export async function saveTrustPopup(_prev: FormResult, fd: FormData): Promise<F
 
   const config: TrustPopupConfig = {
     enabled: fd.get("enabled") === "on",
-    showLinks: fd.get("showLinks") === "on",
+    showMenu: fd.get("showMenu") === "on",
+    showFormLink: fd.get("showFormLink") === "on",
+    showLinks: fd.get("showMenu") === "on" || fd.get("showFormLink") === "on",
     sitePhoneOwner: fd.get("sitePhone") === "2" ? 1 : 0,
     people: [person(1), person(2)],
     fiveRules,
