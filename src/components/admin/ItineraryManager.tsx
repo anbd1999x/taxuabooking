@@ -86,6 +86,46 @@ export function ItineraryManager({
   }
   const editPlan = (fn: (p: ItPlan) => void) => edit((c) => fn(c.plans[curIdx]));
 
+  // ── Kéo thả: điểm dừng (trong ngày hoặc sang ngày khác) và điểm con (trong cùng điểm) ──
+  // Kéo bằng tay cầm ⠿ (không đặt draggable cả dòng — tránh kéo nhầm khi bôi chữ trong ô nhập).
+  type Drag = { kind: "stop"; di: number; si: number } | { kind: "sub"; di: number; si: number; xi: number };
+  const [drag, setDrag] = useState<Drag | null>(null);
+  const [over, setOver] = useState<{ key: string; after: boolean } | null>(null);
+  const endDrag = () => { setDrag(null); setOver(null); };
+  const startDrag = (e: React.DragEvent<HTMLElement>, d: Drag) => {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", "");
+    const row = e.currentTarget.closest("[data-drag-row]");
+    if (row instanceof HTMLElement) e.dataTransfer.setDragImage(row, 24, 20);
+    setDrag(d);
+  };
+  /** Nửa trên dòng ⇒ chèn trước, nửa dưới ⇒ chèn sau. */
+  const overRow = (e: React.DragEvent<HTMLElement>, key: string, ok: boolean) => {
+    if (!ok) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const r = e.currentTarget.getBoundingClientRect();
+    const after = e.clientY > r.top + r.height / 2;
+    if (over?.key !== key || over.after !== after) setOver({ key, after });
+  };
+  function moveStop(fd: number, fs: number, td: number, ts: number) {
+    if (fd === td && (ts === fs || ts === fs + 1)) return;
+    editPlan((pl) => {
+      const [it] = pl.days[fd].stops.splice(fs, 1);
+      pl.days[td].stops.splice(fd === td && ts > fs ? ts - 1 : ts, 0, it);
+    });
+  }
+  function moveSub(di: number, si: number, fx: number, tx: number) {
+    if (tx === fx || tx === fx + 1) return;
+    editPlan((pl) => {
+      const l = pl.days[di].stops[si].subs;
+      const [it] = l.splice(fx, 1);
+      l.splice(tx > fx ? tx - 1 : tx, 0, it);
+    });
+  }
+  const dropLine = (key: string) =>
+    over?.key === key ? (over.after ? "shadow-[inset_0_-3px_0_0_var(--color-forest-500)]" : "shadow-[inset_0_3px_0_0_var(--color-forest-500)]") : "";
+
   function save() {
     start(async () => {
       const res = await saveItinerary(cfg);
@@ -217,7 +257,12 @@ export function ItineraryManager({
             const color = DAY_COLORS[di % DAY_COLORS.length];
             const unordered = d.stops.some((s, i) => i > 0 && toMin(s.time) < toMin(d.stops[i - 1].time));
             return (
-              <div key={di} className="flex flex-col gap-2.5 rounded-[18px] border border-gray-200 bg-white px-4 py-3.5">
+              <div
+                key={di}
+                onDragOver={(e) => { if (drag?.kind === "stop") { e.preventDefault(); if (over?.key !== `day${di}`) setOver({ key: `day${di}`, after: true }); } }}
+                onDrop={(e) => { e.preventDefault(); if (drag?.kind === "stop") moveStop(drag.di, drag.si, di, d.stops.length); endDrag(); }}
+                className={`flex flex-col gap-2.5 rounded-[18px] border bg-white px-4 py-3.5 transition-colors ${over?.key === `day${di}` ? "border-forest-400 bg-forest-50/40" : "border-gray-200"}`}
+              >
                 <div className="flex flex-wrap items-center gap-2.5">
                   <input value={d.label} maxLength={20} onChange={(e) => editPlan((p) => { p.days[di].label = e.target.value; })} placeholder={`Ngày ${di + 1}`} title="Nhãn ngày (để trống = Ngày N; VD “Đêm 0” cho đêm lên xe)" className="w-[84px] rounded-full border-0 px-2.5 py-1 text-center text-xs font-extrabold text-white placeholder:text-white/80 focus:outline-none focus:ring-2 focus:ring-forest-300" style={{ background: color }} />
                   <input value={d.title} maxLength={80} onChange={(e) => editPlan((p) => { p.days[di].title = e.target.value; })} placeholder="Tên ngày, VD: Săn mây & sống lưng" className={`${INPUT} min-w-[160px] flex-1 text-[15px] font-bold`} />
@@ -256,9 +301,31 @@ export function ItineraryManager({
                     );
                     const subTotal = s.subs.reduce((a, x) => a + x.cost, 0);
                     return (
-                      <div key={si} className={`flex flex-col gap-1.5 rounded-xl p-2 ${si % 2 ? "bg-white ring-1 ring-gray-100" : "bg-gray-50"}`}>
+                      <div
+                        key={si}
+                        data-drag-row
+                        onDragOver={(e) => overRow(e, `s${di}-${si}`, drag?.kind === "stop")}
+                        onDrop={(e) => {
+                          if (drag?.kind !== "stop") return;
+                          e.preventDefault();
+                          e.stopPropagation();
+                          moveStop(drag.di, drag.si, di, over?.key === `s${di}-${si}` && over.after ? si + 1 : si);
+                          endDrag();
+                        }}
+                        className={`flex flex-col gap-1.5 rounded-xl p-2 transition-opacity ${si % 2 ? "bg-white ring-1 ring-gray-100" : "bg-gray-50"} ${drag?.kind === "stop" && drag.di === di && drag.si === si ? "opacity-40" : ""} ${dropLine(`s${di}-${si}`)}`}
+                      >
                         <div className="grid grid-cols-[24px_minmax(0,1fr)_auto] items-start gap-1.5 lg:grid-cols-[24px_auto_minmax(0,1.1fr)_minmax(0,1fr)_auto]">
-                          <span className="mt-2 flex h-6 w-6 items-center justify-center rounded-full text-xs font-extrabold text-white" style={{ background: color }}>{si + 1}</span>
+                          <span
+                            draggable
+                            onDragStart={(e) => startDrag(e, { kind: "stop", di, si })}
+                            onDragEnd={endDrag}
+                            title="Kéo để đổi vị trí (kéo được sang ngày khác)"
+                            className="group mt-2 flex h-6 w-6 cursor-grab items-center justify-center rounded-full text-xs font-extrabold text-white active:cursor-grabbing"
+                            style={{ background: color }}
+                          >
+                            <span className="group-hover:hidden">{si + 1}</span>
+                            <span className="hidden text-[13px] leading-none group-hover:inline" aria-hidden>⠿</span>
+                          </span>
                           <div className="flex items-center gap-1">
                             {timeIn(s.time, (x) => setStop((st) => { st.time = x; }), badTime, "HH:MM")}
                             <span className="text-xs text-gray-400">–</span>
@@ -346,14 +413,37 @@ export function ItineraryManager({
                         {!s.incl && s.subs.length > 0 && (
                           <div className="flex flex-col gap-1 rounded-lg bg-white p-1.5 ring-1 ring-gray-100 lg:ml-[30px]">
                             {s.subs.map((x, xi) => (
-                              <div key={xi} className="flex flex-wrap items-center gap-1.5">
-                                <span className="h-1.5 w-1.5 flex-none rounded-full" style={{ background: color }} />
+                              <div
+                                key={xi}
+                                data-drag-row
+                                onDragOver={(e) => overRow(e, `x${di}-${si}-${xi}`, drag?.kind === "sub" && drag.di === di && drag.si === si)}
+                                onDrop={(e) => {
+                                  if (drag?.kind !== "sub" || drag.di !== di || drag.si !== si) return;
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  moveSub(di, si, drag.xi, over?.key === `x${di}-${si}-${xi}` && over.after ? xi + 1 : xi);
+                                  endDrag();
+                                }}
+                                className={`flex flex-wrap items-center gap-1.5 rounded-md py-0.5 ${drag?.kind === "sub" && drag.di === di && drag.si === si && drag.xi === xi ? "opacity-40" : ""} ${dropLine(`x${di}-${si}-${xi}`)}`}
+                              >
+                                <span
+                                  draggable
+                                  onDragStart={(e) => { e.stopPropagation(); startDrag(e, { kind: "sub", di, si, xi }); }}
+                                  onDragEnd={endDrag}
+                                  title="Kéo để đổi vị trí"
+                                  className="flex h-7 w-5 flex-none cursor-grab items-center justify-center rounded text-[13px] text-gray-400 hover:bg-gray-100 hover:text-gray-600 active:cursor-grabbing"
+                                  aria-label="Kéo để đổi vị trí"
+                                >
+                                  ⠿
+                                </span>
                                 <input value={x.name} maxLength={60} onChange={(e) => setStop((st) => { st.subs[xi].name = e.target.value; })} placeholder="Tên điểm, VD: Cây cô đơn" className={`${INPUT} min-w-[140px] flex-1 ${x.name ? "" : "!border-amber-500"}`} />
                                 <MoneyInput value={x.cost} onChange={(n) => setStop((st) => { st.subs[xi].cost = n; })} className="w-[110px]" />
                                 <select value={x.unit} onChange={(e) => setStop((st) => { st.subs[xi].unit = e.target.value as CostUnit; })} className={INPUT}>
                                   {UNITS.map((u) => <option key={u} value={u}>{UNIT_LABEL[u]}</option>)}
                                 </select>
                                 <input value={x.note} maxLength={60} onChange={(e) => setStop((st) => { st.subs[xi].note = e.target.value; })} placeholder="Ghi chú, VD: vé vào 25k" className={`${INPUT} w-[150px]`} />
+                                <button type="button" disabled={xi === 0} onClick={() => setStop((st) => move(st.subs, xi, -1))} className={ICON_BTN}>↑</button>
+                                <button type="button" disabled={xi === s.subs.length - 1} onClick={() => setStop((st) => move(st.subs, xi, 1))} className={ICON_BTN}>↓</button>
                                 <button type="button" onClick={() => setStop((st) => { st.subs.splice(xi, 1); })} className={`${ICON_BTN} font-extrabold !text-red-600`}>✕</button>
                               </div>
                             ))}
