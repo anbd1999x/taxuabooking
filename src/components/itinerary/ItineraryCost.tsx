@@ -61,6 +61,18 @@ export function ItineraryCost({
   const [sheet, setSheet] = useState(false);
   const [barOn, setBarOn] = useState(false);
   const secRef = useRef<HTMLElement>(null);
+  const timelineRef = useRef<HTMLDivElement>(null);
+  /** Chọn cách đi (thẻ cabin / limousine) ⇒ đổi lịch trình rồi cuộn xuống phần lịch trình. */
+  const pickTransport = (id: string) => {
+    onPlan(id);
+    requestAnimationFrame(() => {
+      const el = timelineRef.current;
+      if (!el) return;
+      const header = document.querySelector("header")?.getBoundingClientRect().height ?? 64;
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - header - 12, behavior: reduce ? "auto" : "smooth" });
+    });
+  };
 
   const plan = plans.find((p) => p.id === planId) ?? plans[0];
   const durs = useMemo(() => [...new Set(plans.map((p) => p.name))], [plans]);
@@ -166,7 +178,7 @@ export function ItineraryCost({
               <button
                 key={p.id}
                 type="button"
-                onClick={() => onPlan(p.id)}
+                onClick={() => pickTransport(p.id)}
                 className="flex flex-col gap-2.5 rounded-[20px] border-2 p-4 text-left transition-all"
                 style={{ borderColor: on ? G : "oklch(0.9 0.01 160)", background: on ? "oklch(0.975 0.02 155)" : "white" }}
               >
@@ -229,7 +241,7 @@ export function ItineraryCost({
 
       <div className="grid items-start gap-[18px] lg:grid-cols-[minmax(0,1fr)_360px]">
         {/* LỊCH TRÌNH */}
-        <div className="flex min-w-0 flex-col gap-3.5">
+        <div ref={timelineRef} className="flex min-w-0 flex-col gap-3.5">
           {plan.sub && <p className="px-1 text-sm text-[oklch(0.45_0.02_160)]">{tr(plan.sub)}</p>}
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] px-[18px] py-3.5 text-white" style={{ background: G }}>
             <div>
