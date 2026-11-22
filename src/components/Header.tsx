@@ -71,6 +71,8 @@ export function Header({ customerName = null, showCommitment = true, showTickets
   // Menu mobile: báo còn mục bên dưới (mép mờ + nút "Vuốt xem thêm" nhún) cho tới khi cuộn gần hết.
   const menuScrollRef = useRef<HTMLDivElement>(null);
   const [moreBelow, setMoreBelow] = useState(false);
+  // Menu mobile: mục "Cẩm nang Tà Xùa" / "Về chúng tôi" bấm mới xổ xuống (mở menu ⇒ cả hai đóng, xem nút mở menu).
+  const [acc, setAcc] = useState<"" | "guide" | "about">("");
   const checkMore = () => {
     const el = menuScrollRef.current;
     if (el) setMoreBelow(el.scrollHeight - el.scrollTop - el.clientHeight > 24);
@@ -83,6 +85,11 @@ export function Header({ customerName = null, showCommitment = true, showTickets
     window.addEventListener("resize", checkMore);
     return () => window.removeEventListener("resize", checkMore);
   }, [open]);
+  // Xổ / thu ⇒ chiều cao đổi: đo lại sau hiệu ứng để nút "Vuốt xem thêm" đúng.
+  useEffect(() => {
+    const id = setTimeout(checkMore, 320);
+    return () => clearTimeout(id);
+  }, [acc]);
 
   const solid = !home || scrolled;
   const onDark = !solid;
@@ -220,7 +227,7 @@ export function Header({ customerName = null, showCommitment = true, showTickets
             <button
               type="button"
               aria-label={t("Mở menu")}
-              onClick={() => setOpen(true)}
+              onClick={() => { setAcc(""); setOpen(true); }}
               className="flex h-10 w-10 flex-none flex-col items-center justify-center gap-1 rounded-full lg:hidden"
               style={{ background: "oklch(0.68 0.17 45)", boxShadow: "0 6px 16px -6px oklch(0.4 0.12 45 / .6)" }}
             >
@@ -322,36 +329,36 @@ export function Header({ customerName = null, showCommitment = true, showTickets
               className={cn("flex flex-col gap-1 transition-[opacity,transform] duration-700", open ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0")}
               style={{ transitionDelay: open ? ".45s" : "0s" }}
             >
-              <MenuTitle className="mb-1">{t("Cẩm nang Tà Xùa")}</MenuTitle>
-              {GUIDE_LINKS.map((l) => (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  onClick={() => setOpen(false)}
-                  className="flex items-center justify-between gap-2.5 border-b border-white/[.08] px-0.5 py-3 text-[15px] font-semibold"
-                  style={{ color: "oklch(0.94 0.015 90)" }}
-                >
-                  <span>{l.label}</span>
-                  <span className="text-sm opacity-45">›</span>
-                </Link>
-              ))}
+              <Accordion title={t("Cẩm nang Tà Xùa")} sub={t("{0} mục", [GUIDE_LINKS.length])} on={acc === "guide"} onToggle={() => setAcc((a) => (a === "guide" ? "" : "guide"))}>
+                {GUIDE_LINKS.map((l) => (
+                  <Link
+                    key={l.href}
+                    href={l.href}
+                    onClick={() => setOpen(false)}
+                    className="flex items-center justify-between gap-2.5 border-b border-white/[.08] px-0.5 py-3 text-[15px] font-semibold last:border-b-0"
+                    style={{ color: "oklch(0.94 0.015 90)" }}
+                  >
+                    <span>{l.label}</span>
+                    <span className="text-sm opacity-45">›</span>
+                  </Link>
+                ))}
+              </Accordion>
             </div>
 
             <div
               className={cn("flex flex-col gap-1 transition-[opacity,transform] duration-700", open ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0")}
               style={{ transitionDelay: open ? ".5s" : "0s" }}
             >
-              <MenuTitle className="mb-1">{t("Về chúng tôi")}</MenuTitle>
+              <Accordion title={t("Về chúng tôi")} sub={ABOUT_LINKS.map((l) => l.label).join(" · ")} on={acc === "about"} onToggle={() => setAcc((a) => (a === "about" ? "" : "about"))}>
               {showCommitment && (
                 <Link
                   href="/cam-ket"
                   onClick={() => setOpen(false)}
-                  className={cn("flex items-center justify-between gap-2.5 mb-1 rounded-2xl border px-4 py-[13px] transition-opacity duration-500", open ? "opacity-100" : "opacity-0")}
+                  className="mb-1 mt-1 flex items-center justify-between gap-2.5 rounded-2xl border px-4 py-[13px]"
                   style={{
                     background: "oklch(0.82 0.11 78 / .12)",
                     borderColor: "oklch(0.82 0.11 78 / .35)",
                     color: "oklch(0.82 0.11 78)",
-                    transitionDelay: open ? ".4s" : "0s",
                   }}
                 >
                   <span className="text-[15px] font-extrabold">{t("Cam kết")}</span>
@@ -373,6 +380,7 @@ export function Header({ customerName = null, showCommitment = true, showTickets
                   <span className="text-sm opacity-45">›</span>
                 </Link>
               ))}
+              </Accordion>
             </div>
 
             <div className={cn("flex flex-col gap-2.5 transition-opacity duration-500", open ? "opacity-100" : "opacity-0")} style={{ transitionDelay: open ? ".55s" : "0s" }}>
@@ -433,6 +441,31 @@ export function Header({ customerName = null, showCommitment = true, showTickets
         </div>
       </div>
     </>
+  );
+}
+
+/** Mục xổ xuống của menu mobile: bấm tiêu đề để mở / thu (trượt mượt bằng grid-rows 0fr → 1fr). */
+function Accordion({ title, sub, on, onToggle, children }: { title: string; sub: string; on: boolean; onToggle: () => void; children: React.ReactNode }) {
+  return (
+    <div className={cn("rounded-2xl border transition-colors duration-300", on ? "border-white/15 bg-white/[.06]" : "border-white/10 bg-white/[.03]")}>
+      <button type="button" aria-expanded={on} onClick={onToggle} className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left">
+        <span className="min-w-0">
+          <span className="block text-[11px] font-extrabold uppercase tracking-[.2em]" style={{ color: "oklch(0.82 0.11 78)" }}>{title}</span>
+          <span className="mt-0.5 block truncate text-xs opacity-60">{sub}</span>
+        </span>
+        <span
+          aria-hidden
+          className={cn("flex h-8 w-8 flex-none items-center justify-center rounded-full border border-white/15 transition-transform duration-300", on && "rotate-180")}
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </span>
+      </button>
+      <div className={cn("grid transition-[grid-template-rows] duration-300 ease-out", on ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
+        <div className="min-h-0 overflow-hidden">
+          <div className={cn("flex flex-col px-4 pb-2 transition-opacity duration-300", on ? "opacity-100" : "opacity-0")} inert={!on}>{children}</div>
+        </div>
+      </div>
+    </div>
   );
 }
 
