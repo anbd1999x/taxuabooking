@@ -180,7 +180,7 @@ export function ItineraryCost({
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-[11px] font-bold text-[oklch(0.5_0.02_160)]">{tr("Dự trù / người")}</div>
+                    <div className="text-[11px] font-bold text-[oklch(0.5_0.02_160)]">{tr("Trọn chuyến / người")}</div>
                     <div className="whitespace-nowrap text-xl font-extrabold text-[oklch(0.58_0.17_45)]">{M(RR.total / pax)}</div>
                   </div>
                 </div>
@@ -191,8 +191,14 @@ export function ItineraryCost({
                     ))}
                   </div>
                 )}
-                <div className="text-[13px] font-bold text-[oklch(0.38_0.06_158)]">
-                  {p.transport === "cabin" ? tr("Cabin {0}/người khứ hồi", [K(cabinPrice)]) : tr("Limousine {0}/người khứ hồi", [K(cost.limoPrice)])}
+                {/* Tách rõ mỗi người gồm những gì — tránh hiểu nhầm con số trên là giá xe. */}
+                <div className="flex w-full flex-wrap gap-x-3 gap-y-1 border-t border-[oklch(0.92_0.01_160)] pt-2 text-[13px] font-bold text-[oklch(0.38_0.06_158)]">
+                  <span>{p.transport === "cabin" ? tr("Xe cabin {0}", [M(RR.trPrice)]) : tr("Limousine {0}", [M(RR.trPrice)])}</span>
+                  <span>+ {tr("Phòng {0}", [M(RR.phong / pax)])}</span>
+                  <span>+ {tr("Tự túc {0}", [M((RR.cat.xm + RR.cat.an + RR.cat.ve) / pax)])}</span>
+                </div>
+                <div className="-mt-1.5 text-[11px] font-semibold text-[oklch(0.5_0.02_160)]">
+                  {tr("Xe khứ hồi / người · phòng {0}/đêm × {1} phòng × {2} đêm, chia {3} người", [K(RR.room), RR.rooms, p.nights, pax])}
                 </div>
               </button>
             );
