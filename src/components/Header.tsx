@@ -97,9 +97,11 @@ export function Header({ customerName = null, showCommitment = true, showTickets
     { href: "/tra-cuu", label: t("Tra cứu đơn hàng") },
     { href: "/gop-y", label: t("Góp ý") },
   ];
-  // Menu "Hợp tác": trang giới thiệu cho chủ dịch vụ (tiệm xe…).
-  // "Hợp tác" = một trang chung giới thiệu các phần mềm cho chủ dịch vụ (/hop-tac) — không còn menu con.
-  const PARTNER_LINKS = [{ href: "/hop-tac", label: t("Hợp tác") }];
+  // Menu cha "Về chúng tôi": Cam kết (với khách) + Hợp tác (với chủ dịch vụ, trang /hop-tac).
+  const ABOUT_LINKS = [
+    ...(showCommitment ? [{ href: "/cam-ket", label: t("Cam kết"), sub: t("Đền tới 100tr nếu dịch vụ sai cam kết") }] : []),
+    { href: "/hop-tac", label: t("Hợp tác"), sub: t("Phần mềm miễn phí cho chủ dịch vụ") },
+  ];
 
   const navItem = cn(
     "whitespace-nowrap rounded-full px-3 py-2 text-sm font-semibold transition",
@@ -151,11 +153,6 @@ export function Header({ customerName = null, showCommitment = true, showTickets
                 {t("Vé & đặt bàn")}
               </Link>
             )}
-            {showCommitment && (
-              <Link href="/cam-ket" className={navItem}>
-                {t("Cam kết")}
-              </Link>
-            )}
             {/* Menu cấp 2: hover hoặc click mới xổ ra */}
             {([["guide", t("Cẩm nang"), GUIDE_LINKS]] as const).map(([key, label, links]) => (
               <div key={key} className="group relative" onMouseLeave={() => setDd("")}>
@@ -180,9 +177,28 @@ export function Header({ customerName = null, showCommitment = true, showTickets
                 </div>
               </div>
             ))}
-            <Link href="/hop-tac" className={navItem}>
-              {t("Hợp tác")}
-            </Link>
+            {/* Menu cha "Về chúng tôi" (Cam kết · Hợp tác) */}
+            <div className="group relative" onMouseLeave={() => setDd("")}>
+              <button type="button" onClick={() => setDd((o) => (o === "partner" ? "" : "partner"))} className={cn(navItem, "flex items-center gap-1")}>
+                {t("Về chúng tôi")}
+                <span className="text-[10px] transition group-hover:rotate-180">▼</span>
+              </button>
+              <div className={cn("absolute right-0 top-full z-50 pt-1", dd === "partner" ? "block" : "hidden group-hover:block")}>
+                <div className="w-72 rounded-2xl bg-white p-1.5 text-ink shadow-lg ring-1 ring-black/5" style={{ textShadow: "none" }}>
+                  {ABOUT_LINKS.map((l) => (
+                    <Link
+                      key={l.href}
+                      href={l.href}
+                      onClick={() => setDd("")}
+                      className="flex flex-col rounded-xl px-3 py-2.5 transition hover:bg-forest-50"
+                    >
+                      <span className="text-sm font-semibold text-gray-800">{l.label}</span>
+                      <span className="text-xs text-gray-500">{l.sub}</span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
           </nav>
 
           <div className="flex flex-none items-center gap-2 lg:gap-3.5">
@@ -300,22 +316,6 @@ export function Header({ customerName = null, showCommitment = true, showTickets
                   <span className="text-xs opacity-70">{t("Check-in, show, nhà hàng")}</span>
                 </Link>}
               </div>
-              {showCommitment && (
-                <Link
-                  href="/cam-ket"
-                  onClick={() => setOpen(false)}
-                  className={cn("flex items-center justify-between gap-2.5 rounded-2xl border px-4 py-[13px] transition-opacity duration-500", open ? "opacity-100" : "opacity-0")}
-                  style={{
-                    background: "oklch(0.82 0.11 78 / .12)",
-                    borderColor: "oklch(0.82 0.11 78 / .35)",
-                    color: "oklch(0.82 0.11 78)",
-                    transitionDelay: open ? ".4s" : "0s",
-                  }}
-                >
-                  <span className="text-[15px] font-extrabold">{t("Cam kết uy tín")}</span>
-                  <span className="text-xs font-bold opacity-85">{t("Đền tới 100tr →")}</span>
-                </Link>
-              )}
             </div>
 
             <div
@@ -341,7 +341,24 @@ export function Header({ customerName = null, showCommitment = true, showTickets
               className={cn("flex flex-col gap-1 transition-[opacity,transform] duration-700", open ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0")}
               style={{ transitionDelay: open ? ".5s" : "0s" }}
             >
-              {PARTNER_LINKS.map((l) => (
+              <MenuTitle className="mb-1">{t("Về chúng tôi")}</MenuTitle>
+              {showCommitment && (
+                <Link
+                  href="/cam-ket"
+                  onClick={() => setOpen(false)}
+                  className={cn("flex items-center justify-between gap-2.5 mb-1 rounded-2xl border px-4 py-[13px] transition-opacity duration-500", open ? "opacity-100" : "opacity-0")}
+                  style={{
+                    background: "oklch(0.82 0.11 78 / .12)",
+                    borderColor: "oklch(0.82 0.11 78 / .35)",
+                    color: "oklch(0.82 0.11 78)",
+                    transitionDelay: open ? ".4s" : "0s",
+                  }}
+                >
+                  <span className="text-[15px] font-extrabold">{t("Cam kết")}</span>
+                  <span className="text-xs font-bold opacity-85">{t("Đền tới 100tr →")}</span>
+                </Link>
+              )}
+              {ABOUT_LINKS.filter((l) => l.href !== "/cam-ket").map((l) => (
                 <Link
                   key={l.href}
                   href={l.href}
@@ -349,7 +366,10 @@ export function Header({ customerName = null, showCommitment = true, showTickets
                   className="flex items-center justify-between gap-2.5 border-b border-white/[.08] px-0.5 py-3 text-[15px] font-semibold"
                   style={{ color: "oklch(0.94 0.015 90)" }}
                 >
-                  <span>{l.label}</span>
+                  <span className="flex flex-col">
+                    <span>{l.label}</span>
+                    <span className="text-xs font-normal opacity-60">{l.sub}</span>
+                  </span>
                   <span className="text-sm opacity-45">›</span>
                 </Link>
               ))}
