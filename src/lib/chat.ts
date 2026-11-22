@@ -10,8 +10,6 @@ import { prisma } from "./prisma";
 
 export const CHAT_COOKIE = "tx_chat";
 export const CHAT_MAX_LEN = 1000;
-/** Khách nhắn liên tiếp: chỉ đẩy Web Push cho admin khi tin trước của khách cách ≥ 2 phút (đỡ dồn thông báo). */
-const PUSH_GAP_MS = 2 * 60_000;
 
 export type ChatMsg = { id: string; from: "guest" | "admin"; body: string; at: string; adminName?: string | null };
 
@@ -75,7 +73,6 @@ export async function guestSend(opts: {
       data: { token: newChatToken(), page: opts.page, locale: opts.locale, ip: opts.ip, visitorId: opts.visitorId, name: opts.name, phone: opts.phone },
     });
   }
-  const prevGuestAt = thread.lastGuestAt;
   const [msg] = await prisma.$transaction([
     prisma.chatMessage.create({ data: { threadId: thread.id, from: "guest", body: opts.body } }),
     prisma.chatThread.update({
@@ -94,14 +91,13 @@ export async function guestSend(opts: {
     }),
   ]);
 
-  if (!prevGuestAt || now.getTime() - prevGuestAt.getTime() >= PUSH_GAP_MS) {
-    const who = opts.name || thread.name || "Khách";
-    void import("./push")
-      .then(({ pushToAdmins }) =>
-        pushToAdmins({ title: `💬 ${who} nhắn trên web`, body: opts.body.slice(0, 140), url: `/admin/chat?t=${thread!.id}`, tag: `chat-${thread!.id}` }),
-      )
-      .catch(() => {});
-  }
+  // Mọi tin của khách đều đẩy Web Push cho admin (chống spam đã có giới hạn tần suất ở /api/chat).
+  const who = opts.name || thread.name || "Khách";
+  void import("./push")
+    .then(({ pushToAdmins }) =>
+      pushToAdmins({ title: `💬 ${who} nhắn trên web`, body: opts.body.slice(0, 140), url: `/admin/chat?t=${thread!.id}` }),
+    )
+    .catch((e) => console.warn("[chat] push lỗi", e));
   return { token: thread.token, message: toMsg(msg), created };
 }
 
