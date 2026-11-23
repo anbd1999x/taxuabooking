@@ -97,7 +97,10 @@ const CSS = `
 .sb-bike i{position:absolute;display:block}
 .sb-flag{white-space:nowrap;padding:3px 7px 3px 8px;border-radius:3px 0 0 3px;background:oklch(0.58 0.22 27);color:oklch(0.93 0.16 95);font:800 11px/1.25 'Be Vietnam Pro',system-ui,sans-serif;box-shadow:0 3px 8px -2px oklch(0.1 0.02 160 / .6);clip-path:polygon(0 0,100% 0,100% 100%,0 100%,7px 50%);transform-origin:right center;animation:sb-wave 1.1s ease-in-out infinite}
 .sb-flag b{display:block;font-weight:800}
-.sb-map{background:oklch(0.32 0.04 150)}
+/* iOS Safari: lớp bản đồ Leaflet (transform 3D) có lúc vẽ đè lên chip / bottom sheet cho tới khi trang vẽ lại (khách phải vuốt mới thấy)
+   ⇒ ép các khối nổi lên lớp ghép riêng, và giữ bản đồ trong lớp của nó. */
+.sb-top{transform:translateZ(0);-webkit-transform:translateZ(0);will-change:transform}
+.sb-map{background:oklch(0.32 0.04 150);transform:translateZ(0);-webkit-transform:translateZ(0)}
 .sb-map .leaflet-tile-pane{filter:saturate(1.1) contrast(1.03);transition:filter .4s}
 .sb-map.sb-shade .leaflet-tile-pane{filter:saturate(1.05) brightness(.8)}
 .sb-map .leaflet-control-attribution{font-size:10px}
@@ -574,7 +577,7 @@ export function SatBoard({ spots, plans, freeRoads, initialPlan }: { spots: Boar
       {mob && (
         <>
           {/* MOBILE: chip phía trên */}
-          <div className="absolute inset-x-0 top-2.5 z-20 flex flex-col gap-2">
+          <div className="sb-top absolute inset-x-0 top-2.5 z-20 flex flex-col gap-2">
             <div className="sb-noscroll flex gap-1.5 overflow-x-auto px-3">
               {modes.map((t) => (
                 <button key={t.id} type="button" onClick={() => pickMode(t.id)} className="flex-none cursor-pointer whitespace-nowrap rounded-full px-3.5 py-[9px] text-[13px] font-extrabold shadow-[0_4px_12px_-4px_oklch(0.1_0.02_160/.5)]" style={{ background: planId === t.id ? G : "white", color: planId === t.id ? "white" : "oklch(0.25 0.03 160)" }}>{t.name}</button>
@@ -594,7 +597,7 @@ export function SatBoard({ spots, plans, freeRoads, initialPlan }: { spots: Boar
           </div>
 
           {/* MOBILE: bottom sheet 3 nấc */}
-          <div className="absolute inset-x-0 bottom-0 z-[22] flex flex-col rounded-t-3xl bg-white shadow-[0_-14px_40px_-16px_oklch(0.1_0.03_160/.55)] transition-[height] duration-[350ms] ease-[cubic-bezier(.2,.8,.2,1)]" style={{ height: sheetH }}>
+          <div className="sb-top absolute inset-x-0 bottom-0 z-[22] flex flex-col rounded-t-3xl bg-white shadow-[0_-14px_40px_-16px_oklch(0.1_0.03_160/.55)] transition-[height] duration-[350ms] ease-[cubic-bezier(.2,.8,.2,1)]" style={{ height: sheetH }}>
             <button type="button" onClick={() => setSheet(sheet === "peek" ? "half" : sheet === "half" ? "full" : "peek")} className="flex flex-none cursor-pointer flex-col items-center gap-2 px-4 pb-2 pt-2.5 text-left">
               <span className="h-[5px] w-10 rounded-[3px] bg-[oklch(0.86_0.01_160)]" />
               <span className="flex items-center justify-between gap-2.5 self-stretch">
@@ -643,7 +646,7 @@ export function SatBoard({ spots, plans, freeRoads, initialPlan }: { spots: Boar
       )}
 
       {/* NÚT PHÓNG TO / THU NHỎ / XEM TOÀN BỘ */}
-      <div className="absolute z-[19] flex flex-col gap-px overflow-hidden rounded-[14px] shadow-[0_8px_20px_-8px_oklch(0.1_0.02_160/.6)] transition-[bottom] duration-[350ms] ease-[cubic-bezier(.2,.8,.2,1)]" style={mob ? { right: 12, bottom: `calc(${sheetH} + 12px)`, display: sheet === "full" ? "none" : undefined } : { left: 412, bottom: 16 }}>
+      <div className="sb-top absolute z-[19] flex flex-col gap-px overflow-hidden rounded-[14px] shadow-[0_8px_20px_-8px_oklch(0.1_0.02_160/.6)] transition-[bottom] duration-[350ms] ease-[cubic-bezier(.2,.8,.2,1)]" style={mob ? { right: 12, bottom: `calc(${sheetH} + 12px)`, display: sheet === "full" ? "none" : undefined } : { left: 412, bottom: 16 }}>
         <button type="button" title={tr("Phóng to")} aria-label={tr("Phóng to")} onClick={() => zoomBy(0.75)} className="flex h-[42px] w-[42px] cursor-pointer items-center justify-center bg-white text-xl font-bold">+</button>
         <button type="button" title={tr("Thu nhỏ")} aria-label={tr("Thu nhỏ")} onClick={() => zoomBy(-0.75)} className="flex h-[42px] w-[42px] cursor-pointer items-center justify-center bg-white text-[22px] font-bold">−</button>
         <button type="button" title={tr("Xem toàn bộ")} aria-label={tr("Xem toàn bộ")} onClick={() => fitCurrent(true)} className="flex h-[42px] w-[42px] cursor-pointer items-center justify-center bg-white"><span className="h-4 w-4 rounded border-2 border-[oklch(0.3_0.03_160)]" /></button>

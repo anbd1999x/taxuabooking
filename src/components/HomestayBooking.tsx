@@ -928,7 +928,7 @@ export function HomestayBooking({
             </div>
           )}
 
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2.5">
             {roomShown.length === 0 && <div className="rounded-[18px] border border-dashed border-[oklch(0.86_0.02_160)] bg-white p-5 text-center text-sm text-[oklch(0.5_0.02_160)]">{tr("Không có phòng nào khớp bộ lọc này.")}</div>}
             {roomShown.map((v) => {
               const isSel = sels.some((s) => s.r.id === v.r.id);
@@ -938,108 +938,180 @@ export function HomestayBooking({
               const pct = strike != null && sale != null && strike > sale ? Math.max(1, Math.round(((strike - sale) / strike) * 100)) : 0;
               const m0 = v.r.media[0];
               const chip = v.tone === "ok" ? "bg-[oklch(0.94_0.05_155)] text-[oklch(0.36_0.1_155)]" : v.tone === "full" ? "bg-[oklch(0.95_0.005_160)] text-[oklch(0.45_0.02_160)]" : "bg-[oklch(0.96_0.006_160)] text-[oklch(0.5_0.02_160)]";
-              return (
-                <article
-                  key={v.r.id}
-                  className="grid grid-cols-[100px_minmax(0,1fr)] items-center gap-x-3.5 gap-y-2 rounded-[18px] border-2 bg-white p-2.5 transition sm:grid-cols-[150px_minmax(0,1fr)_auto]"
-                  style={{ borderColor: isSel ? G : "oklch(0.92 0.01 160)", opacity: nN > 0 && !contactOnly && !v.free ? 0.62 : 1 }}
+              const unavailable = nN > 0 && !contactOnly && !v.free;
+              const capLine = (
+                <>
+                  {v.r.typeName.trim().toLowerCase() !== v.r.name.trim().toLowerCase() && <>{tr(v.r.typeName)} ·{" "}</>}
+                </>
+              );
+              const perLabel = noPrice ? tr("Giá phòng") : v.communal ? (nN > 1 ? tr("/ người / {0} đêm", [nN]) : tr("/ người / đêm")) : nN ? tr("tổng {0} đêm", [nN]) : tr("mỗi đêm từ");
+              const rates: [string, string][] = v.r.por
+                ? []
+                : [
+                    [tr("Ngày thường"), v.wdP > 0 ? tr(fmt(v.wdP)) : tr(IB)],
+                    [tr("Cuối tuần"), v.weP > 0 ? tr(fmt(v.weP)) : tr(IB)],
+                    ...(v.r.holiday != null && v.r.holiday > 0 && holidayKeys.length > 0 ? ([[tr("Ngày lễ"), tr(fmt(v.r.holiday))]] as [string, string][]) : []),
+                  ];
+              const media = (cls: string, sizes: string) => (
+                <button
+                  type="button"
+                  onClick={() => v.r.media.length && openLb(v.r.media, 0)}
+                  className={`relative overflow-hidden bg-[oklch(0.95_0.01_155)] ${cls} ${v.r.media.length ? "cursor-pointer" : "cursor-default"}`}
+                  aria-label={tr("Xem ảnh/video phòng")}
                 >
+                  {m0 ? (
+                    m0.type === "video" ? (
+                      <>
+                        <video src={m0.url} className="absolute inset-0 h-full w-full object-cover" muted playsInline preload="metadata" />
+                        <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-2xl text-white drop-shadow">▶</span>
+                      </>
+                    ) : (
+                      <Image src={m0.url} alt={tr(v.r.name)} fill sizes={sizes} className="object-cover" />
+                    )
+                  ) : (
+                    <span className="absolute inset-0 flex items-center justify-center text-[11px] text-gray-400">{tr("Chưa có ảnh")}</span>
+                  )}
+                </button>
+              );
+              const pickBtn = (big: boolean) =>
+                chatOnly ? (
+                  <a href={chatUrl} target={zalo ? "_blank" : undefined} rel={zalo ? "noopener noreferrer" : undefined} className={`whitespace-nowrap rounded-full font-extrabold text-white ${big ? "px-[18px] py-3 text-sm" : "px-4 py-2.5 text-[13px]"}`} style={{ background: O }}>
+                    {tr("💬 Nhắn tin")}
+                  </a>
+                ) : (
                   <button
                     type="button"
-                    onClick={() => v.r.media.length && openLb(v.r.media, 0)}
-                    className={`relative h-full min-h-[76px] w-full self-stretch overflow-hidden rounded-xl bg-[oklch(0.95_0.01_155)] sm:min-h-[112px] ${v.r.media.length ? "cursor-pointer" : "cursor-default"}`}
-                    aria-label={tr("Xem ảnh/video phòng")}
+                    disabled={!v.free}
+                    onClick={() => {
+                      toggleRoom(v.r.id);
+                      setResult(null);
+                    }}
+                    title={isSel ? tr("Bấm để bỏ chọn phòng này") : tr("Thêm phòng này vào đơn (chọn được nhiều phòng)")}
+                    className={`whitespace-nowrap rounded-full border-[1.5px] font-extrabold transition ${big ? "px-[18px] py-3 text-sm" : "px-4 py-2.5 text-[13px]"} ${v.free ? "cursor-pointer" : "cursor-not-allowed"}`}
+                    style={
+                      !v.free
+                        ? { background: "oklch(0.95 0.005 160)", color: "oklch(0.55 0.02 160)", borderColor: "oklch(0.9 0.01 160)" }
+                        : isSel
+                          ? { background: G, color: "white", borderColor: G }
+                          : { background: "white", color: G, borderColor: G }
+                    }
                   >
-                    {m0 ? (
-                      m0.type === "video" ? (
-                        <>
-                          <video src={m0.url} className="absolute inset-0 h-full w-full object-cover" muted playsInline preload="metadata" />
-                          <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-2xl text-white drop-shadow">▶</span>
-                        </>
-                      ) : (
-                        <Image src={m0.url} alt={tr(v.r.name)} fill sizes="(max-width:640px) 100px, 150px" className="object-cover" />
-                      )
-                    ) : (
-                      <span className="absolute inset-0 flex items-center justify-center text-[11px] text-gray-400">{tr("Chưa có ảnh")}</span>
-                    )}
-                    {v.r.media.length > 1 && (
-                      <span className="pointer-events-none absolute bottom-1 right-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white">
-                        {v.r.media.some((m) => m.type === "video") ? "▶ " : "🖼 "}
-                        {v.r.media.length}
-                      </span>
-                    )}
+                    {!v.free ? (v.tone === "full" ? tr(v.status) : nN ? tr("Hết phòng") : tr("Chọn ngày")) : isSel ? tr("✓ Đã chọn") : hasSel ? tr("+ Thêm phòng") : tr("Chọn phòng")}
                   </button>
-
-                  <div className="flex min-w-0 flex-col gap-[5px]">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <b className="text-base leading-tight">{tr(v.r.name)}</b>
-                      <span className={`whitespace-nowrap rounded-full px-2 py-[3px] text-[11px] font-extrabold ${chip}`}>{tr(v.status)}</span>
+                );
+              return (
+                <article key={v.r.id} className="overflow-hidden rounded-[20px] border-2 bg-white transition sm:rounded-[18px]" style={{ borderColor: isSel ? G : "oklch(0.92 0.01 160)" }}>
+                  {/* ĐIỆN THOẠI: thẻ dọc — ảnh 16:9, thông tin, bảng giá theo ngày, giá + nút */}
+                  <div data-card="m" className="flex flex-col sm:hidden">
+                    <div className="relative" style={{ opacity: unavailable ? 0.6 : 1 }}>
+                      {media("block aspect-video w-full", "100vw")}
+                      <span className={`pointer-events-none absolute left-2.5 top-2.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-extrabold ${chip}`}>{tr(v.status)}</span>
+                      {v.r.media.length > 0 && (
+                        <span className="pointer-events-none absolute bottom-2.5 right-2.5 rounded-full bg-[oklch(0.2_0.02_160/.7)] px-[9px] py-1 text-[11px] font-extrabold text-white">
+                          {v.r.media.some((m) => m.type === "video") ? "▶ " : ""}
+                          {tr("{0} ảnh", [v.r.media.length])}
+                        </span>
+                      )}
                     </div>
-                    <div className="text-[13px] text-[oklch(0.45_0.02_160)]">
-                      {v.r.typeName.trim().toLowerCase() !== v.r.name.trim().toLowerCase() && <>{tr(v.r.typeName)} ·{" "}</>}
-                      {v.r.maxCapacity && v.r.maxCapacity > v.r.capacity
-                        ? tr("{0} khách · tối đa {1} (phụ thu)", [v.r.capacity, v.r.maxCapacity])
-                        : tr("{0} khách", [v.r.capacity])}
-                    </div>
-                    {v.r.tags.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {v.r.tags.slice(0, 4).map((a) => (
-                          <span key={a} className="whitespace-nowrap rounded-full bg-[oklch(0.965_0.006_160)] px-2 py-[3px] text-[11px] font-semibold text-[oklch(0.4_0.02_160)]">{tr(a)}</span>
-                        ))}
+                    <div className="flex flex-col gap-2.5 px-3.5 pb-3.5 pt-3">
+                      <div className="flex flex-col gap-[3px]">
+                        <b className="text-[17px] leading-[1.25]">{tr(v.r.name)}</b>
+                        <div className="text-[13px] leading-[1.45] text-[oklch(0.45_0.02_160)]">{capLine}{tr("{0} khách", [v.r.capacity])}</div>
+                        {v.r.maxCapacity != null && v.r.maxCapacity > v.r.capacity && <div className="text-xs text-[oklch(0.55_0.02_160)]">{tr("Tối đa {0} khách, có phụ thu", [v.r.maxCapacity])}</div>}
                       </div>
-                    )}
-                    {!v.r.por && (
-                      <div className="flex flex-wrap gap-x-3 text-xs text-[oklch(0.5_0.02_160)]">
-                        <span>{tr("Ngày thường")} <b className="text-ink">{v.wdP > 0 ? tr(fmt(v.wdP)) : tr(IB)}</b></span>
-                        <span>{tr("Cuối tuần")} <b className="text-ink">{v.weP > 0 ? tr(fmt(v.weP)) : tr(IB)}</b></span>
-                        {v.r.holiday != null && v.r.holiday > 0 && holidayKeys.length > 0 && (
-                          <span>{tr("Ngày lễ")} <b className="text-ink">{tr(fmt(v.r.holiday))}</b></span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="col-span-2 flex flex-row items-center justify-between gap-1.5 text-right sm:col-span-1 sm:flex-col sm:items-end">
-                    <div className="text-left sm:text-right">
-                      {strike != null && (
-                        <div className="flex items-center gap-1.5 sm:justify-end">
-                          <span className="text-xs text-[oklch(0.5_0.02_160)] line-through">{tr(fmt(strike))}</span>
-                          {pct > 0 && <span className="rounded-md bg-sunset-500 px-1.5 py-0.5 text-[11px] font-bold leading-none text-white">−{pct}%</span>}
+                      {v.r.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {v.r.tags.slice(0, 5).map((a) => (
+                            <span key={a} className="whitespace-nowrap rounded-full bg-[oklch(0.965_0.006_160)] px-2.5 py-1 text-xs font-semibold text-[oklch(0.4_0.02_160)]">{tr(a)}</span>
+                          ))}
                         </div>
                       )}
-                      <div className={`whitespace-nowrap font-extrabold ${noPrice ? "text-[15px] text-forest-700" : "text-[19px] text-[oklch(0.58_0.17_45)]"}`}>
-                        {noPrice ? tr(IB) : tr(fmt(sale))}
+                      {rates.length > 0 && (
+                        <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${rates.length},minmax(0,1fr))` }}>
+                          {rates.map(([k, val]) => (
+                            <div key={k} className="flex flex-col gap-px rounded-xl bg-[oklch(0.975_0.006_160)] px-2.5 py-2">
+                              <span className="whitespace-nowrap text-[11px] text-[oklch(0.5_0.02_160)]">{k}</span>
+                              <b className="whitespace-nowrap text-[13px]">{val}</b>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2.5 border-t border-dashed border-[oklch(0.9_0.01_160)] pt-3">
+                        <div className="min-w-0">
+                          {strike != null && (
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs text-[oklch(0.55_0.02_160)] line-through">{tr(fmt(strike))}</span>
+                              {pct > 0 && <span className="rounded-md px-1.5 py-px text-[11px] font-extrabold text-white" style={{ background: O }}>−{pct}%</span>}
+                            </div>
+                          )}
+                          <div className="flex flex-wrap items-baseline gap-x-1.5">
+                            <span data-price className={`whitespace-nowrap font-extrabold leading-[1.15] ${noPrice ? "text-base text-forest-700" : "text-[22px] text-[oklch(0.58_0.17_45)]"}`}>{noPrice ? tr(IB) : tr(fmt(sale))}</span>
+                            <span className="whitespace-nowrap text-xs text-[oklch(0.5_0.02_160)]">{perLabel}</span>
+                          </div>
+                        </div>
+                        {pickBtn(true)}
                       </div>
-                      <div className="text-[11px] text-[oklch(0.5_0.02_160)]">{noPrice ? tr("Giá phòng") : v.communal ? (nN > 1 ? tr("/ người / {0} đêm", [nN]) : tr("/ người / đêm")) : nN ? tr("tổng {0} đêm", [nN]) : tr("mỗi đêm từ")}</div>
                       {pct > 0 && strike != null && sale != null && (
-                        <div className="mt-1 inline-flex w-fit items-center rounded-full bg-forest-50 px-2 py-0.5 text-[11px] font-semibold text-forest-700 ring-1 ring-forest-200">{tr("🎁 Đặt trên website giảm {0}", [tr(fmt(strike - sale))])}</div>
+                        <div className="rounded-[10px] bg-[oklch(0.96_0.03_155)] px-2.5 py-[7px] text-xs font-bold text-[oklch(0.4_0.1_155)]">{tr("🎁 Đặt trên website giảm {0}", [tr(fmt(strike - sale))])}</div>
                       )}
                     </div>
-                    {chatOnly ? (
-                      <a href={chatUrl} target={zalo ? "_blank" : undefined} rel={zalo ? "noopener noreferrer" : undefined} className="whitespace-nowrap rounded-full px-4 py-2.5 text-[13px] font-extrabold text-white" style={{ background: O }}>
-                        {tr("💬 Nhắn tin")}
-                      </a>
-                    ) : (
-                      <button
-                        type="button"
-                        disabled={!v.free}
-                        onClick={() => {
-                          toggleRoom(v.r.id);
-                          setResult(null);
-                        }}
-                        title={isSel ? tr("Bấm để bỏ chọn phòng này") : tr("Thêm phòng này vào đơn (chọn được nhiều phòng)")}
-                        className={`whitespace-nowrap rounded-full border-[1.5px] px-4 py-2.5 text-[13px] font-extrabold transition ${v.free ? "cursor-pointer" : "cursor-not-allowed"}`}
-                        style={
-                          !v.free
-                            ? { background: "oklch(0.95 0.005 160)", color: "oklch(0.55 0.02 160)", borderColor: "oklch(0.9 0.01 160)" }
-                            : isSel
-                              ? { background: G, color: "white", borderColor: G }
-                              : { background: "white", color: G, borderColor: G }
-                        }
-                      >
-                        {!v.free ? (v.tone === "full" ? tr(v.status) : nN ? tr("Hết phòng") : tr("Chọn ngày")) : isSel ? tr("✓ Đã chọn") : hasSel ? tr("+ Thêm phòng") : tr("Chọn phòng")}
-                      </button>
-                    )}
+                  </div>
+
+                  {/* MÁY TÍNH / MÀN RỘNG: thẻ hàng ngang — ảnh · thông tin · giá + nút */}
+                  <div data-card="d" className="hidden grid-cols-[150px_minmax(0,1fr)_auto] items-center gap-x-3.5 p-2.5 sm:grid" style={{ opacity: unavailable ? 0.62 : 1 }}>
+                    <div className="relative h-full min-h-[112px] self-stretch">
+                      {media("absolute inset-0 h-full w-full rounded-xl", "150px")}
+                      {v.r.media.length > 1 && (
+                        <span className="pointer-events-none absolute bottom-1 right-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                          {v.r.media.some((m) => m.type === "video") ? "▶ " : "🖼 "}
+                          {v.r.media.length}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex min-w-0 flex-col gap-[5px]">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <b className="text-base leading-tight">{tr(v.r.name)}</b>
+                        <span className={`whitespace-nowrap rounded-full px-2 py-[3px] text-[11px] font-extrabold ${chip}`}>{tr(v.status)}</span>
+                      </div>
+                      <div className="text-[13px] text-[oklch(0.45_0.02_160)]">
+                        {capLine}
+                        {v.r.maxCapacity && v.r.maxCapacity > v.r.capacity
+                          ? tr("{0} khách · tối đa {1} (phụ thu)", [v.r.capacity, v.r.maxCapacity])
+                          : tr("{0} khách", [v.r.capacity])}
+                      </div>
+                      {v.r.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {v.r.tags.slice(0, 4).map((a) => (
+                            <span key={a} className="whitespace-nowrap rounded-full bg-[oklch(0.965_0.006_160)] px-2 py-[3px] text-[11px] font-semibold text-[oklch(0.4_0.02_160)]">{tr(a)}</span>
+                          ))}
+                        </div>
+                      )}
+                      {rates.length > 0 && (
+                        <div className="flex flex-wrap gap-x-3 text-xs text-[oklch(0.5_0.02_160)]">
+                          {rates.map(([k, val]) => (
+                            <span key={k}>{k} <b className="text-ink">{val}</b></span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end justify-between gap-1.5 text-right">
+                      <div>
+                        {strike != null && (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <span className="text-xs text-[oklch(0.5_0.02_160)] line-through">{tr(fmt(strike))}</span>
+                            {pct > 0 && <span className="rounded-md bg-sunset-500 px-1.5 py-0.5 text-[11px] font-bold leading-none text-white">−{pct}%</span>}
+                          </div>
+                        )}
+                        <div data-price className={`whitespace-nowrap font-extrabold ${noPrice ? "text-[15px] text-forest-700" : "text-[19px] text-[oklch(0.58_0.17_45)]"}`}>
+                          {noPrice ? tr(IB) : tr(fmt(sale))}
+                        </div>
+                        <div className="text-[11px] text-[oklch(0.5_0.02_160)]">{perLabel}</div>
+                        {pct > 0 && strike != null && sale != null && (
+                          <div className="mt-1 inline-flex w-fit items-center rounded-full bg-forest-50 px-2 py-0.5 text-[11px] font-semibold text-forest-700 ring-1 ring-forest-200">{tr("🎁 Đặt trên website giảm {0}", [tr(fmt(strike - sale))])}</div>
+                        )}
+                      </div>
+                      {pickBtn(false)}
+                    </div>
                   </div>
                 </article>
               );
