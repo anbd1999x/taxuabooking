@@ -1,7 +1,7 @@
 import Link from "@/components/Link";
 import { CATEGORY_LIST } from "@/lib/constants";
 import { SITE } from "@/lib/site";
-import { formatPhone, parseTrustPopup, TRUST_POPUP_KEY } from "@/lib/trust-popup";
+import { formatPhone } from "@/lib/trust-popup";
 import { getT } from "@/lib/i18n/server";
 
 export async function Footer({ settings }: { settings: Record<string, string> }) {
@@ -12,11 +12,6 @@ export async function Footer({ settings }: { settings: Record<string, string> })
   const legalName = settings.legalName || SITE.legalName;
   const taxCode = settings.taxCode || SITE.taxCode;
   const legalAddress = settings.legalAddress || SITE.legalAddress;
-  // Facebook của từng chủ sở hữu (theo thứ tự ở /admin/popup); người bị ẩn thì không hiện.
-  const FB_DEFAULT = ["https://www.facebook.com/an.danh.bui.2025", "https://www.facebook.com/tanglinhvxhg"];
-  const [facebook, facebook2] = parseTrustPopup(settings[TRUST_POPUP_KEY])
-    .people.map((p, i) => (p.hidden ? "" : (/facebook\.com\/.+/.test(p.facebook) ? p.facebook : FB_DEFAULT[i])))
-    .filter(Boolean);
   const address = t(settings.contactAddress || "Tà Xùa, Bắc Yên, Sơn La");
 
   return (
@@ -51,20 +46,6 @@ export async function Footer({ settings }: { settings: Record<string, string> })
             <li>📞 {formatPhone(phone)}</li>
             <li>{t("🕗 Giờ hoạt động: {0}", [t(SITE.supportHours)])}</li>
             {email && <li>✉️ {t(email)}</li>}
-            {facebook && (
-              <li>
-                <a href={facebook} target="_blank" rel="noopener noreferrer" className="hover:text-white">
-                  📘 Facebook
-                </a>
-              </li>
-            )}
-            {facebook2 && (
-              <li>
-                <a href={facebook2} target="_blank" rel="noopener noreferrer" className="hover:text-white">
-                  📘 Facebook 2
-                </a>
-              </li>
-            )}
             <li>{t("📍 Khu vực hoạt động: {0}", [t(address)])}</li>
           </ul>
         </div>

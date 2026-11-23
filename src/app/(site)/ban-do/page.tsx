@@ -46,6 +46,12 @@ export default async function CheckinMapPage({ searchParams }: { searchParams: P
   // Mặc định: bản đồ ẢNH VỆ TINH (ghim theo toạ độ thật, đường theo đường xe thật). ?view=3d ⇒ bản đồ hoạt hình cũ.
   if (view !== "3d") {
     const firstImage = (p: (typeof rows)[number]) => [p.coverImage, ...(p.images ?? "").split("|")].map((u) => (u ?? "").trim()).find((u) => u && !isVideoUrl(u)) ?? null;
+    // Homestay đang hiện trên web có toạ độ ⇒ nhóm "Homestay" (bấm "Xem phòng" tới trang homestay).
+    const homes = await prisma.service.findMany({
+      where: { published: true, category: { in: ["HOMESTAY", "BUNGALOW"] }, lat: { not: null }, lng: { not: null } },
+      orderBy: [{ priorityOrder: "desc" }, { title: "asc" }],
+      select: { id: true, slug: true, title: true, area: true, summary: true, lat: true, lng: true, mapUrl: true, images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 1, select: { url: true } } },
+    });
     const placed = rows.filter((p): p is typeof p & { lat: number; lng: number } => p.lat != null && p.lng != null);
     const spots: BoardSpot[] = [
       { id: "tt", cat: "center", ...MAP_CENTER, name: tr("Trung tâm Tà Xùa"), sub: "", desc: tr("Khu chợ, homestay, quán ăn. Điểm xuất phát của mọi cung đường."), tip: tr("Đổ xăng và ăn sáng ở đây trước khi đi xa."), best: "", image: null, mapUrl: `https://maps.google.com/?q=${MAP_CENTER.lat},${MAP_CENTER.lng}`, href: null },
@@ -64,10 +70,31 @@ export default async function CheckinMapPage({ searchParams }: { searchParams: P
         mapUrl: p.mapUrl || `https://maps.google.com/?q=${p.lat},${p.lng}`,
         href: p.kind !== "CHECKIN" && p.slug ? `/${p.kind === "CAFE" ? "cafe" : "nha-hang"}/${p.slug}` : null,
       })),
+      ...homes.map((h): BoardSpot => ({
+        id: h.id,
+        cat: "home",
+        lat: h.lat!,
+        lng: h.lng!,
+        name: h.title,
+        sub: h.area ?? "",
+        desc: h.summary ?? "",
+        tip: "",
+        best: "",
+        image: h.images[0]?.url && !isVideoUrl(h.images[0].url) ? h.images[0].url : null,
+        mapUrl: h.mapUrl || `https://maps.google.com/?q=${h.lat},${h.lng}`,
+        href: `/homestay/${h.slug}`,
+      })),
     ];
     const at = new Map(spots.map((s) => [s.id, s]));
     const names = new Map(rows.map((p) => [p.id, p.name]));
     const boardPlans: BoardPlan[] = [];
+    // Hai lịch trình cùng tên ngắn (cùng thời lượng, khác cách đi) ⇒ thêm cách đi vào tên tab cho khỏi trùng.
+    const nameCount = new Map<string, number>();
+    for (const p of config.plans) if (p.published) nameCount.set(p.name, (nameCount.get(p.name) ?? 0) + 1);
+    const planName = (p: (typeof config.plans)[number]) => {
+      const base = p.name || tr("Lịch trình");
+      return (nameCount.get(p.name) ?? 0) > 1 ? `${base} · ${p.transport === "limo" ? tr("limousine") : tr("xe cabin")}` : base;
+    };
     for (const p of config.plans) {
       if (!p.published || !p.days.some((d) => d.stops.length)) continue;
       const total = p.days.reduce((a, d) => a + d.stops.length, 0);
@@ -86,7 +113,7 @@ export default async function CheckinMapPage({ searchParams }: { searchParams: P
         const seq = [...(days.length && stops[0].spotId !== "tt" ? ["tt"] : []), ...stops.map((x) => x.spotId)];
         days.push({ title: d.title, stops, path: await roadPath(seq.map((id) => at.get(id)!)) });
       }
-      boardPlans.push({ id: p.id, name: p.name || tr("Lịch trình"), sub: p.sub, days });
+      boardPlans.push({ id: p.id, name: planName(p), sub: p.sub, days });
     }
     // "Khám phá tự do": đường từ Bắc Yên lên trung tâm ra điểm xa nhất, và nhánh về phía đối diện.
     const far = (from: { lat: number; lng: number }) => placed.reduce<(typeof placed)[number] | null>((b, p) => (!b || Math.hypot(p.lat - from.lat, p.lng - from.lng) > Math.hypot(b.lat - from.lat, b.lng - from.lng) ? p : b), null);
