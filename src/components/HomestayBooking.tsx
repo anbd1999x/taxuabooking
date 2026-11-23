@@ -554,6 +554,21 @@ export function HomestayBooking({
   const scrollTo = (el: HTMLElement | null, off = 16) => {
     if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - off, behavior: "smooth" });
   };
+  /**
+   * Nút ở thanh đáy (điện thoại): chưa chọn ngày ⇒ tới lịch; chưa chọn phòng ⇒ tới danh sách phòng;
+   * đã chọn phòng ⇒ tới form. Khách ĐÃ điền tên / SĐT (hoặc form đang nằm trong màn hình) mà bấm nút này
+   * thì coi như bấm "Gửi yêu cầu" — trước đây nút chỉ cuộn nên bấm xong không thấy gì xảy ra.
+   */
+  const barAction = () => {
+    if (!nN) return scrollTo(calRef.current, stickyOff());
+    if (!hasSel) return goSec("ph");
+    const el = panelRef.current;
+    const r = el?.getBoundingClientRect();
+    const inView = !!r && r.top < window.innerHeight - 220 && r.bottom > 160;
+    if (name.trim() || cphone.trim() || inView) {
+      void submit().then(() => scrollTo(panelRef.current, stickyOff() - 50)); // lỗi / mã đơn hiện trong form ⇒ đưa form vào màn hình
+    } else scrollTo(el ?? null, stickyOff() - 50);
+  };
   /** Khoảng trừ khi cuộn tới một mục: header dính của site + thanh tab dính của trang. */
   const stickyOff = () => (typeof window !== "undefined" && window.innerWidth >= 1024 ? 138 : 122);
 
@@ -1349,7 +1364,7 @@ export function HomestayBooking({
           </div>
           <button
             type="button"
-            onClick={() => (hasSel ? scrollTo(panelRef.current, stickyOff() - 50) : !nN ? scrollTo(calRef.current, stickyOff()) : goSec("ph"))}
+            onClick={barAction}
             className="cursor-pointer whitespace-nowrap rounded-full bg-[oklch(0.68_0.18_45)] px-5 py-[13px] text-[15px] font-extrabold text-white"
           >
             {hasSel ? tr("Đặt phòng") : !nN ? tr("Chọn ngày") : tr("Chọn phòng")}

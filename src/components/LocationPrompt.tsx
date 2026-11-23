@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useT } from "@/components/i18n/I18nProvider";
 
 const KEY = "tx_loc"; // localStorage: { s: "sent" | "dismissed" | "denied", t: timestamp }
@@ -43,6 +44,8 @@ function sendPosition(pos: GeolocationPosition) {
 export function LocationPrompt() {
   const t = useT();
   const [show, setShow] = useState(false);
+  const pathname = usePathname() ?? "";
+  const onMap = pathname.replace(/\/$/, "").endsWith("/ban-do");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -75,7 +78,9 @@ export function LocationPrompt() {
     return () => clearTimeout(timer);
   }, []);
 
-  if (!show) return null;
+  // Trang bản đồ (/ban-do) là màn tràn khung: ô hỏi vị trí nằm đúng chỗ hàng chip Khám phá / lịch trình ⇒ không hỏi ở đây
+  // (sang trang khác vẫn hỏi như thường).
+  if (!show || onMap) return null;
 
   function allow() {
     setBusy(true);

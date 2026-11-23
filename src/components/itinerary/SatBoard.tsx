@@ -215,11 +215,19 @@ export function SatBoard({ spots, plans, freeRoads, initialPlan }: { spots: Boar
   const focusRef = useRef(focus);
   useEffect(() => { focusRef.current = focus; }, [focus]);
 
+  /** Khung nhìn "toàn cảnh": chỉ lấy các điểm quanh trung tâm (≤ 9 km) — vài điểm ở rất xa làm bản đồ thu nhỏ tới mức mọi ghim dồn thành một cụm. */
+  const nearCore = useCallback((list: BoardSpot[]) => {
+    const c = byId.get("tt");
+    if (!c) return list;
+    const near = list.filter((s) => Math.hypot((s.lat - c.lat) * 110.57, (s.lng - c.lng) * 111.32 * Math.cos((c.lat * Math.PI) / 180)) <= 9);
+    return near.length >= 5 ? near : list;
+  }, [byId]);
+
   const fitCurrent = useCallback((anim = true, o: { card?: boolean; sheet?: Sheet } = {}) => {
     const on = view.lines.filter((l) => l.on).flatMap((l) => l.pts);
-    const pts: Pt[] = P && on.length > 1 ? on : (P ? spots.filter((s) => view.stop.has(s.id)) : spots.filter((s) => cat === "all" || s.cat === cat || s.cat === "center")).map((s) => [s.lat, s.lng]);
+    const pts: Pt[] = P && on.length > 1 ? on : (P ? spots.filter((s) => view.stop.has(s.id)) : nearCore(spots.filter((s) => cat === "all" || s.cat === cat || s.cat === "center"))).map((s) => [s.lat, s.lng]);
     fit(pts, { anim, ...o });
-  }, [P, view, spots, cat, fit]);
+  }, [P, view, spots, cat, fit, nearCore]);
 
   // Dựng bản đồ một lần.
   useEffect(() => {
@@ -279,7 +287,7 @@ export function SatBoard({ spots, plans, freeRoads, initialPlan }: { spots: Boar
     const c = ctx.current;
     if (!ready || !c) return;
     c.map.invalidateSize();
-    fit(spots.filter((s) => s.cat !== "home" && s.cat !== "cafe").map((s) => [s.lat, s.lng]), { anim: false });
+    fit(nearCore(spots.filter((s) => s.cat !== "start")).map((s) => [s.lat, s.lng]), { anim: false });
     c.z0 = c.map.getZoom();
     if (P) fitCurrent(false);
     setZoom(c.map.getZoom());
