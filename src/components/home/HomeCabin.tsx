@@ -124,7 +124,8 @@ export function HomeCabin({
         {/* trăng lưỡi liềm: hình tròn bị khoét một hình tròn lệch (mask); quầng sáng dùng drop-shadow để ôm theo hình liềm */}
         <div
           aria-hidden
-          className="pointer-events-none absolute right-[6%] top-[4%] h-[70px] w-[70px] opacity-90 min-[900px]:right-[42%] min-[900px]:top-[3%]"
+          // Màn hẹp: khối cabin rất cao ⇒ top theo % bị trôi xuống giữa ⇒ ghim góc trên-phải bằng px, thu nhỏ để không đè chữ.
+          className="pointer-events-none absolute right-2 top-2 h-[70px] w-[70px] origin-top-right scale-[.7] opacity-90 min-[900px]:right-[42%] min-[900px]:top-[3%] min-[900px]:scale-100"
           style={{ filter: "drop-shadow(0 0 10px oklch(0.95 0.06 85 / .55)) drop-shadow(0 0 28px oklch(0.95 0.06 85 / .3))" }}
         >
           <div

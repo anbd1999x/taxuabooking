@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { WeatherBadge } from "@/components/weather/WeatherBadge";
 
 /**
  * HERO trang chủ — thiết kế "Trang chủ v5" (claude.ai/design project 4ec052fe…, file "Trang chu v5").
@@ -279,6 +280,10 @@ export function HomeHero({
         className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-[34%]"
         style={{ background: "linear-gradient(180deg, oklch(0.955 0.022 225 / 0) 0%, oklch(0.955 0.022 225 / .55) 55%, oklch(0.955 0.022 225) 100%)" }}
       />
+      {/* Thời tiết: mặt trời cười (ngày) / trăng ngủ (đêm) — bấm xem dự báo */}
+      <div className="absolute right-[clamp(16px,4vw,40px)] top-[68px] z-[5] lg:top-[88px]">
+        <WeatherBadge />
+      </div>
       {/* gợi ý cuộn (màn hẹp) */}
       <div className="pointer-events-none absolute bottom-[118px] right-[clamp(16px,4vw,40px)] z-[3] flex flex-col items-center gap-2 text-white min-[1080px]:hidden" aria-hidden>
         <span className="text-[10px] font-extrabold tracking-[.3em] [writing-mode:vertical-rl]">{cue}</span>
