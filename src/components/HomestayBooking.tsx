@@ -1,5 +1,6 @@
 "use client";
 
+import { saveSearchPrefs } from "@/lib/search-prefs";
 import { dmy } from "@/lib/date-format";
 import { trackLeadConversion } from "@/lib/ads";
 import { SupportHoursNote } from "@/components/SupportHours";
@@ -205,6 +206,10 @@ export function HomestayBooking({
     setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   const [adults, setAdults] = useState(initialAdults && initialAdults > 0 ? initialAdults : 2);
   const [childAges, setChildAges] = useState<number[]>(initialChildAges ?? []);
+  // Nhớ ngày ở + số khách để trang khác (cabin, combo, xe máy…) tự điền — search-prefs.ts.
+  useEffect(() => {
+    if (ci && co) saveSearchPrefs({ from: ci, to: co, people: adults });
+  }, [ci, co, adults]);
 
   const [name, setName] = useState("");
   const [cphone, setCphone] = useState("");
@@ -563,7 +568,7 @@ export function HomestayBooking({
               <Legend color="bg-gray-400" label={tr("Hết phòng")} />
               {holidayKeys.length > 0 && (
                 <span className="flex items-center gap-1.5 whitespace-nowrap">
-                  <span className="h-3 w-3 rounded border border-yellow-400 bg-yellow-100" />
+                  <span className="h-3 w-3 rounded border border-red-400 bg-red-100" />
                   {tr("Ngày lễ")}
                 </span>
               )}
@@ -612,10 +617,10 @@ export function HomestayBooking({
                         ? "border-forest-700 bg-forest-700 text-white"
                         : c.inRange
                           ? c.hol
-                            ? "border-yellow-400 bg-yellow-100"
+                            ? "border-red-400 bg-red-100"
                             : "border-forest-300 bg-forest-100"
                           : c.hol && c.inWindow
-                            ? "border-yellow-300 bg-yellow-50 hover:border-yellow-500 hover:bg-yellow-100"
+                            ? "border-red-300 bg-red-50 hover:border-red-500 hover:bg-red-100"
                             : c.inWindow
                             ? "border-gray-200 bg-white hover:border-forest-400 hover:bg-forest-50"
                             : "border-transparent",
@@ -623,7 +628,14 @@ export function HomestayBooking({
                     ].join(" ")}
                   >
                     <span className="flex items-center justify-between">
-                      <span className={`text-sm font-extrabold ${c.isEnd ? "text-white" : "text-ink"}`}>{c.day}</span>
+                      <span className="flex items-center gap-1">
+                        <span className={`text-sm font-extrabold ${c.isEnd ? "text-white" : c.hol ? "text-red-600" : "text-ink"}`}>{c.day}</span>
+                        {c.hol && (
+                          <span className={`rounded px-1 text-[9px] font-extrabold leading-[14px] ${c.isEnd ? "bg-white text-red-600" : "bg-red-500 text-white"}`}>
+                            {tr("Lễ")}
+                          </span>
+                        )}
+                      </span>
                       {c.inWindow && <span className={`h-1.5 w-1.5 rounded-full ${c.isEnd ? "bg-white" : dotColor}`} />}
                     </span>
                     <span className={`truncate text-[10px] font-semibold ${c.isEnd ? "text-forest-100" : c.status === "full" ? "text-gray-400" : "text-gray-500"}`}>

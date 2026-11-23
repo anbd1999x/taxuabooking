@@ -1,6 +1,8 @@
 import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 import { VisitTracker } from "@/components/VisitTracker";
+import { SearchPrefsSaver } from "@/components/SearchPrefsSaver";
+import { Suspense } from "react";
 import { LocationPrompt } from "@/components/LocationPrompt";
 import { SearchLoadingOverlay } from "@/components/useSearchNav";
 import { TrustPopup } from "@/components/TrustPopup";
@@ -58,6 +60,7 @@ export default async function SiteLayout({
     <LocaleProvider>
     <SiteContactProvider phone={settings.contactPhone || SITE.defaultPhone} solo={trustPopup.people.length === 1}>
       <VisitTracker />
+      <Suspense fallback={null}><SearchPrefsSaver /></Suspense>
       <TrustPopup config={trustPopup} />
       <SearchLoadingOverlay />
       <Header customerName={customer?.name ?? null} showCommitment={trustPopup.showMenu} showTickets={hasTickets} />

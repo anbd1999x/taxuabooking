@@ -1,3 +1,4 @@
+import { withSearchPrefs } from "@/lib/search-prefs-server";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { NearbyButton } from "@/components/nearby/NearbyPopup";
@@ -143,12 +144,19 @@ async function ServiceDetailBody({
 }) {
   const tr = await getT();
   const { category, slug } = await params;
-  const sp = await searchParams;
+  const spRaw = await searchParams;
   const [service, settings] = await Promise.all([
     getServiceDetail(slug),
     getSettings(),
   ]);
   if (!service) notFound();
+  // URL chưa có ngày / số khách ⇒ dùng giá trị khách đã tìm trước đó (cookie — search-prefs.ts).
+  // Homestay: số người lớn (?adults=); cabin: số vé (?pax=); xe máy: chỉ ngày; taxi / xe ôm: không áp.
+  const isStay = service.category === "HOMESTAY" || service.category === "BUNGALOW";
+  const sp =
+    isStay || service.category === "CABIN" || service.category === "MOTORBIKE"
+      ? await withSearchPrefs(spRaw, isStay ? "adults" : service.category === "CABIN" ? "pax" : null)
+      : spRaw;
   const transportPoints = CATEGORIES[service.category]?.availabilityKind === "transport" ? await getTransportPoints() : [];
 
   // BUNGALOW đã gộp vào homestay: nhãn danh mục (breadcrumb, badge) khớp URL /homestay.
@@ -751,6 +759,7 @@ async function ServiceDetailBody({
               serviceId={service.id}
               category={service.category}
               kind={cat.availabilityKind}
+              initialRange={cat.availabilityKind === "rental" ? { from: cleanDateKey(sp.from) ?? undefined, to: cleanDateKey(sp.to) ?? undefined } : undefined}
               phone={phone}
               zalo={zalo}
               transportData={

@@ -15,7 +15,9 @@ import {
   getSettings,
   getCabinPriceRows,
   getHomeCabinRoute,
+  getHomestayNames,
 } from "@/lib/queries";
+import { withSearchPrefs } from "@/lib/search-prefs-server";
 import { getComboOrigins } from "@/lib/combo";
 import { getT } from "@/lib/i18n/server";
 import { i18nAlternates, i18nOg } from "@/lib/i18n/meta";
@@ -43,13 +45,15 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function HomePage() {
   const t = await getT();
-  const [services, articles, settings, cabinPrices, route, comboOrigins] = await Promise.all([
+  const [services, articles, settings, cabinPrices, route, comboOrigins, homestayNames, prefs] = await Promise.all([
     getHomeServices(8),
     getArticles(3),
     getSettings(),
     getCabinPriceRows(),
     getHomeCabinRoute(),
     getComboOrigins(),
+    getHomestayNames(),
+    withSearchPrefs({}, "people"), // ngày / số khách khách đã tìm trước đó ⇒ điền sẵn form
   ]);
 
   const heroTitle = t(settings.heroTitle || "Lên Tà Xùa săn mây, mọi thứ có ở đây.");
@@ -91,7 +95,13 @@ export default async function HomePage() {
 
       {/* SEARCH (đè lên hero) */}
       <div className="home-in relative z-[5] mx-auto -mt-[92px] max-w-[1240px] px-[clamp(16px,4vw,40px)]" style={{ animation: "homeIn 1s 2.2s both" }}>
-        <HeroSearch comboOrigins={comboOrigins} />
+        <HeroSearch
+          comboOrigins={comboOrigins}
+          homestays={homestayNames}
+          initialFrom={typeof prefs.from === "string" ? prefs.from : ""}
+          initialTo={typeof prefs.to === "string" ? prefs.to : ""}
+          initialQty={typeof prefs.people === "string" ? Number(prefs.people) : 2}
+        />
       </div>
 
       {/* CABIN */}

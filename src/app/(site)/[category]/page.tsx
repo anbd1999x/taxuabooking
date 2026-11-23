@@ -1,3 +1,4 @@
+import { withSearchPrefs } from "@/lib/search-prefs-server";
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import CategorySkeleton from "@/components/skeletons/CategorySkeleton";
@@ -110,7 +111,12 @@ async function CategoryBody({
   const cat = categoryBySlug(category);
   if (!cat) notFound();
 
-  const sp = await searchParams;
+  // URL chưa có ngày / số khách ⇒ dùng giá trị khách đã tìm trước đó (cookie, xem search-prefs.ts).
+  // Chỉ các trang tìm theo ngày: xe cabin, combo, homestay, thuê xe máy (xe máy: số XE ≠ số khách ⇒ không điền).
+  const rawSp = await searchParams;
+  const sp = ["CABIN", "COMBO", "HOMESTAY", "BUNGALOW", "MOTORBIKE"].includes(cat.key)
+    ? await withSearchPrefs(rawSp, cat.key === "CABIN" ? "pax" : cat.key === "MOTORBIKE" ? null : "people")
+    : rawSp;
   /** Số khách từ URL (?pax=), mặc định 2, kẹp 1..20. */
   const paxParam = (v: unknown) => {
     const n = Math.floor(Number(typeof v === "string" ? v : NaN));

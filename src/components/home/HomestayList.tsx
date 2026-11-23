@@ -1,5 +1,6 @@
 "use client";
 
+import { urlHasDates } from "@/lib/search-prefs";
 import { SitePhone, We } from "@/components/SiteContact";
 import Link from "@/components/Link";
 import Image from "next/image";
@@ -335,7 +336,8 @@ export function HomestayList({
   // Mở trang với sẵn ngày (từ trang chủ) → cuộn xuống danh sách để thấy kết quả
   // ngay trên mobile. Không chạy khi đang gõ lọc trực tiếp.
   useEffect(() => {
-    if (!(initialFrom && initialTo)) return;
+    // Ngày chỉ đến từ trí nhớ (cookie, URL không có ?from=) ⇒ không cuộn khi khách chỉ bấm menu.
+    if (!(initialFrom && initialTo) || !urlHasDates()) return;
     const el = listRef.current;
     if (!el) return;
     const id = window.setTimeout(() => {

@@ -1,12 +1,13 @@
 "use client";
 
+import { saveSearchPrefs } from "@/lib/search-prefs";
 import { BookingEmailField, emailLooksValid } from "@/components/BookingEmailField";
 import { PriceLine } from "@/components/WebPromo";
 
 import { SupportHoursNote } from "@/components/SupportHours";
 import { trackLeadConversion } from "@/lib/ads";
 import { ItineraryLink } from "@/components/itinerary/ItineraryLink";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ServiceCategory, AvailabilityStatus } from "@prisma/client";
 import { DateField } from "@/components/DateField";
 import { QtyInput } from "@/components/QtyInput";
@@ -73,6 +74,7 @@ export function BookingPanel({
   phone,
   zalo,
   initialTransport,
+  initialRange,
   transportData,
 }: {
   serviceId: string;
@@ -82,13 +84,19 @@ export function BookingPanel({
   zalo?: string | null;
   /** Taxi / xe ôm: lựa chọn mang sang từ trang danh sách (?from=&dpt=&dst=&tm=&pax=&drv=). */
   initialTransport?: { date?: string; from?: string; to?: string; mode?: string; pax?: number; drv?: number };
+  /** Thuê xe máy…: ngày nhận / trả điền sẵn (từ URL hoặc ngày khách đã tìm — search-prefs). */
+  initialRange?: { from?: string; to?: string };
   /** Taxi / xe ôm: điểm cố định + bảng giá dựng sẵn ở server ⇒ panel hiện lựa chọn & giá ngay, không cần "Kiểm tra giá". */
   transportData?: { points: TransportPointDTO[]; pricing: TransportPricing } | null;
 }) {
   const tr = useT();
   const needsRange = kind === "stay" || kind === "rental";
-  const [from, setFrom] = useState(initialTransport?.date ?? "");
-  const [to, setTo] = useState("");
+  const [from, setFrom] = useState(initialTransport?.date ?? initialRange?.from ?? "");
+  const [to, setTo] = useState(initialRange?.to ?? "");
+  // Thuê xe máy…: nhớ ngày nhận / trả cho trang khác — search-prefs.ts.
+  useEffect(() => {
+    if (needsRange && from && to) saveSearchPrefs({ from, to });
+  }, [needsRange, from, to]);
   const [quantity, setQuantity] = useState(Math.max(1, initialTransport?.pax ?? 1));
   // Thuê xe máy: giờ nhận / giờ trả — tiền thuê tính theo số ngày quy đổi từ khoảng thời gian này.
   const isRental = kind === "rental";

@@ -366,6 +366,18 @@ async function getHomeCabinRouteImpl(): Promise<HomeCabinRoute> {
 }
 export const getHomeCabinRoute = unstable_cache(getHomeCabinRouteImpl, ["home-cabin-route"], { revalidate: TTL });
 
+/** Tên + slug các homestay đang hiện — gợi ý ô "Tên homestay" ở form tìm trang chủ. */
+export const getHomestayNames = unstable_cache(
+  () =>
+    prisma.service.findMany({
+      where: { category: "HOMESTAY", published: true },
+      orderBy: [{ featured: "desc" }, { priorityOrder: "desc" }, { title: "asc" }],
+      select: { title: true, slug: true },
+    }),
+  ["homestay-names"],
+  { revalidate: TTL },
+);
+
 // React cache(): generateMetadata + page cùng 1 request chỉ query DB MỘT lần
 // (không dùng unstable_cache vì kết quả có Date/Decimal sẽ bị JSON-hoá mất kiểu).
 export const getServiceDetail = reactCache(async (slug: string) => {

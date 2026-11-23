@@ -1,5 +1,6 @@
 "use client";
 
+import { urlHasDates } from "@/lib/search-prefs";
 import { wdDmy } from "@/lib/date-format";
 import { SitePhone } from "@/components/SiteContact";
 import Link from "@/components/Link";
@@ -234,7 +235,7 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
   // Sau khi tìm (hoặc mở trang đã có sẵn ngày), cuộn xuống danh sách xe —
   // trên mobile hero + ô tìm kiếm che hết kết quả. Chạy sau khi kết quả mới render.
   useEffect(() => {
-    if (!from) return;
+    if (!from || !urlHasDates()) return; // ngày chỉ từ trí nhớ (cookie) ⇒ không cuộn
     const el = listRef.current;
     if (!el) return;
     const id = window.setTimeout(() => {

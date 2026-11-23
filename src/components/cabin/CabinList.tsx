@@ -1,5 +1,6 @@
 "use client";
 
+import { urlHasDates } from "@/lib/search-prefs";
 import { wdDmy } from "@/lib/date-format";
 import { SitePhone } from "@/components/SiteContact";
 import { cabinSeatTotal } from "@/lib/combo-pricing";
@@ -233,7 +234,7 @@ export function CabinList({
   // Sau khi tìm vé (hoặc mở trang đã có sẵn ngày), cuộn xuống danh sách nhà xe —
   // trên mobile hero + ô tìm kiếm che hết kết quả. Chạy sau khi kết quả mới render.
   useEffect(() => {
-    if (!(from || to)) return;
+    if (!(from || to) || !urlHasDates()) return; // ngày chỉ từ trí nhớ (cookie) ⇒ không cuộn
     const el = listRef.current;
     if (!el) return;
     const id = window.setTimeout(() => {

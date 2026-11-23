@@ -16,16 +16,27 @@ const FROMS = ["Hà Nội", "Bắc Ninh", "Bắc Giang", "Thái Nguyên", "Vĩnh
 
 export function HeroSearch({
   comboOrigins = [],
+  homestays = [],
+  initialFrom = "",
+  initialTo = "",
+  initialQty = 2,
 }: {
   /** Điểm xuất phát đã khai trong bảng giá chặng (server truyền xuống, cho tab Combo). */
   comboOrigins?: string[];
+  /** Homestay đang hiện — gợi ý ô "Tên homestay" (tab Homestay). */
+  homestays?: { title: string; slug: string }[];
+  /** Ngày / số khách khách đã tìm trước đó (cookie — search-prefs.ts) ⇒ điền sẵn. */
+  initialFrom?: string;
+  initialTo?: string;
+  initialQty?: number;
 }) {
   const t = useT();
   const { pending, go } = useSearchNav();
   const [slug, setSlug] = useState(CATEGORY_LIST[0].slug);
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [qty, setQty] = useState(2);
+  const [from, setFrom] = useState(initialFrom);
+  const [to, setTo] = useState(initialTo);
+  const [qty, setQty] = useState(initialQty >= 1 && initialQty <= 20 ? initialQty : 2);
+  const [name, setName] = useState(""); // tab Homestay: tìm theo tên
   const [pickup, setPickup] = useState("Hà Nội");
   const [origin, setOrigin] = useState("");
 
@@ -46,6 +57,22 @@ export function HeroSearch({
 
   function submit() {
     const params = new URLSearchParams();
+    // Homestay: gõ đúng tên một homestay ⇒ vào thẳng trang homestay đó (mang theo ngày + số khách);
+    // gõ một phần ⇒ trang danh sách lọc theo tên (?q=).
+    const q = name.trim();
+    if (cat.key === "HOMESTAY" && q) {
+      const norm = (s: string) => s.normalize("NFC").toLowerCase().replace(/\s+/g, " ").trim();
+      const hit = homestays.find((h) => norm(h.title) === norm(q));
+      if (hit) {
+        if (from) params.set("from", from);
+        if (to) params.set("to", to);
+        params.set("adults", String(qty));
+        const qs = params.toString();
+        go(`/homestay/${hit.slug}${qs ? `?${qs}` : ""}`);
+        return;
+      }
+      params.set("q", q);
+    }
     if (from) params.set("from", from);
     if (to && showReturn) params.set("to", to);
     if (isTrip && pickup && pickup !== "Hà Nội") params.set("pickup", pickup);
@@ -93,6 +120,26 @@ export function HeroSearch({
               <option value="">{t("Chọn điểm đón")}</option>
               {comboOrigins.map((o) => <option key={o} value={o}>{t(o)}</option>)}
             </select>
+          </label>
+        )}
+        {cat.key === "HOMESTAY" && (
+          <label className={`${cell} sm:min-w-[200px]`}>
+            <span className="block text-xs font-medium text-gray-500">{t("Tên homestay")}</span>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submit()}
+              list="hero-homestay-names"
+              placeholder={t("Gõ tên hoặc để trống")}
+              className="mt-0.5 w-full bg-transparent text-[15px] font-bold text-ink outline-none placeholder:font-semibold placeholder:text-gray-400"
+              aria-label={t("Tên homestay")}
+              autoComplete="off"
+            />
+            <datalist id="hero-homestay-names">
+              {homestays.map((h) => (
+                <option key={h.slug} value={h.title} />
+              ))}
+            </datalist>
           </label>
         )}
         <label className={cell}>
