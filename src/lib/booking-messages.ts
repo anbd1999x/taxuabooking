@@ -274,6 +274,7 @@ export async function buildBookingMessages(
       `Đã cọc: ${collected > 0 ? formatPrice(collected) : "Chưa cọc"}`,
       ...(due != null ? [`Còn lại thanh toán: ${formatPrice(due)}`] : []),
       `Hotline: ${hotline}`,
+      ...(outTrip ? [BUS_CALL_NOTE] : []),
       "--------------",
     );
   } else if (b.category === "CABIN" && outTrip) {
@@ -294,6 +295,7 @@ export async function buildBookingMessages(
       `Đã cọc: ${collected > 0 ? formatPrice(collected) : "Chưa cọc"}`,
       ...(due != null ? [`Còn thiếu (thanh toán khi lên xe): ${formatPrice(due)}`] : []),
       `Hotline: ${hotline}`,
+      BUS_CALL_NOTE,
       "--------------",
     ];
   } else {
@@ -324,11 +326,10 @@ export async function buildBookingMessages(
 
   // ----- Tin nhắn gửi CHỦ DỊCH VỤ (dán Zalo): mỗi bên một tin riêng — combo tách NHÀ XE / HOMESTAY. -----
   // Không kèm hotline. Tin HOMESTAY/dịch vụ khác: tiền ghi theo phần THỰC NHẬN (bán ra − chiết khấu sàn),
-  // SĐT khách chỉ kèm khi đơn đã cọc / thanh toán. Tin NHÀ XE: luôn kèm SĐT khách, không ghi tiền.
+  // LUÔN kèm SĐT khách (chủ dịch vụ cần liên hệ khách). Tin NHÀ XE: không ghi tiền.
   const [roomDiscMap, busDiscMap] = await Promise.all([resolveRoomCommissions([b]), resolveBusCommissions([b])]);
   const payouts = supplierPayouts(b, roomDiscMap.get(b.id) ?? 0, busDiscMap.get(b.id) ?? 0);
-  const showGuestPhone = b.paymentStatus !== "UNPAID" || b.status === "COMPLETED";
-  const guestLine = `- Khách: ${b.customerName}${showGuestPhone ? ` · ${b.phone}` : ""}`;
+  const guestLine = `- Khách: ${b.customerName} · SĐT: ${b.phone}`;
   const moneyLines = (side: "room" | "bus", what: string) => {
     const p = payouts.find((x) => x.side === side);
     if (!p || p.gross <= 0) return [`- ${what}: chờ xác nhận giá`];
@@ -351,7 +352,7 @@ export async function buildBookingMessages(
       text: [
         `Tà Xùa Booking gửi ${outTrip.service.title} đơn ${b.code}:`,
         // Nhà xe cần SĐT để gọi đón khách ⇒ luôn kèm, kể cả đơn chưa cọc. Không ghi tiền (bán ra / thực nhận).
-        `- Khách: ${b.customerName} · ${b.phone}`,
+        `- Khách: ${b.customerName} · SĐT: ${b.phone}`,
         `- Số khách đi xe: ${busSeats} khách${seatsLabel ? ` · ${seatsLabel}` : ""}`,
         `- Loại vé: ${retTrip ? "Khứ hồi" : "Một chiều"}`,
         `- Chiều đi: ${outTrip.departureTime} ngày ${formatDate(outTrip.departureDate)}${outPickup2 ? `, đón tại ${outPickup2}` : ""}`,
@@ -545,3 +546,7 @@ export async function bookingMessagesById(id: string): Promise<BookingMessages |
   ]);
   return buildBookingMessages(b, rooms, outTrip, retTrip);
 }
+
+/** Dòng cuối tin chốt đơn có XE CABIN (vé lẻ hoặc combo kèm xe). */
+const BUS_CALL_NOTE =
+  "Lưu ý: trước 17h cùng ngày lên xe, nếu bác tài chưa liên hệ, vui lòng liên hệ lại Tà Xùa Booking để xử lý kịp thời.";
