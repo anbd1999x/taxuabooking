@@ -8,6 +8,7 @@ import { formatDate } from "@/lib/format";
 import { ARTICLE_TOPICS, articleTopicLabel } from "@/lib/constants";
 import { getT } from "@/lib/i18n/server";
 import { i18nMeta } from "@/lib/i18n/meta";
+import { ItemListLd } from "@/components/ItemListLd";
 
 export const dynamic = "force-dynamic";
 
@@ -38,10 +39,13 @@ export default async function ArticlesPage({
     // Bài nổi bật (STT > 0) lên đầu theo STT to → bé, còn lại theo ngày đăng.
     // Đang lọc một chủ đề ⇒ "thứ tự trong chủ đề" (topicOrder) xếp trước — VD tab Review homestay đưa home đối tác lên đầu.
     orderBy: topic ? [{ topicOrder: "desc" }, { featuredOrder: "desc" }, { createdAt: "desc" }] : [{ featuredOrder: "desc" }, { createdAt: "desc" }],
+    // Chỉ lấy cột thẻ cần: không kéo `content` (cả thân bài) của 100+ bài về mỗi lần mở trang danh sách.
+    select: { id: true, slug: true, title: true, excerpt: true, coverImage: true, topic: true, featuredOrder: true, createdAt: true },
   });
 
   return (
     <div className="container-page py-8">
+      <ItemListLd name={tr("Kinh nghiệm du lịch Tà Xùa")} items={articles.map((a) => ({ name: tr(a.title), path: `/kinh-nghiem/${a.slug}`, image: a.coverImage }))} />
       <h1 className="text-2xl font-bold text-ink sm:text-3xl">
         {tr("Kinh nghiệm du lịch Tà Xùa")}
       </h1>

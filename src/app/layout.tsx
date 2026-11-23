@@ -10,7 +10,8 @@ import { LOCALE_META } from "@/lib/i18n/config";
 const beVietnam = Be_Vietnam_Pro({
   variable: "--font-be-vietnam",
   subsets: ["latin", "vietnamese"],
-  weight: ["300", "400", "500", "600", "700", "800"],
+  // Chỉ các độ đậm đang dùng thật (300 không dùng ở đâu): mỗi độ đậm = 2 file font bị preload trên MỌI trang.
+  weight: ["400", "500", "600", "700", "800"],
   display: "swap",
 });
 
@@ -67,7 +68,26 @@ const jsonLd = (phone: string, lang: string) => ({
       name: SITE.name,
       url: SITE.url,
       description: SITE.description,
+      // Logo + ảnh đại diện + kênh liên hệ: Google dùng cho bảng thông tin thương hiệu, công cụ AI dùng để nhận diện thực thể.
+      logo: { "@type": "ImageObject", url: `${SITE.url}/icons/icon-512.png`, width: 512, height: 512 },
+      image: `${SITE.url}/og?u=${encodeURIComponent("/hero-taxua-v5.jpg")}`,
+      email: SITE.email,
       telephone: phone.replace(/\D/g, ""),
+      contactPoint: {
+        "@type": "ContactPoint",
+        contactType: "customer service",
+        telephone: "+84" + phone.replace(/\D/g, "").replace(/^0/, ""),
+        email: SITE.email,
+        areaServed: "VN",
+        availableLanguage: ["vi", "en", "zh", "ko"],
+      },
+      openingHoursSpecification: {
+        "@type": "OpeningHoursSpecification",
+        dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+        opens: `${String(SITE.supportOpenHour).padStart(2, "0")}:00`,
+        closes: `${String(SITE.supportCloseHour).padStart(2, "0")}:00`,
+      },
+      knowsAbout: ["Tà Xùa", "xe cabin Hà Nội – Tà Xùa", "homestay Tà Xùa", "săn mây Tà Xùa", "thuê xe máy Tà Xùa"],
       areaServed: "Tà Xùa, Bắc Yên, Sơn La, Việt Nam",
       address: {
         "@type": "PostalAddress",

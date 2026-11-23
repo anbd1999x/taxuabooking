@@ -6,6 +6,8 @@ import { getSettings } from "@/lib/queries";
 import { SITE } from "@/lib/site";
 import { RestaurantList, type RestaurantCard } from "@/components/RestaurantList";
 import { i18nMeta } from "@/lib/i18n/meta";
+import { getT } from "@/lib/i18n/server";
+import { ItemListLd } from "@/components/ItemListLd";
 
 export const dynamic = "force-dynamic";
 
@@ -71,5 +73,11 @@ export default async function NhaHangPage({
     cover: p.coverImage,
   }));
 
-  return <RestaurantList items={items} initialArea={area} />;
+  const tr = await getT();
+  return (
+    <>
+      <ItemListLd name={tr("Nhà hàng, quán ăn Tà Xùa")} items={places.filter((p) => p.slug).map((p) => ({ name: tr(p.name), path: `/nha-hang/${p.slug}`, image: p.coverImage }))} />
+      <RestaurantList items={items} initialArea={area} />
+    </>
+  );
 }

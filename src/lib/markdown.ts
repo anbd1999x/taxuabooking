@@ -76,7 +76,7 @@ export function renderMarkdown(src: string): string {
     m = t.match(/^##\s+(.*)/);
     if (m) { flushPara(); flushList(); out.push(`<h2>${inline(m[1])}</h2>`); continue; }
     m = t.match(/^!\[([^\]]*)\]\((\/[^\s)]+|https?:\/\/[^\s)]+)\)$/);
-    if (m) { flushPara(); flushList(); out.push(`<img src="${m[2]}" alt="${m[1]}" loading="lazy" />`); continue; }
+    if (m) { flushPara(); flushList(); out.push(`<img src="${m[2]}" alt="${m[1]}" loading="lazy" decoding="async" />`); continue; }
     m = t.match(/^[-•]\s+(.*)/);
     if (m) { flushPara(); list.push(m[1]); continue; }
     m = t.match(/^&gt;\s?(.*)/);

@@ -103,6 +103,6 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Mọi trang + API, trừ file tĩnh build (_next/static, _next/image), ảnh upload & icon.
-  matcher: ["/((?!_next/static|_next/image|uploads/|api/admin/fleet/upload|favicon.ico|icon|apple-icon|manifest).*)"],
+  // Mọi trang + API, trừ file tĩnh build (_next/static, _next/image), ảnh upload, ảnh thu nhỏ (/thumb) & icon.
+  matcher: ["/((?!_next/static|_next/image|uploads/|thumb|api/admin/fleet/upload|favicon.ico|icon|apple-icon|manifest).*)"],
 };

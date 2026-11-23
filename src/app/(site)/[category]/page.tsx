@@ -24,6 +24,7 @@ import { ScrollToResults } from "@/components/ScrollToResults";
 import { ogBlock } from "@/lib/og";
 import { categoryShareImage } from "@/lib/og-source";
 import { SeoBlock } from "@/components/SeoBlock";
+import { ItemListLd } from "@/components/ItemListLd";
 
 /** Tiêu đề + mô tả tìm kiếm riêng cho 3 trang đặt dịch vụ chính (các danh mục khác dùng mẫu chung). */
 const SEO_META: Record<string, { title: string; description: string }> = {
@@ -137,6 +138,7 @@ async function CategoryBody({
     return (
       <>
         <CabinList operators={operators} from={from ?? ""} to={to ?? ""} pickup={pickup ?? ""} pickups={pickups} pax={paxParam(sp.pax)} />
+        <ItemListLd name={t("Nhà xe cabin Hà Nội – Tà Xùa")} items={operators.map((o) => ({ name: t(o.title), path: `/xe-cabin/${o.slug}`, image: o.coverImage }))} />
         <SeoBlock kind="CABIN" />
       </>
     );
@@ -330,8 +332,10 @@ async function CategoryBody({
     // Ảnh bìa + tóm tắt của nhà: gửi xuống client 1 lần/nhà (tách khỏi ~400 thẻ phòng để payload không phình).
     const homeInfo = Object.fromEntries(homestays.map((h) => [h.slug, { cover: h.homeCover ?? null, desc: h.homeDesc ?? "" }]));
     const roomCards = homestays.map(({ homeCover: _c, homeDesc: _d, ...r }) => r);
+    const homeList = [...new Map(homestays.map((h) => [h.slug, h])).values()];
     return (
       <>
+        <ItemListLd name={t("Tất cả homestay tại Tà Xùa")} items={homeList.map((h) => ({ name: t(h.homeName), path: `/homestay/${h.slug}`, image: h.homeCover ?? h.cover }))} />
         <HomestayList
           items={roomCards}
           homeInfo={homeInfo}

@@ -132,9 +132,18 @@ export default async function ArticlePage({
     dateModified: a.updatedAt.toISOString(),
     inLanguage: shownLang,
     mainEntityOfPage: pageUrl,
-    author: { "@type": "Organization", name: SITE.name, url: SITE.url },
-    publisher: { "@type": "Organization", name: SITE.name, url: SITE.url },
+    // Trỏ về thực thể tổ chức khai ở layout gốc (@id) + logo: Google yêu cầu publisher có logo cho Article.
+    author: { "@type": "Organization", "@id": `${SITE.url}/#organization`, name: SITE.name, url: SITE.url },
+    publisher: {
+      "@type": "Organization",
+      "@id": `${SITE.url}/#organization`,
+      name: SITE.name,
+      url: SITE.url,
+      logo: { "@type": "ImageObject", url: `${SITE.url}/icons/icon-512.png`, width: 512, height: 512 },
+    },
   };
+  // Bài có sửa sau ngày đăng ⇒ hiện rõ ngày cập nhật (tín hiệu "nội dung còn mới" cho người đọc, Google và công cụ AI).
+  const updated = a.updatedAt.getTime() - a.createdAt.getTime() > 86400000 ? a.updatedAt : null;
 
   return (
     <article className="container-page max-w-3xl py-8">
@@ -145,7 +154,14 @@ export default async function ArticlePage({
         <span className="mx-2">/</span>
         <span className="text-gray-700">{tr(a.title)}</span>
       </nav>
-      <p className="text-xs text-gray-400">{formatDate(a.createdAt)}</p>
+      <p className="text-xs text-gray-400">
+        <time dateTime={a.createdAt.toISOString()}>{formatDate(a.createdAt)}</time>
+        {updated && (
+          <>
+            {" · "}<time dateTime={updated.toISOString()}>{tr("Cập nhật {0}", [formatDate(updated)])}</time>
+          </>
+        )}
+      </p>
       <h1 className="mt-1 text-3xl font-bold text-ink">{tr(a.title)}</h1>
       {a.coverImage && (
         <div className="relative mt-5 aspect-[16/9] overflow-hidden rounded-2xl">

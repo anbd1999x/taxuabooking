@@ -824,11 +824,12 @@ export async function getArticles(limit?: number) {
   });
 }
 
-export async function getArticle(slug: string) {
+// React cache: generateMetadata và trang cùng gọi trong 1 request ⇒ chỉ truy vấn DB một lần.
+export const getArticle = reactCache(async (slug: string) => {
   // Dev (localhost) xem được cả bài đang ẩn để duyệt trước khi bật; production chỉ bài đã xuất bản.
   const published = process.env.NODE_ENV === "development" ? undefined : true;
   return prisma.article.findFirst({ where: { slug, published } });
-}
+});
 
 export interface RentalBikeCard {
   id: string;

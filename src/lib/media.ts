@@ -194,7 +194,9 @@ export async function processAndSaveMedia(input: SaveMediaInput): Promise<SaveMe
         if (animated) {
           data = await pipe.gif().toBuffer();
           ext = "gif";
-        } else if (kind === "png") {
+        } else if (kind === "png" && meta.hasAlpha) {
+          // PNG có nền trong suốt (logo, hình cắt nền) mới giữ PNG. Ảnh chụp lưu PNG (chụp màn hình, xuất từ Zalo)
+          // nặng gấp 5–10 lần JPEG — từng có ảnh bìa phòng 3,8 MB — nên rơi xuống nhánh JPEG bên dưới.
           data = await pipe.png({ compressionLevel: 9 }).toBuffer();
           ext = "png";
         } else if (kind === "webp") {

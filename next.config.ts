@@ -11,15 +11,29 @@ const nextConfig: NextConfig = {
   // Chỉ có tác dụng khi `next dev`: cho phép mở bằng IP mạng LAN (thử trên điện thoại) — thiếu dòng này Next chặn
   // kết nối HMR từ địa chỉ khác localhost ⇒ trang tự tải lại liên tục.
   allowedDevOrigins: ["192.168.*.*", "10.*.*.*"],
+  poweredByHeader: false,
   images: {
-    // Không tối ưu ảnh phía server: ảnh /uploads do nginx phục vụ tĩnh, còn ảnh
-    // Unsplash tải thẳng từ trình duyệt (container không có DNS ra ngoài cho bộ
-    // tối ưu). next/image sẽ phát URL gốc thay vì đi qua /_next/image.
-    unoptimized: true,
-    remotePatterns: [
-      { protocol: "https", hostname: "images.unsplash.com" },
-      { protocol: "https", hostname: "images.pexels.com" },
-    ],
+    // Không dùng bộ tối ưu /_next/image (ảnh /uploads thêm lúc chạy không nằm trong bản standalone, container
+    // không có DNS ra ngoài cho ảnh Unsplash). Thay bằng loader riêng: ảnh trong site → route /thumb (thu nhỏ theo
+    // bề rộng + WebP, lưu đệm ở uploads/.thumbs), ảnh Unsplash → đổi tham số w ngay trên URL của họ.
+    loader: "custom",
+    loaderFile: "./src/lib/image-loader.ts",
+    // Phải khớp THUMB_WIDTHS trong src/lib/image-loader.ts (route /thumb từ chối bề rộng khác).
+    deviceSizes: [480, 640, 828, 1080, 1440, 1920],
+    imageSizes: [96, 160, 256, 384],
+  },
+  // File tĩnh trong public/ (banner, icon, ảnh trang hợp tác) mặc định max-age=0 ⇒ lần nào vào cũng hỏi lại server.
+  async headers() {
+    const week = [{ key: "Cache-Control", value: "public, max-age=604800, stale-while-revalidate=2592000" }];
+    return [
+      { source: "/:file(hero-[^/]+\\.jpg|banner\\.jpg)", headers: week },
+      { source: "/icons/:path+", headers: week },
+      // Chỉ ảnh tĩnh — KHÔNG phủ /hop-tac/demo (route handler dựng dữ liệu demo, không được cache).
+      { source: "/hop-tac/:file(xe-[^/]+\\.jpg)", headers: week },
+      { source: "/hop-tac/demo/mon/:path+", headers: week },
+      { source: "/hop-tac/demo/bia/:path+", headers: week },
+      { source: "/audio/:path+", headers: week },
+    ];
   },
   // Tailwind v4 được xử lý qua postcss.config.mjs (@tailwindcss/postcss).
 };

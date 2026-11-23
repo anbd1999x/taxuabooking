@@ -44,6 +44,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/hop-tac/xe-may`, changeFrequency: "monthly", priority: 0.4 },
     { url: `${base}/gop-y`, changeFrequency: "daily", priority: 0.5 },
     { url: `${base}/cam-ket`, changeFrequency: "monthly", priority: 0.5 },
+    // Trang điều khoản / bảo mật: tín hiệu tin cậy (E-E-A-T) — trước đây chỉ có link ở chân trang, không nằm trong sitemap.
+    { url: `${base}/cam-ket/dieu-khoan`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${base}/chinh-sach-bao-mat`, changeFrequency: "yearly", priority: 0.3 },
   ];
 
   const categoryRoutes: MetadataRoute.Sitemap = CATEGORY_LIST.map((c) => ({
