@@ -32,6 +32,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/next.config.ts ./next.config.ts
+# next.config.ts khai `images.loaderFile` — `next start` kiểm file này PHẢI tồn tại lúc khởi động
+# (thiếu ⇒ app thoát ngay, cả site 502). Bản chạy không copy src/ nên phải copy riêng file này.
+COPY --from=builder /app/src/lib/image-loader.ts ./src/lib/image-loader.ts
 
 EXPOSE 3000
 
