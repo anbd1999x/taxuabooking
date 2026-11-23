@@ -281,7 +281,7 @@ export function HomeHero({
         style={{ background: "linear-gradient(180deg, oklch(0.955 0.022 225 / 0) 0%, oklch(0.955 0.022 225 / .55) 55%, oklch(0.955 0.022 225) 100%)" }}
       />
       {/* Thời tiết: mặt trời cười (ngày) / trăng ngủ (đêm) — bấm xem dự báo */}
-      <div className="absolute right-[clamp(16px,4vw,40px)] top-[68px] z-[5] lg:top-[88px]">
+      <div className="absolute right-[clamp(16px,4vw,40px)] top-[68px] z-[5] origin-top-right max-sm:scale-[.67] lg:top-[88px]">
         <WeatherBadge />
       </div>
       {/* gợi ý cuộn (màn hẹp) */}

@@ -69,8 +69,8 @@ export function WeatherBadge({ className = "" }: { className?: string }) {
         className={`wx-badge group flex items-center gap-2.5 rounded-[22px] border border-white/40 py-1.5 pl-1.5 pr-3 text-left text-white shadow-[0_10px_32px_oklch(0.15_0.03_200/.4),inset_0_1px_0_oklch(1_0_0/.35)] backdrop-blur-md transition hover:-translate-y-0.5 hover:border-white/70 ${className}`}
         style={{
           background: night
-            ? "linear-gradient(135deg, oklch(0.32 0.1 285 / .7), oklch(0.24 0.07 250 / .55))"
-            : "linear-gradient(135deg, oklch(0.62 0.13 230 / .55), oklch(0.42 0.08 200 / .45))",
+            ? "linear-gradient(135deg, oklch(0.32 0.1 285 / .05), oklch(0.24 0.07 250 / .05))" // trong 95% (kính mờ)
+            : "linear-gradient(135deg, oklch(0.62 0.13 230 / .05), oklch(0.42 0.08 200 / .05))",
         }}
       >
         <span className="relative h-[54px] w-[54px] flex-none rounded-full bg-white/15 p-0.5 ring-1 ring-white/30">
@@ -78,7 +78,7 @@ export function WeatherBadge({ className = "" }: { className?: string }) {
           <span className="wx-ring pointer-events-none absolute inset-0 rounded-full border-2 border-white/70" aria-hidden />
           {night ? <SleepyMoon /> : <HappySun />}
         </span>
-        <span className="flex flex-col leading-tight">
+        <span className="flex flex-col leading-tight [text-shadow:0_1px_6px_oklch(0.15_0.03_200/.55)]">
           <span className="text-[19px] font-black tracking-tight [text-shadow:0_1px_8px_oklch(0.2_0.05_220/.4)]">
             {temp != null ? `${temp}°C` : t("Thời tiết")}
           </span>
@@ -100,7 +100,7 @@ export function WeatherBadge({ className = "" }: { className?: string }) {
         <button
           type="button"
           onClick={openPopup}
-          className="wx-hint absolute right-2 top-[calc(100%+10px)] w-max max-w-[220px] rounded-2xl bg-white px-3.5 py-2.5 text-left text-[13px] font-bold leading-snug text-[oklch(0.25_0.03_160)] shadow-[0_10px_30px_oklch(0.15_0.03_200/.3)]"
+          className="wx-hint absolute right-2 top-[calc(100%+10px)] origin-top-right max-sm:scale-[1.5] w-max max-w-[220px] rounded-2xl bg-white px-3.5 py-2.5 text-left text-[13px] font-bold leading-snug text-[oklch(0.25_0.03_160)] shadow-[0_10px_30px_oklch(0.15_0.03_200/.3)]"
         >
           <span className="absolute -top-1.5 right-6 h-3 w-3 rotate-45 bg-white" aria-hidden />
           <span className="relative">👆 {t("Bấm xem dự báo 7 ngày & khả năng biển mây")}</span>

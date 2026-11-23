@@ -58,8 +58,8 @@ export function WeatherPopup({ onClose }: { onClose: () => void }) {
       {/* iPhone: vh = màn hình khi ẨN thanh địa chỉ ⇒ 94vh cao hơn phần nhìn thấy, đầu popup (nút ×) bị khuất.
           Dùng dvh (phần đang thấy) + nút × nằm NGOÀI vùng cuộn nên luôn đứng yên ở góc. */}
       <div
-        className="wxp-pop wxp-sheet relative flex backdrop-blur-xl w-full max-w-[1240px] flex-col overflow-hidden rounded-t-[28px] sm:rounded-[28px]"
-        style={{ background: "oklch(0.975 0.008 150 / .95)", color: "oklch(0.22 0.03 160)" }} // nền đục 95% + làm mờ phía sau (kính)
+        className="wxp-pop wxp-sheet relative flex backdrop-blur-xl ring-1 ring-white/25 w-full max-w-[1240px] flex-col overflow-hidden rounded-t-[28px] sm:rounded-[28px]"
+        style={{ background: "oklch(0.975 0.008 150 / .05)", color: "oklch(0.22 0.03 160)" }} // trong 95%: kính mờ, thấy trang phía sau
       >
         <button
           type="button"
@@ -71,19 +71,19 @@ export function WeatherPopup({ onClose }: { onClose: () => void }) {
         </button>
         {/* thanh kéo (điện thoại) */}
         <div className="flex flex-none justify-center pt-2 sm:hidden" aria-hidden>
-          <span className="h-1.5 w-10 rounded-full bg-black/15" />
+          <span className="h-1.5 w-10 rounded-full bg-white/45" />
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <section className="flex flex-col gap-[18px] px-[clamp(16px,4vw,32px)] pb-[clamp(20px,4vw,40px)] pt-[clamp(20px,4vw,40px)]">
           {/* tiêu đề */}
           <div className="flex flex-wrap items-end justify-between gap-3.5 pr-10">
             <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-extrabold tracking-[.14em]" style={{ color: "oklch(0.5 0.1 158)" }}>
+              <span className="text-xs font-extrabold tracking-[.14em]" style={{ color: "oklch(0.9 0.1 158)", textShadow: "0 1px 6px oklch(0.15 0.03 180 / .5)" }}>
                 {t("DỰ BÁO MÂY & THỜI TIẾT · ĐỘ CAO ~1.600M")}
               </span>
-              <h2 className="m-0 text-[clamp(24px,3.4vw,38px)] font-extrabold leading-[1.1] tracking-[-.025em]">{t("Tà Xùa mấy ngày tới thế nào?")}</h2>
+              <h2 className="m-0 text-[clamp(24px,3.4vw,38px)] font-extrabold text-white [text-shadow:0_2px_12px_oklch(0.15_0.03_180/.5)] leading-[1.1] tracking-[-.025em]">{t("Tà Xùa mấy ngày tới thế nào?")}</h2>
             </div>
-            <div className="flex items-center gap-2 text-[13px] font-semibold" style={{ color: "oklch(0.48 0.02 160)" }}>
+            <div className="flex items-center gap-2 text-[13px] font-semibold" style={{ color: "oklch(0.95 0.01 160)", textShadow: "0 1px 6px oklch(0.15 0.03 180 / .5)" }}>
               <span
                 className="h-2 w-2 rounded-full [animation:wxp-pulse_1.6s_infinite]"
                 style={{ background: st?.live ? "oklch(0.6 0.15 155)" : "oklch(0.7 0.12 60)" }}
