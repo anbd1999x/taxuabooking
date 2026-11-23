@@ -48,6 +48,11 @@ export interface HomestayRoom {
   holiday: number | null;
   /** Các ngày (yyyy-mm-dd) phòng bị chiếm (không bán). */
   occupied: string[];
+  /** Nhãn tiện ích hiển thị (tiện ích của hạng phòng + của riêng phòng, đã bỏ trùng). */
+  tags: string[];
+  /** Hạng phòng có view săn mây / bồn tắm — dùng cho chip lọc danh sách phòng. */
+  view: boolean;
+  bathtub: boolean;
 }
 
 /** Thẻ gợi ý homestay khác (dựng từ getHomestayCards, bỏ homestay hiện tại). */
@@ -124,7 +129,14 @@ export function HomestayBooking({
   mapQuery,
   mapUrl,
   policy,
-  header,
+  summary,
+  highlights = [],
+  reviewLink,
+  near = [],
+  nearbySlot,
+  policyCards = [],
+  distanceKm,
+  reviews,
   description,
   suggestions,
   initialCheckIn,
@@ -163,8 +175,22 @@ export function HomestayBooking({
   mapUrl?: string | null;
   /** Chính sách homestay (mỗi dòng một mục) hiển thị cho khách. */
   policy?: string | null;
-  /** Gallery + tiêu đề dịch vụ, đặt trên cùng cột trái (giống thiết kế). */
-  header?: ReactNode;
+  /** Tóm tắt ngắn (dòng đậm đầu mục Tổng quan). */
+  summary?: string | null;
+  /** Điểm nổi bật (thẻ nhỏ đầu mục Tổng quan) — dựng từ dữ liệu thật ở server. */
+  highlights?: { t: string; d?: string }[];
+  /** Link bài review riêng của homestay (nếu có). */
+  reviewLink?: ReactNode;
+  /** Điểm xung quanh gần nhất kèm quãng đường xe chạy (đọc từ cache RoadDistance). */
+  near?: { name: string; kind: string; km: number; min: number; c: string; href: string | null }[];
+  /** Nút mở popup "Xung quanh có gì?" đặt đè lên bản đồ. */
+  nearbySlot?: ReactNode;
+  /** Thẻ chính sách có cấu trúc (phụ thu, trẻ em, cuối tuần…). */
+  policyCards?: { k: string; v: string; d?: string }[];
+  /** Cách trung tâm Tà Xùa (km). */
+  distanceKm?: number | null;
+  /** Mục Đánh giá (ServiceReviews dựng ở server). */
+  reviews?: ReactNode;
   /** Mô tả chi tiết — hiển thị thu gọn kèm nút "Xem đầy đủ mô tả". */
   description?: string | null;
   /** Homestay khác gần đây (gợi ý cuối trang). */
@@ -528,344 +554,495 @@ export function HomestayBooking({
   const scrollTo = (el: HTMLElement | null, off = 16) => {
     if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - off, behavior: "smooth" });
   };
+  /** Khoảng trừ khi cuộn tới một mục: header dính của site + thanh tab dính của trang. */
+  const stickyOff = () => (typeof window !== "undefined" && window.innerWidth >= 1024 ? 138 : 122);
+
+  // ----- Bố cục trang (thiết kế "Chi tiết Homestay v3"): thanh tab dính + các mục -----
+  // Tiện ích của cả homestay = gộp tiện ích các phòng (cái nào nhiều phòng có thì đứng trước).
+  const amenAll = useMemo(() => {
+    const cnt = new Map<string, { label: string; n: number }>();
+    for (const r of rooms) for (const a of r.tags) {
+      const k = a.toLowerCase();
+      const cur = cnt.get(k);
+      if (cur) cur.n++;
+      else cnt.set(k, { label: a, n: 1 });
+    }
+    return [...cnt.values()].sort((a, b) => b.n - a.n).map((x) => x.label);
+  }, [rooms]);
+  const AMEN_FOLD = 9;
+  const [amenOpen, setAmenOpen] = useState(false);
+  const hasPolicy = policyCards.length > 0 || policyLines.length > 0;
+  const secs = [
+    { id: "tq", name: tr("Tổng quan"), on: true },
+    { id: "ti", name: tr("Tiện ích"), on: amenAll.length > 0 },
+    { id: "vt", name: tr("Vị trí"), on: true },
+    { id: "cs", name: tr("Chính sách"), on: hasPolicy },
+    { id: "ph", name: tr("Phòng · {0}", [rooms.length]), on: true },
+    { id: "dg", name: tr("Đánh giá"), on: !!reviews },
+  ].filter((s) => s.on);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const secEl = (id: string) => rootRef.current?.querySelector<HTMLElement>(`[data-sec="${id}"]`) ?? null;
+  const [tab, setTab] = useState("tq");
+  const secIds = secs.map((s) => s.id).join(",");
+  useEffect(() => {
+    const ids = secIds.split(",");
+    const onScroll = () => {
+      const off = stickyOff() + 12;
+      let cur = ids[0];
+      for (const id of ids) {
+        const el = rootRef.current?.querySelector<HTMLElement>(`[data-sec="${id}"]`);
+        if (el && el.getBoundingClientRect().top <= off) cur = id;
+      }
+      setTab(cur);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [secIds]);
+  const goSec = (id: string) => { setTab(id); scrollTo(secEl(id), stickyOff()); };
+
+  // ----- Lọc danh sách phòng (chỉ lọc HIỂN THỊ — không đổi giá / tình trạng / phòng đã chọn) -----
+  type RoomFilter = "all" | "free" | "two" | "fam" | "view" | "tub";
+  const [filter, setFilter] = useState<RoomFilter>("all");
+  const [showAll, setShowAll] = useState(false);
+  const ROOM_FOLD = 6;
+  const filterFn: Record<RoomFilter, (v: (typeof roomView)[number]) => boolean> = {
+    all: () => true,
+    free: (v) => v.free,
+    two: (v) => v.r.capacity <= 2,
+    fam: (v) => (v.r.maxCapacity ?? v.r.capacity) >= 4,
+    view: (v) => v.r.view,
+    tub: (v) => v.r.bathtub,
+  };
+  const filterDefs = ([["all", "Tất cả"], ["free", "Còn trống"], ["two", "1–2 khách"], ["fam", "Gia đình · nhóm"], ["view", "View mây"], ["tub", "Bồn tắm"]] as [RoomFilter, string][])
+    .map(([k, name]) => ({ k, name, n: roomView.filter(filterFn[k]).length }))
+    // "Còn trống" chỉ có nghĩa khi đã chọn ngày; bỏ nhóm rỗng và nhóm trùng "Tất cả".
+    .filter((f) => f.k === "all" || (f.k === "free" ? nN > 0 && !contactOnly : f.n > 0 && f.n < roomView.length));
+  const filterOn: RoomFilter = filterDefs.some((f) => f.k === filter) ? filter : "all";
+  const roomList = roomView.filter(filterFn[filterOn]);
+  // Phòng đã chọn luôn hiện dù đang thu gọn danh sách.
+  const roomShown = showAll ? roomList : roomList.filter((v, i) => i < ROOM_FOLD || selected.includes(v.r.id));
+  const freeCount = roomView.filter((v) => v.free).length;
+  const minFrom = rooms.reduce<number | null>((m, r) => { const p = r.por ? null : fromPrice(r); return p != null && (m == null || p < m) ? p : m; }, null);
+  const dm = (k: string) => dmy(k).slice(0, 5);
+  const guestsN = adults + childAges.length;
+
+  const CARD = "flex flex-col gap-3.5 rounded-[20px] border border-[oklch(0.92_0.01_160)] bg-white p-[18px]";
+  const H2 = "text-xl font-extrabold tracking-[-.01em] text-ink";
+  const SUB = "text-[13px] text-[oklch(0.5_0.02_160)]";
+  const G = "oklch(0.29 0.055 160)";
+  const O = "oklch(0.68 0.18 45)";
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
-      {/* ===== Cột trái: gallery + tiêu đề + bản đồ + lịch + thẻ phòng ===== */}
-      <div className="flex min-w-0 flex-col gap-8">
-        {header}
+    <div ref={rootRef} className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+      {/* ===== Cột trái ===== */}
+      <div className="flex min-w-0 flex-col gap-3.5">
+        {/* Thanh tab dính */}
+        <div className="sticky top-14 z-20 -mx-1 bg-[oklch(0.975_0.006_150/.92)] px-1 py-1.5 backdrop-blur-[10px] lg:top-[70px]">
+          <div className="flex gap-1 overflow-x-auto rounded-[14px] border border-[oklch(0.92_0.01_160)] bg-white p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {secs.map((s) => (
+              <button key={s.id} type="button" onClick={() => goSec(s.id)} className="flex-none cursor-pointer whitespace-nowrap rounded-[10px] px-3.5 py-[9px] text-sm font-extrabold transition-colors" style={{ background: tab === s.id ? G : "transparent", color: tab === s.id ? "white" : "oklch(0.38 0.02 160)" }}>
+                {s.name}
+              </button>
+            ))}
+          </div>
+        </div>
 
-        {/* Mô tả — thu gọn, bấm để xem đầy đủ (giống thiết kế) */}
-        {descText && (
-          <section className="relative max-w-[680px]">
-            <div
-              className="overflow-hidden transition-[max-height] duration-500 ease-out"
-              style={{ maxHeight: descLong && !descOpen ? 120 : 2000 }}
-            >
-              <p className="whitespace-pre-line text-[15px] leading-relaxed text-gray-700">{tr(descText)}</p>
+        {/* TỔNG QUAN */}
+        <section data-sec="tq" className={CARD}>
+          {highlights.length > 0 && (
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,180px),1fr))] gap-2">
+              {highlights.map((h, i) => (
+                <div key={i} className="flex flex-col gap-0.5 rounded-[14px] bg-[oklch(0.975_0.01_155)] px-3.5 py-3">
+                  <b className="text-sm">{tr(h.t)}</b>
+                  {h.d && <span className="text-xs leading-[1.45] text-[oklch(0.48_0.02_160)]">{tr(h.d)}</span>}
+                </div>
+              ))}
             </div>
-            {descLong && !descOpen && (
-              <div className="pointer-events-none absolute inset-x-0 bottom-10 h-16 bg-gradient-to-b from-transparent to-cloud" />
-            )}
-            {descLong && (
-              <button
-                type="button"
-                onClick={() => setDescOpen((o) => !o)}
-                className="mt-2.5 inline-flex items-center gap-1.5 rounded-full border border-forest-200 bg-white px-3.5 py-2 text-sm font-bold text-forest-700 transition hover:bg-forest-50"
-              >
-                {descOpen ? tr("Thu gọn ↑") : tr("Xem đầy đủ mô tả ↓")}
+          )}
+          {summary && <p className="text-[15px] font-semibold leading-[1.6] text-[oklch(0.28_0.02_160)]">{tr(summary)}</p>}
+          {descText && (
+            <div className="relative">
+              <div className="overflow-hidden transition-[max-height] duration-500 ease-out" style={{ maxHeight: descLong && !descOpen ? 104 : 4000 }}>
+                <p className="whitespace-pre-line text-[15px] leading-[1.7] text-[oklch(0.32_0.02_160)] [text-wrap:pretty]">{tr(descText)}</p>
+              </div>
+              {descLong && !descOpen && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-b from-transparent to-white" />}
+            </div>
+          )}
+          {descLong && (
+            <button type="button" onClick={() => setDescOpen((o) => !o)} className="cursor-pointer self-start text-sm font-extrabold text-[oklch(0.4_0.08_158)] hover:text-sunset-600">
+              {descOpen ? tr("Thu gọn ↑") : tr("Đọc thêm ↓")}
+            </button>
+          )}
+          {reviewLink}
+        </section>
+
+        {/* TIỆN ÍCH */}
+        {amenAll.length > 0 && (
+          <section data-sec="ti" className={CARD}>
+            <div className="flex items-baseline justify-between gap-2.5">
+              <h2 className={H2}>{tr("Tiện ích")}</h2>
+              <span className={SUB}>{tr("{0} tiện ích", [amenAll.length])}</span>
+            </div>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,210px),1fr))] gap-x-5 gap-y-2.5">
+              {(amenOpen ? amenAll : amenAll.slice(0, AMEN_FOLD)).map((a) => (
+                <div key={a} className="flex items-start gap-2 text-sm leading-[1.4]">
+                  <span className="mt-px flex h-[18px] w-[18px] flex-none items-center justify-center rounded-full bg-[oklch(0.94_0.05_155)] text-[11px] font-extrabold text-[oklch(0.4_0.1_155)]">✓</span>
+                  {tr(a)}
+                </div>
+              ))}
+            </div>
+            {amenAll.length > AMEN_FOLD && (
+              <button type="button" onClick={() => setAmenOpen((o) => !o)} className="cursor-pointer self-start rounded-full border-[1.5px] border-[oklch(0.88_0.015_160)] px-4 py-[9px] text-sm font-extrabold hover:border-[oklch(0.5_0.1_158)]">
+                {amenOpen ? tr("Thu gọn") : tr("Xem tất cả {0} tiện ích", [amenAll.length])}
               </button>
             )}
+            <p className="text-xs text-[oklch(0.52_0.02_160)]">{tr("Tiện ích khác nhau theo từng phòng — xem chi tiết ở mục Chọn phòng.")}</p>
           </section>
         )}
 
-        {/* Lịch chọn ngày (ẩn với homestay "chỉ liên hệ" — không quản lý lịch trên web) */}
-        {!contactOnly && (
-        <section ref={calRef} className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-end justify-between gap-3">
+        {/* VỊ TRÍ */}
+        <section data-sec="vt" id="vi-tri" className={`${CARD} scroll-mt-36`}>
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
             <div>
-              <h2 className="text-xl font-bold text-ink">{tr("Chọn ngày ở")}</h2>
-              <p className="mt-1 text-sm text-gray-500">{tr(calHint)}</p>
-            </div>
-            <div className="flex flex-wrap gap-3 text-xs font-medium text-gray-500">
-              <Legend color="bg-forest-500" label={tr("Còn phòng")} />
-              <Legend color="bg-amber-500" label={tr("Còn ít")} />
-              <Legend color="bg-gray-400" label={tr("Hết phòng")} />
-              {holidayKeys.length > 0 && (
-                <span className="flex items-center gap-1.5 whitespace-nowrap">
-                  <span className="h-3 w-3 rounded border border-red-400 bg-red-100" />
-                  {tr("Ngày lễ")}
-                </span>
+              <h2 className={H2}>{tr("Vị trí & xung quanh")}</h2>
+              {(area || distanceKm != null) && (
+                <div className={`${SUB} mt-0.5`}>
+                  {[area ? tr(area) : null, distanceKm != null ? (distanceKm > 0 ? tr("cách trung tâm Tà Xùa {0} km", [String(distanceKm).replace(".", ",")]) : tr("ngay trung tâm Tà Xùa")) : null].filter(Boolean).join(" · ")}
+                </div>
               )}
             </div>
+            <a href={map.openUrl} target="_blank" rel="noopener noreferrer" className="whitespace-nowrap rounded-full px-3.5 py-[9px] text-[13px] font-extrabold text-white" style={{ background: G }}>
+              {tr("Chỉ đường ↗")}
+            </a>
           </div>
-          <div className="rounded-2xl bg-white p-3 ring-1 ring-black/5 sm:p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => canPrev && setCursor((c) => (c.m === 0 ? { y: c.y - 1, m: 11 } : { y: c.y, m: c.m - 1 }))}
-                disabled={!canPrev}
-                className="flex h-8 w-8 items-center justify-center rounded-full ring-1 ring-gray-200 disabled:opacity-30"
-                aria-label={tr("Tháng trước")}
-              >
-                ‹
-              </button>
-              <div className="text-base font-extrabold text-ink">{tr(monthLabel)}</div>
-              <button
-                type="button"
-                onClick={() => canNext && setCursor((c) => (c.m === 11 ? { y: c.y + 1, m: 0 } : { y: c.y, m: c.m + 1 }))}
-                disabled={!canNext}
-                className="flex h-8 w-8 items-center justify-center rounded-full ring-1 ring-gray-200 disabled:opacity-30"
-                aria-label={tr("Tháng sau")}
-              >
-                ›
-              </button>
+          <div className={`grid items-stretch gap-3.5 ${near.length ? "md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]" : ""}`}>
+            <div className="relative min-h-[240px] overflow-hidden rounded-2xl bg-[oklch(0.93_0.02_150)]">
+              <iframe src={map.embedSrc} loading="lazy" referrerPolicy="no-referrer-when-downgrade" title={tr("Bản đồ")} className="absolute inset-0 h-full w-full border-0" />
+              {nearbySlot && <div className="absolute bottom-2.5 left-2.5">{nearbySlot}</div>}
             </div>
-            <div className="grid grid-cols-7 gap-1.5">
-              {WD.map((w) => (
-                <div key={w} className="pb-2 pt-1 text-center text-[11px] font-bold text-gray-400">{tr(w)}</div>
-              ))}
-              {monthCells.map((c, idx) => {
-                if (!c.key) return <div key={idx} />;
-                const disabled = !c.inWindow || c.status === "full";
-                const dotColor = c.status === "full" ? "bg-gray-400" : c.status === "low" ? "bg-amber-500" : "bg-forest-500";
-                return (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => !disabled && pickDay(c.key!)}
-                    disabled={disabled}
-                    title={c.inWindow ? (c.hol ? tr("Ngày lễ") + " · " : "") + (c.status === "full" ? tr("Hết phòng") : c.free + tr(" phòng trống")) : ""}
-                    className={[
-                      "flex h-16 flex-col justify-between rounded-xl border px-1.5 py-1.5 text-left transition",
-                      c.isEnd
-                        ? "border-forest-700 bg-forest-700 text-white"
-                        : c.inRange
-                          ? c.hol
-                            ? "border-red-400 bg-red-100"
-                            : "border-forest-300 bg-forest-100"
-                          : c.hol && c.inWindow
-                            ? "border-red-300 bg-red-50 hover:border-red-500 hover:bg-red-100"
-                            : c.inWindow
-                            ? "border-gray-200 bg-white hover:border-forest-400 hover:bg-forest-50"
-                            : "border-transparent",
-                      !c.inWindow ? "cursor-default opacity-30" : c.status === "full" ? "cursor-not-allowed opacity-60" : "cursor-pointer",
-                    ].join(" ")}
-                  >
-                    <span className="flex items-center justify-between">
-                      <span className="flex items-center gap-1">
-                        <span className={`text-sm font-extrabold ${c.isEnd ? "text-white" : c.hol ? "text-red-600" : "text-ink"}`}>{c.day}</span>
-                        {c.hol && (
-                          <span className={`rounded px-1 text-[9px] font-extrabold leading-[14px] ${c.isEnd ? "bg-white text-red-600" : "bg-red-500 text-white"}`}>
-                            {tr("Lễ")}
-                          </span>
-                        )}
+            {near.length > 0 && (
+              <div className="flex flex-col gap-1">
+                {near.map((n, i) => (
+                  <div key={i} className="grid grid-cols-[10px_minmax(0,1fr)_auto] items-center gap-2.5 border-b border-[oklch(0.94_0.006_160)] px-1 py-[9px] last:border-b-0">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: n.c }} />
+                    <div className="min-w-0">
+                      {n.href ? <Link href={n.href} className="block truncate text-sm font-bold text-ink hover:text-sunset-600">{tr(n.name)}</Link> : <div className="truncate text-sm font-bold">{tr(n.name)}</div>}
+                      <div className="text-xs text-[oklch(0.52_0.02_160)]">{tr(n.kind)}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-extrabold">{String(n.km).replace(".", ",")} km</div>
+                      <div className="whitespace-nowrap text-[11px] text-[oklch(0.52_0.02_160)]">{tr("~{0} phút xe máy", [n.min])}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* CHÍNH SÁCH */}
+        {hasPolicy && (
+          <section data-sec="cs" className={CARD}>
+            <h2 className={H2}>{tr("Chính sách")}</h2>
+            {policyCards.length > 0 && (
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,230px),1fr))] gap-2">
+                {policyCards.map((p, i) => (
+                  <div key={i} className="flex flex-col gap-1 rounded-[14px] border border-[oklch(0.92_0.01_160)] px-3.5 py-3">
+                    <span className="text-xs font-bold text-[oklch(0.5_0.02_160)]">{tr(p.k)}</span>
+                    <b className="text-[15px] leading-[1.35]">{tr(p.v)}</b>
+                    {p.d && <span className="text-xs leading-[1.45] text-[oklch(0.48_0.02_160)]">{tr(p.d)}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+            {policyLines.length > 0 && (
+              <ul className="flex flex-col gap-2">
+                {policyLines.map((line, i) => (
+                  <li key={i} className="flex gap-2.5 text-sm leading-relaxed text-[oklch(0.32_0.02_160)]">
+                    <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-forest-500" />
+                    <span>{tr(line)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="rounded-xl bg-[oklch(0.97_0.03_80)] px-3.5 py-2.5 text-[13px] leading-[1.55] text-[oklch(0.42_0.08_55)]">
+              {tr("Giá chính thức là giá chốt bill qua Zalo. Giá trên web để tham khảo, có thể chưa kịp cập nhật khi chủ nhà vừa đổi giá.")}
+            </div>
+          </section>
+        )}
+
+        {/* CHỌN PHÒNG */}
+        <section data-sec="ph" className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-end justify-between gap-2.5">
+            <div>
+              <h2 className="text-[22px] font-extrabold text-ink">{tr("Chọn phòng")}</h2>
+              <div className={`${SUB} mt-0.5`}>
+                {contactOnly
+                  ? tr("Giá tham khảo từng phòng bên dưới — nhắn tin để nhận thông tin phòng trống & giữ phòng.")
+                  : nN
+                    ? tr("{0} phòng · {1} còn trống {2} → {3}", [roomList.length, freeCount, dm(ci!), dm(coEff!)]) + (inquiryOnly ? " · " + tr("nhắn tin để biết chi tiết & giữ phòng") : "")
+                    : inquiryOnly
+                      ? tr("Chọn ngày để xem phòng trống, rồi nhắn tin để biết chi tiết & giữ phòng.")
+                      : tr("Chọn ngày để xem giá và phòng trống cho cả kỳ ở.")}
+              </div>
+            </div>
+            {!contactOnly && (
+              <div className="flex items-center gap-1.5 rounded-full border border-[oklch(0.9_0.01_160)] bg-white py-1.5 pl-3 pr-1.5">
+                <span className="whitespace-nowrap text-[13px] font-bold">
+                  {nN ? tr("{0} → {1} · {2} đêm · {3} khách", [dm(ci!), dm(coEff!), nN, guestsN]) : tr("Chưa chọn ngày · {0} khách", [guestsN])}
+                </span>
+                <button type="button" onClick={() => scrollTo(calRef.current, stickyOff())} className="cursor-pointer whitespace-nowrap rounded-full bg-[oklch(0.95_0.025_155)] px-2.5 py-1.5 text-xs font-extrabold text-[oklch(0.35_0.08_158)]">
+                  {nN ? tr("Đổi ngày") : tr("Chọn ngày")}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Lịch chọn ngày (ẩn với homestay "chỉ liên hệ" — không quản lý lịch trên web) */}
+          {!contactOnly && (
+            <div ref={calRef} className="flex flex-col gap-2 rounded-[18px] border border-[oklch(0.92_0.01_160)] bg-white p-3 sm:p-4">
+              <div className="flex flex-wrap items-end justify-between gap-2.5">
+                <div>
+                  <b className="text-[17px]">{tr("Chọn ngày ở")}</b>
+                  <div className="mt-0.5 text-xs text-[oklch(0.5_0.02_160)]">{tr(calHint)}</div>
+                </div>
+                <div className="flex flex-wrap gap-2.5 text-[11px] font-bold text-[oklch(0.45_0.02_160)]">
+                  <Legend color="bg-forest-500" label={tr("Còn phòng")} />
+                  <Legend color="bg-amber-500" label={tr("Còn ít")} />
+                  <Legend color="bg-gray-400" label={tr("Hết phòng")} />
+                  {holidayKeys.length > 0 && (
+                    <span className="flex items-center gap-1.5 whitespace-nowrap">
+                      <span className="h-2.5 w-2.5 rounded-[3px] border border-red-400 bg-red-100" />
+                      {tr("Ngày lễ")}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => canPrev && setCursor((c) => (c.m === 0 ? { y: c.y - 1, m: 11 } : { y: c.y, m: c.m - 1 }))}
+                  disabled={!canPrev}
+                  className="flex h-8 w-8 items-center justify-center rounded-full ring-1 ring-gray-200 disabled:opacity-30"
+                  aria-label={tr("Tháng trước")}
+                >
+                  ‹
+                </button>
+                <div className="text-[15px] font-extrabold text-ink">{tr(monthLabel)}</div>
+                <button
+                  type="button"
+                  onClick={() => canNext && setCursor((c) => (c.m === 11 ? { y: c.y + 1, m: 0 } : { y: c.y, m: c.m + 1 }))}
+                  disabled={!canNext}
+                  className="flex h-8 w-8 items-center justify-center rounded-full ring-1 ring-gray-200 disabled:opacity-30"
+                  aria-label={tr("Tháng sau")}
+                >
+                  ›
+                </button>
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {WD.map((w) => (
+                  <div key={w} className="pb-1 text-center text-[11px] font-extrabold text-[oklch(0.55_0.02_160)]">{tr(w)}</div>
+                ))}
+                {monthCells.map((c, idx) => {
+                  if (!c.key) return <div key={idx} />;
+                  const disabled = !c.inWindow || c.status === "full";
+                  const dotColor = c.status === "full" ? "bg-gray-400" : c.status === "low" ? "bg-amber-500" : "bg-forest-500";
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => !disabled && pickDay(c.key!)}
+                      disabled={disabled}
+                      title={c.inWindow ? (c.hol ? tr("Ngày lễ") + " · " : "") + (c.status === "full" ? tr("Hết phòng") : c.free + tr(" phòng trống")) : ""}
+                      className={[
+                        "flex h-[58px] flex-col justify-between rounded-[10px] border px-1.5 py-1.5 text-left transition",
+                        c.isEnd
+                          ? "border-forest-700 bg-forest-700 text-white"
+                          : c.inRange
+                            ? c.hol
+                              ? "border-red-400 bg-red-100"
+                              : "border-forest-300 bg-forest-100"
+                            : c.hol && c.inWindow
+                              ? "border-red-300 bg-red-50 hover:border-red-500 hover:bg-red-100"
+                              : c.inWindow
+                                ? c.status === "full"
+                                  ? "border-transparent bg-[oklch(0.95_0.005_160)]"
+                                  : c.status === "low"
+                                    ? "border-transparent bg-[oklch(0.97_0.04_75)] hover:border-amber-400"
+                                    : "border-transparent bg-[oklch(0.96_0.03_155)] hover:border-forest-400"
+                                : "border-transparent",
+                        !c.inWindow ? "cursor-default opacity-30" : c.status === "full" ? "cursor-not-allowed opacity-60" : "cursor-pointer",
+                      ].join(" ")}
+                    >
+                      <span className="flex items-center justify-between">
+                        <span className="flex items-center gap-1">
+                          <span className={`text-[13px] font-extrabold ${c.isEnd ? "text-white" : c.hol ? "text-red-600" : "text-ink"}`}>{c.day}</span>
+                          {c.hol && (
+                            <span className={`rounded px-1 text-[9px] font-extrabold leading-[14px] ${c.isEnd ? "bg-white text-red-600" : "bg-red-500 text-white"}`}>
+                              {tr("Lễ")}
+                            </span>
+                          )}
+                        </span>
+                        {c.inWindow && <span className={`h-1.5 w-1.5 rounded-full ${c.isEnd ? "bg-white" : dotColor}`} />}
                       </span>
-                      {c.inWindow && <span className={`h-1.5 w-1.5 rounded-full ${c.isEnd ? "bg-white" : dotColor}`} />}
-                    </span>
-                    <span className={`truncate text-[10px] font-semibold ${c.isEnd ? "text-forest-100" : c.status === "full" ? "text-gray-400" : "text-gray-500"}`}>
-                      {c.inWindow ? (c.status === "full" ? tr("Hết") : c.minP != null ? shortK(c.minP) : c.free > 0 ? "IB" : "") : ""}
-                    </span>
+                      <span className={`truncate text-[10px] font-bold ${c.isEnd ? "text-forest-100" : c.status === "full" ? "text-gray-400" : "text-[oklch(0.42_0.06_155)]"}`}>
+                        {c.inWindow ? (c.status === "full" ? tr("Hết") : c.minP != null ? shortK(c.minP) : c.free > 0 ? "IB" : "") : ""}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {!contactOnly && policyWarn && (
+            <div className="rounded-xl bg-amber-50 px-3.5 py-3 text-[13px] font-medium leading-relaxed text-amber-800">⚠️ {tr(policyWarn)}</div>
+          )}
+
+          {filterDefs.length > 1 && (
+            <div className="flex flex-wrap gap-1.5">
+              {filterDefs.map((f) => {
+                const on = filterOn === f.k;
+                return (
+                  <button key={f.k} type="button" onClick={() => { setFilter(f.k); setShowAll(false); }} className="cursor-pointer whitespace-nowrap rounded-full border-[1.5px] px-[13px] py-[7px] text-[13px] font-bold" style={{ background: on ? G : "white", color: on ? "white" : "oklch(0.3 0.03 160)", borderColor: on ? G : "oklch(0.9 0.01 160)" }}>
+                    {tr(f.name)} <span className="opacity-60">{f.n}</span>
                   </button>
                 );
               })}
             </div>
-          </div>
-        </section>
-        )}
+          )}
 
-        {/* Thẻ phòng */}
-        <section className="flex flex-col gap-3">
-          <div>
-            <h2 className="text-xl font-bold text-ink">{tr("Các phòng")}</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              {contactOnly
-                ? tr("Giá tham khảo từng phòng bên dưới — nhắn tin để nhận thông tin phòng trống & giữ phòng.")
-                : inquiryOnly
-                  ? nN ? tr("Giá & tình trạng cho {0} đêm · {1} → {2} — nhắn tin để biết chi tiết & giữ phòng.", [nN, tr(dname(ci!)), tr(dname(coEff!))]) : tr("Chọn ngày để xem phòng trống, rồi nhắn tin để biết chi tiết & giữ phòng.")
-                : nN ? tr("Giá & tình trạng cho {0} đêm · {1} → {2}.", [nN, tr(dname(ci!)), tr(dname(coEff!))]) : tr("Chọn ngày để xem giá và phòng trống cho cả kỳ ở.")}
-            </p>
-            {!contactOnly && policyWarn && (
-              <div className="mt-2 rounded-xl bg-amber-50 px-3.5 py-3 text-[13px] font-medium leading-relaxed text-amber-800">
-                ⚠️ {tr(policyWarn)}
-              </div>
-            )}
-          </div>
-          <div className="flex flex-col gap-3">
-            {roomView.map((v) => {
+          <div className="flex flex-col gap-2">
+            {roomShown.length === 0 && <div className="rounded-[18px] border border-dashed border-[oklch(0.86_0.02_160)] bg-white p-5 text-center text-sm text-[oklch(0.5_0.02_160)]">{tr("Không có phòng nào khớp bộ lọc này.")}</div>}
+            {roomShown.map((v) => {
               const isSel = sels.some((s) => s.r.id === v.r.id);
+              const noPrice = v.r.por || v.ib;
+              const strike = noPrice ? null : nN ? v.stayStrike : fromStrike(v.r);
+              const sale = noPrice ? null : nN ? v.stayPrice : fromPrice(v.r);
+              const pct = strike != null && sale != null && strike > sale ? Math.max(1, Math.round(((strike - sale) / strike) * 100)) : 0;
+              const m0 = v.r.media[0];
+              const chip = v.tone === "ok" ? "bg-[oklch(0.94_0.05_155)] text-[oklch(0.36_0.1_155)]" : v.tone === "full" ? "bg-[oklch(0.95_0.005_160)] text-[oklch(0.45_0.02_160)]" : "bg-[oklch(0.96_0.006_160)] text-[oklch(0.5_0.02_160)]";
               return (
                 <article
                   key={v.r.id}
-                  className={`overflow-hidden rounded-2xl bg-white transition ${isSel ? "ring-2 ring-forest-600" : "ring-1 ring-black/5"}`}
+                  className="grid grid-cols-[100px_minmax(0,1fr)] items-center gap-x-3.5 gap-y-2 rounded-[18px] border-2 bg-white p-2.5 transition sm:grid-cols-[150px_minmax(0,1fr)_auto]"
+                  style={{ borderColor: isSel ? G : "oklch(0.92 0.01 160)", opacity: nN > 0 && !contactOnly && !v.free ? 0.62 : 1 }}
                 >
-                  <div className="grid grid-cols-1 sm:grid-cols-[220px_minmax(0,1fr)]">
-                    <div className="relative flex gap-0.5 bg-gray-100 sm:min-h-[180px]">
-                      {(v.r.media.length ? v.r.media.slice(0, 2) : [null, null]).map((m, k) => (
-                        <button
-                          key={k}
-                          type="button"
-                          onClick={() => v.r.media.length && openLb(v.r.media, k)}
-                          className={`group relative aspect-[4/3] flex-1 overflow-hidden transition-[flex-grow] duration-500 ease-out hover:grow-[2.6] sm:aspect-auto ${v.r.media.length ? "cursor-pointer" : "cursor-default"}`}
-                          aria-label={tr("Xem ảnh/video phòng")}
-                        >
-                          {m ? (
-                            m.type === "video" ? (
-                              <>
-                                <video src={m.url} className="h-full w-full object-cover" muted playsInline preload="metadata" />
-                                <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-2xl text-white drop-shadow">▶</span>
-                              </>
-                            ) : (
-                              <Image src={m.url} alt={tr(v.r.name)} fill sizes="(max-width:640px) 50vw, 220px" className="object-cover" />
-                            )
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">{tr("Chưa có ảnh")}</div>
-                          )}
-                        </button>
-                      ))}
-                      {v.r.media.length > 0 && (
-                        <span className="pointer-events-none absolute bottom-1.5 right-1.5 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-semibold text-white">
-                          {v.r.media.some((m) => m.type === "video") ? "▶ " : "🖼 "}
-                          {v.r.media.length}
-                        </span>
-                      )}
+                  <button
+                    type="button"
+                    onClick={() => v.r.media.length && openLb(v.r.media, 0)}
+                    className={`relative h-full min-h-[76px] w-full self-stretch overflow-hidden rounded-xl bg-[oklch(0.95_0.01_155)] sm:min-h-[112px] ${v.r.media.length ? "cursor-pointer" : "cursor-default"}`}
+                    aria-label={tr("Xem ảnh/video phòng")}
+                  >
+                    {m0 ? (
+                      m0.type === "video" ? (
+                        <>
+                          <video src={m0.url} className="absolute inset-0 h-full w-full object-cover" muted playsInline preload="metadata" />
+                          <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-2xl text-white drop-shadow">▶</span>
+                        </>
+                      ) : (
+                        <Image src={m0.url} alt={tr(v.r.name)} fill sizes="(max-width:640px) 100px, 150px" className="object-cover" />
+                      )
+                    ) : (
+                      <span className="absolute inset-0 flex items-center justify-center text-[11px] text-gray-400">{tr("Chưa có ảnh")}</span>
+                    )}
+                    {v.r.media.length > 1 && (
+                      <span className="pointer-events-none absolute bottom-1 right-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                        {v.r.media.some((m) => m.type === "video") ? "▶ " : "🖼 "}
+                        {v.r.media.length}
+                      </span>
+                    )}
+                  </button>
+
+                  <div className="flex min-w-0 flex-col gap-[5px]">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <b className="text-base leading-tight">{tr(v.r.name)}</b>
+                      <span className={`whitespace-nowrap rounded-full px-2 py-[3px] text-[11px] font-extrabold ${chip}`}>{tr(v.status)}</span>
                     </div>
-                    <div className="flex min-w-0 flex-col gap-3 p-4 sm:p-5">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="text-[11px] font-semibold uppercase tracking-wide text-forest-700">{tr(v.r.typeName)}</div>
-                          <div className="truncate text-lg font-extrabold text-ink">{tr(v.r.name)}</div>
-                          <div className="mt-0.5 text-xs text-gray-500">
-                            {v.r.maxCapacity && v.r.maxCapacity > v.r.capacity
-                              ? tr("{0} khách · tối đa {1} (phụ thu)", [v.r.capacity, v.r.maxCapacity])
-                              : tr("Tối đa {0} người", [v.r.capacity])}
-                          </div>
-                        </div>
-                        <StatusChip tone={v.tone} label={v.status} />
+                    <div className="text-[13px] text-[oklch(0.45_0.02_160)]">
+                      {v.r.typeName.trim().toLowerCase() !== v.r.name.trim().toLowerCase() && <>{tr(v.r.typeName)} ·{" "}</>}
+                      {v.r.maxCapacity && v.r.maxCapacity > v.r.capacity
+                        ? tr("{0} khách · tối đa {1} (phụ thu)", [v.r.capacity, v.r.maxCapacity])
+                        : tr("{0} khách", [v.r.capacity])}
+                    </div>
+                    {v.r.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {v.r.tags.slice(0, 4).map((a) => (
+                          <span key={a} className="whitespace-nowrap rounded-full bg-[oklch(0.965_0.006_160)] px-2 py-[3px] text-[11px] font-semibold text-[oklch(0.4_0.02_160)]">{tr(a)}</span>
+                        ))}
                       </div>
-                      {v.r.amenities.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
-                          {v.r.amenities.slice(0, 5).map((a, k) => (
-                            <span key={k} className="rounded-lg bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-600 ring-1 ring-gray-100">{tr(a)}</span>
-                          ))}
-                        </div>
-                      )}
-                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-gray-500">
-                        {v.r.por ? (
-                          <span className="font-semibold text-forest-700">{tr(IB)}</span>
-                        ) : (
-                          <>
-                            <span>{tr("Ngày thường")}{" "}<b className="text-ink">{v.wdP > 0 ? tr(fmt(v.wdP)) : tr(IB)}</b></span>
-                            <span>{tr("Cuối tuần")}{" "}<b className="text-ink">{v.weP > 0 ? tr(fmt(v.weP)) : tr(IB)}</b></span>
-                            {v.r.holiday != null && v.r.holiday > 0 && holidayKeys.length > 0 && (
-                              <span>{tr("Ngày lễ")}{" "}<b className="text-ink">{tr(fmt(v.r.holiday))}</b></span>
-                            )}
-                            {v.r.hasSale && <span className="text-gray-400 line-through">{tr(fmt(v.r.listPrice))}</span>}
-                          </>
+                    )}
+                    {!v.r.por && (
+                      <div className="flex flex-wrap gap-x-3 text-xs text-[oklch(0.5_0.02_160)]">
+                        <span>{tr("Ngày thường")} <b className="text-ink">{v.wdP > 0 ? tr(fmt(v.wdP)) : tr(IB)}</b></span>
+                        <span>{tr("Cuối tuần")} <b className="text-ink">{v.weP > 0 ? tr(fmt(v.weP)) : tr(IB)}</b></span>
+                        {v.r.holiday != null && v.r.holiday > 0 && holidayKeys.length > 0 && (
+                          <span>{tr("Ngày lễ")} <b className="text-ink">{tr(fmt(v.r.holiday))}</b></span>
                         )}
                       </div>
-                      {(v.r.extraFee || v.r.earlyFee || v.r.lateFee) && (
-                        <div className="text-xs leading-relaxed text-gray-400">
-                          {tr("Phụ thu: {0}", [[
-                            v.r.extraFee ? tr("người thêm {0}/đêm", [fmt(v.r.extraFee)]) : null,
-                            v.r.earlyFee ? tr("check-in sớm {0}", [fmt(v.r.earlyFee)]) : null,
-                            v.r.lateFee ? tr("check-out muộn {0}", [fmt(v.r.lateFee)]) : null,
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")])}
+                    )}
+                  </div>
+
+                  <div className="col-span-2 flex flex-row items-center justify-between gap-1.5 text-right sm:col-span-1 sm:flex-col sm:items-end">
+                    <div className="text-left sm:text-right">
+                      {strike != null && (
+                        <div className="flex items-center gap-1.5 sm:justify-end">
+                          <span className="text-xs text-[oklch(0.5_0.02_160)] line-through">{tr(fmt(strike))}</span>
+                          {pct > 0 && <span className="rounded-md bg-sunset-500 px-1.5 py-0.5 text-[11px] font-bold leading-none text-white">−{pct}%</span>}
                         </div>
                       )}
-                      <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-3">
-                        <div>
-                          <div className="text-xs text-gray-500">{v.r.por || v.ib ? tr("Giá phòng") : v.communal ? (nN > 1 ? tr("/ người / {0} đêm", [nN]) : tr("/ người / đêm")) : nN ? tr("{0} đêm", [nN]) : tr("Mỗi đêm từ")}</div>
-                          <div className={`flex flex-wrap items-baseline gap-x-1.5 font-extrabold text-ink ${v.r.por || v.ib ? "text-base text-forest-700" : "text-xl"}`}>
-                            {!(v.r.por || v.ib) && (() => {
-                              const strike = nN ? v.stayStrike : fromStrike(v.r);
-                              return strike != null ? <span className="whitespace-nowrap text-sm font-semibold text-gray-400 line-through">{tr(fmt(strike))}</span> : null;
-                            })()}
-                            <span className="whitespace-nowrap">{v.r.por || v.ib ? tr(IB) : nN ? tr(fmt(v.stayPrice)) : tr(fmt(fromPrice(v.r)))}</span>
-                            {!(v.r.por || v.ib) && (() => {
-                              // Badge phần trăm giảm so với giá niêm yết (tối thiểu hiện −1%).
-                              const strike = nN ? v.stayStrike : fromStrike(v.r);
-                              const sale = nN ? v.stayPrice : fromPrice(v.r);
-                              if (strike == null || sale == null || strike <= sale) return null;
-                              const pct = Math.max(1, Math.round(((strike - sale) / strike) * 100));
-                              return (
-                                <span className="self-center whitespace-nowrap rounded-md bg-sunset-500 px-1.5 py-0.5 text-[11px] font-bold leading-none text-white">
-                                  −{pct}%
-                                </span>
-                              );
-                            })()}
-                          </div>
-                          {!(v.r.por || v.ib) && (() => {
-                            // Dòng khuyến mãi khi đặt trên web: giá bán niêm yết − giá đặt web.
-                            const strike = nN ? v.stayStrike : fromStrike(v.r);
-                            const sale = nN ? v.stayPrice : fromPrice(v.r);
-                            return strike != null && sale != null && strike > sale ? (
-                              <div className="mt-1 inline-flex w-fit items-center rounded-full bg-forest-50 px-2 py-0.5 text-xs font-semibold text-forest-700 ring-1 ring-forest-200">{tr("🎁 Đặt trên website giảm {0}", [tr(fmt(strike - sale))])}</div>
-                            ) : null;
-                          })()}
-                        </div>
-                        {chatOnly ? (
-                          <a
-                            href={chatUrl}
-                            target={zalo ? "_blank" : undefined}
-                            rel={zalo ? "noopener noreferrer" : undefined}
-                            className="rounded-xl bg-sunset-500 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-sunset-600"
-                          >
-                            {contactOnly ? tr("💬 Nhắn tin nhận thông tin") : tr("💬 Nhắn tin để biết chi tiết")}
-                          </a>
-                        ) : (
-                        <button
-                          type="button"
-                          disabled={!v.free}
-                          onClick={() => {
-                            toggleRoom(v.r.id);
-                            setResult(null);
-                          }}
-                          title={isSel ? tr("Bấm để bỏ chọn phòng này") : tr("Thêm phòng này vào đơn (chọn được nhiều phòng)")}
-                          className={[
-                            "rounded-xl px-5 py-2.5 text-sm font-bold transition",
-                            !v.free
-                              ? "cursor-not-allowed bg-gray-100 text-gray-400"
-                              : isSel
-                                ? "bg-forest-700 text-white"
-                                : "bg-forest-100 text-forest-800 hover:bg-forest-200",
-                          ].join(" ")}
-                        >
-                          {!v.free ? (v.tone === "full" ? tr(v.status) : tr("Hết phòng")) : isSel ? tr("Đã chọn ✓ · Bỏ") : hasSel ? tr("+ Thêm phòng") : tr("Chọn phòng")}
-                        </button>
-                        )}
+                      <div className={`whitespace-nowrap font-extrabold ${noPrice ? "text-[15px] text-forest-700" : "text-[19px] text-[oklch(0.58_0.17_45)]"}`}>
+                        {noPrice ? tr(IB) : tr(fmt(sale))}
                       </div>
+                      <div className="text-[11px] text-[oklch(0.5_0.02_160)]">{noPrice ? tr("Giá phòng") : v.communal ? (nN > 1 ? tr("/ người / {0} đêm", [nN]) : tr("/ người / đêm")) : nN ? tr("tổng {0} đêm", [nN]) : tr("mỗi đêm từ")}</div>
+                      {pct > 0 && strike != null && sale != null && (
+                        <div className="mt-1 inline-flex w-fit items-center rounded-full bg-forest-50 px-2 py-0.5 text-[11px] font-semibold text-forest-700 ring-1 ring-forest-200">{tr("🎁 Đặt trên website giảm {0}", [tr(fmt(strike - sale))])}</div>
+                      )}
                     </div>
+                    {chatOnly ? (
+                      <a href={chatUrl} target={zalo ? "_blank" : undefined} rel={zalo ? "noopener noreferrer" : undefined} className="whitespace-nowrap rounded-full px-4 py-2.5 text-[13px] font-extrabold text-white" style={{ background: O }}>
+                        {tr("💬 Nhắn tin")}
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={!v.free}
+                        onClick={() => {
+                          toggleRoom(v.r.id);
+                          setResult(null);
+                        }}
+                        title={isSel ? tr("Bấm để bỏ chọn phòng này") : tr("Thêm phòng này vào đơn (chọn được nhiều phòng)")}
+                        className={`whitespace-nowrap rounded-full border-[1.5px] px-4 py-2.5 text-[13px] font-extrabold transition ${v.free ? "cursor-pointer" : "cursor-not-allowed"}`}
+                        style={
+                          !v.free
+                            ? { background: "oklch(0.95 0.005 160)", color: "oklch(0.55 0.02 160)", borderColor: "oklch(0.9 0.01 160)" }
+                            : isSel
+                              ? { background: G, color: "white", borderColor: G }
+                              : { background: "white", color: G, borderColor: G }
+                        }
+                      >
+                        {!v.free ? (v.tone === "full" ? tr(v.status) : nN ? tr("Hết phòng") : tr("Chọn ngày")) : isSel ? tr("✓ Đã chọn") : hasSel ? tr("+ Thêm phòng") : tr("Chọn phòng")}
+                      </button>
+                    )}
                   </div>
                 </article>
               );
             })}
           </div>
+          {!showAll && roomList.length > roomShown.length && (
+            <button type="button" onClick={() => setShowAll(true)} className="cursor-pointer self-center rounded-full border-[1.5px] border-[oklch(0.88_0.015_160)] bg-white px-5 py-[11px] text-sm font-extrabold hover:border-[oklch(0.5_0.1_158)]">
+              {tr("Xem thêm {0} phòng", [roomList.length - roomShown.length])}
+            </button>
+          )}
         </section>
 
-        {/* Chính sách homestay */}
-        {policyLines.length > 0 && (
-          <section className="flex flex-col gap-3">
-            <h2 className="text-xl font-bold text-ink">{tr("Chính sách homestay")}</h2>
-            <ul className="flex flex-col gap-2.5 rounded-2xl bg-white p-5 ring-1 ring-black/5">
-              {policyLines.map((line, i) => (
-                <li key={i} className="flex gap-2.5 text-[15px] leading-relaxed text-gray-700">
-                  <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-forest-500" />
-                  <span>{tr(line)}</span>
-                </li>
-              ))}
-            </ul>
+        {/* ĐÁNH GIÁ */}
+        {reviews && (
+          <section data-sec="dg" className={CARD}>
+            {reviews}
           </section>
         )}
-
-        {/* Vị trí */}
-        <section id="vi-tri" className="flex scroll-mt-20 flex-col gap-3">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-bold text-ink">{tr("Vị trí")}</h2>
-              {area && <p className="mt-1 text-sm text-gray-500">{tr(area)}</p>}
-            </div>
-            <a
-              href={map.openUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="whitespace-nowrap rounded-full bg-forest-700 px-4 py-2 text-sm font-semibold text-white hover:bg-forest-800"
-            >
-              {tr("Mở Google Maps ↗")}
-            </a>
-          </div>
-          <div className="h-[280px] overflow-hidden rounded-2xl ring-1 ring-black/5">
-            <iframe
-              src={map.embedSrc}
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-              title={tr("Bản đồ")}
-              className="h-full w-full border-0"
-            />
-          </div>
-        </section>
 
         {/* Homestay khác gần đây */}
         {suggestions && suggestions.length > 0 && (
@@ -927,8 +1104,8 @@ export function HomestayBooking({
       </div>
 
       {/* ===== Cột phải: panel đặt phòng dính ===== */}
-      <aside ref={panelRef} className="lg:sticky lg:top-20">
-        <div className="flex flex-col gap-3.5 rounded-2xl bg-white p-5 shadow-md ring-1 ring-black/5">
+      <aside ref={panelRef} className="scroll-mt-32 lg:sticky lg:top-[86px]">
+        <div className="flex flex-col gap-3.5 rounded-[22px] border border-[oklch(0.92_0.01_160)] bg-white p-[18px] shadow-[0_24px_50px_-30px_oklch(0.2_0.04_160/.35)]">
           {chatOnly ? (
             <div className="flex flex-col gap-3">
               <div className="text-lg font-extrabold text-ink">{contactOnly ? tr("Nhắn tin để nhận thông tin") : tr("Nhắn tin để biết chi tiết")}</div>
@@ -967,14 +1144,14 @@ export function HomestayBooking({
             <>
               <div className="flex items-baseline justify-between">
                 <div className="text-lg font-extrabold text-ink">{tr("Đặt phòng")}</div>
-                <div className="text-xs text-gray-500">{tr("Không cần tài khoản")}</div>
+                <div className="text-[13px] text-[oklch(0.5_0.02_160)]">{minFrom != null ? <>{tr("từ")} <b className="text-[oklch(0.58_0.17_45)]">{tr(fmt(minFrom))}</b>{tr("/đêm")}</> : tr("Không cần tài khoản")}</div>
               </div>
 
               {/* Nhận / trả */}
               <button
                 type="button"
-                onClick={() => scrollTo(calRef.current, 20)}
-                className="grid grid-cols-2 overflow-hidden rounded-xl text-left ring-1 ring-gray-200"
+                onClick={() => scrollTo(calRef.current, stickyOff())}
+                className="grid cursor-pointer grid-cols-2 overflow-hidden rounded-[14px] border-[1.5px] border-[oklch(0.88_0.015_160)] text-left"
               >
                 <div className="border-r border-gray-200 px-3.5 py-2.5">
                   <div className="text-[10px] font-bold uppercase tracking-wide text-gray-400">{tr("Nhận phòng")}</div>
@@ -1118,9 +1295,9 @@ export function HomestayBooking({
                   type="button"
                   onClick={submit}
                   disabled={submitting}
-                  className={`rounded-xl px-4 py-3.5 text-base font-bold transition ${ready && !submitting ? "bg-sunset-500 text-white hover:bg-sunset-600" : "bg-gray-200 text-gray-500"}`}
+                  className={`cursor-pointer rounded-full px-4 py-3.5 text-[15px] font-extrabold transition ${ready && !submitting ? "bg-[oklch(0.68_0.18_45)] text-white hover:bg-[oklch(0.62_0.18_45)]" : "bg-[oklch(0.75_0.06_50)] text-white"}`}
                 >
-                  {submitting ? tr("Đang gửi...") : tr("Gửi yêu cầu đặt phòng")}
+                  {submitting ? tr("Đang gửi...") : sels.length > 1 ? tr("Gửi yêu cầu đặt {0} phòng", [sels.length]) : tr("Gửi yêu cầu đặt phòng")}
                 </button>
                 <ItineraryLink nights={nN} cost={hasSel && total ? { roomTotal: total, rooms: sels.length, pax: adults + childAges.length } : undefined} />
                 <CommitmentLink className="flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-forest-700 transition hover:text-forest-900" />
@@ -1132,11 +1309,11 @@ export function HomestayBooking({
           )}
 
           <div className="grid grid-cols-2 gap-2">
-            <a href={`tel:${phone.replace(/\s/g, "")}`} className="whitespace-nowrap rounded-xl px-3 py-2.5 text-center text-sm font-bold text-forest-800 ring-1 ring-gray-200">
+            <a href={`tel:${phone.replace(/\s/g, "")}`} className="whitespace-nowrap rounded-full border-[1.5px] border-[oklch(0.88_0.015_160)] px-3 py-2.5 text-center text-[13px] font-extrabold text-[oklch(0.25_0.03_160)]">
               {tr("Gọi {0}", [tr(phone)])}
             </a>
             {zalo && (
-              <a href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="whitespace-nowrap rounded-xl px-3 py-2.5 text-center text-sm font-bold text-sunset-600 ring-1 ring-gray-200">
+              <a href={`https://zalo.me/${zalo}`} target="_blank" rel="noopener noreferrer" className="whitespace-nowrap rounded-full bg-[oklch(0.95_0.03_250)] px-3 py-2.5 text-center text-[13px] font-extrabold text-[oklch(0.42_0.12_250)]">
                 Chat Zalo
               </a>
             )}
@@ -1146,7 +1323,7 @@ export function HomestayBooking({
 
       {/* Thanh đáy dính (mobile) */}
       {chatOnly ? (
-        <div className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-between gap-3 border-t border-gray-200 bg-white px-4 py-3 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.2)] lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-between gap-2.5 border-t border-[oklch(0.92_0.01_160)] bg-white px-3.5 pb-[calc(10px+env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-10px_30px_-20px_oklch(0.2_0.03_160/.4)] lg:hidden">
           <div className="min-w-0">
             <div className="truncate text-xs text-gray-500">{tr("Kiểm tra phòng trống & giữ phòng")}</div>
             <div className="text-base font-extrabold text-ink">{contactOnly ? tr("Nhắn tin nhận thông tin") : tr("Nhắn tin để biết chi tiết")}</div>
@@ -1161,21 +1338,21 @@ export function HomestayBooking({
           </a>
         </div>
       ) : !result && (
-        <div className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-between gap-3 border-t border-gray-200 bg-white px-4 py-3 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.2)] lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-between gap-2.5 border-t border-[oklch(0.92_0.01_160)] bg-white px-3.5 pb-[calc(10px+env(safe-area-inset-bottom))] pt-2.5 shadow-[0_-10px_30px_-20px_oklch(0.2_0.03_160/.4)] lg:hidden">
           <div className="min-w-0">
-            <div className="truncate text-xs text-gray-500">{nN ? tr("{0} đêm{1}", [nN, hasSel ? tr(" · {0} phòng", [sels.length]) : ""]) : tr("Chọn ngày ở")}</div>
+            <div className="truncate text-xs text-[oklch(0.5_0.02_160)]">{nN ? (hasSel ? tr("{0} phòng · {1} → {2}", [sels.length, dm(ci!), dm(coEff!)]) : tr("Mỗi đêm · {0} → {1}", [dm(ci!), dm(coEff!)])) : tr("Chọn ngày ở")}</div>
             {/* flex-wrap: tổng 8 chữ số + giá gạch không đủ chỗ cạnh nút "Đặt phòng" → giá gạch tự xuống dòng. */}
             <div className="flex flex-wrap items-baseline gap-x-1.5 text-lg font-extrabold text-ink">
               {webPromo > 0 && total != null && <span className="whitespace-nowrap text-xs font-semibold text-gray-400 line-through">{tr(fmt(total + webPromo))}</span>}
-              <span className="whitespace-nowrap">{anyIb ? tr(IB) : tr(fmt(total, tr("0đ")))}</span>
+              <span className="whitespace-nowrap text-[oklch(0.58_0.17_45)]">{anyIb ? tr(IB) : hasSel ? tr(fmt(total, tr("0đ"))) : minFrom != null ? tr("Từ {0}", [tr(fmt(minFrom))]) : tr(IB)}</span>
             </div>
           </div>
           <button
             type="button"
-            onClick={() => scrollTo(panelRef.current, 12)}
-            className="whitespace-nowrap rounded-xl bg-sunset-500 px-5 py-3 text-sm font-bold text-white"
+            onClick={() => (hasSel ? scrollTo(panelRef.current, stickyOff() - 50) : !nN ? scrollTo(calRef.current, stickyOff()) : goSec("ph"))}
+            className="cursor-pointer whitespace-nowrap rounded-full bg-[oklch(0.68_0.18_45)] px-5 py-[13px] text-[15px] font-extrabold text-white"
           >
-            {tr("Đặt phòng")}
+            {hasSel ? tr("Đặt phòng") : !nN ? tr("Chọn ngày") : tr("Chọn phòng")}
           </button>
         </div>
       )}
@@ -1242,17 +1419,4 @@ function Legend({ color, label }: { color: string; label: string }) {
       {tr(label)}
     </span>
   );
-}
-
-function StatusChip({ tone, label }: { tone: "ok" | "low" | "full" | "idle"; label: string }) {
-  const tr = useT();
-  const cls =
-    tone === "ok"
-      ? "bg-forest-100 text-forest-800"
-      : tone === "low"
-        ? "bg-amber-100 text-amber-800"
-        : tone === "full"
-          ? "bg-gray-200 text-gray-600"
-          : "bg-gray-100 text-gray-500";
-  return <span className={`flex-none whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold ${cls}`}>{tr(label)}</span>;
 }

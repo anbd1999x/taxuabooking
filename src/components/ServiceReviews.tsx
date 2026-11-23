@@ -20,7 +20,8 @@ function fmtDate(d: Date): string {
   return `${day}/${m}/${y}`;
 }
 
-export async function ServiceReviews({ serviceId, path }: { serviceId: string; path: string }) {
+/** `bare` = không tự kẻ viền / cách lề trên (trang đã bọc sẵn trong thẻ, VD trang chi tiết homestay). */
+export async function ServiceReviews({ serviceId, path, bare = false }: { serviceId: string; path: string; bare?: boolean }) {
   const t = await getT();
   const [reviews, customer] = await Promise.all([
     prisma.review.findMany({
@@ -36,7 +37,7 @@ export async function ServiceReviews({ serviceId, path }: { serviceId: string; p
   const mine = customer ? reviews.find((r) => r.customerId === customer.id) : null;
 
   return (
-    <section className="mt-10 border-t border-gray-200 pt-6">
+    <section className={bare ? "" : "mt-10 border-t border-gray-200 pt-6"}>
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="text-xl font-bold text-ink">{t("Đánh giá")}</h2>
         {count > 0 ? (

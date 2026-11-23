@@ -26,6 +26,7 @@ import { ServiceReviews } from "@/components/ServiceReviews";
 import { buildDirectionOptions, getCabinFareOptions } from "@/lib/cabin";
 import { CabinRoutes } from "@/components/CabinRoutes";
 import { Gallery } from "@/components/Gallery";
+import { StayMosaic, ShareButton } from "@/components/homestay/StayMosaic";
 import { Badge } from "@/components/ui/Badge";
 import { getLocale, getT, lp, tLong } from "@/lib/i18n/server";
 import { localePath, type Locale } from "@/lib/i18n/config";
@@ -109,6 +110,22 @@ export async function generateMetadata({
     alternates: await i18nAlternates(`/${catSlug}/${service.slug}`),
     openGraph: await i18nOg({ title, description, path: `/${catSlug}/${service.slug}`, image: cover, alt: tr(service.title) }),
   };
+}
+
+/** Nhãn tiện ích của một phòng: cờ của hạng phòng (view mây, bồn tắm…) + tiện ích nhập tay, bỏ trùng. */
+function roomTags(rt: { cloudView: boolean; hasBathtub: boolean; breakfast: boolean; heating: boolean; airCon: boolean }, amenities: string | null): string[] {
+  const own = (amenities ?? "").split(",").map((a) => a.trim()).filter(Boolean);
+  const flags: [boolean, string, RegExp][] = [
+    [rt.cloudView, "View mây", /view.*mây|săn mây|biển mây/i],
+    [rt.hasBathtub, "Bồn tắm", /bồn tắm/i],
+    [rt.breakfast, "Ăn sáng", /ăn sáng/i],
+    [rt.heating, "Sưởi ấm", /sưởi/i],
+    [rt.airCon, "Điều hoà", /điều ho[àa]|máy lạnh/i],
+  ];
+  const out = flags.filter(([on, , re]) => on && !own.some((a) => re.test(a))).map(([, label]) => label);
+  const seen = new Set(out.map((x) => x.toLowerCase()));
+  for (const a of own) if (!seen.has(a.toLowerCase())) { seen.add(a.toLowerCase()); out.push(a); }
+  return out;
 }
 
 type PageProps = {
@@ -238,8 +255,69 @@ async function ServiceDetailBody({
         listDays: roomListDaysOfWeek(r),
         holiday: pricing.holidayPrice,
         occupied: occByRoom.get(r.id) ?? [],
+        tags: roomTags(rt, r.amenities),
+        view: rt.cloudView,
+        bathtub: rt.hasBathtub,
       };
     });
+
+    // ----- Dữ liệu cho bố cục "Chi tiết Homestay v3" (chỉ dùng dữ liệu thật; thiếu thì ẩn mục) -----
+    const nRooms = stayRooms.length;
+    const cntFlag = (k: "cloudView" | "hasBathtub" | "breakfast" | "heating" | "airCon") => stayRooms.filter((x) => x.rt[k]).length;
+    const ofRooms = (n: number) => (n >= nRooms ? tr("Tất cả {0} phòng", [nRooms]) : tr("{0}/{1} phòng", [n, nRooms]));
+    const nView = cntFlag("cloudView"), nTub = cntFlag("hasBathtub"), nBf = cntFlag("breakfast"), nHeat = cntFlag("heating"), nAc = cntFlag("airCon");
+    const kmTxt = (n: number) => String(Math.round(n * 10) / 10).replace(".", ",");
+    const highlights = [
+      nView ? { t: tr("View săn mây"), d: ofRooms(nView) } : null,
+      nTub ? { t: tr("Phòng có bồn tắm"), d: ofRooms(nTub) } : null,
+      nBf ? { t: tr("Có ăn sáng"), d: ofRooms(nBf) } : null,
+      service.distanceKm != null ? { t: service.distanceKm > 0 ? tr("Cách trung tâm {0} km", [kmTxt(service.distanceKm)]) : tr("Ngay trung tâm Tà Xùa"), d: service.area ? tr(service.area) : "" } : null,
+      service.easyRoad ? { t: tr("Đường dễ đi"), d: tr("Xe vào thuận tiện") } : null,
+      nHeat ? { t: tr("Có sưởi ấm"), d: ofRooms(nHeat) } : null,
+      nAc ? { t: tr("Có điều hoà"), d: ofRooms(nAc) } : null,
+    ].filter((x): x is { t: string; d: string } => !!x).slice(0, 4);
+
+    const extraFee = toNumber(service.extraPersonFee), earlyFee = toNumber(service.earlyCheckinFee), lateFee = toNumber(service.lateCheckoutFee);
+    const WEEKEND: Record<string, [string, string]> = {
+      FRI_SAT: [tr("Bán theo cụm T6 + T7"), tr("Không bán lẻ từng đêm cuối tuần")],
+      SAT_SUN: [tr("Bán theo cụm T7 + CN"), tr("Không bán lẻ từng đêm cuối tuần")],
+      FRI_SUN: [tr("Bán theo cụm T6 + T7 + CN"), tr("Không bán lẻ từng đêm cuối tuần")],
+      SAT_PAIRED: [tr("Đêm thứ 7 không bán lẻ"), tr("Đặt kèm đêm thứ 6 hoặc chủ nhật")],
+    };
+    const wk = service.weekendPolicy ? WEEKEND[service.weekendPolicy] : undefined;
+    const policyCards = service.contactOnly ? [] : [
+      extraFee ? { k: tr("Người thêm"), v: tr("{0}/người/đêm", [formatPrice(extraFee)]), d: tr("Khi số khách vượt sức chứa chuẩn của phòng") } : null,
+      earlyFee ? { k: tr("Nhận phòng sớm"), v: tr("Phụ thu {0}", [formatPrice(earlyFee)]), d: tr("Tuỳ tình trạng phòng trống") } : null,
+      lateFee ? { k: tr("Trả phòng muộn"), v: tr("Phụ thu {0}", [formatPrice(lateFee)]), d: tr("Tuỳ tình trạng phòng trống") } : null,
+      { k: tr("Trẻ em"), v: tr("Dưới {0} tuổi miễn phí", [service.childFreeUnderAge]), d: tr("Không tính vào số khách và phụ thu") },
+      wk ? { k: tr("Cuối tuần"), v: wk[0], d: wk[1] } : null,
+      { k: tr("Thanh toán"), v: tr("Chưa thanh toán online"), d: tr("Tà Xùa Booking gọi xác nhận phòng rồi chốt bill qua Zalo") },
+    ].filter((x): x is { k: string; v: string; d: string } => !!x);
+
+    // Điểm xung quanh gần nhất theo QUÃNG ĐƯỜNG XE CHẠY đã tính sẵn (bảng RoadDistance) — chưa có cache thì ẩn danh sách.
+    const NEAR_KIND: Record<string, [string, string, string | null]> = {
+      CHECKIN: [tr("Điểm check-in"), "oklch(0.55 0.13 155)", null],
+      CAFE: [tr("Cafe"), "oklch(0.6 0.12 60)", "cafe"],
+      RESTAURANT: [tr("Nhà hàng"), "oklch(0.68 0.18 45)", "nha-hang"],
+    };
+    const [rating, roads] = await Promise.all([
+      prisma.review.aggregate({ where: { serviceId: service.id, status: "APPROVED" }, _avg: { rating: true }, _count: { _all: true } }),
+      service.lat != null && service.lng != null
+        ? prisma.roadDistance.findMany({ where: { serviceId: service.id }, orderBy: { km: "asc" }, take: 60, select: { placeId: true, km: true, minutes: true } })
+        : Promise.resolve([]),
+    ]);
+    const nearPlaces = roads.length
+      ? await prisma.place.findMany({ where: { id: { in: roads.map((x) => x.placeId) }, published: true }, select: { id: true, name: true, kind: true, slug: true } })
+      : [];
+    const placeById = new Map(nearPlaces.map((p) => [p.id, p]));
+    const near = roads
+      .flatMap((x) => {
+        const p = placeById.get(x.placeId);
+        const kd = p ? NEAR_KIND[p.kind] : undefined;
+        return p && kd ? [{ name: p.name, kind: kd[0], c: kd[1], km: Math.round(x.km * 10) / 10, min: Math.max(1, x.minutes), href: kd[2] && p.slug ? `/${kd[2]}/${p.slug}` : null }] : [];
+      })
+      .slice(0, 6);
+    const ratingN = rating._count._all, ratingAvg = rating._avg.rating;
     const mapQuery = `${service.title} ${service.area ?? "Tà Xùa, Bắc Yên, Sơn La"}`;
     // Link chia sẻ rút gọn (maps.app.goo.gl / goo.gl) không chứa toạ độ → mở
     // redirect phía server để lấy URL đầy đủ (có @lat,lng) cho bản đồ đúng vị trí.
@@ -304,16 +382,38 @@ async function ServiceDetailBody({
     });
 
     return (
-      <div className="container-page py-8 pb-28 lg:pb-8">
+      <div className="container-page flex flex-col gap-4 pb-28 pt-3.5 text-[oklch(0.22_0.03_160)] lg:pb-12">
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(stayJsonLd) }} />
-        <nav className="mb-4 text-sm text-gray-500">
+        <nav className="text-[13px] text-[oklch(0.5_0.02_160)]">
           <Link href="/" className="hover:text-forest-700">{tr("Trang chủ")}</Link>
-          <span className="mx-2">/</span>
+          <span className="mx-1.5">›</span>
           <Link href={`/${catSlug}`} className="hover:text-forest-700">{tr(cat.shortLabel)}</Link>
-          <span className="mx-2">/</span>
-          <span className="text-gray-700">{tr(service.title)}</span>
+          <span className="mx-1.5">›</span>
+          <span className="text-[oklch(0.35_0.02_160)]">{tr(service.title)}</span>
         </nav>
         <AgentNote name={service.title} />
+
+        {/* TIÊU ĐỀ */}
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="flex min-w-0 flex-[1_1_320px] flex-col gap-1.5">
+            <div className="flex flex-wrap gap-1.5">
+              <span className="whitespace-nowrap rounded-full bg-[oklch(0.94_0.05_155)] px-2.5 py-1 text-xs font-extrabold text-[oklch(0.36_0.1_155)]">{tr(cat.shortLabel)}</span>
+              {service.featured && <span className="whitespace-nowrap rounded-full bg-[oklch(0.96_0.06_75)] px-2.5 py-1 text-xs font-extrabold text-[oklch(0.48_0.14_55)]">{tr("Nổi bật")}</span>}
+              {nView > 0 && <span className="whitespace-nowrap rounded-full bg-[oklch(0.95_0.03_250)] px-2.5 py-1 text-xs font-extrabold text-[oklch(0.42_0.12_250)]">{tr("View biển mây")}</span>}
+            </div>
+            <h1 className="text-[clamp(26px,3.4vw,36px)] font-extrabold leading-[1.1] tracking-[-.025em] text-ink">{tr(service.title)}</h1>
+            <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 text-sm text-[oklch(0.42_0.02_160)]">
+              {ratingN > 0 && ratingAvg != null && (
+                <span className="whitespace-nowrap"><b className="text-[oklch(0.25_0.03_160)]">★ {ratingAvg.toFixed(1).replace(".", ",")}</b> · {tr("{0} đánh giá", [ratingN])}</span>
+              )}
+              {service.area && <span className="whitespace-nowrap">{tr(service.area)}</span>}
+              <a href="#vi-tri" className="whitespace-nowrap font-bold text-[oklch(0.4_0.08_158)] hover:text-sunset-600">{tr("Xem vị trí ↓")}</a>
+            </div>
+          </div>
+          <div className="flex gap-1.5"><ShareButton title={tr(service.title)} /></div>
+        </div>
+
+        <StayMosaic images={service.images.filter((i) => !/\.(mp4|webm|mov|m4v|ogg)(\?|$)/i.test(i.url)).map((i) => ({ url: i.url, alt: i.alt }))} title={tr(service.title)} />
 
         <HomestayBooking
           serviceId={service.id}
@@ -328,9 +428,11 @@ async function ServiceDetailBody({
           phone={phone}
           zalo={zalo}
           area={service.area}
+          distanceKm={service.distanceKm}
           mapQuery={mapQuery}
           mapUrl={resolvedMapUrl}
           policy={await tLong(service.policy)}
+          policyCards={policyCards}
           weekendPolicy={service.weekendPolicy}
           childFreeUnderAge={service.childFreeUnderAge}
           initialAdults={typeof sp.adults === "string" ? Math.max(1, parseInt(sp.adults, 10) || 0) || undefined : undefined}
@@ -339,37 +441,25 @@ async function ServiceDetailBody({
               ? sp.kids.split("-").map((x) => parseInt(x, 10)).filter((n) => Number.isInteger(n) && n >= 0 && n <= 17)
               : undefined
           }
+          summary={service.summary}
+          highlights={highlights}
           description={await tLong(service.description)}
           suggestions={suggestions}
-          header={
-            <div className="flex flex-col gap-4">
-              <Gallery images={service.images.map((i) => ({ url: i.url, alt: i.alt }))} title={tr(service.title)} />
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge tone="ok">{tr(cat.shortLabel)}</Badge>
-                  {service.featured && <Badge tone="warn">{tr("Nổi bật")}</Badge>}
-                  {service.area && (
-                    <a href="#vi-tri" className="text-sm font-semibold text-forest-700 underline underline-offset-4 hover:text-sunset-600">
-                      {tr("📍 {0} · Xem bản đồ ↓", [tr(service.area)])}
-                    </a>
-                  )}
-                  {service.lat != null && service.lng != null && <NearbyButton homeIds={[service.id]} className="inline-flex items-center gap-1.5 text-[13px] font-bold text-forest-700 hover:text-sunset-600" />}
-                </div>
-                <h1 className="mt-2 text-[clamp(26px,4vw,40px)] font-extrabold leading-[1.1] tracking-tight text-ink">{tr(service.title)}</h1>
-                <p className="mt-2 text-[17px] text-gray-600">{tr(service.summary)}</p>
-                {review && (
-                  <Link
-                    href={`/kinh-nghiem/${review.slug}`}
-                    className="mt-2 inline-block text-sm font-semibold text-forest-700 underline underline-offset-4 hover:text-sunset-600"
-                  >
-                    {tr("📖 Đọc review chi tiết: {0}", [await tLong(review.title)])}
-                  </Link>
-                )}
-              </div>
-            </div>
+          near={near}
+          nearbySlot={
+            service.lat != null && service.lng != null ? (
+              <NearbyButton key="nearby" homeIds={[service.id]} className="inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-white px-3.5 py-[9px] text-[13px] font-extrabold text-[oklch(0.25_0.03_160)] shadow-[0_6px_16px_-6px_oklch(0.2_0.03_160/.4)] hover:text-sunset-600" />
+            ) : null
           }
+          reviewLink={
+            review ? (
+              <Link key="review-link" href={`/kinh-nghiem/${review.slug}`} className="self-start text-sm font-semibold text-forest-700 underline underline-offset-4 hover:text-sunset-600">
+                {tr("📖 Đọc review chi tiết: {0}", [await tLong(review.title)])}
+              </Link>
+            ) : null
+          }
+          reviews={<ServiceReviews key="reviews" bare serviceId={service.id} path={`/${catSlug}/${service.slug}`} />}
         />
-        <ServiceReviews serviceId={service.id} path={`/${catSlug}/${service.slug}`} />
       </div>
     );
   }
