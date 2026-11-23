@@ -40,6 +40,7 @@ interface StayOption {
   strikePerUnit?: number | null; // homestay: tổng giá bán niêm yết cả kỳ (gạch), null = không giảm
   count: number;
   colors?: string[];
+  communal?: boolean; // phòng cộng đồng: giá mỗi người
 }
 interface TripOption {
   id: string;
@@ -526,7 +527,7 @@ export function BookingPanel({
                     )}
                     <span className="mt-1 block font-bold text-forest-700">
                       {o.pricePerUnit != null
-                        ? `${o.strikePerUnit != null && o.strikePerUnit > o.pricePerUnit ? tr("Tổng") + ": " : ""}${tr(formatVnd(o.pricePerUnit * quantity))} cho ${quantity} ${kind === "stay" ? tr("phòng") : `xe × ${rentalDaysLabel(o.count, tr)}`}`
+                        ? `${o.strikePerUnit != null && o.strikePerUnit > o.pricePerUnit ? tr("Tổng") + ": " : ""}${tr(formatVnd(o.pricePerUnit * quantity))} cho ${quantity} ${kind === "stay" ? (o.communal ? tr("người") : tr("phòng")) : `xe × ${rentalDaysLabel(o.count, tr)}`}`
                         : tr("Liên hệ xác nhận giá")}
                     </span>
                     {/* Chọn màu xe (admin cấu hình ở loại xe) — chỉ hiện ở loại xe đang chọn. */}

@@ -6,7 +6,7 @@ import { toNumber } from "./format";
 import { roomPricing, priceForDay, stayStrike, roomCommissionForNights } from "./availability";
 import { generateBookingCode } from "./utils";
 import { checkWeekendPolicy } from "./weekend-policy";
-import { payingChildren, partyLabel, DEFAULT_CHILD_FREE_UNDER } from "./occupancy";
+import { payingChildren, partyLabel, isCommunalRoom, DEFAULT_CHILD_FREE_UNDER } from "./occupancy";
 import type { ComboBookingInput } from "./validation";
 import { cabinAllocation, busCostPerPerson, comboQuote, COMBO_DISCOUNT, COMBO_DISCOUNT_KEY, parseComboDiscount } from "./combo-pricing";
 import { busCommissionFor } from "./provider-commission";
@@ -64,10 +64,7 @@ export type ComboRoomKind = "all" | "single" | "double" | "dorm";
  * giảm giá combo. Nhận diện theo tên hạng/phòng (khác với bộ lọc "Phòng tập
  * thể" vốn gồm cả phòng gia đình đông người).
  */
-export function isCommunalRoom(typeName: string, roomName = ""): boolean {
-  const n = `${typeName} ${roomName}`.toLowerCase();
-  return /cộng đồng|cong dong|dorm|tập thể|tap the|giường tầng|giuong tang|phòng chung|phong chung/.test(n);
-}
+export { isCommunalRoom }; // hàm thuần nằm ở occupancy.ts (dùng chung với đặt homestay + giao diện)
 
 /** Giá combo cho MỖI KHÁCH theo loại phòng (dorm: không chia, không giảm). */
 export function comboPricePerPerson(roomCost: number, communal: boolean, people: number, fare: number, discount: number = COMBO_DISCOUNT): number {

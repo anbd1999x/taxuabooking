@@ -8,7 +8,7 @@ import { ItineraryLink } from "@/components/itinerary/ItineraryLink";
 import { VoiceText } from "@/components/SiteContact";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
-import { billableOccupants, multiRoomExtraCost } from "@/lib/occupancy";
+import { billableOccupants, stayRoomsQuote, isCommunalRoom } from "@/lib/occupancy";
 import { CommitmentLink } from "@/components/trust/parts";
 import { vnPhoneError } from "@/lib/phone";
 import { BookingEmailField, emailLooksValid } from "@/components/BookingEmailField";
@@ -423,7 +423,9 @@ export function HomestayBooking({
     else if (roomFree && policyWarn) { status = tr("Không bán lẻ cuối tuần"); tone = "full"; }
     else if (!free) { status = tr("Hết phòng"); tone = "full"; }
     else { status = tr("Còn phòng"); tone = "ok"; }
-    return { r, i, free, ib, stayPrice, stayStrike, wdP, weP, status, tone };
+    // Phòng cộng đồng (dorm): giá là giá MỖI NGƯỜI ⇒ tiền = giá × số khách (xem stayRoomsQuote).
+    const communal = isCommunalRoom(r.typeName, r.name);
+    return { r, i, free, ib, stayPrice, stayStrike, wdP, weP, status, tone, communal };
   });
 
   const dateQS = ci && coEff ? `?from=${ci}&to=${coEff}` : "";
@@ -434,9 +436,10 @@ export function HomestayBooking({
   // Số người TÍNH PHÍ = người lớn + trẻ TỪ ngưỡng miễn phí trở lên (trẻ nhỏ hơn: miễn phí).
   const occupants = billableOccupants(adults, childAges, childFreeUnderAge);
   // Đoàn chia vào các phòng đã chọn: sức chứa = tổng các phòng; vượt chuẩn ⇒ phụ thu (mức chung homestay).
-  const ec = multiRoomExtraCost(
+  // Cùng hàm với server (createBooking): phòng thường = giá cả phòng + phụ thu; phòng cộng đồng = giá × số khách.
+  const ec = stayRoomsQuote(
     occupants,
-    sels.map((v) => ({ capacity: v.r.capacity, maxCapacity: v.r.maxCapacity })),
+    sels.map((v) => ({ price: v.ib ? null : v.stayPrice, capacity: v.r.capacity, maxCapacity: v.r.maxCapacity, communal: v.communal })),
     sels[0]?.r.extraFee,
     nN,
   );
@@ -444,9 +447,11 @@ export function HomestayBooking({
   const selMax = ec.max;
   const extraGuests = hasSel ? ec.extraGuests : 0;
   const extraCost = hasSel ? ec.cost : 0;
-  const roomsSum = sels.reduce((n, v) => n + (v.stayPrice ?? 0), 0);
+  /** Số khách tính tiền ở phòng thứ i của đơn (phòng thường = 1 đơn vị "cả phòng"). */
+  const unitsOf = (i: number) => (sels[i]?.communal ? ec.beds[i] ?? 1 : 1);
+  const roomsSum = ec.roomsTotal ?? 0;
   // Khuyến mãi khi đặt trên website = tổng (giá bán niêm yết − giá đặt web) các phòng đã chọn.
-  const webPromo = anyIb ? 0 : sels.reduce((n, v) => n + (v.stayStrike != null && v.stayPrice != null ? v.stayStrike - v.stayPrice : 0), 0);
+  const webPromo = anyIb ? 0 : sels.reduce((n, v, i) => n + (v.stayStrike != null && v.stayPrice != null ? (v.stayStrike - v.stayPrice) * unitsOf(i) : 0), 0);
   // Kỳ có đêm không công khai giá → không có tạm tính (hiển thị "IB để biết giá").
   const total: number | null = hasSel ? (anyIb ? null : roomsSum + extraCost) : 0;
   const over = hasSel ? ec.overCapacity : false;
@@ -752,7 +757,7 @@ export function HomestayBooking({
                       )}
                       <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-3">
                         <div>
-                          <div className="text-xs text-gray-500">{v.r.por || v.ib ? tr("Giá phòng") : nN ? tr("{0} đêm", [nN]) : tr("Mỗi đêm từ")}</div>
+                          <div className="text-xs text-gray-500">{v.r.por || v.ib ? tr("Giá phòng") : v.communal ? (nN > 1 ? tr("/ người / {0} đêm", [nN]) : tr("/ người / đêm")) : nN ? tr("{0} đêm", [nN]) : tr("Mỗi đêm từ")}</div>
                           <div className={`flex flex-wrap items-baseline gap-x-1.5 font-extrabold text-ink ${v.r.por || v.ib ? "text-base text-forest-700" : "text-xl"}`}>
                             {!(v.r.por || v.ib) && (() => {
                               const strike = nN ? v.stayStrike : fromStrike(v.r);
@@ -1040,11 +1045,11 @@ export function HomestayBooking({
                   {sels.length > 1 && (
                     <div className="text-[11px] font-bold uppercase tracking-wide text-forest-700">{tr("{0} phòng · {1} đêm", [sels.length, nN])}</div>
                   )}
-                  {sels.map((v) => (
+                  {sels.map((v, si) => (
                     <div key={v.r.id} className="flex items-start justify-between gap-2 text-[13px]">
-                      <span className="min-w-0 text-gray-600">{tr(v.r.typeName)} · {tr(v.r.name)}{sels.length > 1 ? "" : tr(" · {0} đêm", [nN])}</span>
+                      <span className="min-w-0 text-gray-600">{tr(v.r.typeName)} · {tr(v.r.name)}{sels.length > 1 ? "" : tr(" · {0} đêm", [nN])}{v.communal && !v.ib && v.stayPrice != null ? <>{" · "}<b className="text-ink">{tr("{0} khách × {1}", [unitsOf(si), tr(fmt(v.stayPrice))])}</b></> : null}</span>
                       <span className="flex flex-none items-center gap-1.5">
-                        <span className="whitespace-nowrap font-bold text-ink">{v.ib ? tr(IB) : tr(fmt(v.stayStrike ?? v.stayPrice))}</span>
+                        <span className="whitespace-nowrap font-bold text-ink">{v.ib ? tr(IB) : tr(fmt((v.stayStrike ?? v.stayPrice ?? 0) * unitsOf(si)))}</span>
                         {sels.length > 1 && (
                           <button
                             type="button"

@@ -28,7 +28,7 @@ import { checkWeekendPolicy } from "./weekend-policy";
 import { toNumber, formatPrice } from "./format";
 import { generateBookingCode } from "./utils";
 import { resolveCommission } from "./commission";
-import { billableOccupants, multiRoomExtraCost, partyLabel, DEFAULT_CHILD_FREE_UNDER } from "./occupancy";
+import { billableOccupants, stayRoomsQuote, isCommunalRoom, partyLabel, DEFAULT_CHILD_FREE_UNDER } from "./occupancy";
 import type { BookingInput } from "./validation";
 
 export interface StayOption {
@@ -43,6 +43,8 @@ export interface StayOption {
   count: number; // số đêm/ngày
   colors?: string[]; // thuê xe máy: các màu có sẵn để khách chọn
   commission?: number; // tổng chiết khấu CTV cho phòng này cả kỳ (homestay)
+  /** Phòng cộng đồng (dorm): `pricePerUnit` là giá MỖI NGƯỜI cả kỳ, tiền = giá × số khách. */
+  communal?: boolean;
 }
 
 export interface TripOption {
@@ -157,6 +159,7 @@ export async function computeAvailability(
         strikePerUnit: nights.length > 0 && !hasIbNight ? stayStrike(nights, room, holidays).strikeTotal : null,
         count: nights.length,
         commission: roomCommissionForNights(room, nights, toNumber(service.roomCommission)),
+        communal: isCommunalRoom(room.typeName, room.name),
       };
     });
 
@@ -396,11 +399,13 @@ export async function createBooking(
     bAdults = Math.max(1, input.adults ?? input.quantity ?? 1);
     bChildrenAges = input.childrenAges ?? [];
     const occupants = billableOccupants(bAdults, bChildrenAges, freeUnder);
-    const ec = multiRoomExtraCost(
+    // Tiền phòng MỘT NGUỒN với giao diện (stayRoomsQuote): phòng thường = giá cả phòng + phụ thu ở ghép;
+    // phòng CỘNG ĐỒNG = giá mỗi người × số khách (trước đây tính như 1 phòng ⇒ đoàn 15 người chỉ ra giá 1 giường).
+    const ec = stayRoomsQuote(
       occupants,
       picked.map((o) => {
         const row = rowOf.get(o.id);
-        return { capacity: row?.capacity ?? o.capacity ?? 2, maxCapacity: row?.maxCapacity };
+        return { price: o.pricePerUnit, capacity: row?.capacity ?? o.capacity ?? 2, maxCapacity: row?.maxCapacity, communal: o.communal };
       }),
       toNumber(service.extraPersonFee),
       picked[0].count,
@@ -413,12 +418,13 @@ export async function createBooking(
       );
     }
     // Có phòng không công khai giá (IB) → cả đơn không có giá tham khảo.
-    const roomsTotal = picked.every((o) => o.pricePerUnit != null)
-      ? picked.reduce((n, o) => n + (o.pricePerUnit ?? 0), 0)
-      : null;
+    const roomsTotal = ec.roomsTotal;
     referencePrice = roomsTotal != null ? roomsTotal + ec.cost : null;
+    // Phòng cộng đồng: ghi rõ số giường × giá mỗi người để admin / chủ nhà đối chiếu.
+    const roomLabel = (o: StayOption, i: number) =>
+      o.communal && ec.beds[i] > 0 ? `${o.name} (${ec.beds[i]} khách${o.pricePerUnit != null ? ` × ${formatPrice(o.pricePerUnit)}` : ""})` : o.name;
     selectionLabel =
-      `${picked.length > 1 ? `${picked.length} phòng: ` : ""}${picked.map((o) => o.name).join(" + ")} · ${partyLabel(bAdults, bChildrenAges)}` +
+      `${picked.length > 1 ? `${picked.length} phòng: ` : ""}${picked.map(roomLabel).join(" + ")} · ${partyLabel(bAdults, bChildrenAges)}` +
       (ec.extraGuests > 0 ? ` · +${ec.extraGuests} khách phụ thu ${formatPrice(ec.cost)}` : "");
   } else if (computed?.kind === "rental" && computed.stayOptions) {
     const opt = computed.stayOptions.find((o) => o.id === input.rentalVehicleId);
