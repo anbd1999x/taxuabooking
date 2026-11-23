@@ -58,8 +58,8 @@ export function WeatherPopup({ onClose }: { onClose: () => void }) {
       {/* iPhone: vh = màn hình khi ẨN thanh địa chỉ ⇒ 94vh cao hơn phần nhìn thấy, đầu popup (nút ×) bị khuất.
           Dùng dvh (phần đang thấy) + nút × nằm NGOÀI vùng cuộn nên luôn đứng yên ở góc. */}
       <div
-        className="wxp-pop wxp-sheet relative flex w-full max-w-[1240px] flex-col overflow-hidden rounded-t-[28px] sm:rounded-[28px]"
-        style={{ background: "oklch(0.975 0.008 150)", color: "oklch(0.22 0.03 160)" }}
+        className="wxp-pop wxp-sheet relative flex backdrop-blur-xl w-full max-w-[1240px] flex-col overflow-hidden rounded-t-[28px] sm:rounded-[28px]"
+        style={{ background: "oklch(0.975 0.008 150 / .95)", color: "oklch(0.22 0.03 160)" }} // nền đục 95% + làm mờ phía sau (kính)
       >
         <button
           type="button"
