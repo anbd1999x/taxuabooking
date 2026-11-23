@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 type Mode = "range" | "month" | "year";
@@ -21,15 +21,32 @@ function detect(from: string, to: string): Mode {
  * Bộ lọc thời gian của trang thống kê: Từ ngày – đến ngày / theo Tháng / theo Năm.
  * Mọi chế độ đều quy về ?from=&to= nên trang server không cần đổi.
  */
-export function StatsRangeFilter({ action, fromKey, toKey }: { action: string; fromKey: string; toKey: string }) {
+export function StatsRangeFilter({
+  action,
+  fromKey,
+  toKey,
+  by = "use",
+}: {
+  action: string;
+  fromKey: string;
+  toKey: string;
+  by?: "use" | "created";
+}) {
   const router = useRouter();
+  const [pending, startTransition] = useTransition();
   const [mode, setMode] = useState<Mode>(detect(fromKey, toKey));
   const [from, setFrom] = useState(fromKey);
   const [to, setTo] = useState(toKey);
   const thisYear = new Date().getFullYear();
   const years = Array.from({ length: Math.max(1, thisYear - 2024) + 1 }, (_, i) => thisYear - i);
 
-  const go = (f: string, t: string) => router.push(`${action}?${new URLSearchParams({ from: f, to: t }).toString()}`);
+  const go = (f: string, t: string, b: "use" | "created" = by) => {
+    if (!f || !t) return;
+    if (f > t) [f, t] = [t, f];
+    const q = new URLSearchParams({ from: f, to: t });
+    if (b === "created") q.set("by", "created");
+    startTransition(() => router.push(`${action}?${q.toString()}`));
+  };
   const goMonth = (ym: string) => {
     if (!/^\d{4}-\d{2}$/.test(ym)) return;
     go(`${ym}-01`, `${ym}-${pad(lastDay(Number(ym.slice(0, 4)), Number(ym.slice(5, 7))))}`);
@@ -45,6 +62,18 @@ export function StatsRangeFilter({ action, fromKey, toKey }: { action: string; f
 
   return (
     <div className="mt-4 flex flex-wrap items-end gap-3">
+      <label className="block">
+        <span className="text-xs font-medium text-gray-500">Tính theo</span>
+        <select
+          value={by}
+          disabled={pending}
+          onChange={(e) => go(fromKey, toKey, e.target.value === "created" ? "created" : "use")}
+          className={`mt-1 block ${field} font-semibold`}
+        >
+          <option value="use">Ngày sử dụng (nhận phòng / đi)</option>
+          <option value="created">Ngày tạo đơn</option>
+        </select>
+      </label>
       {/* max-w-full + cuộn ngang: 3 tab không vừa 360px ⇒ tab "Theo năm" bị cắt. */}
       <div className="inline-flex max-w-full gap-1 overflow-x-auto rounded-[14px] bg-gray-200/70 p-1">
         {tabs.map(([k, name]) => (
@@ -66,7 +95,7 @@ export function StatsRangeFilter({ action, fromKey, toKey }: { action: string; f
           className="flex flex-wrap items-end gap-2"
           onSubmit={(e) => {
             e.preventDefault();
-            if (from && to) go(from, to);
+            go(from, to);
           }}
         >
           <label className="block">
@@ -77,7 +106,9 @@ export function StatsRangeFilter({ action, fromKey, toKey }: { action: string; f
             <span className="text-xs font-medium text-gray-500">Đến ngày</span>
             <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} className={`mt-1 block ${field}`} />
           </label>
-          <button className="rounded-xl bg-forest-600 px-4 py-2 text-sm font-semibold text-white">Xem</button>
+          <button disabled={pending} className="rounded-xl bg-forest-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
+            {pending ? "Đang tải…" : "Xem"}
+          </button>
         </form>
       )}
 
@@ -108,6 +139,7 @@ export function StatsRangeFilter({ action, fromKey, toKey }: { action: string; f
           </select>
         </label>
       )}
+      {pending && <span className="pb-2 text-sm font-semibold text-forest-700">Đang tải số liệu…</span>}
     </div>
   );
 }

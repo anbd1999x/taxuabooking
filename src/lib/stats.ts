@@ -3,9 +3,10 @@ import { rentalListPriceMap } from "./rental-list-price";
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "./prisma";
-import { parseDateOnly, addDays } from "./dates";
+import { parseDateOnly, addDays, toDateKey } from "./dates";
 import { toNumber } from "./format";
-import { comboSideCollected } from "./combo-pricing";
+import { bookingBusSeats, comboSideCollected } from "./combo-pricing";
+import { bookingPax, durationLabel, isRentalCategory } from "./occupancy";
 import { resolveBusCommissions, resolveRoomCommissions } from "./provider-commission";
 import { effectiveDiscounts, supplierPayouts } from "./supplier-payout";
 import { CATEGORIES } from "./constants";
@@ -41,12 +42,45 @@ export interface ServicePayRow {
   payable: number; // phải thanh toán = total − discount
   paid: number; // sàn đã thanh toán
   remaining: number; // còn chưa thanh toán
+  owner: string | null; // tên chủ dịch vụ
+  lines: PayLine[]; // từng đơn (bấm vào dòng để xem)
 }
+
+/** Một đơn trong phần chi tiết của bảng thanh toán / bảng theo chủ dịch vụ (tính theo BÊN của dịch vụ đó). */
+export interface PayLine {
+  id: string;
+  code: string;
+  customer: string;
+  service: string; // tên dịch vụ (bảng theo chủ có thể gồm nhiều dịch vụ)
+  side: "room" | "bus";
+  combo: boolean;
+  status: string;
+  useDate: string; // yyyy-mm-dd
+  endDate: string | null;
+  createdAt: string; // ISO
+  total: number; // tiền bán ra phần của bên này
+  discount: number;
+  payable: number;
+  paid: number; // sàn đã trả
+  remaining: number;
+  collected: number; // tiền khách đã trả phần của bên này
+  // ---- chi tiết cho báo cáo xuất Excel ----
+  phone: string;
+  detail: string; // mô tả lựa chọn (phòng / chuyến / xe…)
+  pax: string; // "2 khách" / "1 xe"…
+  duration: string | null; // "2 đêm" / "2 ngày thuê"
+  collector: "PLATFORM" | "PROVIDER"; // ai thu tiền khách
+  providerOwes: number; // chủ dịch vụ phải chuyển lại sàn (khi tự thu / giữ tiền)
+  paymentStatus: string; // UNPAID / DEPOSITED / PAID (khách trả sàn)
+}
+
+/** Lọc theo NGÀY SỬ DỤNG (nhận phòng / đi / thuê) hay NGÀY TẠO ĐƠN (giờ Việt Nam). */
+export type StatsDateBy = "use" | "created";
 
 export interface StatsResult {
   totals: StatRow;
   byCtv: StatRow[];
-  byProvider: StatRow[]; // rỗng khi xem ở phạm vi một chủ dịch vụ
+  byProvider: (StatRow & { lines: PayLine[] })[]; // rỗng khi xem ở phạm vi một chủ dịch vụ
   byService: ServicePayRow[]; // rỗng khi xem ở phạm vi một chủ dịch vụ
 }
 
@@ -141,7 +175,7 @@ function accumulate(row: StatRow, b: Bk, net = false) {
  */
 export async function ownerBookingIds(
   ownerId: string,
-  opts: { from?: Date; toExclusive?: Date; statuses?: string[]; limit?: number } = {},
+  opts: { from?: Date; toExclusive?: Date; useFrom?: Date; useTo?: Date; statuses?: string[]; limit?: number } = {},
 ): Promise<string[]> {
   const trips = Prisma.sql`SELECT t.id FROM "CabinTrip" t JOIN "Service" s ON s.id = t."serviceId" WHERE s."ownerId" = ${ownerId} AND s."category" = 'CABIN'`;
   const conds: Prisma.Sql[] = [
@@ -149,6 +183,8 @@ export async function ownerBookingIds(
   ];
   if (opts.from) conds.push(Prisma.sql`b."createdAt" >= ${opts.from}`);
   if (opts.toExclusive) conds.push(Prisma.sql`b."createdAt" < ${opts.toExclusive}`);
+  if (opts.useFrom) conds.push(Prisma.sql`b."useDate" >= ${opts.useFrom}`);
+  if (opts.useTo) conds.push(Prisma.sql`b."useDate" <= ${opts.useTo}`);
   if (opts.statuses?.length) conds.push(Prisma.sql`b."status"::text IN (${Prisma.join(opts.statuses)})`);
   const rows = await prisma.$queryRaw<{ id: string }[]>`
     SELECT b.id FROM "BookingRequest" b
@@ -158,24 +194,56 @@ export async function ownerBookingIds(
   return rows.map((r) => r.id);
 }
 
+/** Lệch múi giờ Việt Nam: ngày tạo đơn tính theo giờ VN (createdAt lưu UTC). */
+const VN_OFFSET_MS = 7 * 3_600_000;
+
+/** Điều kiện ngày của thống kê (dùng chung với trang Yêu cầu đặt khi bấm xem đơn). */
+export function statsDateWhere(fromKey: string, toKey: string, by: StatsDateBy): Prisma.BookingRequestWhereInput {
+  const from = parseDateOnly(fromKey);
+  const to = parseDateOnly(toKey);
+  if (by === "use") return { useDate: { gte: from, lte: to } };
+  // 00:00 giờ VN = 17:00 UTC hôm trước.
+  return { createdAt: { gte: new Date(from.getTime() - VN_OFFSET_MS), lt: new Date(addDays(to, 1).getTime() - VN_OFFSET_MS) } };
+}
+
 /**
- * Thống kê theo mốc thời gian (lọc theo ngày tạo đơn).
+ * Thống kê theo mốc thời gian — `by` = "use" (ngày sử dụng, mặc định) hoặc "created" (ngày tạo đơn, giờ VN).
  * ownerId != null ⇒ phạm vi một chủ dịch vụ (chỉ đơn của dịch vụ họ sở hữu, không trả bảng theo chủ).
  */
-export async function computeStats(fromKey: string, toKey: string, ownerId?: string | null): Promise<StatsResult> {
-  const from = parseDateOnly(fromKey);
-  const toExclusive = addDays(parseDateOnly(toKey), 1);
+export async function computeStats(
+  fromKey: string,
+  toKey: string,
+  ownerId?: string | null,
+  by: StatsDateBy = "use",
+): Promise<StatsResult> {
+  const dateWhere = statsDateWhere(fromKey, toKey, by);
+  const created = dateWhere.createdAt as { gte: Date; lt: Date } | undefined;
 
   // Nhà xe: đơn COMBO gắn serviceId homestay nhưng đi qua CHUYẾN của nhà xe ⇒ lọc phạm vi chủ trong DB.
-  const ownerIds = ownerId ? await ownerBookingIds(ownerId, { from, toExclusive }) : null;
+  const ownerIds = ownerId
+    ? await ownerBookingIds(
+        ownerId,
+        created
+          ? { from: created.gte, toExclusive: created.lt }
+          : { useFrom: parseDateOnly(fromKey), useTo: parseDateOnly(toKey) },
+      )
+    : null;
 
   const bookings = await prisma.bookingRequest.findMany({
     where: {
-      createdAt: { gte: from, lt: toExclusive },
+      ...dateWhere,
       ...(ownerIds ? { id: { in: ownerIds } } : {}),
     },
+    orderBy: { useDate: "asc" },
     select: {
       id: true,
+      code: true,
+      customerName: true,
+      phone: true,
+      selectionLabel: true,
+      adults: true,
+      childrenAges: true,
+      createdAt: true,
       category: true,
       status: true,
       paymentStatus: true,
@@ -199,6 +267,8 @@ export async function computeStats(fromKey: string, toKey: string, ownerId?: str
       rentalVehicleId: true,
       seatsSingle: true,
       seatsDouble: true,
+      cabinShared: true,
+      cabinSolo: true,
       roomId: true,
       roomIds: true,
       useDate: true,
@@ -217,7 +287,11 @@ export async function computeStats(fromKey: string, toKey: string, ownerId?: str
   // Thay chiết khấu home / nhà xe bằng giá trị hiệu lực (snapshot, hoặc tính bù cho đơn
   // cũ chưa có snapshot) — để tiền thực nhận của chủ dịch vụ & doanh thu sàn đúng ngay.
   const [roomDisc, busDisc, listPrices] = await Promise.all([resolveRoomCommissions(bookings), resolveBusCommissions(bookings), rentalListPriceMap(bookings)]);
+  // Chiết khấu GỐC (chưa gồm phần thu thêm) cho supplierPayouts — hàm đó tự cộng phần thu thêm,
+  // truyền số hiệu lực vào sẽ bị trừ 2 lần.
+  const rawDisc = new Map<string, { room: number; bus: number }>();
   for (const b of bookings) {
+    rawDisc.set(b.id, { room: roomDisc.get(b.id) ?? 0, bus: busDisc.get(b.id) ?? 0 });
     // Admin sửa tay số phải trả ⇒ chiết khấu hiệu lực = bán ra − số sửa tay (khớp báo cáo thanh toán).
     const eff = effectiveDiscounts(b, roomDisc.get(b.id) ?? 0, busDisc.get(b.id) ?? 0);
     (b as { roomCommission: unknown }).roomCommission = eff.room;
@@ -248,7 +322,12 @@ export async function computeStats(fromKey: string, toKey: string, ownerId?: str
 
   const totals = emptyRow("_all", "Tổng");
   const byCtv = new Map<string, StatRow>();
-  const byProvider = new Map<string, StatRow>();
+  const byProvider = new Map<string, StatRow & { lines: PayLine[] }>();
+  const provRow = (id: string, name: string) => {
+    const r = byProvider.get(id) ?? { ...emptyRow(id, name), lines: [] };
+    byProvider.set(id, r);
+    return r;
+  };
 
   // Phạm vi một chủ dịch vụ ⇒ tính theo tiền THỰC NHẬN (trừ chiết khấu từng căn).
   const net = !!ownerId;
@@ -267,24 +346,68 @@ export async function computeStats(fromKey: string, toKey: string, ownerId?: str
     accumulate(crow, scoped, net);
     byCtv.set(ck, crow);
 
-    // Thanh toán cho từng dịch vụ: đơn đã chốt, tách theo bên (combo = homestay + nhà xe).
-    if (!ownerId && (b.status === "CONFIRMED" || b.status === "COMPLETED")) {
-      const sides = supplierPayouts(b, toNumber(b.roomCommission as never) ?? 0, toNumber(b.busCommission as never) ?? 0);
-      for (const s of sides) {
-        const comboBus = isCombo && s.side === "bus";
-        const svc = comboBus
-          ? (b.cabinTripId ? tripService.get(b.cabinTripId) : undefined)
-          : b.service
-            ? { id: b.service.id, title: b.service.title }
-            : undefined;
+    if (ownerId) continue;
+
+    // Tiền từng bên của đơn (combo = homestay + nhà xe).
+    const raw = rawDisc.get(b.id) ?? { room: 0, bus: 0 };
+    const sides = supplierPayouts(b, raw.room, raw.bus);
+    const isChot = b.status === "CONFIRMED" || b.status === "COMPLETED";
+
+    for (const s of sides) {
+      const comboBus = isCombo && s.side === "bus";
+      const svc = comboBus
+        ? (b.cabinTripId ? tripService.get(b.cabinTripId) : undefined)
+        : b.service
+          ? { id: b.service.id, title: b.service.title }
+          : undefined;
+      const svcName = svc?.title ?? (comboBus ? "Nhà xe (chưa gán chuyến)" : `${b.serviceTitle} (đã xoá bài đăng)`);
+      const line: PayLine = {
+        id: b.id,
+        code: b.code,
+        customer: b.customerName,
+        service: svcName,
+        side: s.side,
+        combo: isCombo,
+        status: b.status,
+        useDate: toDateKey(b.useDate),
+        endDate: b.endDate ? toDateKey(b.endDate) : null,
+        createdAt: b.createdAt.toISOString(),
+        total: s.gross,
+        discount: s.discount,
+        payable: s.payable,
+        paid: s.paid,
+        remaining: s.remaining,
+        collected: isCombo
+          ? comboSideCollected(b.paymentStatus, toNumber(b.amountCollected), s.gross)
+          : toNumber(b.amountCollected) ?? 0,
+        phone: b.phone,
+        detail: b.selectionLabel ?? "",
+        pax: isRentalCategory(b.category)
+          ? `${b.quantity} xe`
+          : comboBus
+            ? `${bookingBusSeats(b)} vé`
+            : ["HOMESTAY", "BUNGALOW", "COMBO", "CABIN"].includes(b.category)
+              ? `${bookingPax(b)} khách`
+              : `SL ${b.quantity}`,
+        duration: durationLabel(b),
+        collector: s.collector,
+        providerOwes: s.providerOwes,
+        paymentStatus: b.paymentStatus,
+      };
+
+      // Thanh toán cho từng dịch vụ: chỉ đơn đã chốt.
+      if (isChot) {
         const key = svc?.id ?? (comboBus ? "_bus" : `_t:${b.serviceTitle}`);
         const row =
           byService.get(key) ??
           {
             id: key,
-            name: svc?.title ?? (comboBus ? "Nhà xe (chưa gán chuyến)" : `${b.serviceTitle} (đã xoá bài đăng)`),
+            name: svcName,
             kind: s.side === "bus" ? "Nhà xe" : isCombo ? "Homestay" : CATEGORIES[b.service?.category ?? b.category].shortLabel,
-            orders: 0, total: 0, discount: 0, payable: 0, paid: 0, remaining: 0,
+            orders: 0, total: 0, discount: 0, payable: 0, paid: 0, remaining: 0, lines: [],
+            owner: comboBus
+              ? (b.cabinTripId ? tripOwner.get(b.cabinTripId)?.name ?? null : null)
+              : b.service?.owner?.name ?? null,
           };
         row.orders += 1;
         row.total += s.gross;
@@ -292,30 +415,22 @@ export async function computeStats(fromKey: string, toKey: string, ownerId?: str
         row.payable += s.payable;
         row.paid += s.paid;
         row.remaining += s.remaining;
+        row.lines.push(line);
         byService.set(key, row);
       }
+
+      // Theo chủ dịch vụ: combo chia đôi bill — tiền phòng về chủ homestay, tiền vé về chủ nhà xe.
+      if (b.status === "CANCELLED") continue;
+      const owner = comboBus
+        ? (b.cabinTripId && tripOwner.get(b.cabinTripId)) || { id: "_none", name: "Chưa gán chủ dịch vụ" }
+        : { id: b.service?.ownerId ?? "_none", name: b.service?.owner?.name ?? "Chưa gán chủ dịch vụ" };
+      const prow = provRow(owner.id, owner.name);
+      accumulate(prow, isCombo ? comboSideView(b, comboBus ? "bus" : "home") : b);
+      prow.lines.push(line);
     }
-
-    if (!ownerId) {
-      if (isCombo) {
-        // Combo chia đôi bill: tiền phòng về chủ homestay, tiền vé về chủ nhà xe.
-        const hk = b.service?.ownerId ?? "_none";
-        const hn = b.service?.owner?.name ?? "Chưa gán chủ dịch vụ";
-        const hrow = byProvider.get(hk) ?? emptyRow(hk, hn);
-        accumulate(hrow, comboSideView(b, "home"));
-        byProvider.set(hk, hrow);
-
-        const bo = (b.cabinTripId && tripOwner.get(b.cabinTripId)) || { id: "_none", name: "Chưa gán chủ dịch vụ" };
-        const brow = byProvider.get(bo.id) ?? emptyRow(bo.id, bo.name);
-        accumulate(brow, comboSideView(b, "bus"));
-        byProvider.set(bo.id, brow);
-      } else {
-        const pk = b.service?.ownerId ?? "_none";
-        const pn = b.service?.owner?.name ?? "Chưa gán chủ dịch vụ";
-        const prow = byProvider.get(pk) ?? emptyRow(pk, pn);
-        accumulate(prow, b);
-        byProvider.set(pk, prow);
-      }
+    // Combo chưa gán chuyến & chưa có tiền vé: vẫn đếm phần nhà xe vào "Chưa gán chủ" như trước.
+    if (isCombo && b.status !== "CANCELLED" && !sides.some((x) => x.side === "bus")) {
+      accumulate(provRow("_none", "Chưa gán chủ dịch vụ"), comboSideView(b, "bus"));
     }
   }
 
