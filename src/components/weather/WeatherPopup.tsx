@@ -55,20 +55,25 @@ export function WeatherPopup({ onClose }: { onClose: () => void }) {
   return createPortal(
     <div className="fixed inset-0 z-[90] flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={t("Dự báo thời tiết Tà Xùa")}>
       <div className="wxp-fade absolute inset-0 bg-[oklch(0.18_0.03_180/.55)] backdrop-blur-[3px]" onClick={onClose} />
+      {/* iPhone: vh = màn hình khi ẨN thanh địa chỉ ⇒ 94vh cao hơn phần nhìn thấy, đầu popup (nút ×) bị khuất.
+          Dùng dvh (phần đang thấy) + nút × nằm NGOÀI vùng cuộn nên luôn đứng yên ở góc. */}
       <div
-        className="wxp-pop relative max-h-[94vh] w-full max-w-[1240px] overflow-y-auto overscroll-contain rounded-t-[28px] sm:rounded-[28px]"
+        className="wxp-pop wxp-sheet relative flex w-full max-w-[1240px] flex-col overflow-hidden rounded-t-[28px] sm:rounded-[28px]"
         style={{ background: "oklch(0.975 0.008 150)", color: "oklch(0.22 0.03 160)" }}
       >
-        <div className="sticky top-0 z-10 h-0">
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t("Đóng")}
-            className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white text-xl font-bold shadow-md ring-1 ring-black/5 hover:bg-gray-50"
-          >
-            ×
-          </button>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t("Đóng")}
+          className="absolute right-3 top-3 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-white text-2xl font-bold leading-none shadow-md ring-1 ring-black/10 hover:bg-gray-50 active:scale-95"
+        >
+          ×
+        </button>
+        {/* thanh kéo (điện thoại) */}
+        <div className="flex flex-none justify-center pt-2 sm:hidden" aria-hidden>
+          <span className="h-1.5 w-10 rounded-full bg-black/15" />
         </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <section className="flex flex-col gap-[18px] px-[clamp(16px,4vw,32px)] pb-[clamp(20px,4vw,40px)] pt-[clamp(20px,4vw,40px)]">
           {/* tiêu đề */}
           <div className="flex flex-wrap items-end justify-between gap-3.5 pr-10">
@@ -240,7 +245,7 @@ export function WeatherPopup({ onClose }: { onClose: () => void }) {
                     {t("Mặt trời mọc {0} · lặn {1}", [v.sunrise, v.sunset])}
                   </span>
                 </div>
-                <div className="grid grid-cols-[repeat(9,minmax(64px,1fr))] gap-1.5 overflow-x-auto [scrollbar-width:none]">
+                <div className="grid grid-cols-[repeat(9,minmax(76px,1fr))] gap-1.5 overflow-x-auto [scrollbar-width:none]">
                   {v.hours.map((h) => (
                     <div key={h.t} className="flex flex-col items-center gap-1.5 rounded-2xl px-1 py-2.5" style={{ background: h.bg }}>
                       <span className="text-xs font-extrabold" style={{ color: h.tc }}>
@@ -282,7 +287,16 @@ export function WeatherPopup({ onClose }: { onClose: () => void }) {
               </div>
             </>
           )}
+          {/* điện thoại: nút Đóng to ở cuối (cạnh thanh home iPhone) */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="mb-[env(safe-area-inset-bottom)] w-full rounded-full border border-black/10 bg-white py-3.5 text-[15px] font-extrabold shadow-sm active:scale-[.99] sm:hidden"
+          >
+            {t("Đóng")}
+          </button>
         </section>
+        </div>
       </div>
       <style>{POP_CSS}</style>
     </div>,
@@ -296,6 +310,8 @@ const POP_CSS = `
 @keyframes wxp-pulse{0%,100%{opacity:1}50%{opacity:.4}}
 @keyframes wxp-pop{from{opacity:0;transform:translateY(24px) scale(.98)}to{opacity:1;transform:none}}
 @keyframes wxp-fade{from{opacity:0}to{opacity:1}}
+.wxp-sheet{max-height:92vh;max-height:calc(100dvh - 10px)}
+@media (min-width:640px){.wxp-sheet{max-height:94vh;max-height:calc(100dvh - 32px)}}
 .wxp-up{animation:wxp-up .5s ease both}
 .wxp-pop{animation:wxp-pop .35s cubic-bezier(.2,.8,.2,1) both}
 .wxp-fade{animation:wxp-fade .25s ease both}
