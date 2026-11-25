@@ -2645,5 +2645,15 @@
  "Review homestay Tà Xùa": "따쑤아 홈스테이 리뷰",
  "Review homestay Tà Xùa: đánh giá chi tiết từng nhà": "따쑤아 홈스테이 리뷰: 숙소별 상세 평가",
  "Review từng homestay, bungalow ở Tà Xùa: vị trí, hạng phòng, giá ngày thường và cuối tuần, view mây, ưu nhược điểm. Dựa trên bảng giá đang mở bán.": "따쑤아의 홈스테이·방갈로별 리뷰: 위치, 객실 유형, 평일·주말 요금, 운해 전망, 장단점. 현재 판매 중인 요금 기준.",
- "{0}: kinh nghiệm du lịch Tà Xùa": "{0}: 따쑤아 여행 정보"
+ "{0}: kinh nghiệm du lịch Tà Xùa": "{0}: 따쑤아 여행 정보",
+ "{0} Tà Xùa": "{0} 따쑤아",
+ "quán cà phê": "카페",
+ "nhà hàng": "레스토랑",
+ "{0}: {1} khu {2}": "{0}: {2} {1}",
+ "{0}: {1}": "{0}: {1}",
+ "Khu {0}": "{0} 지역",
+ "mở {0}": "영업 {0}",
+ "giá từ {0}đ": "{0}đ부터",
+ "Xem ảnh, bản đồ và đánh giá.": "사진, 지도, 리뷰 보기.",
+ "{0} ở Tà Xùa.": "따쑤아의 {0}."
 }

@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { PlaceDetail } from "@/components/PlaceDetail";
 import { getT, lp } from "@/lib/i18n/server";
 import { i18nAlternates, i18nOg } from "@/lib/i18n/meta";
+import { placeMeta } from "@/lib/place-meta";
 
 export const dynamic = "force-dynamic";
 
@@ -20,8 +21,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const p = await getPlace(slug);
   if (!p) return {};
-  const title = t("{0} — {1}, Tà Xùa", [t(p.name), t(p.area)]);
-  const description = t(p.desc) ?? t("{0} tại {1}, Tà Xùa: thông tin giờ mở cửa, giá, vị trí và đánh giá thực tế.", [t(p.name), t(p.area)]);
+  // Tiêu đề "<tên> Tà Xùa: <loại> khu <khu>" + mô tả có khu / giờ mở / giá (xem placeMeta).
+  const { title, description } = placeMeta(p, t);
   const path = `/nha-hang/${p.slug}`;
   return {
     title,
