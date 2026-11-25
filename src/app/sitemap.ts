@@ -33,6 +33,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/lich-trinh`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${base}/ban-do`, changeFrequency: "weekly", priority: 0.6 },
     { url: `${base}/kinh-nghiem`, changeFrequency: "weekly", priority: 0.6 },
+    { url: `${base}/kinh-nghiem?topic=review-homestay`, changeFrequency: "weekly", priority: 0.6 },
     { url: `${base}/huong-dan`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/nha-hang`, changeFrequency: "weekly", priority: 0.6 },
     ...(venues.length ? [{ url: `${base}/ve`, changeFrequency: "daily" as const, priority: 0.7 }] : []),

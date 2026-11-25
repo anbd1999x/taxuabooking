@@ -84,7 +84,36 @@ export default async function ArticlePage({
           select: { id: true, slug: true, title: true, excerpt: true, coverImage: true, topic: true, createdAt: true },
         })
       : [];
-  const related = [...sameTopic, ...fill];
+  let related = [...sameTopic, ...fill];
+
+  // ── Bài review homestay ↔ homestay (slug bài = "review-<slug nhà>[-ta-xua]") ──
+  // • Bài review: khai `about` = cơ sở lưu trú trong JSON-LD, phần "đọc tiếp" là review các nhà CÙNG KHU trước.
+  // • Bài khác có link /homestay/<slug>: liệt kê bài review của đúng các nhà đó (các bài review không còn mồ côi).
+  const homeOfReview = (s: string) => { const b = s.replace(/^review-/, ""); return [b, b.replace(/-ta-xua$/, "")]; };
+  const isReview = a.topic === "review-homestay";
+  const linkedHomes = isReview ? [] : [...new Set([...a.content.matchAll(/\]\(\/(?:homestay|bungalow)\/([a-z0-9-]+)/g)].map((m) => m[1]))];
+  let aboutHome: { slug: string; title: string; area: string | null } | null = null;
+  let homeReviews: { slug: string; title: string }[] = [];
+  if (isReview || linkedHomes.length) {
+    const [homes, reviews] = await Promise.all([
+      prisma.service.findMany({ where: { published: true, category: { in: ["HOMESTAY", "BUNGALOW"] } }, select: { slug: true, title: true, area: true } }),
+      prisma.article.findMany({
+        where: { published: true, topic: "review-homestay", id: { not: a.id } },
+        orderBy: [{ topicOrder: "desc" }, { createdAt: "desc" }],
+        select: { id: true, slug: true, title: true, excerpt: true, coverImage: true, topic: true, createdAt: true },
+      }),
+    ]);
+    const homeBy = (s: string) => homes.find((h) => homeOfReview(s).includes(h.slug)) ?? null;
+    if (isReview) {
+      aboutHome = homeBy(a.slug);
+      const area = aboutHome?.area ?? null;
+      const same = area ? reviews.filter((r) => homeBy(r.slug)?.area === area) : [];
+      related = [...same, ...reviews.filter((r) => !same.includes(r))].slice(0, 6);
+    } else {
+      // Giữ đúng thứ tự homestay xuất hiện trong bài.
+      homeReviews = linkedHomes.flatMap((hs) => reviews.filter((r) => homeOfReview(r.slug).includes(hs)).slice(0, 1)).slice(0, 24);
+    }
+  }
 
   // JSON-LD phải khớp nội dung ĐANG HIỂN THỊ: bản en/zh/ko dùng tiêu đề + thân bài đã dịch.
   const locale = await getLocale();
@@ -125,7 +154,12 @@ export default async function ArticlePage({
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
+    "@id": `${pageUrl}#article`,
     headline: title,
+    // Bài review: nói rõ bài viết VỀ cơ sở nào (trùng @id LodgingBusiness ở trang đặt phòng).
+    ...(aboutHome
+      ? { about: { "@type": "LodgingBusiness", "@id": `${SITE.url}${localePath(`/homestay/${aboutHome.slug}`, locale)}#lodging`, name: tr(aboutHome.title), url: `${SITE.url}${localePath(`/homestay/${aboutHome.slug}`, locale)}` } }
+      : {}),
     description: (await tLong(a.excerpt)) ?? undefined,
     image: a.coverImage ? [absUrl(a.coverImage)] : undefined,
     datePublished: a.createdAt.toISOString(),
@@ -173,12 +207,28 @@ export default async function ArticlePage({
         dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
       />
 
+      {/* Bài review của các homestay được nhắc trong bài */}
+      {homeReviews.length > 0 && (
+        <section className="mt-12 border-t border-gray-200 pt-8">
+          <h2 className="text-xl font-bold text-ink">{tr("Review chi tiết các homestay trong bài")}</h2>
+          <ul className="mt-3 grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+            {homeReviews.map((r) => (
+              <li key={r.slug} className="text-[15px]">
+                <Link href={`/kinh-nghiem/${r.slug}`} className="font-semibold text-forest-700 underline underline-offset-2 hover:text-sunset-600">
+                  {tr(r.title)}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* Bài viết cùng chủ đề */}
       {related.length > 0 && (
         <section className="mt-12 border-t border-gray-200 pt-8">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <h2 className="text-xl font-bold text-ink">
-              {a.topic ? tr("Bài viết cùng chủ đề") : tr("Bài viết khác")}
+              {isReview ? tr("Review homestay khác ở Tà Xùa") : a.topic ? tr("Bài viết cùng chủ đề") : tr("Bài viết khác")}
             </h2>
             <Link
               href={a.topic ? `/kinh-nghiem?topic=${a.topic}` : "/kinh-nghiem"}

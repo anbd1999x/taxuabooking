@@ -332,6 +332,12 @@ async function ServiceDetailBody({
       .slice(0, 4)
       .map((c) => ({ slug: c.slug, name: c.name, area: c.area, price: c.price, cover: c.cover, cat: c.cat, status: c.status }));
 
+    // Bài review riêng của homestay (chủ đề review-homestay) ⇒ link 2 chiều trang đặt ↔ bài viết + `subjectOf` trong JSON-LD.
+    const review = await prisma.article.findFirst({
+      where: { published: true, topic: "review-homestay", slug: { in: [`review-${service.slug}`, `review-${service.slug}-ta-xua`] } },
+      select: { slug: true, title: true },
+    });
+
     // JSON-LD cho Google: cơ sở lưu trú + breadcrumb.
     const roomPrices = rooms.map((r) => r.base).filter((n) => n > 0);
     // URL theo ngôn ngữ đang xem (en/zh/ko có tiền tố) + tên/tóm tắt đã dịch.
@@ -347,6 +353,12 @@ async function ServiceDetailBody({
           description: await tLong(service.summary),
           url: pageUrl,
           image: service.images.slice(0, 5).map((i) => absUrl(i.url)),
+          // Toạ độ thật + link bản đồ: tín hiệu thực thể cho truy vấn theo TÊN homestay (Google, công cụ AI).
+          ...(service.lat != null && service.lng != null ? { geo: { "@type": "GeoCoordinates", latitude: service.lat, longitude: service.lng } } : {}),
+          ...(service.mapUrl && /^https?:\/\//i.test(service.mapUrl) ? { hasMap: service.mapUrl } : {}),
+          ...(review
+            ? { subjectOf: { "@type": "Article", "@id": `${SITE.url}${localePath(`/kinh-nghiem/${review.slug}`, locale)}#article`, url: `${SITE.url}${localePath(`/kinh-nghiem/${review.slug}`, locale)}`, headline: await tLong(review.title) } }
+            : {}),
           // KHÔNG gắn số điện thoại của Tà Xùa Booking vào cơ sở lưu trú (Google coi là mạo danh chủ homestay).
           // Đại lý đặt chỗ khai riêng ở `potentialAction.provider`.
           potentialAction: {
@@ -374,12 +386,6 @@ async function ServiceDetailBody({
         },
       ],
     };
-
-    // Bài review riêng của homestay (chủ đề review-homestay) ⇒ link 2 chiều trang đặt ↔ bài viết.
-    const review = await prisma.article.findFirst({
-      where: { published: true, topic: "review-homestay", slug: { in: [`review-${service.slug}`, `review-${service.slug}-ta-xua`] } },
-      select: { slug: true, title: true },
-    });
 
     return (
       <div className="container-page flex flex-col gap-4 pb-28 pt-3.5 text-[oklch(0.22_0.03_160)] lg:pb-12">

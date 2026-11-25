@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/format";
 import { ARTICLE_TOPICS, articleTopicLabel } from "@/lib/constants";
 import { getT } from "@/lib/i18n/server";
-import { i18nMeta } from "@/lib/i18n/meta";
+import { i18nAlternates, i18nMeta, i18nOg } from "@/lib/i18n/meta";
 import { ItemListLd } from "@/components/ItemListLd";
 
 export const dynamic = "force-dynamic";
@@ -20,8 +20,26 @@ const META = {
 };
 
 // Ảnh chia sẻ = ảnh bìa bài viết mới nhất (thiếu thì ảnh biển mây mặc định).
-export async function generateMetadata(): Promise<Metadata> {
-  return i18nMeta({ ...META, image: await articleShareImage() });
+// Đang lọc một chủ đề ⇒ tiêu đề + canonical RIÊNG (vd /kinh-nghiem?topic=review-homestay là trang danh mục "Review homestay Tà Xùa").
+const TOPIC_META: Record<string, { title: string; description: string }> = {
+  "review-homestay": {
+    title: "Review homestay Tà Xùa: đánh giá chi tiết từng nhà",
+    description: "Review từng homestay, bungalow ở Tà Xùa: vị trí, hạng phòng, giá ngày thường và cuối tuần, view mây, ưu nhược điểm. Dựa trên bảng giá đang mở bán.",
+  },
+};
+const topicOf = (v: string | string[] | undefined) => (typeof v === "string" && ARTICLE_TOPICS.some((t) => t.key === v) ? v : "");
+
+export async function generateMetadata({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }): Promise<Metadata> {
+  const topic = topicOf((await searchParams).topic);
+  const image = await articleShareImage();
+  if (!topic) return i18nMeta({ ...META, image });
+  const path = `/kinh-nghiem?topic=${topic}`;
+  const tm = TOPIC_META[topic];
+  if (tm) return i18nMeta({ ...tm, path, image });
+  const tr = await getT();
+  const title = tr("{0}: kinh nghiệm du lịch Tà Xùa", [tr(articleTopicLabel(topic) ?? "")]);
+  const description = tr(META.description);
+  return { title, description, alternates: await i18nAlternates(path), openGraph: await i18nOg({ title, description, path, image }) };
 }
 
 export default async function ArticlesPage({
@@ -31,8 +49,8 @@ export default async function ArticlesPage({
 }) {
   const tr = await getT();
   const sp = await searchParams;
-  const raw = typeof sp.topic === "string" ? sp.topic : "";
-  const topic = ARTICLE_TOPICS.some((t) => t.key === raw) ? raw : "";
+  const topic = topicOf(sp.topic);
+  const heading = topic === "review-homestay" ? tr("Review homestay Tà Xùa") : topic ? tr(articleTopicLabel(topic) ?? "") : tr("Kinh nghiệm du lịch Tà Xùa");
 
   const articles = await prisma.article.findMany({
     where: { published: true, ...(topic ? { topic } : {}) },
@@ -45,9 +63,9 @@ export default async function ArticlesPage({
 
   return (
     <div className="container-page py-8">
-      <ItemListLd name={tr("Kinh nghiệm du lịch Tà Xùa")} items={articles.map((a) => ({ name: tr(a.title), path: `/kinh-nghiem/${a.slug}`, image: a.coverImage }))} />
+      <ItemListLd name={heading} items={articles.map((a) => ({ name: tr(a.title), path: `/kinh-nghiem/${a.slug}`, image: a.coverImage }))} />
       <h1 className="text-2xl font-bold text-ink sm:text-3xl">
-        {tr("Kinh nghiệm du lịch Tà Xùa")}
+        {heading}
       </h1>
       <p className="mt-1 text-gray-500">{tr("Mẹo và lịch trình cho chuyến săn mây trọn vẹn.")}</p>
 
