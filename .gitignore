@@ -53,3 +53,5 @@ scripts/i18n/out/
 
 # Khoá bí mật (service account Search Console…) — KHÔNG BAO GIỜ commit: repo đang public
 secrets/
+# Sao lưu cục bộ (nội dung bài trước khi sửa, số liệu Search Console) — không commit
+backups/

@@ -20,3 +20,4 @@ public/uploads/*
 embedder
 # Khoá bí mật — không đưa vào ảnh Docker
 secrets
+backups

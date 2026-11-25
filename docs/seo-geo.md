@@ -11,7 +11,7 @@
 - **Ảnh:** 3–5 ảnh `/uploads/…` đúng nội dung, alt cụ thể có tên địa điểm; ảnh bìa cũng là `/uploads/…` (không dùng Unsplash/Pexels).
 - **Link nội bộ:** 12–25 link tới bài / trang dịch vụ có thật, anchor tự nhiên, không lặp một link quá 2 lần; bài review homestay phải link trang `/homestay/<slug>` (khối link 2 chiều + JSON-LD `about` tự sinh nếu slug là `review-<slug nhà>[-ta-xua]`).
 - **Bắt buộc dịch en/zh/ko** (xem CLAUDE.md mục 8): giữ nguyên link, ảnh, số tiền, số heading, số dòng bảng; zh gọi Tà Xùa là 塔萨, ko là 따쑤아.
-- **Kiểm trước khi đăng:** mẫu kiểm `scripts/tmp/p2/qa.mjs` (độ dài, FAQ, bảng, ảnh 200, link 200, cụm sáo, trùng lặp ≤ 8% với bài cũ) + một lượt soát số liệu độc lập với DB.
+- **Kiểm trước khi đăng:** `node --env-file=.env scripts/seo/article-qa.mjs --dir <thư mục nháp> <slug>` (độ dài, FAQ, bảng, ảnh 200, link 200, cụm sáo, trùng lặp ≤ 8% với bài cũ) + một lượt soát số liệu độc lập với DB.
 
 ## 2. Viết mã trang công khai
 - **Metadata mọi trang:** `title` ≤ 60 ký tự (dài hơn 44 thì dùng `{ absolute }` để khỏi nối "| Tà Xùa Booking"), `description` ≤ 155 ký tự dựng từ dữ liệu thật — không dùng nguyên văn phần tóm tắt chủ cơ sở tự viết. Mẫu: `serviceMeta` (`src/lib/service-meta.ts`), `placeMeta` (`src/lib/place-meta.ts`). Luôn `alternates: i18nAlternates(path)` + `i18nOg`.
