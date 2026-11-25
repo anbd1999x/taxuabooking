@@ -52,7 +52,8 @@ export async function loadDict(locale: Locale): Promise<Dict> {
 /** Bản dịch nội dung NGẮN admin nhập (tên, khu vực, tiện ích…): map chuỗi gốc → bản dịch. */
 const contentMapCached = unstable_cache(
   async (locale: string): Promise<Dict> => {
-    const rows = await prisma.translation.findMany({ where: { locale }, select: { source: true, value: true } });
+    // Bản dịch thực đơn gọi món QR do chủ quán tự nhập (entity DineMenu) KHÔNG vào kho chung — xem src/lib/dine-tr.ts.
+    const rows = await prisma.translation.findMany({ where: { locale, entity: { not: "DineMenu" } }, select: { source: true, value: true } });
     const out: Dict = {};
     for (const r of rows) {
       const key = normSource(r.source); // khớp cách makeT chuẩn hoá khoá khi tra
@@ -101,7 +102,7 @@ export async function lp(href: string): Promise<string> {
 
 const longLookup = cache(async (locale: string, hash: string): Promise<string | null> => {
   const row = await prisma.translation
-    .findFirst({ where: { locale, sourceHash: hash }, select: { value: true }, orderBy: { updatedAt: "desc" } })
+    .findFirst({ where: { locale, sourceHash: hash, entity: { not: "DineMenu" } }, select: { value: true }, orderBy: { updatedAt: "desc" } })
     .catch(() => null);
   return row?.value?.trim() ? row.value : null;
 });

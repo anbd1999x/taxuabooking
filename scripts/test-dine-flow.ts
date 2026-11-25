@@ -4,8 +4,9 @@
  */
 import { prisma } from "../src/lib/prisma";
 import { TicketError, createVenue, patchVenueConfig } from "../src/lib/ticket";
-import { addDineFee, addDineTable, advanceDineOrder, cancelDineOrder, cancelDineOrderByGuest, claimDinePaid, rejectDineClaim, removeDineFee, saveDineBank, closeDineRequest, createDineOrder, createDineRequest, dineCustomerState, loadDine, payDineTable, rotateDineQr, SOLD_DAYS, tableForQr, tableForQrGuarded } from "../src/lib/dine";
+import { addDineFee, addDineTable, advanceDineOrder, cancelDineOrder, cancelDineOrderByGuest, claimDinePaid, rejectDineClaim, removeDineFee, saveDineBank, closeDineRequest, createDineOrder, createDineRequest, dineCustomerState, dineGuests, loadDine, saveDineGate, payDineTable, rotateDineQr, SOLD_DAYS, tableForQr, tableForQrGuarded } from "../src/lib/dine";
 import { isFee, tableState } from "../src/lib/dine-core";
+import { dineTrMap, dropDineMenuTr, getDineMenuTr, saveDineMenuTr } from "../src/lib/dine-tr";
 import { crc16 } from "../src/lib/ticket-core";
 
 let pass = 0, failN = 0;
@@ -69,8 +70,34 @@ async function main() {
     await rejects("Tách cùng một món thành nhiều dòng để vượt giới hạn phần bị từ chối", () => createDineOrder({ venueId, tableId: t1.id, items: [{ menuId: lau.id, qty: 30 }, { menuId: lau.id, qty: 30, note: "x" }] }));
     await rejects("Món của quán khác / không tồn tại bị từ chối", () => createDineOrder({ venueId, tableId: t1.id, items: [{ menuId: "khong-co", qty: 1 }] }));
     await rejects("Bàn chưa gọi món không xin thanh toán được", () => createDineRequest({ venueId, tableId: t1.id, kind: "pay", method: "Tiền mặt" }));
-    const o1 = await createDineOrder({ venueId, tableId: t1.id, items: [{ menuId: lau.id, qty: 1, note: "ít cay" }, { menuId: com.id, qty: 3 }], note: "Lên đồ uống trước" });
+    const o1 = await createDineOrder({ venueId, tableId: t1.id, items: [{ menuId: lau.id, qty: 1, note: "ít cay" }, { menuId: com.id, qty: 3 }], note: "Lên đồ uống trước", guest: { name: "  Anh   Tuấn ", phone: "090 123 4567", pax: 4 } });
     ok("Gọi 4 món", o1.qty === 4);
+    const g1v = (await loadDine(venueId)).orders.find((o) => o.id === o1.id)!.guest;
+    ok("Thông tin khách ở màn Chào mừng được chuẩn hoá và lưu theo lần gọi", g1v?.name === "Anh Tuấn" && g1v.phone === "0901234567" && g1v.pax === 4);
+
+    // --- khách hàng · màn Chào mừng · bản dịch món ---
+    const gl = await dineGuests(venueId);
+    ok("Danh sách khách: gom theo SĐT, đủ tên / số khách / bàn / tiền / món hay gọi", gl.length === 1 && gl[0].phone === "0901234567" && gl[0].name === "Anh Tuấn" && gl[0].pax === 4 && gl[0].visits === 1 && gl[0].orders === 1 && gl[0].spent > 0 && gl[0].top.length === 2);
+    ok("Màn Chào mừng mặc định hỏi đủ", (await loadDine(venueId)).venue.gate === "full");
+    await saveDineGate(venueId, "lite");
+    ok("Đổi sang chỉ hỏi tên + số khách: màn quán và trang khách cùng nhận", (await loadDine(venueId)).venue.gate === "lite" && (await dineCustomerState((await tableForQr(slug, "tn1", key))!)).gate === "lite");
+    await saveDineGate(venueId, "linh-tinh");
+    ok("Giá trị lạ quay về hỏi đủ", (await loadDine(venueId)).venue.gate === "full");
+    const trEmpty = await getDineMenuTr(venueId, lau.id);
+    ok("Món chưa có bản dịch riêng: ô trống hoặc gợi ý từ kho dịch chung", typeof trEmpty.name.en === "string" && !(await prisma.translation.count({ where: { entity: "DineMenu", entityId: lau.id } })));
+    await saveDineMenuTr(venueId, lau.id, { name: { en: "  Test Hotpot ", zh: "测试火锅", ko: "" }, group: { en: "Mains" }, desc: {} });
+    const trSaved = await getDineMenuTr(venueId, lau.id);
+    ok("Lưu bản dịch món: tên + nhóm, ô trống không lưu", trSaved.name.en === "Test Hotpot" && trSaved.name.zh === "测试火锅" && trSaved.group.en === "Mains" && (await prisma.translation.count({ where: { entity: "DineMenu", entityId: lau.id, locale: "ko" } })) === 0);
+    const mapEn = await dineTrMap(venueId, "en", [lau.name, lau.group, com.name]);
+    ok("Trang khách nhận bản dịch của quán, đè lên kho dịch chung", mapEn[lau.name] === "Test Hotpot" && mapEn[lau.group!] === "Mains");
+    ok("Bản dịch của quán không lọt vào kho dịch chung của web", !(await prisma.translation.count({ where: { entity: { not: "DineMenu" }, source: lau.name, value: "Test Hotpot" } })));
+    await rejects("Dịch món của quán khác bị từ chối", () => saveDineMenuTr("khong-phai-quan-nay", lau.id, { name: { en: "x" } }));
+    await prisma.ticketMenuItem.update({ where: { id: lau.id }, data: { name: lau.name + " đổi tên" } });
+    ok("Quán đổi tên món ⇒ bản dịch tên cũ hết hiệu lực", (await dineTrMap(venueId, "en", [lau.name + " đổi tên"]))[lau.name + " đổi tên"] === undefined && (await getDineMenuTr(venueId, lau.id)).name.en === "");
+    await prisma.ticketMenuItem.update({ where: { id: lau.id }, data: { name: lau.name } });
+    await saveDineMenuTr(venueId, lau.id, { name: {}, group: {}, desc: {} });
+    ok("Xoá hết ô ⇒ xoá bản dịch", (await prisma.translation.count({ where: { entity: "DineMenu", OR: [{ entityId: lau.id }, { entityId: venueId }] } })) === 0);
+    await dropDineMenuTr(lau.id);
     // Quán đổi giá SAU khi khách gọi: đơn cũ giữ giá cũ.
     await prisma.ticketMenuItem.update({ where: { id: com.id }, data: { price: 50000 } });
     d = await loadDine(venueId);
@@ -107,10 +134,11 @@ async function main() {
     await cancelDineOrder(venueId, g2.id); // dọn: quán huỷ hộ
 
     // --- gọi nhân viên / xin thanh toán ---
-    await createDineRequest({ venueId, tableId: t1.id, kind: "staff" });
+    await createDineRequest({ venueId, tableId: t1.id, kind: "staff", note: "Đổi bàn" });
     await createDineRequest({ venueId, tableId: t1.id, kind: "staff" });
     d = await loadDine(venueId);
     ok("Gọi nhân viên 2 lần chỉ ra 1 yêu cầu", d.reqs.length === 1 && d.reqs[0].kind === "staff");
+    ok("Việc khách nhờ khi gọi nhân viên được giữ lại (lần bấm sau không ghi đè bằng rỗng)", d.reqs[0].note === "Đổi bàn");
     await closeDineRequest(venueId, d.reqs[0].id);
     await createDineRequest({ venueId, tableId: t1.id, kind: "pay", method: "Tiền mặt" });
     await patchVenueConfig(venueId, { bankBin: "970422", bankAcc: "0123456789", bankHolder: "nha hang may ngan" });

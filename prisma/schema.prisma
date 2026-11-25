@@ -1438,6 +1438,10 @@ model DineOrder {
   paidBy      String?
   cancelledAt DateTime?
   cancelledBy String? // "guest" = khách tự huỷ trên điện thoại (bếp chưa làm) | null = quán huỷ
+  // Khách khai ở màn "Chào mừng" khi quét QR (tên / SĐT / số khách) — chụp lên từng lần gọi để quán biết ai gọi.
+  guestName   String?
+  guestPhone  String?
+  guestPax    Int?
 
   items DineOrderItem[]
 
@@ -1471,6 +1475,7 @@ model DineRequest {
   tableName   String
   kind        String // staff | pay
   method      String? // pay: Tiền mặt | Chuyển khoản
+  note        String? // staff: khách cần gì (chọn ở bảng "Bạn cần gì?")
   createdAt   DateTime     @default(now())
   doneAt      DateTime?
   // Khách báo ĐÃ CHUYỂN KHOẢN (kèm ảnh bill) ⇒ quán xem bill rồi xác thực (thu tiền, đóng bàn) hoặc từ chối (claimNote).

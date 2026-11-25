@@ -42,7 +42,7 @@ export default async function PartnerTrialPage({
     <div className="bg-gradient-to-b from-forest-50 to-white">
       <div className="mx-auto grid max-w-5xl gap-8 px-4 py-10 md:grid-cols-[1fr_400px] md:items-center md:py-16">
         <div>
-          <a href="/hop-tac" className="text-sm font-semibold text-forest-700 hover:underline">← Hợp tác</a>
+          <a href="/hop-tac" className="text-sm font-semibold text-forest-700 hover:underline">← Tiện ích</a>
           <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-ink md:text-4xl">Đăng ký dùng miễn phí 4 chức năng quản lý</h1>
           <p className="mt-3 text-base text-gray-600">Dành cho chủ homestay, tiệm xe máy, điểm du lịch và nhà hàng ở Tà Xùa. Một tài khoản dùng được cả 4 chức năng; lần sau đăng nhập lại vẫn thấy đủ dữ liệu.</p>
           <div className="mt-6 grid gap-2.5 sm:grid-cols-2">

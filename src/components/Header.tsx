@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "@/components/Link";
 import { CATEGORY_LIST } from "@/lib/constants";
 import { cn } from "@/lib/utils";
-import { useT } from "@/components/i18n/I18nProvider";
+import { useLocale, useT } from "@/components/i18n/I18nProvider";
 import { LanguageSwitcher } from "@/components/i18n/LanguageSwitcher";
 import { useSitePhone } from "@/components/SiteContact";
 
@@ -25,11 +25,12 @@ const isHomePath = (p: string) => /^\/(en|zh|ko)?\/?$/.test(p);
 /** `showCommitment` = công tắc "Hiện menu & link cam kết" ở /admin/popup (tách riêng với công tắc popup). */
 export function Header({ customerName = null, showCommitment = true, showTickets = false }: { customerName?: string | null; showCommitment?: boolean; /** có địa điểm bán vé / đặt bàn đang mở bán ⇒ hiện mục "Vé & đặt bàn" */ showTickets?: boolean }) {
   const t = useT();
+  const locale = useLocale();
   const pathname = usePathname() || "/";
   const home = isHomePath(pathname);
   const phone = useSitePhone();
   const [open, setOpen] = useState(false);
-  const [dd, setDd] = useState<"" | "guide" | "partner">(""); // dropdown đang mở (desktop): Cẩm nang / Hợp tác
+  const [dd, setDd] = useState<"" | "guide" | "partner">(""); // dropdown đang mở (desktop): Cẩm nang / Về chúng tôi
   const [scrolled, setScrolled] = useState(false);
   const progRef = useRef<HTMLDivElement>(null);
   const firstName = customerName ? customerName.trim().split(/\s+/).slice(-1)[0] : "";
@@ -103,10 +104,11 @@ export function Header({ customerName = null, showCommitment = true, showTickets
     { href: "/huong-dan", label: t("Hướng dẫn đặt dịch vụ") },
     { href: "/tra-cuu", label: t("Tra cứu đơn hàng") },
   ];
-  // Menu cha "Về chúng tôi": Cam kết (với khách) + Hợp tác (với chủ dịch vụ, trang /hop-tac) + Góp ý.
+  // Menu cha "Về chúng tôi": Cam kết (với khách) + Tiện ích (phần mềm cho chủ dịch vụ, trang /hop-tac — tên cũ "Hợp tác") + Góp ý.
+  // Khoá "Tiện ích" trong từ điển đã mang nghĩa tiện nghi phòng (Amenities) ⇒ mục menu dùng khoá riêng "Tiện ích (menu)".
   const ABOUT_LINKS = [
     ...(showCommitment ? [{ href: "/cam-ket", label: t("Cam kết"), sub: t("Đền tới 100tr nếu dịch vụ sai cam kết") }] : []),
-    { href: "/hop-tac", label: t("Hợp tác"), sub: t("Phần mềm miễn phí cho chủ dịch vụ") },
+    { href: "/hop-tac", label: locale === "vi" ? "Tiện ích" : t("Tiện ích (menu)"), sub: t("Phần mềm miễn phí cho chủ dịch vụ") },
     { href: "/gop-y", label: t("Góp ý"), sub: t("Gửi góp ý để Tà Xùa Booking phục vụ tốt hơn") },
   ];
 
@@ -184,7 +186,7 @@ export function Header({ customerName = null, showCommitment = true, showTickets
                 </div>
               </div>
             ))}
-            {/* Menu cha "Về chúng tôi" (Cam kết · Hợp tác) */}
+            {/* Menu cha "Về chúng tôi" (Cam kết · Tiện ích) */}
             <div className="group relative" onMouseLeave={() => setDd("")}>
               <button type="button" onClick={() => setDd((o) => (o === "partner" ? "" : "partner"))} className={cn(navItem, "flex items-center gap-1")}>
                 {t("Về chúng tôi")}

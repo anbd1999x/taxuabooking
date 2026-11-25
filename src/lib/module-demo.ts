@@ -142,8 +142,10 @@ export async function seedRestaurantSample(venueId: string): Promise<void> {
   const T = (name: string) => d.tables.find((t) => t.name === name)!.id;
   const M = (name: string) => d.menu.find((m) => m.name === name)!.id;
   if (!d.orders.length) {
+    // Khách khai ở màn "Chào mừng" của từng bàn (hiện 👤 ở thẻ đơn, sơ đồ bàn và mục Khách hàng).
+    const GUESTS: Record<string, { name: string; phone: string; pax: number }> = { B1: { name: "Anh Tuấn (mẫu)", phone: "0900000011", pax: 4 }, B2: { name: "Chị Hương (mẫu)", phone: "0900000012", pax: 2 }, BC3: { name: "John (mẫu)", phone: "0900000013", pax: 2 }, B5: { name: "Đoàn anh Dũng (mẫu)", phone: "0900000014", pax: 8 } };
     const mk = async (table: string, minsAgo: number, status: "new" | "cooking" | "served", items: [string, number, string?][], note = "") => {
-      const o = await createDineOrder({ venueId, tableId: T(table), note, items: items.map(([name, qty, nt]) => ({ menuId: M(name), qty, note: nt })) });
+      const o = await createDineOrder({ venueId, tableId: T(table), note, guest: GUESTS[table], items: items.map(([name, qty, nt]) => ({ menuId: M(name), qty, note: nt })) });
       const at = new Date(Date.now() - minsAgo * 60_000);
       await prisma.dineOrder.update({ where: { id: o.id }, data: { createdAt: at, status, cookingAt: status === "new" ? null : new Date(at.getTime() + 60_000), servedAt: status === "served" ? new Date(at.getTime() + 9 * 60_000) : null } });
     };

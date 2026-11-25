@@ -146,7 +146,7 @@ export function describeView(pathRaw: string, names?: TrackNames): string {
   else if (p0 === "cafe") base = parts[1] ? `Xem quán cafe ${name(names?.places, parts[1])}` : "Xem danh sách quán cafe";
   else if (p0 === "ve") base = parts[1] === "don" ? "Xem vé điện tử của đơn" : parts[1] ? `Xem đặt vé / đặt bàn tại ${name(names?.venues, parts[1])}` : "Xem trang Vé & đặt bàn";
   else if (p0 === "lich-trinh") base = q.get("ngay") ? `Xem lịch trình gợi ý ${q.get("ngay")} ngày` : "Xem lịch trình gợi ý";
-  else if (p0 === "hop-tac") base = parts[1] === "dang-ky" ? "Xem trang đăng ký dùng miễn phí cho đối tác" : `Xem giới thiệu Hợp tác${q.get("m") && HUB[q.get("m")!] ? ` (${HUB[q.get("m")!]})` : ""}`;
+  else if (p0 === "hop-tac") base = parts[1] === "dang-ky" ? "Xem trang đăng ký dùng miễn phí cho đối tác" : `Xem trang Tiện ích${q.get("m") && HUB[q.get("m")!] ? ` (${HUB[q.get("m")!]})` : ""}`;
   else if (p0 === "demo") base = "Dùng thử bản demo quản lý";
   else if (p0 === "tra-cuu") base = "Tra cứu đơn đã đặt";
   else if (p0 === "tai-khoan") base = "Vào trang tài khoản";

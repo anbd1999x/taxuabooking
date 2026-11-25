@@ -4,7 +4,8 @@ import { getDemoSession } from "@/lib/fleet-demo";
 import { prisma } from "@/lib/prisma";
 import { TicketError, canManageVenue, deleteTable } from "@/lib/ticket";
 import { DINE_DESC_MAX, DINE_MAX_IMAGES } from "@/lib/dine-core";
-import { addDineFee, addDineTable, advanceDineOrder, cancelDineOrder, rejectDineClaim, removeDineFee, saveDineBank, closeDineRequest, loadDine, payDineTable, rotateDineQr } from "@/lib/dine";
+import { addDineFee, addDineTable, advanceDineOrder, cancelDineOrder, dineGuests, rejectDineClaim, removeDineFee, saveDineBank, saveDineGate, closeDineRequest, loadDine, payDineTable, rotateDineQr } from "@/lib/dine";
+import { dropDineMenuTr, getDineMenuTr, saveDineMenuTr } from "@/lib/dine-tr";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -19,7 +20,8 @@ const int = (v: unknown) => {
 /**
  * Màn hình quán của "Gọi món QR" (tab trong /admin/provider/ve) — theo mẫu "Nha hang QR Order".
  * Mọi op trả lại toàn bộ dữ liệu (`loadDine`); giao diện gọi `load` vài giây một lần để thấy đơn mới.
- * op: load | advance | cancelOrder | reqDone | pay | feeAdd | feeRemove | claimReject | bank | menuPatch | menuAdd | menuDelete | tableAdd | rotateQr | tableDelete
+ * op: load | advance | cancelOrder | reqDone | pay | feeAdd | feeRemove | claimReject | bank | gate | menuPatch | menuAdd | menuDelete | tableAdd | rotateQr | tableDelete
+ * Riêng `menuTrGet` (bản dịch của một món → `{ tr }`), `menuTrSave` và `guests` (danh sách khách đã ghé → `{ guests }`) KHÔNG trả dữ liệu màn quán.
  */
 export async function POST(request: Request) {
   let session = await getSession();
@@ -80,7 +82,18 @@ export async function POST(request: Request) {
         await saveDineBank(venueId, str(body.bin, 10), str(body.acc, 30), str(body.holder, 60));
         return done(str(body.acc, 30) ? "Đã lưu tài khoản nhận chuyển khoản." : "Đã tắt nhận chuyển khoản.");
 
+      case "gate":
+        await saveDineGate(venueId, str(body.gate, 10));
+        return done("Đã lưu cách hỏi thông tin khách.");
+      case "guests":
+        return NextResponse.json({ guests: await dineGuests(venueId) });
+
       // ---------- Thực đơn ----------
+      case "menuTrGet":
+        return NextResponse.json({ tr: await getDineMenuTr(venueId, id) });
+      case "menuTrSave":
+        await saveDineMenuTr(venueId, id, body.tr);
+        return NextResponse.json({ tr: await getDineMenuTr(venueId, id), message: "Đã lưu bản dịch — điện thoại khách cập nhật ngay." });
       case "menuPatch": {
         if (!(await prisma.ticketMenuItem.findFirst({ where: { id, venueId } }))) return bad("Món không tồn tại.");
         const data: Record<string, unknown> = {};
@@ -110,7 +123,7 @@ export async function POST(request: Request) {
         return done("Đã thêm món.");
       }
       case "menuDelete":
-        await prisma.ticketMenuItem.deleteMany({ where: { id, venueId } });
+        if ((await prisma.ticketMenuItem.deleteMany({ where: { id, venueId } })).count) await dropDineMenuTr(id);
         return done("Đã xoá món.");
 
       // ---------- Bàn & mã QR ----------

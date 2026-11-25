@@ -5,7 +5,7 @@ import { prisma } from "./prisma";
 import { parseDateOnly } from "./dates";
 import { TicketError, patchVenueConfig } from "./ticket";
 import { BANKS, bankName, normalizeConfig, vietQrPayload, vnNow } from "./ticket-core";
-import { DINE_FEE, DINE_FEE_MAX, DINE_MAX_LINES, DINE_MAX_QTY, type DineClaim, type DineCustomer, type DineData, type DineOrderVM, type DineReqVM, type DineStatus } from "./dine-core";
+import { DINE_FEE, DINE_FEE_MAX, DINE_MAX_LINES, DINE_MAX_QTY, cleanGuest, type DineGuest, type DineClaim, type DineCustomer, type DineData, type DineGuestRow, type DineOrderVM, type DineReqVM, type DineStatus } from "./dine-core";
 
 /**
  * Gọi món QR tại bàn — phía server. Khách quét QR dán ở bàn (/qr/<slug>/<bàn>?k=<qrKey>) rồi gọi món; quán nhận ở tab
@@ -25,12 +25,13 @@ function orderVM(o: OrderRow): DineOrderVM {
   return {
     id: o.id, tableId: o.tableId, table: o.tableName, status: o.status as DineStatus, note: o.note ?? "", source: o.source,
     at: o.createdAt.getTime(), servedAt: o.servedAt?.getTime() ?? null, items, total: items.reduce((a, i) => a + i.price * i.qty, 0),
+    guest: o.guestName ? { name: o.guestName, phone: o.guestPhone ?? "", pax: o.guestPax ?? 1 } : null,
   };
 }
-type ReqRow = { id: string; tableId: string | null; tableName: string; kind: string; method: string | null; createdAt: Date; claimedAt: Date | null; claimAmount: Prisma.Decimal | null; proofUrl: string | null };
+type ReqRow = { id: string; tableId: string | null; tableName: string; kind: string; method: string | null; note: string | null; createdAt: Date; claimedAt: Date | null; claimAmount: Prisma.Decimal | null; proofUrl: string | null };
 const claimOf = (r: ReqRow): DineClaim | null => (r.claimedAt ? { at: r.claimedAt.getTime(), amount: num(r.claimAmount), proof: r.proofUrl } : null);
 const reqVM = (r: ReqRow): DineReqVM => ({
-  id: r.id, tableId: r.tableId, table: r.tableName, kind: r.kind === "pay" ? "pay" : "staff", method: r.method ?? "", at: r.createdAt.getTime(), claim: claimOf(r),
+  id: r.id, tableId: r.tableId, table: r.tableName, kind: r.kind === "pay" ? "pay" : "staff", method: r.method ?? "", note: r.note ?? "", at: r.createdAt.getTime(), claim: claimOf(r),
 });
 /** Ảnh của món: danh sách images, món cũ chỉ có ảnh bìa thì lấy ảnh bìa. */
 const menuImages = (m: { images: string[]; imageUrl: string | null }) => (m.images.length ? m.images : m.imageUrl ? [m.imageUrl] : []);
@@ -66,7 +67,7 @@ export async function loadDine(venueId: string): Promise<DineData> {
   const cfg = normalizeConfig(v.config);
   const soldBy = new Map(sold.map((x) => [x.menuItemId, x._sum.qty ?? 0]));
   return {
-    venue: { id: v.id, name: v.name, slug: v.slug, hasBank: !!(cfg.bankBin && cfg.bankAcc), bankBin: cfg.bankBin, bankAcc: cfg.bankAcc, bankHolder: cfg.bankHolder },
+    venue: { id: v.id, name: v.name, slug: v.slug, hasBank: !!(cfg.bankBin && cfg.bankAcc), bankBin: cfg.bankBin, bankAcc: cfg.bankAcc, bankHolder: cfg.bankHolder, gate: cfg.dineGate },
     tables: tables.map((t) => ({ id: t.id, name: t.name, cap: t.capacity, zone: t.zone, floor: t.floor, url: qrPath(v.slug, t.name, t.qrKey ?? "") })),
     menu: menu.map((m) => ({ id: m.id, name: m.name, group: m.group ?? "", desc: m.description ?? "", price: num(m.price), hot: m.hot, avail: m.active, imageUrl: m.imageUrl, images: menuImages(m), sold: soldBy.get(m.id) ?? 0 })),
     orders: orders.map(orderVM),
@@ -174,6 +175,41 @@ export async function rejectDineClaim(venueId: string, reqId: string, note: stri
   if (!r.count) fail("Yêu cầu không còn — tải lại.");
 }
 
+/** Màn "Chào mừng" của trang khách hỏi gì (full / lite / off). */
+export async function saveDineGate(venueId: string, gate: string): Promise<void> {
+  await patchVenueConfig(venueId, { dineGate: gate === "lite" || gate === "off" ? gate : "full" });
+}
+
+/** Danh sách "Khách hàng" lấy trong GUEST_DAYS ngày gần nhất. */
+export const GUEST_DAYS = 180;
+/**
+ * KHÁCH ĐÃ GHÉ: gom các lần gọi món có thông tin khách (màn Chào mừng) theo SĐT — không có SĐT thì theo tên.
+ * Một "lượt ghé" = một ngày (giờ VN) × một bàn. Tiền = mọi lần gọi không bị huỷ. Mới ghé nhất lên đầu, tối đa 500 khách.
+ */
+export async function dineGuests(venueId: string): Promise<DineGuestRow[]> {
+  const rows = await prisma.dineOrder.findMany({
+    where: { venueId, guestName: { not: null }, status: { not: "cancel" }, source: { not: DINE_FEE }, createdAt: { gte: new Date(Date.now() - GUEST_DAYS * 86_400_000) } },
+    select: { guestName: true, guestPhone: true, guestPax: true, createdAt: true, tableName: true, items: { select: { name: true, price: true, qty: true } } },
+    orderBy: { createdAt: "desc" },
+    take: 5000,
+  });
+  const by = new Map<string, DineGuestRow & { days: Set<string>; dish: Map<string, number> }>();
+  for (const o of rows) {
+    const name = o.guestName ?? "";
+    const key = o.guestPhone ? "p:" + o.guestPhone : "n:" + name.toLowerCase();
+    let g = by.get(key);
+    // Dòng đầu gặp là lần mới nhất (đã sắp giảm dần) ⇒ lấy tên / bàn / số khách của lần đó.
+    if (!g) by.set(key, (g = { key, name, phone: o.guestPhone ?? "", visits: 0, lastAt: o.createdAt.getTime(), lastTable: o.tableName, pax: o.guestPax ?? 1, spent: 0, orders: 0, top: [], days: new Set(), dish: new Map() }));
+    g.days.add(new Date(o.createdAt.getTime() + 7 * 3_600_000).toISOString().slice(0, 10) + "|" + o.tableName);
+    g.orders++;
+    for (const it of o.items) {
+      g.spent += num(it.price) * it.qty;
+      g.dish.set(it.name, (g.dish.get(it.name) ?? 0) + it.qty);
+    }
+  }
+  return [...by.values()].slice(0, 500).map(({ days, dish, ...g }) => ({ ...g, visits: days.size, top: [...dish.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([n]) => n) }));
+}
+
 /** Thêm nhanh một bàn ở tab "Bàn & mã QR": tên tự đánh số theo khu (B1, B2… / BC1…). */
 export async function addDineTable(venueId: string, zone: string): Promise<string> {
   const z = zone.trim().slice(0, 40) || "Trong nhà";
@@ -252,6 +288,7 @@ export async function dineCustomerState(q: QrTable): Promise<DineCustomer> {
   return {
     venue: q.venueName,
     table: q.table.name,
+    gate: cfg.dineGate,
     menu: menu.map((m) => ({ id: m.id, name: m.name, group: m.group ?? "", desc: m.description ?? "", price: num(m.price), hot: m.hot, avail: m.active, imageUrl: m.imageUrl, images: menuImages(m) })),
     orders: vms,
     bill,
@@ -259,6 +296,7 @@ export async function dineCustomerState(q: QrTable): Promise<DineCustomer> {
     payClaim: (() => { const r = reqs.find((x) => x.kind === "pay"); return r ? claimOf(r) : null; })(),
     claimNote: reqs.find((r) => r.kind === "pay")?.claimNote ?? "",
     staffAsked: reqs.some((r) => r.kind === "staff"),
+    staffNote: reqs.find((r) => r.kind === "staff")?.note ?? "",
     paid: !vms.length && !!lastPaid,
     bank: cfg.bankBin && cfg.bankAcc && bill > 0 ? { name: bankName(cfg.bankBin), account: cfg.bankAcc, holder: cfg.bankHolder, memo, qr: vietQrPayload({ bin: cfg.bankBin, account: cfg.bankAcc, amount: bill, memo }) } : null,
     now: Date.now(),
@@ -266,7 +304,7 @@ export async function dineCustomerState(q: QrTable): Promise<DineCustomer> {
 }
 
 /** Một lần gọi món của bàn. Món đang "Hết món" hoặc không còn trong thực đơn ⇒ từ chối cả lần gọi. */
-export async function createDineOrder(input: { venueId: string; tableId: string; items: { menuId: string; qty: number; note?: string }[]; note?: string; source?: string }): Promise<{ id: string; qty: number }> {
+export async function createDineOrder(input: { venueId: string; tableId: string; items: { menuId: string; qty: number; note?: string }[]; note?: string; source?: string; guest?: DineGuest | null }): Promise<{ id: string; qty: number }> {
   const t = (await prisma.ticketTable.findFirst({ where: { id: input.tableId, venueId: input.venueId, active: true } })) ?? fail("Bàn không hợp lệ.");
   const lines = input.items.filter((i) => Math.round(i.qty) > 0);
   if (!lines.length) fail("Chưa chọn món nào.");
@@ -282,18 +320,20 @@ export async function createDineOrder(input: { venueId: string; tableId: string;
     if ((per.get(m.id) ?? 0) > DINE_MAX_QTY) fail(`${m.name}: tối đa ${DINE_MAX_QTY} phần mỗi lần gọi.`);
     return { menuItemId: m.id, name: m.name, price: m.price, qty, note: (l.note ?? "").trim().slice(0, 120) || null };
   });
+  const g = cleanGuest(input.guest);
   const o = await prisma.dineOrder.create({
-    data: { venueId: input.venueId, tableId: t.id, tableName: t.name, note: input.note?.trim().slice(0, 300) || null, source: (input.source ?? "QR").slice(0, 20), items: { create: items } },
+    data: { venueId: input.venueId, tableId: t.id, tableName: t.name, guestName: g?.name ?? null, guestPhone: g?.phone || null, guestPax: g?.pax ?? null, note: input.note?.trim().slice(0, 300) || null, source: (input.source ?? "QR").slice(0, 20), items: { create: items } },
   });
   return { id: o.id, qty: items.reduce((a, i) => a + i.qty, 0) };
 }
 
 /** Gọi nhân viên / xin thanh toán. Đang có yêu cầu cùng loại chưa xử lý ⇒ cập nhật (không tạo trùng). */
-export async function createDineRequest(input: { venueId: string; tableId: string; kind: "staff" | "pay"; method?: string }): Promise<void> {
+export async function createDineRequest(input: { venueId: string; tableId: string; kind: "staff" | "pay"; method?: string; note?: string }): Promise<void> {
   const t = (await prisma.ticketTable.findFirst({ where: { id: input.tableId, venueId: input.venueId, active: true } })) ?? fail("Bàn không hợp lệ.");
   if (input.kind === "pay" && !(await prisma.dineOrder.count({ where: { tableId: t.id, status: { in: LIVE } } }))) fail("Bàn chưa gọi món nào.");
   const method = input.kind === "pay" ? (input.method === "Chuyển khoản" ? "Chuyển khoản" : "Tiền mặt") : null;
   const open = await prisma.dineRequest.findFirst({ where: { tableId: t.id, kind: input.kind, doneAt: null } });
-  if (open) await prisma.dineRequest.update({ where: { id: open.id }, data: { method } });
-  else await prisma.dineRequest.create({ data: { venueId: input.venueId, tableId: t.id, tableName: t.name, kind: input.kind, method } });
+  const note = input.kind === "staff" ? input.note?.trim().slice(0, 80) || null : null;
+  if (open) await prisma.dineRequest.update({ where: { id: open.id }, data: { method, ...(note ? { note } : {}) } });
+  else await prisma.dineRequest.create({ data: { venueId: input.venueId, tableId: t.id, tableName: t.name, kind: input.kind, method, note } });
 }

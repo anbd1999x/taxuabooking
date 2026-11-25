@@ -6,7 +6,7 @@ import { QrOrder } from "@/components/dine/QrOrder";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Gọi món tại bàn", robots: { index: false, follow: false } };
-export const viewport: Viewport = { width: "device-width", initialScale: 1, maximumScale: 1, themeColor: "#1b4a36" };
+export const viewport: Viewport = { width: "device-width", initialScale: 1, maximumScale: 1, themeColor: "#1b583d" };
 
 /**
  * Trang khách mở khi quét mã QR dán ở bàn: /qr/<slug nhà hàng>/<tên bàn>?k=<khoá của bàn>.
@@ -22,10 +22,10 @@ export default async function QrTablePage({ params, searchParams }: { params: Pr
   const q = await tableForQrGuarded(requestIp(await headers()) ?? "unknown", slug, t, k);
   if (!q) {
     return (
-      <main style={{ minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, background: "oklch(0.96 0.008 160)", color: "oklch(0.22 0.03 160)" }}>
-        <div style={{ maxWidth: 360, textAlign: "center", background: "white", borderRadius: 24, padding: 28, border: "1px solid oklch(0.92 0.008 160)" }}>
+      <main style={{ minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, background: "#f0f9f3", color: "#16241d" }}>
+        <div style={{ maxWidth: 360, textAlign: "center", background: "white", borderRadius: 24, padding: 28, border: "2px solid #8cc9a6" }}>
           <div style={{ fontSize: 20, fontWeight: 800 }}>Mã QR không hợp lệ</div>
-          <p style={{ fontSize: 14, lineHeight: 1.6, color: "oklch(0.5 0.02 160)", margin: "8px 0 0" }}>Bạn quét lại mã dán trên bàn, hoặc gọi nhân viên giúp mình nhé.</p>
+          <p style={{ fontSize: 14, lineHeight: 1.6, color: "#64748b", margin: "8px 0 0" }}>Bạn quét lại mã dán trên bàn, hoặc gọi nhân viên giúp mình nhé.</p>
         </div>
       </main>
     );

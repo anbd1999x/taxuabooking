@@ -8,9 +8,10 @@ import { showToast } from "@/components/admin/Toast";
 import { MoneyTextInput } from "@/components/admin/MoneyInput";
 import { usePublishTabs } from "@/components/admin/module-tabs";
 import { Empty, G, Head, MUTED, O, RED, VenuePick, h, printHtml, short, useWidth, type Ctx } from "./ui";
+import { GateSetup, GuestsPanel, MenuTrPanel } from "./DineExtras";
 
-type Sub = "live" | "tables" | "menu" | "qr" | "pay";
-const SUBS: [Sub, string][] = [["live", "Order trực tiếp"], ["tables", "Sơ đồ bàn & thu tiền"], ["menu", "Thực đơn"], ["qr", "Bàn & mã QR"], ["pay", "Thanh toán"]];
+type Sub = "live" | "tables" | "menu" | "qr" | "pay" | "guests";
+const SUBS: [Sub, string][] = [["live", "Order trực tiếp"], ["tables", "Sơ đồ bàn & thu tiền"], ["menu", "Thực đơn"], ["qr", "Bàn & mã QR"], ["pay", "Thanh toán"], ["guests", "Khách hàng"]];
 const BLUE = "oklch(0.55 0.13 250)";
 const SS: Record<string, [string, string]> = { new: ["Đã gửi bếp", "oklch(0.48 0.14 55)"], cooking: ["Bếp đang làm", "oklch(0.42 0.12 250)"], served: ["Đã lên món", "oklch(0.36 0.1 155)"] };
 /** [nhãn, nền, viền, chữ] */
@@ -161,8 +162,11 @@ export function DineTab({ ctx }: { ctx: Ctx }) {
       m[k] = { name: i.name, price: i.price, qty: (m[k]?.qty ?? 0) + i.qty };
       return m;
     }, {});
+    // Khách khai ở màn Chào mừng (lần gọi mới nhất có thông tin).
+    const pg = [...byT(selT.id)].reverse().find((o) => o.guest)?.guest;
+    const guestLine = pg ? `<p>Khách: ${h(pg.name)} · ${pg.pax} khách${pg.phone ? " · " + h(pg.phone) : ""}</p>` : "";
     const body = Object.values(rows).map((r) => `<tr><td>${h(r.name)}</td><td style="text-align:right">${r.qty}</td><td style="text-align:right">${money(r.price)}</td><td style="text-align:right">${money(r.price * r.qty)}</td></tr>`).join("");
-    if (!printHtml(`Hoá đơn bàn ${selT.name}`, `<h1>${h(d!.venue.name)}</h1><p>Hoá đơn bàn ${h(selT.name)} · ${new Date().toLocaleString("vi-VN")}</p><table><tr><th>Món</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th></tr>${body}<tr><th colspan="3" style="text-align:right">Tổng</th><th style="text-align:right">${money(sumT(selT.id))}</th></tr></table>`))
+    if (!printHtml(`Hoá đơn bàn ${selT.name}`, `<h1>${h(d!.venue.name)}</h1><p>Hoá đơn bàn ${h(selT.name)} · ${new Date().toLocaleString("vi-VN")}</p>${guestLine}<table><tr><th>Món</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th></tr>${body}<tr><th colspan="3" style="text-align:right">Tổng</th><th style="text-align:right">${money(sumT(selT.id))}</th></tr></table>`))
       showToast("Trình duyệt chặn cửa sổ in — cho phép pop-up.", "error");
   }
   function printCards(ids: string[]) {
@@ -184,6 +188,7 @@ export function DineTab({ ctx }: { ctx: Ctx }) {
           <span style={{ fontSize: 18, fontWeight: 800 }}>{o.table}</span>
           <span style={{ fontSize: 12, fontWeight: 800, color: late ? "oklch(0.55 0.19 28)" : MUTED, whiteSpace: "nowrap" }}>{o.status === "served" ? `Lên lúc ${hm(o.servedAt ?? o.at)}` : ago(now, o.at)}</span>
         </div>
+        {o.guest && <div style={{ fontSize: 12, fontWeight: 700, color: MUTED }}>👤 {o.guest.name} · {o.guest.pax} khách{o.guest.phone && <> · <a href={`tel:${o.guest.phone}`} style={{ color: "inherit" }}>{o.guest.phone}</a></>}</div>}
         {o.items.map((i, n) => (
           <div key={n} style={{ fontSize: 14, lineHeight: 1.35 }}>
             <b>{i.qty}×</b> {i.name}
@@ -260,7 +265,7 @@ export function DineTab({ ctx }: { ctx: Ctx }) {
                       <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 14, background: cl ? "oklch(0.95 0.05 155)" : pay ? "oklch(0.96 0.04 250)" : "oklch(0.97 0.04 75)", border: `1.5px solid ${cl ? "oklch(0.75 0.1 155)" : pay ? "oklch(0.8 0.08 250)" : "oklch(0.85 0.08 70)"}`, animation: "dnUp .3s ease both" }}>
                         <span style={{ flex: "none", minWidth: 44, textAlign: "center", padding: "6px 4px", borderRadius: 10, background: "white", fontSize: 14, fontWeight: 800 }}>{r.table}</span>
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 14, fontWeight: 800 }}>{cl ? `Khách báo ĐÃ chuyển khoản ${money(cl.amount)}${cl.proof ? " · có ảnh bill" : ""}` : pay ? `Yêu cầu thanh toán · ${r.method}` : "Gọi nhân viên"}</div>
+                          <div style={{ fontSize: 14, fontWeight: 800 }}>{cl ? `Khách báo ĐÃ chuyển khoản ${money(cl.amount)}${cl.proof ? " · có ảnh bill" : ""}` : pay ? `Yêu cầu thanh toán · ${r.method}` : r.note ? `Gọi nhân viên · ${r.note}` : "Gọi nhân viên"}</div>
                           <div style={{ fontSize: 12, color: "oklch(0.45 0.02 160)" }}>{ago(now, r.at)} trước{r.tableId ? ` · tạm tính ${money(sumT(r.tableId))}` : ""}</div>
                         </div>
                         <button type="button" disabled={busy} onClick={() => { if (pay && r.tableId) { setSub("tables"); setSel(r.tableId); setPayMethod(r.method || "Tiền mặt"); } else void call("reqDone", { id: r.id }); if (notice?.id === r.id) setNotice(null); }} style={{ cursor: "pointer", fontSize: 12, fontWeight: 800, padding: "8px 12px", borderRadius: 999, background: G, color: "white", whiteSpace: "nowrap", border: "none", fontFamily: "inherit" }}>{cl ? "Xem bill · xác thực" : pay ? "Mở hoá đơn" : "Đã tới bàn"}</button>
@@ -304,10 +309,12 @@ export function DineTab({ ctx }: { ctx: Ctx }) {
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(118px,1fr))", gap: 8 }}>
                       {d.tables.filter((t) => t.zone === z).map((t) => {
                         const k = tableState(d.orders, d.reqs, t.id), S = TS[k];
+                        const tg = [...byT(t.id)].reverse().find((o) => o.guest)?.guest;
                         return (
                           <div key={t.id} onClick={() => setSel(t.id)} style={{ cursor: "pointer", display: "flex", flexDirection: "column", gap: 3, padding: 10, borderRadius: 14, border: `2px solid ${S[2]}`, background: S[1], color: S[3], boxShadow: sel === t.id ? `0 0 0 3px ${O}` : "none", animation: k === "pay" ? "dnFlash 1.4s ease infinite" : "none" }}>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}><span style={{ fontSize: 17, fontWeight: 800 }}>{t.name}</span><span style={{ fontSize: 11, fontWeight: 700, opacity: 0.8 }}>{t.cap} chỗ</span></div>
                             <span style={{ fontSize: 11, fontWeight: 800 }}>{S[0]}</span>
+                            {tg && <span title={tg.phone || undefined} style={{ fontSize: 11, fontWeight: 700, opacity: 0.9, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>👤 {tg.name} · {tg.pax}</span>}
                             <span style={{ fontSize: 13, fontWeight: 800 }}>{byT(t.id).length ? money(sumT(t.id)) : "—"}</span>
                           </div>
                         );
@@ -342,6 +349,7 @@ export function DineTab({ ctx }: { ctx: Ctx }) {
                         <div style={{ fontSize: 20, fontWeight: 800 }}>Hoá đơn bàn {selT.name}</div>
                         {os.length > 0 && <span style={{ fontSize: 12, fontWeight: 700, color: MUTED }}>Ngồi từ {hm(Math.min(...os.map((o) => o.at)))}</span>}
                       </div>
+                      {(() => { const g = os.find((o) => o.guest)?.guest; return g ? <div style={{ fontSize: 13, fontWeight: 700, color: MUTED }}>👤 {g.name} · {g.pax} khách{g.phone && <> · <a href={`tel:${g.phone}`} style={{ color: "inherit" }}>{g.phone}</a></>}</div> : null; })()}
                       {!os.length && <div style={{ fontSize: 14, color: MUTED }}>Bàn đang trống, chưa có món.</div>}
                       {[...agg.values()].map((r, n) => (
                         <div key={n} style={{ display: "flex", justifyContent: "space-between", gap: 8, fontSize: 14, padding: "4px 0", borderBottom: "1px dashed oklch(0.92 0.01 160)" }}>
@@ -419,17 +427,19 @@ export function DineTab({ ctx }: { ctx: Ctx }) {
                   <button type="button" disabled={busy} onClick={async () => (await call("menuAdd", nm)) && setNm({ ...nm, name: "", price: "", desc: "" })} style={{ cursor: "pointer", textAlign: "center", fontSize: 14, fontWeight: 800, padding: "10px 18px", borderRadius: 10, background: G, color: "white", border: "none", fontFamily: "inherit" }}>+ Thêm món</button>
                 </div>
               </div>
-              <div style={{ fontSize: 13, color: MUTED }}>Đổi giá, mô tả, bật hết món là điện thoại khách cập nhật ngay. Bấm ô ảnh để tải ảnh món.</div>
+              <div style={{ fontSize: 13, color: MUTED }}>Đổi giá, mô tả, bật hết món là điện thoại khách cập nhật ngay. Bấm ô ảnh để tải ảnh món; bấm <b>🌐 Dịch</b> để nhập tên món / mô tả tiếng Anh · Trung · Hàn cho khách nước ngoài.</div>
               {d.menu.map((m) => <MenuRow key={m.id} m={m} wide={inner >= 640} busy={busy} venueId={venueId} call={call} />)}
             </div>
           )}
 
           {/* ---------- THANH TOÁN (tài khoản chuyển khoản) ---------- */}
+          {sub === "guests" && <GuestsPanel venueId={venueId} wide={inner >= 720} />}
           {sub === "pay" && <BankSetup key={d.venue.bankBin + "|" + d.venue.bankAcc} d={d} busy={busy} call={call} />}
 
           {/* ---------- BÀN & MÃ QR ---------- */}
           {sub === "qr" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <GateSetup d={d} busy={busy} call={call} />
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                 <div style={{ fontSize: 13, color: MUTED, maxWidth: 520 }}>In thẻ QR, dán lên từng bàn. Khách quét là vào đúng thực đơn của bàn đó, không cần tải app. Số chỗ, tầng của bàn sửa ở tab Thiết lập.</div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -489,6 +499,8 @@ function MenuRow({ m, wide, busy, venueId, call }: { m: DineMenuVM; wide: boolea
   const [price, setPrice] = useState(String(m.price));
   const [desc, setDesc] = useState(m.desc);
   const [up, setUp] = useState(false);
+  /** Đang mở ô nhập bản dịch en / zh / ko của món. */
+  const [trOpen, setTrOpen] = useState(false);
   /** Tải một hay nhiều ảnh rồi nối vào cuối danh sách ảnh của món. */
   async function upload(files: FileList | null) {
     const room = DINE_MAX_IMAGES - m.images.length;
@@ -528,6 +540,7 @@ function MenuRow({ m, wide, busy, venueId, call }: { m: DineMenuVM; wide: boolea
       </div>
       <MoneyTextInput value={String(price ?? "")} placeholder="0" onChange={setPrice} onBlur={() => Number(price) !== m.price && call("menuPatch", { id: m.id, price })} style={{ ...inp, fontWeight: 800, textAlign: "right", padding: "8px 10px" }} />
       <div style={{ display: "flex", gap: 4, justifyContent: "flex-end", gridColumn: wide ? "auto" : "1 / -1", alignItems: "center" }}>
+        <button type="button" onClick={() => setTrOpen(!trOpen)} title="Dịch tên món / mô tả sang English · 中文 · 한국어" style={chip(trOpen, G, "white")}>🌐 Dịch</button>
         <button type="button" disabled={busy} onClick={() => call("menuPatch", { id: m.id, hot: !m.hot })} style={chip(m.hot, O, "white")}>Bán chạy</button>
         <button type="button" disabled={busy} onClick={() => call("menuPatch", { id: m.id, avail: !m.avail })} style={chip(m.avail, "oklch(0.94 0.05 155)", "oklch(0.36 0.1 155)")}>{m.avail ? "Còn món" : "Hết món"}</button>
         <span onClick={() => !busy && window.confirm(`Xoá món "${m.name}" khỏi thực đơn?`) && call("menuDelete", { id: m.id })} style={{ cursor: "pointer", fontSize: 12, fontWeight: 800, color: RED, padding: "0 4px" }}>Xoá</span>
@@ -551,6 +564,7 @@ function MenuRow({ m, wide, busy, venueId, call }: { m: DineMenuVM; wide: boolea
           <span style={{ fontSize: 11, color: MUTED }}>{m.images.length}/{DINE_MAX_IMAGES} ảnh · bấm ảnh để đặt làm bìa</span>
         </div>
       )}
+      {trOpen && <MenuTrPanel m={m} venueId={venueId} onClose={() => setTrOpen(false)} />}
     </div>
   );
 }

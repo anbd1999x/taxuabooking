@@ -13,6 +13,8 @@ export const VENUE_KINDS: Record<VenueKind, string> = { GATE: "Vé vào cổng",
 // ----------------------------- Sơ đồ ghế -----------------------------
 export type CellType = "vip" | "norm" | "aisle" | "broken" | "empty";
 export const CELL_TYPES: CellType[] = ["vip", "norm", "aisle", "broken", "empty"];
+/** Gọi món QR: mức hỏi thông tin khách ở màn "Chào mừng". */
+export type DineGate = "full" | "lite" | "off";
 export interface SeatLayout {
   rows: number;
   cols: number;
@@ -96,6 +98,8 @@ export interface VenueConfig {
   bankHolder: string;
   /** RESTAURANT: một lượt đặt bàn giữ bàn bao nhiêu phút (bữa ăn) — đặt lúc S chặn bàn ở mọi khung giờ chồng lên [S, S + mealMin). */
   mealMin: number;
+  /** RESTAURANT · gọi món QR: màn "Chào mừng" hỏi gì trước khi mở thực đơn — full = tên + SĐT + số khách · lite = tên + số khách · off = không hỏi. */
+  dineGate: DineGate;
   /** SHOW: đơn vị chỗ ngồi trên sơ đồ — "seat" = ghế đơn (A7), "table" = BÀN 2–4 người (P-03 / S-12, kiểu show acoustic ngồi bàn). */
   seatUnit: SeatUnit;
 }
@@ -165,6 +169,7 @@ export function normalizeConfig(raw: unknown): VenueConfig {
     quota: num(o.quota, 150, 0, 100000),
     holdMin: num(o.holdMin, 15, 5, 24 * 60),
     mealMin: num(o.mealMin, MEAL_MIN_DEFAULT, MEAL_MIN_RANGE[0], MEAL_MIN_RANGE[1]),
+    dineGate: o.dineGate === "lite" || o.dineGate === "off" ? o.dineGate : "full",
     policy,
     amount: num(o.amount, policy === "min" ? 300000 : 100000, 0, 100_000_000),
     slots: slots.length ? slots : DEFAULT_SLOTS,

@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { isValidDineProof } from "@/lib/dine-proof";
 import { TicketError } from "@/lib/ticket";
+import { cleanGuest } from "@/lib/dine-core";
+import { isLocale } from "@/lib/i18n/config";
+import { dineTrMap } from "@/lib/dine-tr";
 import { cancelDineOrderByGuest, claimDinePaid, createDineOrder, createDineRequest, dineCustomerState, tableForQrGuarded } from "@/lib/dine";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +18,15 @@ const BAD_MSG = "Mã QR không hợp lệ. Quét lại mã dán trên bàn.";
 export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
   const q = await tableForQrGuarded(clientIp(request), p.get("v") ?? "", p.get("t") ?? "", p.get("k") ?? "");
-  return q ? NextResponse.json(await dineCustomerState(q)) : bad(BAD_MSG, 404);
+  if (!q) return bad(BAD_MSG, 404);
+  const state = await dineCustomerState(q);
+  // `l=<en|zh|ko>&tr=1`: kèm bản dịch (bảng Translation, tra theo chuỗi gốc) của tên quán / nhóm món / tên món / mô tả /
+  // món đã gọi — trang khách gọi khi đổi ngôn ngữ hoặc thực đơn đổi, lần nạp lại 5 giây thường KHÔNG kèm.
+  const l = p.get("l");
+  if (!p.get("tr") || !isLocale(l) || l === "vi") return NextResponse.json(state);
+  // Bản dịch chủ quán tự nhập ở tab Thực đơn đè lên kho dịch chung của web (dineTrMap).
+  const tr = await dineTrMap(q.venueId, l, [state.venue, ...state.menu.flatMap((m) => [m.name, m.group, m.desc]), ...state.orders.flatMap((o) => o.items.map((it) => it.name))]);
+  return NextResponse.json({ ...state, tr });
 }
 
 /**
@@ -43,7 +54,7 @@ export async function POST(request: Request) {
             return { menuId: str(r.menuId, 40), qty: Math.round(Number(r.qty)) || 0, note: str(r.note, 120) };
           })
         : [];
-      const o = await createDineOrder({ venueId: q.venueId, tableId: q.table.id, items, note: str(body.note, 300) });
+      const o = await createDineOrder({ venueId: q.venueId, tableId: q.table.id, items, note: str(body.note, 300), guest: cleanGuest(body.guest) });
       message = `Đã gửi ${o.qty} món tới bếp`;
     } else if (op === "cancel") {
       await cancelDineOrderByGuest(q.venueId, q.table.id, str(body.orderId, 40));
@@ -55,7 +66,7 @@ export async function POST(request: Request) {
       await claimDinePaid(q, proof || null);
       message = "Đã gửi xác nhận chuyển khoản · chờ quán kiểm tra";
     } else if (op === "staff") {
-      await createDineRequest({ venueId: q.venueId, tableId: q.table.id, kind: "staff" });
+      await createDineRequest({ venueId: q.venueId, tableId: q.table.id, kind: "staff", note: str(body.need, 80) });
       message = `Đã gọi nhân viên tới bàn ${q.table.name}`;
     } else if (op === "pay") {
       await createDineRequest({ venueId: q.venueId, tableId: q.table.id, kind: "pay", method: str(body.method, 20) });
