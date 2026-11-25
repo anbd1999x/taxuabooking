@@ -78,13 +78,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  // Đa ngôn ngữ: mỗi URL khai kèm các bản /en, /zh, /ko (hreflang) để Google ghép cặp.
+  // Đa ngôn ngữ: MỖI bản (vi, /en, /zh, /ko) là một mục <url> riêng, mục nào cũng khai đủ bộ hreflang (+ x-default).
+  // Trước đây chỉ bản tiếng Việt là <loc>, bản dịch chỉ nằm ở hreflang ⇒ Search Console báo ~400 URL bản dịch
+  // "URL is unknown to Google" (Google xếp lịch thu thập theo <loc>, không theo hreflang). Xem docs/seo-geo.md.
   const all = [...staticRoutes, ...categoryRoutes, ...serviceRoutes, ...articleRoutes, ...placeRoutes];
-  return all.map((r) => {
+  return all.flatMap((r) => {
     const path = r.url.slice(base.length) || "/";
-    if (VI_ONLY_PATHS.includes(path)) return r; // trang chỉ tiếng Việt: không khai bản en/zh/ko
-    const languages: Record<string, string> = { [LOCALE_META.vi.htmlLang]: r.url };
+    if (VI_ONLY_PATHS.includes(path)) return [r]; // trang chỉ tiếng Việt: không khai bản en/zh/ko
+    const languages: Record<string, string> = { [LOCALE_META.vi.htmlLang]: r.url, "x-default": r.url };
     for (const l of TARGET_LOCALES) languages[LOCALE_META[l].htmlLang] = `${base}${localePath(path, l)}`;
-    return { ...r, alternates: { languages } };
+    return [
+      { ...r, alternates: { languages } },
+      ...TARGET_LOCALES.map((l) => ({ ...r, url: `${base}${localePath(path, l)}`, alternates: { languages } })),
+    ];
   });
 }

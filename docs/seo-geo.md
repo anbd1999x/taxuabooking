@@ -20,7 +20,7 @@
 - **JSON-LD đúng nội dung đang hiện:** LodgingBusiness (homestay, có `geo`, `hasMap`, `priceRange`, `subjectOf` bài review), Article (`about` khi là bài review), Service, TouristAttraction (bản đồ), FAQPage, BreadcrumbList. Không khai số liệu không hiển thị trên trang; không gắn SĐT sàn vào cơ sở lưu trú.
 - **Chữ mới ở trang khách bọc `t()`** và thêm bản dịch vào `src/lib/i18n/dict/{en,zh,ko}.json` cùng commit.
 - **Không làm hỏng lập chỉ mục:** trang không tồn tại phải `notFound()` (không `loading.tsx` trong `(site)/[category]`); trang gần trùng để `noindex, follow` và bỏ khỏi sitemap (như trang từng phòng); URL đổi / gộp thì 308 qua `ARTICLE_REDIRECTS` hoặc `permanentRedirect`.
-- **Sitemap** (`src/app/sitemap.ts`) phải có mọi trang cần index (kể cả trang danh mục theo chủ đề); sau khi thêm nhiều trang mới chạy `node scripts/seo/gsc.mjs --submit-sitemap https://taxuabooking.com/sitemap.xml`.
+- **Sitemap** (`src/app/sitemap.ts`) phải có mọi trang cần index (kể cả trang danh mục theo chủ đề), **mỗi bản ngôn ngữ là một mục `<url>` riêng** kèm đủ hreflang + x-default (chỉ khai bản dịch ở hreflang thì Google không xếp lịch thu thập ⇒ "URL is unknown to Google"); sau khi thêm nhiều trang mới chạy `node scripts/seo/gsc.mjs --submit-sitemap https://taxuabooking.com/sitemap.xml`.
 - **Ảnh** qua `next/image` (loader `/thumb`), luôn có `alt` cụ thể.
 
 ## 3. Đo và lặp
