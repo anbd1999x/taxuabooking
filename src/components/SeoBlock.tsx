@@ -4,11 +4,11 @@ import { getComboDiscount } from "@/lib/combo";
 import { formatPrice } from "@/lib/format";
 
 /**
- * Khối nội dung SEO ở cuối trang danh sách (xe cabin / homestay / combo): đoạn giới thiệu có từ khoá,
+ * Khối nội dung SEO ở cuối trang danh sách (xe cabin / homestay / combo / thuê xe máy / xe ôm / taxi): đoạn giới thiệu có từ khoá,
  * liên kết sang bài hướng dẫn, và mục Câu hỏi thường gặp kèm dữ liệu có cấu trúc FAQPage cho Google.
  * Nội dung tĩnh, dựng phía server ⇒ Google đọc được ngay trong HTML.
  */
-type Kind = "CABIN" | "HOMESTAY" | "COMBO";
+type Kind = "CABIN" | "HOMESTAY" | "COMBO" | "MOTORBIKE" | "XEOM" | "TAXI";
 
 interface Block {
   heading: string;
@@ -80,6 +80,66 @@ const BLOCKS: Record<Kind, Block> = {
       ["Combo gồm những gì?", "Gồm vé xe cabin khứ hồi (cả xe trung chuyển lên Tà Xùa) và phòng homestay cho các đêm lưu trú. Ăn uống, vé điểm check-in và xe đi lại tại chỗ chưa gồm trong giá."],
       ["Chọn ngày đi, ngày về thế nào cho đúng?", "Ngày đi là đêm lên xe, ngày về là ngày xe chạy chiều về và cũng là ngày trả phòng. Ví dụ muốn ở đêm thứ Bảy thì chọn ngày đi thứ Sáu, ngày về Chủ nhật."],
       ["Đi từ tỉnh khác có đặt combo được không?", "Được. Chọn điểm xuất phát ở ô tìm kiếm, giá vé sẽ tính theo bảng giá chặng của nhà xe có đón ở tỉnh đó."],
+    ],
+  },
+  MOTORBIKE: {
+    heading: "Thuê xe máy ở Tà Xùa: giá, loại xe và lưu ý",
+    intro: [
+      "Thuê xe máy là cách tự do nhất để đi các điểm gần trung tâm Tà Xùa như Đỉnh Gió, Khe Cải, quán cà phê săn mây. Các tiệm trên Tà Xùa Booking cho thuê xe số Honda Wave khoảng 180.000đ một ngày và xe PG1 khoảng 280.000đ một ngày, giao nhận ở trung tâm.",
+      "Chọn ngày nhận và ngày trả xe để xem tiệm còn xe đúng những ngày đó, rồi gửi yêu cầu đặt; không cần thanh toán online. Các đoạn đường đất dốc như vào Mỏm cá heo hay Sống lưng khủng long, người chưa quen đèo nên đi xe ôm bản địa.",
+    ],
+    links: [
+      ["/kinh-nghiem/thue-xe-may-ta-xua", "Kinh nghiệm thuê xe máy Tà Xùa"],
+      ["/kinh-nghiem/di-ta-xua-co-nguy-hiem-khong", "Đi Tà Xùa có nguy hiểm không?"],
+      ["/xe-om", "Xe ôm bản địa theo tuyến"],
+      ["/ban-do", "Bản đồ các điểm check-in"],
+    ],
+    faq: [
+      ["Thuê xe máy ở Tà Xùa bao nhiêu tiền một ngày?", "Xe số Honda Wave khoảng 180.000đ một ngày, xe PG1 khoảng 280.000đ một ngày. " + NOTE],
+      ["Thuê xe máy ở Tà Xùa có cần bằng lái không?", "Nên mang theo bằng lái xe máy và giấy tờ tuỳ thân; tiệm có thể giữ giấy tờ hoặc thu tiền cọc khi giao xe. Hỏi rõ điều kiện khi đặt."],
+      ["Xe máy đi được những điểm nào ở Tà Xùa?", "Đường nhựa tới trung tâm, Đỉnh Gió, Khe Cải và phần lớn quán cà phê săn mây. Đoạn cuối vào Mỏm cá heo và Sống lưng khủng long là đường đất dốc, trơn khi mưa, người chưa quen nên đi xe ôm."],
+      ["Có giao xe tận homestay không?", "Tuỳ tiệm. Hỏi khi đặt; nhiều tiệm giao nhận ở trung tâm hoặc tại homestay gần trung tâm."],
+      ["Nên đặt xe máy trước bao lâu?", "Ngày thường có thể đặt sát ngày. Cuối tuần mùa mây và dịp lễ nên đặt trước vài ngày vì xe PG1 hay hết sớm."],
+    ],
+  },
+  XEOM: {
+    heading: "Xe ôm Tà Xùa: tài xế bản địa, giá theo tuyến",
+    intro: [
+      "Xe ôm bản địa là cách an toàn để tới các điểm đường khó như Sống lưng khủng long, Mỏm cá heo, Hồ Mắt Ngọc, nhất là lúc 5h sáng khi trời còn tối và nhiều sương. Tài xế là người địa phương, quen đường và biết giờ mây đẹp.",
+      "Giá tính theo từng chặng một chiều, có mức cho 1 khách và 2 khách đi chung xe. Từ trung tâm, chặng gần như Đỉnh Gió, Khe Cải khoảng 100.000đ; Mỏm cá heo khoảng 250.000đ đến 300.000đ; Sống lưng khủng long khoảng 300.000đ đến 350.000đ.",
+    ],
+    links: [
+      ["/kinh-nghiem/gia-xe-om-taxi-ta-xua", "Bảng giá xe ôm, taxi từng chặng"],
+      ["/kinh-nghiem/song-lung-khung-long-ta-xua", "Đi Sống lưng khủng long"],
+      ["/kinh-nghiem/mom-ca-heo-cay-co-don-ta-xua", "Đi Mỏm cá heo, cây cô đơn"],
+      ["/taxi", "Taxi 4–7 chỗ cho gia đình"],
+    ],
+    faq: [
+      ["Xe ôm từ trung tâm Tà Xùa lên Sống lưng khủng long bao nhiêu tiền?", "Khoảng 300.000đ đến 350.000đ một chiều cho 1 khách, đi 2 khách chung xe khoảng 400.000đ đến 450.000đ. " + NOTE],
+      ["Xe ôm đi Mỏm cá heo, Cây cô đơn giá bao nhiêu?", "Từ trung tâm khoảng 250.000đ đến 300.000đ một chiều cho 1 khách. " + NOTE],
+      ["Có nên đi xe ôm thay vì tự lái xe máy không?", "Nếu chưa quen đường đèo, đường đất dốc hay đi lúc sáng sớm nhiều sương thì nên đi xe ôm bản địa; tài xế biết chỗ đỗ, chỗ đứng chụp an toàn và giờ mây đẹp."],
+      ["Có cần đặt xe ôm trước không?", "Nên đặt từ tối hôm trước cho buổi săn mây sáng sớm, nhất là cuối tuần và dịp lễ."],
+      ["Có thuê xe ôm cả ngày được không?", "Được, một số tài xế nhận chạy nguyên ngày. Xem giá ở trang từng tài xế hoặc hỏi khi đặt."],
+    ],
+  },
+  TAXI: {
+    heading: "Taxi Tà Xùa: xe 4–7 chỗ thuê theo ngày",
+    intro: [
+      "Taxi bản địa hợp với gia đình có người lớn tuổi, trẻ nhỏ hoặc nhóm 4 đến 7 người muốn đi các điểm có đường ô tô mà không phải tự lái đèo. Các xe trên Tà Xùa Booking chủ yếu nhận chạy nguyên ngày, giá khoảng 1.700.000đ đến 2.000.000đ một xe.",
+      "Nhiều tài xế kiêm dẫn tour, biết điểm chụp và giờ mây, một số nhận đưa đón Hà Nội – Tà Xùa. Lưu ý ô tô chỉ tới được chỗ đỗ, đoạn cuối vào Mỏm cá heo hay Sống lưng khủng long vẫn phải đi bộ hoặc chuyển sang xe ôm.",
+    ],
+    links: [
+      ["/kinh-nghiem/gia-xe-om-taxi-ta-xua", "Bảng giá xe ôm, taxi từng chặng"],
+      ["/kinh-nghiem/di-ta-xua-bang-o-to-tu-lai", "Tự lái ô tô lên Tà Xùa"],
+      ["/kinh-nghiem/du-lich-ta-xua-cho-bo-me", "Đưa bố mẹ đi Tà Xùa"],
+      ["/xe-om", "Xe ôm cho đoạn đường khó"],
+    ],
+    faq: [
+      ["Thuê taxi Tà Xùa cả ngày bao nhiêu tiền?", "Khoảng 1.700.000đ đến 2.000.000đ một xe 4 đến 7 chỗ cho cả ngày, chia theo số người trong nhóm. " + NOTE],
+      ["Taxi có đi được Sống lưng khủng long, Mỏm cá heo không?", "Ô tô chỉ tới được chỗ đỗ gần các điểm này; đoạn cuối phải đi bộ hoặc chuyển sang xe ôm bản địa."],
+      ["Có taxi đưa đón Hà Nội – Tà Xùa không?", "Có. Một số tài xế nhận đưa đón Hà Nội và các tỉnh miền Bắc; hỏi giá khi đặt."],
+      ["Taxi hay xe ôm thì hợp hơn?", "Đi 4 người trở lên, có người lớn tuổi hoặc trẻ nhỏ thì taxi thoải mái hơn và chia đầu người không đắt hơn nhiều. Đi 1 đến 2 người tới điểm đường đất thì xe ôm tiện hơn."],
+      ["Đặt taxi Tà Xùa thế nào?", "Chọn xe và ngày đi trên Tà Xùa Booking rồi gửi yêu cầu; bạn được liên hệ xác nhận, không cần thanh toán online."],
     ],
   },
 };

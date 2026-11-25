@@ -10,6 +10,7 @@ import { SatBoard, type BoardSpot, type BoardPlan } from "@/components/itinerary
 import { roadPath } from "@/lib/road-path";
 import { getT } from "@/lib/i18n/server";
 import { i18nMeta } from "@/lib/i18n/meta";
+import { SITE } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
@@ -120,7 +121,35 @@ export default async function CheckinMapPage({ searchParams }: { searchParams: P
     const f1 = far(MAP_CENTER);
     const f2 = f1 ? far(f1) : null;
     const freeRoads = [await roadPath([MAP_GATE, MAP_CENTER, ...(f1 ? [f1] : [])]), ...(f2 && f2 !== f1 ? [await roadPath([MAP_CENTER, f2])] : [])];
-    return <SatBoard spots={spots} plans={boardPlans} freeRoads={freeRoads} initialPlan={typeof initialPlan === "string" ? initialPlan : undefined} />;
+    // Dữ liệu có cấu trúc khớp đúng các ghim đang hiện: điểm check-in (TouristAttraction) kèm toạ độ thật, mô tả, ảnh.
+    // Bản đồ là ứng dụng toàn màn hình nên không chèn khối chữ; JSON-LD giúp Google / công cụ AI biết trang liệt kê điểm nào, ở đâu.
+    const abs = (u: string) => (/^https?:\/\//i.test(u) ? u :`${SITE.url}${u.startsWith("/") ? "" : "/"}${u}`);
+    const attractions = placed.filter((p) => p.kind === "CHECKIN");
+    const mapLd = {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      name: tr("Điểm check-in trên bản đồ Tà Xùa"),
+      numberOfItems: attractions.length,
+      itemListElement: attractions.map((p, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        item: {
+          "@type": "TouristAttraction",
+          name: tr(p.name),
+          ...(p.desc ? { description: tr(p.desc) } : {}),
+          ...(firstImage(p) ? { image: abs(firstImage(p)!) } : {}),
+          geo: { "@type": "GeoCoordinates", latitude: p.lat, longitude: p.lng },
+          address: { "@type": "PostalAddress", addressLocality: tr("Tà Xùa, Bắc Yên"), addressRegion: tr("Sơn La"), addressCountry: "VN" },
+          ...(p.mapUrl ? { hasMap: p.mapUrl } : {}),
+        },
+      })),
+    };
+    return (
+      <>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(mapLd) }} />
+        <SatBoard spots={spots} plans={boardPlans} freeRoads={freeRoads} initialPlan={typeof initialPlan === "string" ? initialPlan : undefined} />
+      </>
+    );
   }
 
   // Chiếu MỌI địa điểm có toạ độ thật (lấy từ link Google Maps khi lưu) lên mặt phẳng bản đồ hoạt hình.

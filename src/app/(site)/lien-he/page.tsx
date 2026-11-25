@@ -8,7 +8,7 @@ import { i18nMeta } from "@/lib/i18n/meta";
 export const dynamic = "force-dynamic";
 
 export const generateMetadata = () => i18nMeta({
-  title: "Liên hệ Tà Xùa Booking: hotline, Zalo đặt xe, đặt phòng",
+  title: "Liên hệ: hotline, Zalo đặt xe, đặt phòng",
   description: "Liên hệ Tà Xùa Booking qua hotline, Zalo để được tư vấn và đặt xe cabin, homestay, combo đi Tà Xùa. Hỗ trợ xem chỗ trống, báo giá và xác nhận đơn nhanh.",
   path: "/lien-he",
 });

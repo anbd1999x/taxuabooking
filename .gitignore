@@ -50,3 +50,6 @@ next-env.d.ts
 
 # i18n: báo cáo khoá thiếu (node scripts/i18n/extract.mjs --missing)
 scripts/i18n/out/
+
+# Khoá bí mật (service account Search Console…) — KHÔNG BAO GIỜ commit: repo đang public
+secrets/

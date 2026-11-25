@@ -10,7 +10,7 @@ import { i18nMeta } from "@/lib/i18n/meta";
 export const dynamic = "force-dynamic";
 
 export const generateMetadata = () => i18nMeta({
-  title: "Giới thiệu Tà Xùa Booking: đơn vị trung gian đặt dịch vụ du lịch Tà Xùa",
+  title: "Giới thiệu: đại lý đặt xe, phòng Tà Xùa",
   description:
     "Tà Xùa Booking là ai: thông tin người chịu trách nhiệm, địa chỉ, số điện thoại, email và vai trò đại lý đặt chỗ homestay, xe cabin tại Tà Xùa.",
   path: "/gioi-thieu",

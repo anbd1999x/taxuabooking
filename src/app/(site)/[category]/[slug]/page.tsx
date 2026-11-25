@@ -32,6 +32,7 @@ import { getLocale, getT, lp, tLong } from "@/lib/i18n/server";
 import { localePath, type Locale } from "@/lib/i18n/config";
 import { i18nAlternates, i18nOg } from "@/lib/i18n/meta";
 import { renderMarkdown } from "@/lib/markdown";
+import { serviceMeta } from "@/lib/service-meta";
 
 export const dynamic = "force-dynamic";
 
@@ -86,29 +87,16 @@ export async function generateMetadata({
   if (!service) return {};
   const catSlug = catSlugOf(service.category);
   const cover = service.images.find((i) => i.isCover)?.url ?? service.images[0]?.url;
-  // Tiêu đề tìm kiếm: tên + loại dịch vụ + "Tà Xùa" (tên trần như "Nhà bên suối" không nói lên trang bán gì).
-  const t = tr(service.title.trim());
-  const tx = /tà xùa/i.test(t) ? "" : " Tà Xùa";
-  const title =
-    service.category === "HOMESTAY" || service.category === "BUNGALOW"
-      ? tr("{0}{1}{2}: giá phòng & lịch trống", [t, /homestay|homstay|bungalow|retreat|home|house|village|garden/i.test(t) ? "" : " Homestay", tx])
-      : service.category === "CABIN"
-        ? tr("{0}: xe cabin Hà Nội – Tà Xùa", [t])
-        : `${t}${tx}`;
-  // Mô tả: phần chủ cơ sở viết thường rất ngắn ⇒ nối thêm khu vực + lời mời xem giá/đặt chỗ.
-  const base = ((await tLong(service.summary)) ?? "").trim().replace(/[.\s]+$/, "");
-  const tail =
-    service.category === "HOMESTAY" || service.category === "BUNGALOW"
-      ? tr("{0} Xem giá từng phòng, lịch trống theo ngày và đặt phòng tại Tà Xùa Booking.", [service.area && !/^tà xùa$/i.test(service.area.trim()) ? " " + tr("Khu {0}.", [tr(service.area)]) : ""])
-      : service.category === "CABIN"
-        ? tr(" Xem giá vé khứ hồi theo điểm đón, giờ chạy, chỗ trống theo ngày và đặt vé tại Tà Xùa Booking.")
-        : tr(" Xem giá, tình trạng theo ngày và đặt tại Tà Xùa Booking.");
-  const description = base.length >= 120 ? base + "." : `${base ? base + "." : t + "."}${tail}`;
+  // Tiêu đề + mô tả dựng từ dữ liệu thật (số phòng, tiện ích, giá "từ", loại xe…) — xem serviceMeta.
+  // Tiêu đề đã dài thì không nối thêm "| Tà Xùa Booking" (Google cắt ở ~60 ký tự).
+  const meta = serviceMeta(service, tr, (await tLong(service.summary)) ?? service.summary);
+  const title = meta.title.length > 44 ? { absolute: meta.title } : meta.title;
+  const description = meta.description;
   return {
     title,
     description,
     alternates: await i18nAlternates(`/${catSlug}/${service.slug}`),
-    openGraph: await i18nOg({ title, description, path: `/${catSlug}/${service.slug}`, image: cover, alt: tr(service.title) }),
+    openGraph: await i18nOg({ title: meta.title, description, path: `/${catSlug}/${service.slug}`, image: cover, alt: tr(service.title) }),
   };
 }
 

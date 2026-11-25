@@ -18,3 +18,5 @@ public/uploads/*
 !public/uploads/.gitkeep
 # Dịch vụ embedder build riêng (context ./embedder) — không đưa vào ảnh app.
 embedder
+# Khoá bí mật — không đưa vào ảnh Docker
+secrets

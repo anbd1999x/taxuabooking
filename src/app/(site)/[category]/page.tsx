@@ -367,19 +367,34 @@ async function CategoryBody({
     const from = str(sp.from);
     const to = str(sp.to);
     const bikes = await getRentalBikes(from ?? null, to ?? null);
-    return <MotorbikeList bikes={bikes} from={from ?? ""} to={to ?? ""} />;
+    return (
+      <>
+        <MotorbikeList bikes={bikes} from={from ?? ""} to={to ?? ""} />
+        <SeoBlock kind="MOTORBIKE" />
+      </>
+    );
   }
 
   // ----- Xe ôm: hero động + tìm kiếm + danh sách tuyến (bám thiết kế) -----
   if (cat.key === "XEOM") {
     const [routes, points] = await Promise.all([getXeomRoutes(), getTransportPoints()]);
-    return <XeomList routes={routes} points={points} />;
+    return (
+      <>
+        <XeomList routes={routes} points={points} />
+        <SeoBlock kind="XEOM" />
+      </>
+    );
   }
 
   // ----- Taxi: hero động + tìm kiếm + danh sách tuyến (bám thiết kế) -----
   if (cat.key === "TAXI") {
     const [routes, points] = await Promise.all([getTaxiRoutes(), getTransportPoints()]);
-    return <TaxiList routes={routes} points={points} />;
+    return (
+      <>
+        <TaxiList routes={routes} points={points} />
+        <SeoBlock kind="TAXI" />
+      </>
+    );
   }
 
   const filters: ListFilters = {
