@@ -11,7 +11,7 @@ export const ARTICLE_REDIRECTS: Record<string, string> = {
   "duong-di-ta-xua-tu-ha-noi": "/kinh-nghiem/ta-xua-o-dau-cach-ha-noi-bao-nhieu-km",
   "ta-xua-cuoi-tuan-dan-van-phong": "/kinh-nghiem/48-gio-o-ta-xua-nhat-ky",
   "ta-xua-co-gi-choi": "/kinh-nghiem/ban-do-du-lich-ta-xua-diem-check-in",
-  "san-may-ta-xua-thang-12-tet": "/kinh-nghiem/ta-xua-mua-dong-lanh-mac-gi",
+  "san-may-ta-xua-thang-12-tet": "/kinh-nghiem/ta-xua-thang-12",
   "thoi-tiet-ta-xua-theo-thang": "/kinh-nghiem/ta-xua-mua-nao-dep-nhat",
   "nha-xe-nao-di-ta-xua": "/kinh-nghiem/nha-xe-di-ta-xua",
 };
