@@ -1,11 +1,14 @@
 // Kiểm chất lượng bài viết trước khi đăng (độ dài, FAQ, bảng, ảnh/link trả 200, cụm sáo, trùng lặp với bài đang đăng).
-//   node --env-file=.env scripts/seo/article-qa.mjs [--dir <thư mục>] <slug> [<slug>...]
+//   node --env-file=.env scripts/seo/article-qa.mjs [--dir <thư mục>] [--date dd/mm/yyyy] <slug> [<slug>...]
 import { PrismaClient } from "@prisma/client";
 import fs from "node:fs";
 // Thư mục bài nháp: --dir <thư mục> (mặc định scripts/tmp/articles), mỗi bài gồm <slug>.md + <slug>.meta.json {title, excerpt, coverImage}.
 const di = process.argv.indexOf("--dir");
 const DIR = di > 0 ? process.argv[di + 1] : "scripts/tmp/articles";
 const BASE = "https://taxuabooking.com";
+// Ngày ghi ở dòng nguồn cuối bài: --date dd/mm/yyyy (mặc định hôm nay).
+const dti = process.argv.indexOf("--date");
+const TODAY = dti > 0 ? process.argv[dti + 1] : new Date().toLocaleDateString("en-GB", { timeZone: "Asia/Ho_Chi_Minh" });
 const AI = ["thiên đường","không thể bỏ lỡ","hãy cùng","tuyệt vời nhất","trải nghiệm tuyệt vời","chữa lành","đắm chìm","khám phá ngay","điểm đến lý tưởng","hành trình đáng nhớ","vẻ đẹp hoang sơ","kỳ vĩ","say đắm","tuyệt tác","nói tóm lại","tóm lại,","nhìn chung","trong bài viết này","không chỉ","mà còn","đặc biệt hơn","hơn thế nữa","bên cạnh đó","ngoài ra,","đừng quên"];
 const plain = (c) => c.replace(/!\[[^\]]*\]\([^)]*\)/g, " ").replace(/\[([^\]]*)\]\([^)]*\)/g, "$1").replace(/[#*|>_`]/g, " ").toLowerCase();
 const shingles = (c, n = 6) => { const w = plain(c).split(/\s+/).filter(Boolean); const s = new Set(); for (let i = 0; i + n <= w.length; i++) s.add(w.slice(i, i + n).join(" ")); return s; };
@@ -14,7 +17,7 @@ const prisma = new PrismaClient();
 const old = await prisma.article.findMany({ select: { slug: true, content: true } });
 await prisma.$disconnect();
 let fail = 0;
-const slugs = process.argv.slice(2).filter((x, i, a) => x !== "--dir" && a[i - 1] !== "--dir");
+const slugs = process.argv.slice(2).filter((x, i, a) => !["--dir", "--date"].includes(x) && !["--dir", "--date"].includes(a[i - 1]));
 for (const slug of slugs) {
   const c = fs.readFileSync(`${DIR}/${slug}.md`, "utf8").replace(/\r\n/g, "\n").trim();
   const m = JSON.parse(fs.readFileSync(`${DIR}/${slug}.meta.json`, "utf8"));
@@ -37,7 +40,7 @@ for (const slug of slugs) {
   if (faq < 5) errs.push(`FAQ ${faq} < 5`);
   if (!tables) errs.push("thiếu bảng");
   if (!c.includes("**Tóm tắt nhanh:**")) errs.push('thiếu "**Tóm tắt nhanh:**"');
-  if (!/25\/11\/2026/.test(c)) errs.push("thiếu dòng nguồn + ngày 25/11/2026");
+  if (!c.includes(TODAY)) errs.push("thiếu dòng nguồn + ngày " + TODAY);
   if (imgs.length < 3) errs.push(`ảnh ${imgs.length} < 3`);
   if (best.r > 0.08) errs.push(`trùng ${(best.r * 100).toFixed(1)}% với ${best.slug}`);
   for (const im of [{ alt: "cover", src: m.coverImage }, ...imgs]) { if (!/^\/uploads\//.test(im.src)) errs.push("ảnh không phải /uploads: " + im.src); else if ((await st(im.src)) !== 200) errs.push("ảnh lỗi " + im.src); if (!im.alt.trim()) errs.push("ảnh thiếu alt " + im.src); }
