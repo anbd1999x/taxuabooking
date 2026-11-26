@@ -2376,7 +2376,6 @@
  "Chưa gửi được — kiểm tra mạng rồi thử lại.": "未能发送——请检查网络后重试。",
  "Số điện thoại chưa đúng.": "电话号码不正确。",
  "Tin của bạn đã tới tụi mình — sẽ trả lời ngay khi vào giờ hỗ trợ.": "我们已收到您的消息——将在服务时间开始后立即回复。",
- "Đã gửi — nhân viên sẽ trả lời ngay tại đây.": "已发送——工作人员会在这里回复您。",
  "Để lại tên & SĐT để tụi mình gọi lại nếu bạn rời trang:": "留下姓名和电话，若您离开页面我们会回电：",
  "Tên": "姓名",
  "Lưu": "保存",
@@ -2753,7 +2752,6 @@
  "Chụp màn hình hoặc ghi lại mã. Nếu đã điền email, thư báo đã nhận yêu cầu được gửi kèm mã này.": "请截图或记下订单号。如已填写邮箱，系统会发送包含该订单号的“已收到申请”邮件。",
  "Vào trang Tra cứu, nhập mã đơn hoặc số điện thoại đã đặt để xem đơn đang ở bước nào: Mới → Đang liên hệ → Đã xác nhận → Hoàn thành.": "进入查询页面，输入订单号或预订时的电话，即可查看订单进度：新订单 → 联系中 → 已确认 → 已完成。",
  "Tà Xùa Booking gọi tư vấn thêm": "Tà Xùa Booking 致电进一步咨询",
- "Nhân viên Tà Xùa Booking gọi hoặc nhắn Zalo theo số bạn để lại để chốt lại chi tiết chuyến đi.": "Tà Xùa Booking 的工作人员会按您留下的号码致电或通过 Zalo 联系，确认行程细节。",
  "Kiểm tra lại ngày, số khách, phòng / chỗ nằm, điểm đón và tổng tiền.": "再次核对日期、人数、房间/铺位、上车点和总价。",
  "Tư vấn thêm nếu bạn cần: đổi phòng, thêm xe máy, xe ôm, lịch trình, thời tiết và mây những ngày đó.": "如有需要可进一步咨询：换房、加租摩托车、摩的、行程、当天的天气和云海情况。",
  "Bạn chưa cần chuyển khoản ở bước này. Hỏi cho rõ mọi thứ rồi mới quyết định.": "此步骤无需转账。把一切问清楚后再决定。",
@@ -2822,5 +2820,9 @@
  "Chỗ được giữ sau khi tụi mình gọi xác nhận. Chưa cần thanh toán.": "我们致电确认后即为您留座。暂时无需付款。",
  "Giá tham khảo · tụi mình gọi xác nhận, không thanh toán online.": "参考价格 · 我们致电确认，无需在线付款。",
  "Giá tham khảo. Tụi mình gọi xác nhận, không thanh toán online.": "参考价格。我们致电确认，无需在线付款。",
- "Số điện thoại không hợp lệ — vui lòng nhập số thật của bạn (tụi mình sẽ liên hệ qua Zalo/điện thoại).": "电话号码无效 — 请输入您的真实号码（我们会通过 Zalo/电话联系您）。"
+ "Số điện thoại không hợp lệ — vui lòng nhập số thật của bạn (tụi mình sẽ liên hệ qua Zalo/điện thoại).": "电话号码无效 — 请输入您的真实号码（我们会通过 Zalo/电话联系您）。",
+ "Tụi mình gọi hoặc nhắn Zalo theo số bạn để lại để chốt lại chi tiết chuyến đi.": "Tà Xùa Booking 的工作人员会按您留下的号码致电或通过 Zalo 联系，确认行程细节。",
+ "Đã gửi — tụi mình sẽ trả lời ngay tại đây.": "已发送——工作人员会在这里回复您。",
+ "6 bước: gửi yêu cầu, kiểm chứng rồi mới cọc": "6步：提交申请、核实后再付订金",
+ "Xem tình trạng đơn bằng mã đơn hoặc số điện thoại": "用订单号或电话查看订单状态"
 }

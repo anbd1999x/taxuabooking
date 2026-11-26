@@ -83,7 +83,7 @@ export async function GET() {
 
   const body = `# ${SITE.name}
 
-> ${SITE.name} (${base}) là website đặt dịch vụ du lịch Tà Xùa (xã Tà Xùa, tỉnh Sơn La, Việt Nam; cách Hà Nội khoảng 215–220 km): xe cabin giường nằm Hà Nội – Tà Xùa, homestay/bungalow săn mây, thuê xe máy, xe ôm, taxi và combo xe + homestay. Khách xem giá và tình trạng còn chỗ theo ngày rồi gửi yêu cầu đặt; không thanh toán online, nhân viên gọi lại xác nhận. Hỗ trợ ${SITE.supportHours} hằng ngày, điện thoại/Zalo ${phone}.
+> ${SITE.name} (${base}) là website đặt dịch vụ du lịch Tà Xùa (xã Tà Xùa, tỉnh Sơn La, Việt Nam; cách Hà Nội khoảng 215–220 km): xe cabin giường nằm Hà Nội – Tà Xùa, homestay/bungalow săn mây, thuê xe máy, xe ôm, taxi và combo xe + homestay. Khách xem giá và tình trạng còn chỗ theo ngày rồi gửi yêu cầu đặt; không thanh toán online, Tà Xùa Booking gọi lại xác nhận. Hỗ trợ ${SITE.supportHours} hằng ngày, điện thoại/Zalo ${phone}.
 
 Giá trong file này lấy trực tiếp từ dữ liệu đang bán, cập nhật ngày ${today}. Giá thay đổi theo ngày trong tuần, mùa và dịp lễ — giá chính xác hiện trên trang khi chọn ngày.
 

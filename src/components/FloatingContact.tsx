@@ -258,7 +258,7 @@ export function FloatingContact({ facebook }: { facebook: string }) {
               })}
               {guestCount > 0 && !adminReplied && (
                 <div className="text-center text-[11.5px] text-gray-500">
-                  {off ? t("Tin của bạn đã tới tụi mình — sẽ trả lời ngay khi vào giờ hỗ trợ.") : t("Đã gửi — nhân viên sẽ trả lời ngay tại đây.")}
+                  {off ? t("Tin của bạn đã tới tụi mình — sẽ trả lời ngay khi vào giờ hỗ trợ.") : t("Đã gửi — tụi mình sẽ trả lời ngay tại đây.")}
                 </div>
               )}
               {guestCount > 0 && !profile.saved && (

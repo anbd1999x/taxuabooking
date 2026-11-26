@@ -1,5 +1,6 @@
 "use client";
 
+import { coarsePointer } from "./HomeMotion";
 import { useEffect, useRef, useState } from "react";
 import { WeatherBadge } from "@/components/weather/WeatherBadge";
 
@@ -65,6 +66,8 @@ export function HomeHero({
     const hero = heroRef.current;
     if (!hero) return;
     const R = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    // Màn cảm ứng: không dời ảnh / chữ / mây theo cuộn (JS luôn chậm một nhịp so với cuộn ⇒ giật) — hero cuộn tự nhiên theo trang.
+    const touch = coarsePointer();
     const id = requestAnimationFrame(() => setShown(true));
     const cl = (v: number) => Math.max(0, Math.min(1, v));
     const io = (v: number) => (v < 0.5 ? 4 * v * v * v : 1 - Math.pow(-2 * v + 2, 3) / 2);
@@ -74,15 +77,22 @@ export function HomeHero({
     const cueEl = hero.querySelector<HTMLElement>("[data-cue]");
     const t0 = performance.now();
     let raf = 0;
+    // Chiều cao hero: đo 1 lần + khi đổi cỡ màn (đọc offsetHeight mỗi khung hình ép trình duyệt tính lại bố cục).
+    let hh = hero.offsetHeight;
+    const onResize = () => {
+      hh = hero.offsetHeight;
+    };
+    window.addEventListener("resize", onResize);
+    let glareOp = "";
 
     const tick = (now: number) => {
       raf = requestAnimationFrame(tick);
       const t = (now - t0) / 1000;
-      const sy = window.scrollY || 0;
-      const hh = hero.offsetHeight;
-      if (sy > hh * 1.2 && t > 4) return; // đã cuộn qua hero ⇒ nghỉ cho nhẹ máy
+      const realSy = window.scrollY || 0;
+      if (realSy > hh * 1.2 && t > 4) return; // đã cuộn qua hero ⇒ nghỉ cho nhẹ máy
+      const sy = touch ? 0 : realSy;
       const intro = R ? 1 : io(cl((t - 0.15) / 3.2));
-      const p = cl(sy / (hh * 0.85));
+      const p = cl(realSy / (hh * 0.85));
       if (cloudC.current) cloudC.current.style.opacity = String(R ? 0 : 1 - io(cl((t - 0.05) / 1.8)));
       // Màn mây: từ giữa tách ra 2 bên, trôi hẳn khỏi khung và mờ hết — không đọng lại ở mép.
       const open = intro * 1.2;
@@ -104,7 +114,11 @@ export function HomeHero({
         m.style.transform = `translate3d(${R ? 0 : Math.sin(t * 0.06 + i * 2.1) * 10}%, ${-sy * 0.12 * (i + 1)}px, 0)`;
         m.style.opacity = String(R ? 0.6 : 0.55 + 0.35 * Math.sin(t * 0.25 + i * 1.7));
       });
-      if (glare) glare.style.opacity = String(R ? 0.6 : 0.55 + 0.25 * Math.sin(t * 0.4));
+      // Vệt nắng dùng mix-blend-screen: đổi opacity là phải hoà lại cả vùng ⇒ làm tròn 2 số lẻ, chỉ ghi khi đổi; màn cảm ứng để yên.
+      if (glare) {
+        const g = (R || touch ? 0.6 : 0.55 + 0.25 * Math.sin(t * 0.4)).toFixed(2);
+        if (g !== glareOp) glare.style.opacity = glareOp = g;
+      }
       if (cueEl) cueEl.style.transform = `translateY(${((t * 0.8) % 1) * 60 - 16}px)`;
       if (textRef.current) {
         textRef.current.style.transform = `translate3d(0, ${sy * 0.25}px, 0)`;
@@ -120,6 +134,7 @@ export function HomeHero({
     return () => {
       cancelAnimationFrame(raf);
       cancelAnimationFrame(id);
+      window.removeEventListener("resize", onResize);
     };
   }, []);
 
@@ -183,7 +198,7 @@ export function HomeHero({
           <div
             key={i}
             data-sea
-            className="absolute rounded-full blur-[12px]"
+            className="absolute rounded-full blur-[12px] will-change-transform"
             style={{
               left: c.left,
               bottom: c.bottom,

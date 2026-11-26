@@ -100,7 +100,7 @@ export default async function GuidePage() {
     {
       icon: I.phone,
       title: tr("Tà Xùa Booking gọi tư vấn thêm"),
-      lead: tr("Nhân viên Tà Xùa Booking gọi hoặc nhắn Zalo theo số bạn để lại để chốt lại chi tiết chuyến đi."),
+      lead: tr("Tụi mình gọi hoặc nhắn Zalo theo số bạn để lại để chốt lại chi tiết chuyến đi."),
       points: [
         tr("Kiểm tra lại ngày, số khách, phòng / chỗ nằm, điểm đón và tổng tiền."),
         tr("Tư vấn thêm nếu bạn cần: đổi phòng, thêm xe máy, xe ôm, lịch trình, thời tiết và mây những ngày đó."),

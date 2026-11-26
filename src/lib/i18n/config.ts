@@ -112,6 +112,19 @@ export function normSource(s: string): string {
   return s.replace(/\r\n?/g, "\n").trim();
 }
 
+/**
+ * Cách xưng hô của web theo số chủ sở hữu đang hiện ở phần uy tín (/admin/popup): 2 người ⇒ "tụi mình",
+ * chỉ 1 người (`solo`) ⇒ "mình". Bọc quanh hàm dịch tiếng Việt để MỌI nhãn tự đổi, không phải sửa từng nơi
+ * (bản dịch en / zh / ko không chứa "tụi mình" nên không bị ảnh hưởng).
+ */
+export function withVoice(t: TFunc, solo: boolean): TFunc {
+  if (!solo) return t;
+  return ((key: string | null | undefined, vars?: TVars) => {
+    const out = t(key, vars);
+    return typeof out === "string" && /ụi mình/.test(out) ? out.replace(/Tụi mình/g, "Mình").replace(/tụi mình/g, "mình") : out;
+  }) as TFunc;
+}
+
 export function makeT(dict: Dict, content?: Dict): TFunc {
   return ((key: string | null | undefined, vars?: TVars) => {
     if (!key) return key;

@@ -17,7 +17,7 @@ import { parseTrustPopup, TRUST_POPUP_KEY, visiblePeople } from "@/lib/trust-pop
 import { SiteContactProvider } from "@/components/SiteContact";
 import { SITE } from "@/lib/site";
 import { preload } from "react-dom";
-import { getContentMap, getContentVersion, getLocale } from "@/lib/i18n/server";
+import { getContentMap, getContentVersion, getLocale, isSoloVoice } from "@/lib/i18n/server";
 import { contentUrl, ssrContentStore } from "@/lib/i18n/content-store";
 import { I18nProvider } from "@/components/i18n/I18nProvider";
 import { I18nLocaleEn } from "@/components/i18n/I18nLocaleEn";
@@ -27,7 +27,7 @@ import { I18nLocaleKo } from "@/components/i18n/I18nLocaleKo";
 /** Provider ngôn ngữ cho Client Component: mỗi ngôn ngữ 1 chunk từ điển riêng (tiếng Việt không tải gì thêm). */
 async function LocaleProvider({ children }: { children: React.ReactNode }) {
   const locale = await getLocale();
-  if (locale === "vi") return <I18nProvider locale="vi" dict={{}}>{children}</I18nProvider>;
+  if (locale === "vi") return <I18nProvider locale="vi" dict={{}} solo={await isSoloVoice()}>{children}</I18nProvider>;
   // KHÔNG truyền cả map bản dịch nội dung làm prop (bị nhúng vào RSC payload MỌI trang, ≈270KB):
   // ghi map vào bộ nhớ tiến trình cho SSR, client tải 1 file JSON cache theo phiên bản (preload sớm).
   const [content, v] = await Promise.all([getContentMap(locale), getContentVersion(locale)]);

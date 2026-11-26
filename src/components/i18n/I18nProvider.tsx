@@ -2,7 +2,7 @@
 
 import { createContext, Suspense, use, useContext, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { DEFAULT_LOCALE, identityT, localePath, makeT, type Dict, type Locale, type TFunc } from "@/lib/i18n/config";
+import { DEFAULT_LOCALE, identityT, localePath, makeT, withVoice, type Dict, type Locale, type TFunc } from "@/lib/i18n/config";
 import { contentUrl, ssrContentStore } from "@/lib/i18n/content-store";
 
 interface I18nValue {
@@ -82,9 +82,12 @@ export function I18nProvider({
   dict,
   content: contentProp,
   contentVersion,
+  solo = false,
   children,
 }: {
   locale: Locale;
+  /** Tiếng Việt: web chỉ còn 1 chủ sở hữu ⇒ mọi "tụi mình" thành "mình". */
+  solo?: boolean;
   dict: Dict;
   content?: Dict;
   /** Phiên bản bản dịch nội dung — có thì tự tải map (không nhúng map vào RSC payload). */
@@ -92,8 +95,8 @@ export function I18nProvider({
   children: React.ReactNode;
 }) {
   const value = useMemo<I18nValue>(
-    () => ({ locale, t: locale === DEFAULT_LOCALE ? identityT : makeT(dict, contentProp) }),
-    [locale, dict, contentProp],
+    () => ({ locale, t: locale === DEFAULT_LOCALE ? withVoice(identityT, solo) : makeT(dict, contentProp) }),
+    [locale, dict, contentProp, solo],
   );
   if (contentVersion && !contentProp && locale !== DEFAULT_LOCALE) {
     return (

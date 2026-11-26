@@ -61,6 +61,9 @@ export function HomeCabin({
     let raf = 0;
     let legStart: number | null = null; // mốc (giây) xe bắt đầu chạy
     const RUN = 3.2; // thời gian xe chạy hết lộ trình (giây)
+    let lastOn = -1; // số điểm dừng đang sáng (chỉ ghi style khi đổi)
+    let lastText = "";
+    let comboDone = false;
     const tick = (now: number) => {
       raf = requestAnimationFrame(tick);
       const sec = (now - t0) / 1000;
@@ -75,13 +78,19 @@ export function HomeCabin({
           const f = R ? 1 : p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
           const dots = lg.querySelectorAll<HTMLElement>("[data-stop]");
           const n = dots.length;
-          dots.forEach((d, i) => {
-            const on = f >= (n > 1 ? i / (n - 1) : 0) - 0.02;
-            const last = i === n - 1;
-            d.style.background = on ? (last ? ORANGE : "oklch(0.86 0.12 78)") : "transparent";
-            d.style.boxShadow = on ? "0 0 0 5px oklch(0.8 0.14 70 / .22), 0 0 14px oklch(0.86 0.12 78 / .7)" : "none";
-            d.style.transform = on ? "scale(1.15)" : "scale(1)";
-          });
+          let onCount = 0;
+          for (let i = 0; i < n; i++) if (f >= (n > 1 ? i / (n - 1) : 0) - 0.02) onCount++;
+          // Điểm dừng sáng dần từ trái sang ⇒ chỉ đặt lại style khi SỐ điểm sáng đổi (trước đây ghi lại mọi điểm mỗi khung hình).
+          if (onCount !== lastOn) {
+            lastOn = onCount;
+            dots.forEach((d, i) => {
+              const on = i < onCount;
+              const last = i === n - 1;
+              d.style.background = on ? (last ? ORANGE : "oklch(0.86 0.12 78)") : "transparent";
+              d.style.boxShadow = on ? "0 0 0 5px oklch(0.8 0.14 70 / .22), 0 0 14px oklch(0.86 0.12 78 / .7)" : "none";
+              d.style.transform = on ? "scale(1.15)" : "scale(1)";
+            });
+          }
           const bus = busRef.current;
           if (bus?.parentElement) {
             const W = bus.parentElement.offsetWidth;
@@ -91,12 +100,14 @@ export function HomeCabin({
         }
       }
       const cn = comboRef.current;
-      if (cn && combo?.price) {
-        const r = cn.getBoundingClientRect();
-        if (comboStartRef.current == null && r.top < vh * 0.92) comboStartRef.current = now / 1000;
+      // Số giá combo đếm lên: đếm xong thì DỪNG hẳn (trước đây ghi lại chữ mỗi khung hình mãi mãi ⇒ trình duyệt dựng lại bố cục liên tục).
+      if (cn && combo?.price && !comboDone) {
+        if (comboStartRef.current == null && cn.getBoundingClientRect().top < vh * 0.92) comboStartRef.current = now / 1000;
         if (comboStartRef.current != null) {
           const k = R ? 1 : eo(cl((now / 1000 - comboStartRef.current) / 1.6));
-          cn.textContent = t(vnd(Math.round((combo.price * k) / 1000) * 1000));
+          const text = t(vnd(Math.round((combo.price * k) / 1000) * 1000));
+          if (text !== lastText) cn.textContent = lastText = text;
+          if (k >= 1) comboDone = true;
         }
       }
     };

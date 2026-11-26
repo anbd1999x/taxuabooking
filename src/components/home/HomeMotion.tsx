@@ -26,6 +26,12 @@ const GLIDE = Array.from({ length: 16 }, (_, i) => {
 });
 
 const reduced = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+/**
+ * Màn cảm ứng (điện thoại / máy tính bảng): trình duyệt cuộn trang ở luồng riêng, còn hiệu ứng bám theo cuộn do JS
+ * đặt lại mỗi khung hình luôn chậm hơn một nhịp ⇒ nhìn "giật". Ở các máy này bỏ phần bám theo cuộn (parallax),
+ * chỉ giữ chuyển động theo thời gian.
+ */
+export const coarsePointer = () => window.matchMedia?.("(pointer: coarse)").matches ?? false;
 
 export function HomeSky() {
   const ref = useRef<HTMLDivElement>(null);
@@ -33,15 +39,27 @@ export function HomeSky() {
     const sky = ref.current;
     if (!sky) return;
     const R = reduced();
-    const els = sky.querySelectorAll<HTMLElement>("[data-glide]");
+    const touch = coarsePointer();
+    const all = [...sky.querySelectorAll<HTMLElement>("[data-glide]")];
+    // Mỗi đám mây là một lớp mờ rất lớn (34–58vw): màn nhỏ / cảm ứng chỉ giữ 6 lớp, màn lớn 12 lớp cho nhẹ GPU.
+    const keep = touch || window.innerWidth < 760 ? 6 : 12;
+    all.forEach((c, i) => {
+      if (i >= keep) c.style.display = "none";
+    });
+    const els = all.slice(0, keep);
     const t0 = performance.now();
     let raf = 0;
+    let W = window.innerWidth;
+    let vh = window.innerHeight;
+    const onResize = () => {
+      W = window.innerWidth;
+      vh = window.innerHeight;
+    };
+    window.addEventListener("resize", onResize);
     const tick = (now: number) => {
       raf = requestAnimationFrame(tick);
       const t = (now - t0) / 1000;
-      const W = window.innerWidth;
-      const vh = window.innerHeight;
-      const sy = window.scrollY || 0;
+      const sy = touch ? 0 : window.scrollY || 0;
       const span = vh + 600;
       els.forEach((c, i) => {
         const g = GLIDE[i];
@@ -53,7 +71,10 @@ export function HomeSky() {
       });
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", onResize);
+    };
   }, []);
 
   return (
@@ -101,7 +122,7 @@ export function HomeReveal() {
     els.forEach((el) => io.observe(el));
 
     // Parallax nhẹ cho [data-px] (ảnh bài viết, dải mây trong khối cabin).
-    const R = reduced();
+    const R = reduced() || coarsePointer(); // màn cảm ứng: không parallax theo cuộn (xem coarsePointer)
     const pxs = [...document.querySelectorAll<HTMLElement>("[data-px]")];
     let raf = 0;
     const update = () => {
@@ -134,23 +155,32 @@ export function HomeMobileBar() {
   const phone = useSitePhone().replace(/\D/g, "");
   const [show, setShow] = useState(false);
   useEffect(() => {
-    const onScroll = () => {
+    // Đo trong requestAnimationFrame (tối đa 1 lần / khung hình) — đọc scrollHeight ngay trong sự kiện cuộn ép trình duyệt dựng lại bố cục liên tục.
+    let raf = 0;
+    const update = () => {
+      raf = 0;
       const sy = window.scrollY || 0;
       const vh = window.innerHeight;
       const docH = document.documentElement.scrollHeight;
       setShow(sy > vh * 0.62 && sy < docH - vh - 260);
     };
-    onScroll();
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(update);
+    };
+    update();
     window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(raf);
+    };
   }, []);
   const btn = "flex items-center justify-center rounded-full px-4 py-3 text-sm font-extrabold";
   return (
     <div
-      className="fixed inset-x-3 z-[45] grid grid-cols-[auto_auto_minmax(0,1fr)] gap-1.5 rounded-full p-1.5 backdrop-blur-xl transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] min-[1080px]:hidden"
+      className="fixed inset-x-3 z-[45] grid grid-cols-[auto_auto_minmax(0,1fr)] gap-1.5 rounded-full p-1.5 transition-transform duration-500 ease-[cubic-bezier(.2,.8,.2,1)] min-[1080px]:hidden"
       style={{
         bottom: "calc(12px + env(safe-area-inset-bottom))",
-        background: "oklch(1 0 0 / .86)",
+        background: "oklch(1 0 0 / .97)", // nền gần đặc, không backdrop-blur (làm mờ nền mỗi khung hình khi cuộn rất nặng trên điện thoại)
         boxShadow: "0 18px 40px -16px oklch(0.2 0.04 180 / .5), 0 0 0 1px oklch(0.92 0.01 160)",
         transform: show ? "translateY(0)" : "translateY(160%)",
       }}

@@ -101,13 +101,13 @@ export function Header({ customerName = null, showCommitment = true, showTickets
     { href: "/kinh-nghiem", label: t("Kinh nghiệm Tà Xùa") },
     { href: "/nha-hang", label: t("Nhà hàng Tà Xùa") },
     { href: "/cafe", label: t("Cafe Tà Xùa") },
-    { href: "/huong-dan", label: t("Hướng dẫn đặt dịch vụ") },
-    { href: "/tra-cuu", label: t("Tra cứu đơn hàng") },
   ];
-  // Menu cha "Về chúng tôi": Cam kết (với khách) + Tiện ích (phần mềm cho chủ dịch vụ, trang /hop-tac — tên cũ "Hợp tác") + Góp ý.
+  // Menu cha "Về chúng tôi": Cam kết (với khách) + Hướng dẫn đặt dịch vụ + Tra cứu đơn + Tiện ích (phần mềm cho chủ dịch vụ, trang /hop-tac — tên cũ "Hợp tác") + Góp ý.
   // Khoá "Tiện ích" trong từ điển đã mang nghĩa tiện nghi phòng (Amenities) ⇒ mục menu dùng khoá riêng "Tiện ích (menu)".
   const ABOUT_LINKS = [
     ...(showCommitment ? [{ href: "/cam-ket", label: t("Cam kết"), sub: t("Đền tới 100tr nếu dịch vụ sai cam kết") }] : []),
+    { href: "/huong-dan", label: t("Hướng dẫn đặt dịch vụ"), sub: t("6 bước: gửi yêu cầu, kiểm chứng rồi mới cọc") },
+    { href: "/tra-cuu", label: t("Tra cứu đơn hàng"), sub: t("Xem tình trạng đơn bằng mã đơn hoặc số điện thoại") },
     { href: "/hop-tac", label: locale === "vi" ? "Tiện ích" : t("Tiện ích (menu)"), sub: t("Phần mềm miễn phí cho chủ dịch vụ") },
     { href: "/gop-y", label: t("Góp ý"), sub: t("Gửi góp ý để Tà Xùa Booking phục vụ tốt hơn") },
   ];

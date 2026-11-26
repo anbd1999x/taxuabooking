@@ -11,6 +11,7 @@ import {
   isLocale,
   localePath,
   makeT,
+  withVoice,
   normSource,
   type Dict,
   type Locale,
@@ -88,9 +89,20 @@ export async function getContentVersion(locale: Locale): Promise<string> {
 }
 
 /** Hàm dịch cho Server Component / generateMetadata / server action: `const t = await getT()`. */
+/** Web chỉ còn 1 chủ sở hữu hiện ở phần uy tín ⇒ xưng "mình" thay "tụi mình" (xem `withVoice`). */
+export const isSoloVoice = cache(async (): Promise<boolean> => {
+  try {
+    const { getSettings } = await import("@/lib/queries");
+    const { parseTrustPopup, visiblePeople, TRUST_POPUP_KEY } = await import("@/lib/trust-popup");
+    return visiblePeople(parseTrustPopup((await getSettings())[TRUST_POPUP_KEY])).length === 1;
+  } catch {
+    return false; // ngoài phạm vi request (script, cron)
+  }
+});
+
 export const getT = cache(async (): Promise<TFunc> => {
   const locale = await getLocale();
-  if (locale === DEFAULT_LOCALE) return identityT;
+  if (locale === DEFAULT_LOCALE) return withVoice(identityT, await isSoloVoice());
   const [dict, content] = await Promise.all([loadDict(locale), getContentMap(locale)]);
   return makeT(dict, content);
 });

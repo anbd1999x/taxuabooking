@@ -2376,7 +2376,6 @@
  "Chưa gửi được — kiểm tra mạng rồi thử lại.": "Not sent — check your connection and try again.",
  "Số điện thoại chưa đúng.": "The phone number doesn't look right.",
  "Tin của bạn đã tới tụi mình — sẽ trả lời ngay khi vào giờ hỗ trợ.": "We've got your message — we'll reply as soon as support hours begin.",
- "Đã gửi — nhân viên sẽ trả lời ngay tại đây.": "Sent — our staff will reply right here.",
  "Để lại tên & SĐT để tụi mình gọi lại nếu bạn rời trang:": "Leave your name & phone so we can call back if you leave the page:",
  "Tên": "Name",
  "Lưu": "Save",
@@ -2753,7 +2752,6 @@
  "Chụp màn hình hoặc ghi lại mã. Nếu đã điền email, thư báo đã nhận yêu cầu được gửi kèm mã này.": "Take a screenshot or note the code. If you gave an email, a “request received” message with this code is sent to you.",
  "Vào trang Tra cứu, nhập mã đơn hoặc số điện thoại đã đặt để xem đơn đang ở bước nào: Mới → Đang liên hệ → Đã xác nhận → Hoàn thành.": "On the Track order page, enter the code or the phone number you booked with to see where the order stands: New → Contacting → Confirmed → Completed.",
  "Tà Xùa Booking gọi tư vấn thêm": "Tà Xùa Booking calls you with advice",
- "Nhân viên Tà Xùa Booking gọi hoặc nhắn Zalo theo số bạn để lại để chốt lại chi tiết chuyến đi.": "Tà Xùa Booking staff call or message you on Zalo at the number you left to go over the trip details.",
  "Kiểm tra lại ngày, số khách, phòng / chỗ nằm, điểm đón và tổng tiền.": "They double-check the dates, number of guests, room / berth, pick-up point and total.",
  "Tư vấn thêm nếu bạn cần: đổi phòng, thêm xe máy, xe ôm, lịch trình, thời tiết và mây những ngày đó.": "They advise on anything else you need: changing rooms, adding a motorbike or motorbike taxi, the itinerary, weather and cloud conditions for those days.",
  "Bạn chưa cần chuyển khoản ở bước này. Hỏi cho rõ mọi thứ rồi mới quyết định.": "You don’t need to transfer anything yet. Ask until everything is clear, then decide.",
@@ -2822,5 +2820,9 @@
  "Chỗ được giữ sau khi tụi mình gọi xác nhận. Chưa cần thanh toán.": "Your seats are held once we call to confirm. No payment needed yet.",
  "Giá tham khảo · tụi mình gọi xác nhận, không thanh toán online.": "Reference price · we call to confirm, no online payment.",
  "Giá tham khảo. Tụi mình gọi xác nhận, không thanh toán online.": "Reference price. We call to confirm; no online payment.",
- "Số điện thoại không hợp lệ — vui lòng nhập số thật của bạn (tụi mình sẽ liên hệ qua Zalo/điện thoại).": "Invalid phone number — please enter your real number (we’ll contact you by Zalo/phone)."
+ "Số điện thoại không hợp lệ — vui lòng nhập số thật của bạn (tụi mình sẽ liên hệ qua Zalo/điện thoại).": "Invalid phone number — please enter your real number (we’ll contact you by Zalo/phone).",
+ "Tụi mình gọi hoặc nhắn Zalo theo số bạn để lại để chốt lại chi tiết chuyến đi.": "Tà Xùa Booking staff call or message you on Zalo at the number you left to go over the trip details.",
+ "Đã gửi — tụi mình sẽ trả lời ngay tại đây.": "Sent — our staff will reply right here.",
+ "6 bước: gửi yêu cầu, kiểm chứng rồi mới cọc": "6 steps: send a request, verify, then pay the deposit",
+ "Xem tình trạng đơn bằng mã đơn hoặc số điện thoại": "Check your booking by code or phone number"
 }
