@@ -175,6 +175,8 @@ export const serviceInputSchema = z.object({
   published: z.coerce.boolean().optional(),
   easyRoad: z.coerce.boolean().optional(),
   pool: z.coerce.boolean().optional(),
+  luggage: z.enum(["yes", "no"]).optional().nullable(),
+  luggageNote: z.string().trim().max(200).optional().nullable(),
   contactOnly: z.coerce.boolean().optional(),
   inquiryOnly: z.coerce.boolean().optional(),
   soldOutDates: z.array(z.string().regex(dateKeyRegex)).max(1500).optional(),

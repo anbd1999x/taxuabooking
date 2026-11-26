@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import Link from "next/link";
 import type { BookingStatus } from "@prisma/client";
 import { showToast } from "./Toast";
-import { CopyChip, PaymentRecordForm, NoteForm, SupplierPayableForm, SupplierPayoutForm } from "./BookingDetailClient";
+import { CopyChip, GuestStayBar, PaymentRecordForm, NoteForm, SupplierPayableForm, SupplierPayoutForm } from "./BookingDetailClient";
 import { bulkDeleteBookings, bulkUpdateBookingStatus, getBookingMessages } from "@/app/admin/bookings/actions";
 import type { BookingMessages } from "@/lib/booking-messages";
 import BookingsCalendar from "./BookingsCalendar";
@@ -54,6 +54,7 @@ function QuickExtras({ id, stamp }: { id: string; stamp: string }) {
             <CopyChip key={m.key} text={m.text} label={m.label} toast="Đã chép tin nhắn, dán vào Zalo chủ dịch vụ" className="border-[1.5px] border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100" />
           ))}
         </div>
+        <GuestStayBar key={`gs-${id}-${msgs.guestStay?.value ?? ""}`} id={id} editable={!!msgs.guestStay} value={msgs.guestStay?.value ?? null} info={msgs.stayInfo} homes={msgs.guestStay?.homes} onDone={reload} />
       </div>
 
       {msgs.payouts.map((s) => {

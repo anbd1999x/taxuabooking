@@ -33,6 +33,8 @@ interface Initial {
   published?: boolean;
   easyRoad?: boolean;
   pool?: boolean;
+  luggage?: string | null;
+  luggageNote?: string | null;
   contactOnly?: boolean;
   inquiryOnly?: boolean;
   soldOutDates?: string[];
@@ -413,6 +415,25 @@ export function ServiceForm({
       {/* Homestay không quản lý lịch: khai các ngày hết phòng để ẩn khỏi kết quả tìm kiếm. */}
       {contactOnly && (cat === "HOMESTAY" || cat === "BUNGALOW") && (
         <SoldOutDatesField initial={initial.soldOutDates ?? []} />
+      )}
+
+      {/* Homestay có hỗ trợ khách mang hành lý không — hiện ở đơn + tin gửi nhà xe để sàn biết phương án hỗ trợ. */}
+      {(cat === "HOMESTAY" || cat === "BUNGALOW") && (
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,16rem)_1fr]">
+          <label className="block">
+            <span className="text-sm font-medium text-gray-600">🧳 Hỗ trợ khách mang hành lý</span>
+            <select name="luggage" defaultValue={initial.luggage ?? ""} className={inputCls}>
+              <option value="">Chưa rõ</option>
+              <option value="yes">Có hỗ trợ</option>
+              <option value="no">Không hỗ trợ</option>
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-sm font-medium text-gray-600">Ghi chú hành lý</span>
+            <input name="luggageNote" defaultValue={initial.luggageNote ?? ""} maxLength={200} placeholder="VD: home ra đón ở cổng chào, đường dốc phải đi bộ 200m…" className={inputCls} />
+            <span className="mt-1 block text-xs text-gray-400">Chỉ lưu khi đã chọn Có / Không. Hiện ở trang đơn và tin gửi nhà xe.</span>
+          </label>
+        </div>
       )}
 
       {!partner && (

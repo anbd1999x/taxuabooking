@@ -143,6 +143,10 @@ model Service {
   published         Boolean         @default(true)
   easyRoad          Boolean         @default(false) // đường dễ đi (dùng cho combo homestay)
   pool              Boolean         @default(false) // có hồ bơi (tiện ích homestay)
+  // Homestay có hỗ trợ khách MANG HÀNH LÝ không ("yes" | "no" | null = chưa khai) + ghi chú (vd "ra đón ở cổng chào").
+  // Hiện ở đơn + tin gửi nhà xe để sàn biết phương án hỗ trợ khách.
+  luggage           String?
+  luggageNote       String?
   contactOnly       Boolean         @default(false) // không quản lý lịch trên web: luôn hiện "còn chỗ" khi tìm kiếm, khách nhắn tin để nhận thông tin (không đặt trực tiếp)
   inquiryOnly       Boolean         @default(false) // homestay: khách NHẮN TIN để biết chi tiết (không đặt trực tiếp) nhưng lịch VẪN quản lý — tìm kiếm/lịch hiện theo tình trạng phòng thật
   // NGÀY HẾT PHÒNG (yyyy-mm-dd, mỗi ngày = 1 đêm) cho homestay "không quản lý lịch" (contactOnly):
@@ -545,6 +549,7 @@ model BookingRequest {
   confirmEmailSentAt DateTime? // đã gửi email XÁC NHẬN đơn (chống gửi trùng)
   cancelEmailSentAt  DateTime? // đã gửi email BÁO HUỶ đơn (chống gửi trùng)
   note               String?
+  guestStay          String? // đơn xe (cabin / taxi / xe ôm): homestay khách sẽ ở — admin nhập, ghi vào tin gửi nhà xe
 
   useDate      DateTime  @db.Date // ngày đi / nhận phòng / nhận xe
   endDate      DateTime? @db.Date // ngày trả (lưu trú / thuê xe)

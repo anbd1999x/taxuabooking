@@ -11,6 +11,7 @@ import {
   setBookingCollector,
   saveProviderExtra,
   setSupplierPayable,
+  setGuestStay,
   addBookingNote,
   deleteBooking,
   saveBookingSurcharge,
@@ -170,9 +171,11 @@ export function PaymentRecordForm({
   onDone?: () => void;
 }) {
   const [amt, setAmt] = useState("");
+  const [fix, setFix] = useState(false);
   const [state, action, pending] = useActionState<BookingActionState, FormData>(recordBookingPayment, {});
   useResultToast(state, () => {
     setAmt("");
+    setFix(false);
     onDone?.();
   });
   const fmt = (n: number) => n.toLocaleString("vi-VN");
@@ -234,7 +237,136 @@ export function PaymentRecordForm({
           Thu đủ
         </button>
       </div>
+      {/* Nhập sai / bill sai: sửa thẳng TỔNG đã thu (chỉ admin — server kiểm). */}
+      {collected > 0 && (
+        <FixTotal
+          open={fix}
+          setOpen={setFix}
+          current={collected}
+          label="Sửa số đã thu"
+          hint="Tổng đã thu đúng (0 = chưa thu)"
+          withReason
+          pending={pending}
+        />
+      )}
     </form>
+  );
+}
+
+/**
+ * Dải "Khách ở homestay nào + home có hỗ trợ mang hành lý không" cạnh các nút chép tin — để sàn biết phương án
+ * hỗ trợ khách. Đơn homestay / combo: chỉ xem (home của đơn). Đơn xe (`editable`): admin nhập tên home khách ở,
+ * khớp tên home trên sàn thì hiện luôn thông tin hành lý; tên này được ghi vào tin gửi nhà xe.
+ */
+export function GuestStayBar({
+  id,
+  editable,
+  value,
+  info,
+  homes = [],
+  onDone,
+}: {
+  id: string;
+  editable: boolean;
+  value: string | null;
+  info: { name: string; luggage: "yes" | "no" | null; text: string } | null;
+  homes?: string[];
+  onDone?: () => void;
+}) {
+  const [state, action, pending] = useActionState<BookingActionState, FormData>(setGuestStay, {});
+  useResultToast(state, () => onDone?.());
+  if (!editable && !info) return null;
+  const tone = info?.luggage === "yes" ? "bg-forest-50 text-forest-800" : info?.luggage === "no" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-800";
+  return (
+    <div className="flex flex-col gap-1.5 rounded-xl border border-sky-100 bg-sky-50/50 px-3 py-2 text-[13px]">
+      {info && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span className="font-bold text-gray-800">🏠 Khách ở: {info.name}</span>
+          <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${tone}`}>🧳 {info.text}</span>
+        </div>
+      )}
+      {editable && (
+        <form action={action} className="flex flex-wrap items-center gap-1.5">
+          <input type="hidden" name="id" value={id} />
+          <input
+            name="guestStay"
+            defaultValue={value ?? ""}
+            list={`homes-${id}`}
+            maxLength={120}
+            placeholder="Khách ở homestay nào? (ghi vào tin gửi nhà xe)"
+            className="w-full min-w-0 flex-1 rounded-lg border-[1.5px] border-gray-200 bg-white px-3 py-1.5 text-[13px] font-semibold"
+          />
+          <datalist id={`homes-${id}`}>
+            {homes.map((h) => (
+              <option key={h} value={h} />
+            ))}
+          </datalist>
+          <button disabled={pending} className="whitespace-nowrap rounded-full bg-forest-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-forest-800 disabled:opacity-50">
+            Lưu
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+/** Hàng "✎ Sửa số …": ô nhập TỔNG đúng + nút lưu (submit `mode=set`, số ở `setAmount`). Dùng trong form ghi thu / ghi trả. */
+function FixTotal({
+  open,
+  setOpen,
+  current,
+  label,
+  hint,
+  withReason,
+  pending,
+}: {
+  open: boolean;
+  setOpen: (v: boolean) => void;
+  current: number;
+  label: string;
+  hint: string;
+  withReason?: boolean;
+  pending: boolean;
+}) {
+  const [v, setV] = useState("");
+  return (
+    <div className="flex flex-col gap-1.5">
+      <button
+        type="button"
+        onClick={() => {
+          setV(current.toLocaleString("vi-VN"));
+          setOpen(!open);
+        }}
+        className="self-start text-[11px] font-bold text-forest-700 hover:underline"
+      >
+        {open ? "Đóng" : `✎ ${label} (nhập sai / bill sai)`}
+      </button>
+      {open && (
+        <>
+          <div className="flex gap-1.5">
+            <input
+              name="setAmount"
+              value={v}
+              onChange={(e) => setV(e.target.value)}
+              onKeyDown={(e) => {
+                // Enter ở ô này phải bấm đúng nút "Lưu số đúng", không phải nút gửi đầu tiên của form.
+                if (e.key !== "Enter") return;
+                e.preventDefault();
+                (e.currentTarget.nextElementSibling as HTMLButtonElement | null)?.click();
+              }}
+              inputMode="numeric"
+              placeholder={hint}
+              className="w-full min-w-0 flex-1 rounded-lg border-[1.5px] border-amber-300 bg-white px-3 py-1.5 text-sm font-bold"
+            />
+            <button name="mode" value="set" disabled={pending} className="whitespace-nowrap rounded-full bg-amber-600 px-3 py-1.5 text-[13px] font-bold text-white hover:bg-amber-700 disabled:opacity-50">
+              Lưu số đúng
+            </button>
+          </div>
+          {withReason && <input name="reason" maxLength={200} placeholder="Lý do sửa (không bắt buộc)" className="rounded-lg border-[1.5px] border-gray-200 bg-white px-3 py-1.5 text-[13px]" />}
+          <p className="text-[11px] text-gray-500">Đang ghi {current.toLocaleString("vi-VN")}đ. Nhập TỔNG đúng, không phải số chênh; thay đổi được ghi vào nhật ký.</p>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -255,9 +387,11 @@ export function SupplierPayoutForm({
   onDone?: () => void;
 }) {
   const [amt, setAmt] = useState("");
+  const [fix, setFix] = useState(false);
   const [state, action, pending] = useActionState<BookingActionState, FormData>(recordSupplierPayout, {});
   useResultToast(state, () => {
     setAmt("");
+    setFix(false);
     onDone?.();
   });
   const fmt = (n: number) => n.toLocaleString("vi-VN");
@@ -328,6 +462,7 @@ export function SupplierPayoutForm({
           </button>
         )}
       </div>
+      {paid > 0 && <FixTotal open={fix} setOpen={setFix} current={paid} label="Sửa số đã trả" hint="Tổng đã trả đúng" pending={pending} />}
     </form>
   );
 }

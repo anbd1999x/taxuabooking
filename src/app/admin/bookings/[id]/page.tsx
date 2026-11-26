@@ -13,6 +13,7 @@ import { EditBookingPopup } from "@/components/admin/EditBookingPopup";
 import { MoneyInput } from "@/components/admin/MoneyInput";
 import {
   CopyChip,
+  GuestStayBar,
   StatusPanel,
   PaymentRecordForm,
   NoteForm,
@@ -359,7 +360,7 @@ export default async function BookingDetailPage({
     `${price != null ? `Tổng ${formatPrice(price)}` : "Giá chờ xác nhận"} · ${payText}`;
   // Tin nhắn mẫu (khách / chốt đơn / chủ dịch vụ) dựng ở src/lib/booking-messages.ts — dùng chung với ngăn Xử lý nhanh.
   const isRental = isRentalCategory(b.category);
-  const { customerMsg, confirmMsg, providerMsgs } = await buildBookingMessages(b, rooms, outTrip, retTrip);
+  const { customerMsg, confirmMsg, providerMsgs, stayInfo, guestStay } = await buildBookingMessages(b, rooms, outTrip, retTrip);
 
 
   // Nhật ký: thêm 2 dòng ảo — ghi chú cũ (nếu có) + thời điểm nhận yêu cầu.
@@ -494,6 +495,9 @@ export default async function BookingDetailPage({
             {providerMsgs.map((m) => (
               <CopyChip key={m.key} text={m.text} label={m.label} toast="Đã chép tin nhắn, dán vào Zalo chủ dịch vụ" className="border-[1.5px] border-sky-300 bg-sky-50 py-2.5 text-sky-800 hover:bg-sky-100" />
             ))}
+          </div>
+          <div className="mt-2.5">
+            <GuestStayBar key={`gs-${guestStay?.value ?? ""}`} id={b.id} editable={!!guestStay} value={guestStay?.value ?? null} info={stayInfo} homes={guestStay?.homes} />
           </div>
         </div>
 

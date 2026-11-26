@@ -62,7 +62,35 @@ export type BookingFacts = {
   /** Lý do huỷ (đơn đã huỷ), null nếu không có. */
   cancelReason: string | null;
 };
-export type BookingMessages = { customerMsg: string; confirmMsg: string; providerMsgs: ProviderMsg[]; payouts: QuickPayout[]; facts: BookingFacts };
+/**
+ * Homestay khách ở + home có hỗ trợ mang hành lý không (để sàn biết phương án hỗ trợ khách).
+ * Đơn homestay / combo: chính home của đơn. Đơn xe: tên admin nhập ở `guestStay` (khớp tên home trên sàn thì có thông tin hành lý).
+ */
+export type StayInfo = { name: string; luggage: "yes" | "no" | null; note: string | null; /** Câu dựng sẵn về hành lý (cho giao diện client). */ text: string };
+export type BookingMessages = { customerMsg: string; confirmMsg: string; providerMsgs: ProviderMsg[]; payouts: QuickPayout[]; facts: BookingFacts; stayInfo: StayInfo | null; /** Đơn xe: admin nhập được home khách ở (`value` đang lưu, `homes` = tên home gợi ý); null = không áp dụng. */ guestStay: { value: string | null; homes: string[] } | null };
+
+/** Câu ngắn về hành lý cho giao diện / tin nhắn. */
+function luggageText(s: Pick<StayInfo, "luggage" | "note">): string {
+  const base = s.luggage === "yes" ? "home có hỗ trợ mang hành lý" : s.luggage === "no" ? "home KHÔNG hỗ trợ mang hành lý" : "chưa rõ home có hỗ trợ mang hành lý không";
+  return s.note ? `${base} (${s.note})` : base;
+}
+
+const lug = (v: string | null | undefined): StayInfo["luggage"] => (v === "yes" || v === "no" ? v : null);
+
+const mkStay = (name: string, luggage: StayInfo["luggage"], note: string | null): StayInfo => ({ name, luggage, note, text: luggageText({ luggage, note }) });
+
+async function stayInfoOf(b: MsgBooking): Promise<StayInfo | null> {
+  if (b.category === "COMBO" || b.category === "HOMESTAY" || b.category === "BUNGALOW") {
+    const name = b.service?.title ?? b.serviceTitle;
+    return name ? mkStay(name, lug(b.service?.luggage), b.service?.luggageNote ?? null) : null;
+  }
+  const name = b.guestStay?.trim();
+  if (!name) return null;
+  const home = await prisma.service
+    .findFirst({ where: { category: { in: ["HOMESTAY", "BUNGALOW"] }, title: { equals: name, mode: "insensitive" } }, select: { title: true, luggage: true, luggageNote: true } })
+    .catch(() => null);
+  return home ? mkStay(home.title, lug(home.luggage), home.luggageNote) : mkStay(name, null, null);
+}
 
 /**
  * SĐT chung toàn web. `getSettings()` dùng cache của Next — khi chạy ngoài một request (bộ hẹn giờ tự huỷ
@@ -343,6 +371,11 @@ export async function buildBookingMessages(
   };
   const guestNote = b.note?.split(" · ").filter((x) => !x.startsWith("Tạm tính:")).join(" · ") || "";
   const noteLine = guestNote ? [`- Ghi chú của khách: ${guestNote}`] : [];
+  // Nhà xe / tài xế cần biết khách về home nào + home có đỡ hành lý không (để tính chỗ trả khách, trung chuyển).
+  const stayInfo = await stayInfoOf(b);
+  const stayAtLines = stayInfo
+    ? [`- Khách ở: ${stayInfo.name}`, ...(stayInfo.luggage || stayInfo.note ? [`- Hành lý: ${stayInfo.text}`] : [])]
+    : [];
   const providerMsgs: ProviderMsg[] = [];
   const hasBusSide = !!outTrip && (b.category === "COMBO" || b.category === "CABIN");
   if (hasBusSide && outTrip) {
@@ -359,6 +392,7 @@ export async function buildBookingMessages(
         ...(retTrip
           ? [`- Chiều về: ${retTrip.departureTime} ngày ${formatDate(retTrip.departureDate)}${dropChosen || pickupChosen ? `, trả tại ${dropChosen || pickupChosen}` : ""}`]
           : []),
+        ...stayAtLines,
         ...(b.category === "CABIN" ? noteLine : []),
         "Nhờ nhà xe giữ chỗ giúp. Cảm ơn!",
       ].join("\n"),
@@ -391,6 +425,8 @@ export async function buildBookingMessages(
                 `- Ngày: ${formatDate(b.useDate)}${b.endDate ? ` → ${formatDate(b.endDate)}` : ""}`,
                 ...(b.selectionLabel ? [`- Dịch vụ: ${b.selectionLabel}`] : []),
                 `- Số lượng: ${partyLabelStr}`,
+                // Taxi / xe ôm: tài xế cần biết khách về home nào.
+                ...(b.category === "TAXI" || b.category === "XEOM" ? stayAtLines : []),
               ]),
         ...moneyLines("room", stayish ? "Tiền phòng" : "Tiền dịch vụ"),
         ...noteLine,
@@ -529,7 +565,14 @@ export async function buildBookingMessages(
     cancelReason: b.status === "CANCELLED" ? b.cancelReason || null : null,
   };
 
-  return { customerMsg, confirmMsg, providerMsgs, payouts: quickPayouts, facts };
+  const guestStay =
+    b.category === "CABIN" || b.category === "TAXI" || b.category === "XEOM"
+      ? {
+          value: b.guestStay,
+          homes: (await prisma.service.findMany({ where: { category: { in: ["HOMESTAY", "BUNGALOW"] }, published: true }, select: { title: true }, orderBy: { title: "asc" } }).catch(() => [])).map((h) => h.title),
+        }
+      : null;
+  return { customerMsg, confirmMsg, providerMsgs, payouts: quickPayouts, facts, stayInfo, guestStay };
 }
 
 /** Nạp đơn theo id rồi dựng tin nhắn (cho ngăn "Xử lý nhanh"). Không có đơn ⇒ null. */

@@ -424,6 +424,30 @@ export async function recordBookingPayment(
   const price = toNumber(b.referencePrice);
   const collected = toNumber(b.amountCollected) ?? 0;
 
+  // SỬA LẠI tổng đã thu (nhập sai / bill sai): đặt thẳng con số mới, kể cả về 0. Chỉ ADMIN.
+  if (mode === "set") {
+    if (role !== "ADMIN") return { error: "Chỉ admin sửa số tiền đã thu." };
+    const next = money(formData.get("setAmount"));
+    if (next == null) return { error: "Nhập số tiền đã thu đúng (0 = chưa thu)." };
+    if (next === collected) return { error: "Số đã thu không đổi." };
+    if (price != null && next > price) return { error: `Vượt quá giá đơn (${formatPrice(price)}).` };
+    const isFull = price != null && price > 0 && next >= price;
+    const rs = await prisma.bookingRequest.updateMany({
+      where: { id, updatedAt: b.updatedAt },
+      data: { amountCollected: next, paymentStatus: next <= 0 ? "UNPAID" : isFull ? "PAID" : "DEPOSITED", paidAt: isFull ? new Date() : null },
+    });
+    if (rs.count === 0) return { error: "Đơn vừa được cập nhật ở nơi khác — tải lại trang rồi thử lại." };
+    const why = String(formData.get("reason") ?? "").trim().slice(0, 200);
+    await log(
+      prisma, id, "PAYMENT",
+      `Sửa số đã thu: ${formatPrice(collected)} → ${formatPrice(next)}`,
+      [why ? `Lý do: ${why}` : "", price != null ? (isFull ? "Đơn đã thanh toán đủ" : `Còn thiếu ${formatPrice(price - next)}`) : ""].filter(Boolean).join(" · ") || null,
+      await sessionName(),
+    );
+    revalidateDetail(id);
+    return { ok: true, message: `Đã sửa số đã thu thành ${formatPrice(next)}` };
+  }
+
   let amount: number;
   if (mode === "full") {
     if (price == null) return { error: "Đơn chưa có giá — nhập số tiền cụ thể." };
@@ -490,6 +514,14 @@ export async function recordSupplierPayout(
     if (cur.paid <= 0) return { error: "Chưa có khoản thanh toán nào để xoá." };
     total = 0;
     title = `Đặt lại tiền đã trả ${label} về 0 (trước đó ${formatPrice(cur.paid)})`;
+  } else if (mode === "set") {
+    // SỬA LẠI tổng đã trả (nhập sai / uỷ nhiệm chi sai): đặt thẳng con số mới.
+    const next = money(formData.get("setAmount"));
+    if (next == null) return { error: "Nhập số tiền đã trả đúng (0 = chưa trả)." };
+    if (next === cur.paid) return { error: "Số đã trả không đổi." };
+    if (next > cur.payable) return { error: `Vượt quá số phải trả (${formatPrice(cur.payable)}). Cần thì sửa số phải trả trước.` };
+    total = next;
+    title = `Sửa số đã trả ${label}: ${formatPrice(cur.paid)} → ${formatPrice(next)}`;
   } else {
     const amount = mode === "full" ? cur.remaining : (money(formData.get("amount")) ?? 0);
     if (amount <= 0) return { error: mode === "full" ? "Đã thanh toán đủ cho bên này." : "Nhập số tiền đã thanh toán." };
@@ -512,7 +544,20 @@ export async function recordSupplierPayout(
     await sessionName(),
   );
   revalidateDetail(id);
-  return { ok: true, message: mode === "reset" ? "Đã đặt lại về 0" : "Đã ghi nhận thanh toán cho nhà cung cấp" };
+  return { ok: true, message: mode === "reset" ? "Đã đặt lại về 0" : mode === "set" ? `Đã sửa số đã trả thành ${formatPrice(total)}` : "Đã ghi nhận thanh toán cho nhà cung cấp" };
+}
+
+/** Đơn xe (cabin / taxi / xe ôm): ghi HOMESTAY KHÁCH SẼ Ở để đưa vào tin gửi nhà xe. Chỉ ADMIN. */
+export async function setGuestStay(_prev: BookingActionState, formData: FormData): Promise<BookingActionState> {
+  const id = String(formData.get("id") ?? "");
+  const value = String(formData.get("guestStay") ?? "").trim().slice(0, 120);
+  if (!id) return { error: "Dữ liệu không hợp lệ." };
+  const session = await getSession();
+  if (session?.role !== "ADMIN") return { error: "Chỉ admin sửa thông tin này." };
+  await prisma.bookingRequest.update({ where: { id }, data: { guestStay: value || null } });
+  await log(prisma, id, "NOTE", value ? `Khách ở homestay: ${value}` : "Bỏ thông tin homestay khách ở", null, await sessionName());
+  revalidateDetail(id);
+  return { ok: true, message: value ? "Đã lưu homestay khách ở" : "Đã bỏ homestay khách ở" };
 }
 
 /**
