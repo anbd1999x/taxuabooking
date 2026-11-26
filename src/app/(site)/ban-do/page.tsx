@@ -11,6 +11,7 @@ import { roadPath } from "@/lib/road-path";
 import { getT } from "@/lib/i18n/server";
 import { i18nMeta } from "@/lib/i18n/meta";
 import { SITE } from "@/lib/site";
+import { BreadcrumbLd } from "@/components/BreadcrumbLd";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,7 @@ export default async function CheckinMapPage({ searchParams }: { searchParams: P
     select: { id: true, kind: true, slug: true, name: true, area: true, address: true, hours: true, tags: true, desc: true, tip: true, coverImage: true, images: true, mapUrl: true, lat: true, lng: true },
   });
   const { config } = await loadItinerary(rows);
+  const crumbs = [{ name: tr("Trang chủ"), path: "/" }, { name: tr("Bản đồ Tà Xùa"), path: "/ban-do" }];
 
   // Mặc định: bản đồ ẢNH VỆ TINH (ghim theo toạ độ thật, đường theo đường xe thật). ?view=3d ⇒ bản đồ hoạt hình cũ.
   if (view !== "3d") {
@@ -135,6 +137,8 @@ export default async function CheckinMapPage({ searchParams }: { searchParams: P
         position: i + 1,
         item: {
           "@type": "TouristAttraction",
+          // @id cố định theo bản tiếng Việt: 4 bản ngôn ngữ của trang cùng nói về MỘT điểm.
+          "@id": `${SITE.url}/ban-do#${p.id}`,
           name: tr(p.name),
           ...(p.desc ? { description: tr(p.desc) } : {}),
           ...(firstImage(p) ? { image: abs(firstImage(p)!) } : {}),
@@ -146,6 +150,7 @@ export default async function CheckinMapPage({ searchParams }: { searchParams: P
     };
     return (
       <>
+        <BreadcrumbLd items={crumbs} />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(mapLd) }} />
         <SatBoard spots={spots} plans={boardPlans} freeRoads={freeRoads} initialPlan={typeof initialPlan === "string" ? initialPlan : undefined} />
       </>
@@ -220,5 +225,10 @@ export default async function CheckinMapPage({ searchParams }: { searchParams: P
       };
     });
 
-  return <CheckinMap spots={[...fixed, ...checkins]} plans={plans} initialPlan={typeof initialPlan === "string" ? initialPlan : undefined} initialView="3d" />;
+  return (
+    <>
+      <BreadcrumbLd items={crumbs} />
+      <CheckinMap spots={[...fixed, ...checkins]} plans={plans} initialPlan={typeof initialPlan === "string" ? initialPlan : undefined} initialView="3d" />
+    </>
+  );
 }

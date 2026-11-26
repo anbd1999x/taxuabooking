@@ -8,6 +8,7 @@ import { RestaurantList, type RestaurantCard } from "@/components/RestaurantList
 import { i18nMeta } from "@/lib/i18n/meta";
 import { getT } from "@/lib/i18n/server";
 import { ItemListLd } from "@/components/ItemListLd";
+import { BreadcrumbLd } from "@/components/BreadcrumbLd";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +77,7 @@ export default async function NhaHangPage({
   const tr = await getT();
   return (
     <>
+      <BreadcrumbLd items={[{ name: tr("Trang chủ"), path: "/" }, { name: tr("Nhà hàng & quán ăn"), path: "/nha-hang" }]} />
       <ItemListLd name={tr("Nhà hàng, quán ăn Tà Xùa")} items={places.filter((p) => p.slug).map((p) => ({ name: tr(p.name), path: `/nha-hang/${p.slug}`, image: p.coverImage }))} />
       <RestaurantList items={items} initialArea={area} />
     </>

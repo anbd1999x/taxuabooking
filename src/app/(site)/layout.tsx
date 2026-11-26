@@ -16,9 +16,8 @@ import { getCustomer } from "@/lib/customer";
 import { parseTrustPopup, TRUST_POPUP_KEY, visiblePeople } from "@/lib/trust-popup";
 import { SiteContactProvider } from "@/components/SiteContact";
 import { SITE } from "@/lib/site";
-import { preload } from "react-dom";
 import { getContentMap, getContentVersion, getLocale, isSoloVoice } from "@/lib/i18n/server";
-import { contentUrl, ssrContentStore } from "@/lib/i18n/content-store";
+import { ssrContentStore } from "@/lib/i18n/content-store";
 import { I18nProvider } from "@/components/i18n/I18nProvider";
 import { I18nLocaleEn } from "@/components/i18n/I18nLocaleEn";
 import { I18nLocaleZh } from "@/components/i18n/I18nLocaleZh";
@@ -32,7 +31,6 @@ async function LocaleProvider({ children }: { children: React.ReactNode }) {
   // ghi map vào bộ nhớ tiến trình cho SSR, client tải 1 file JSON cache theo phiên bản (preload sớm).
   const [content, v] = await Promise.all([getContentMap(locale), getContentVersion(locale)]);
   ssrContentStore()[locale] = content;
-  preload(contentUrl(locale, v), { as: "fetch", crossOrigin: "anonymous" });
   const P = locale === "en" ? I18nLocaleEn : locale === "zh" ? I18nLocaleZh : I18nLocaleKo;
   return <P contentVersion={v}>{children}</P>;
 }

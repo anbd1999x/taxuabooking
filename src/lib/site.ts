@@ -5,8 +5,12 @@
 export const SITE = {
   name: "Tà Xùa Booking",
   url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+  /** CÂU MÔ TẢ THƯƠNG HIỆU CHUẨN — dùng nguyên văn ở JSON-LD, /llms.txt, trang giới thiệu (và Facebook, hồ sơ ngoài). Đừng viết câu khác. */
+  about:
+    "Tà Xùa Booking là nền tảng trung gian đặt dịch vụ du lịch tại Tà Xùa, chuyên cung cấp dịch vụ đặt homestay, xe cabin, thuê xe máy, xe ôm, taxi và combo du lịch. Nền tảng hỗ trợ tra cứu giá, tình trạng phòng và gửi yêu cầu đặt dịch vụ trực tuyến.",
+  /** Bản rút gọn ≤155 ký tự của câu chuẩn — thẻ meta description mặc định, footer. */
   description:
-    "Đặt xe cabin, homestay, bungalow, thuê xe máy, taxi và combo du lịch Tà Xùa. Xem giá và tình trạng còn chỗ theo ngày, gửi yêu cầu đặt nhanh chóng.",
+    "Tà Xùa Booking là nền tảng trung gian đặt homestay, xe cabin, thuê xe máy, xe ôm, taxi và combo du lịch Tà Xùa. Tra giá, phòng trống, gửi yêu cầu đặt.",
   /** Thông tin pháp lý mặc định (SiteSettings `legalName` / `taxCode` / `legalAddress` ghi đè nếu có). */
   legalName: "Tà Xùa Booking (cá nhân kinh doanh)",
   taxCode: "042098000948",
@@ -20,3 +24,7 @@ export const SITE = {
   supportOpenHour: 8,
   supportCloseHour: 23,
 } as const;
+
+/** `@id` của thực thể tổ chức (TravelAgency) và website khai ở layout gốc — mọi JSON-LD khác chỉ THAM CHIẾU `{ "@id": ORG_ID }`, không nhúng lại cả khối. */
+export const ORG_ID = `${SITE.url}/#organization`;
+export const WEBSITE_ID = `${SITE.url}/#website`;

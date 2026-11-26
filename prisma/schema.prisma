@@ -938,7 +938,8 @@ model Feedback {
   mood       Int? // chấm trải nghiệm web 1..5 (null = không chấm)
   areas      String[]       @default([]) // chip trang/tính năng liên quan
   message    String
-  screenshot String? // url ảnh chụp màn hình (nếu báo lỗi)
+  screenshot String? // url ảnh chụp màn hình (góp ý cũ — góp ý mới dùng `media`)
+  media      String[]       @default([]) // ảnh / video đính kèm (url /uploads/gopy-…), tối đa FEEDBACK_MAX_MEDIA
   status     FeedbackStatus @default(NEW)
   reply      String? // trả lời chính thức của Tà Xùa Booking
   pinned     Boolean        @default(false) // ghim lên đầu bảng

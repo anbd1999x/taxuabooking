@@ -1,3 +1,4 @@
+import { SITE } from "@/lib/site";
 import "server-only";
 import { prisma } from "./prisma";
 import { parseDateOnly } from "./dates";
@@ -330,7 +331,7 @@ export async function ensureStayDemo(force = false): Promise<{ ownerId: string; 
     await prisma.service.deleteMany({ where: { slug: HOME_SLUG } });
     const { today } = vnNow();
     const svc = await prisma.service.create({
-      data: { slug: HOME_SLUG, category: "HOMESTAY", title: "Homestay Mây Tà Xùa (demo)", summary: "Homestay mẫu cho bản demo quản lý phòng.", description: "Dữ liệu mẫu, không bán trên web.", published: false, ownerId: owner.id, contactPhone: "0397943155" },
+      data: { slug: HOME_SLUG, category: "HOMESTAY", title: "Homestay Mây Tà Xùa (demo)", summary: "Homestay mẫu cho bản demo quản lý phòng.", description: "Dữ liệu mẫu, không bán trên web.", published: false, ownerId: owner.id, contactPhone: SITE.defaultPhone },
     });
     const TYPES: [string, number, number, string[]][] = [["Phòng đôi view mây", 2, 900000, ["101", "102", "201", "202"]], ["Bungalow gia đình", 4, 1600000, ["BG1", "BG2"]], ["Phòng tập thể", 6, 1200000, ["TT1", "TT2"]]];
     const rooms: Record<string, string> = {};

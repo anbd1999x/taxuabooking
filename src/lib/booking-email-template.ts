@@ -214,7 +214,7 @@ ${notes.length ? noteBox : ""}
 <tr><td align="center" style="padding:8px 40px 36px;font:13px/20px ${F};color:${C.mute};" class="px">Cần hỗ trợ? Gọi hoặc Zalo <a href="tel:${hotlineDigits}" style="color:${C.ink};font-weight:bold;text-decoration:none;">${esc(f.hotline)}</a> · ${SITE.supportHours} hằng ngày</td></tr>
 </table></td></tr>
 <tr><td bgcolor="${C.forestDark}" style="background:${C.forestDark};padding:28px 32px 0;font:12px/19px ${F};color:#b9d3c5;" align="center">
-<b style="color:#ffffff;font-size:14px;">${esc(SITE.name)}</b> — đại lý trung gian đặt dịch vụ du lịch tại Tà Xùa.<br>Dịch vụ do đối tác (chủ homestay, nhà xe) trực tiếp cung cấp.<br>
+<b style="color:#ffffff;font-size:14px;">${esc(SITE.name)}</b> — nền tảng trung gian đặt dịch vụ du lịch tại Tà Xùa.<br>Dịch vụ do đối tác (chủ homestay, nhà xe) trực tiếp cung cấp.<br>
 ${esc(co.legalName)} · MST ${esc(co.taxCode)} · ${esc(co.legalAddress)}<br>
 <a href="mailto:${SITE.email}" style="color:#ffffff;">${SITE.email}</a> · <a href="${esc(co.siteUrl)}" style="color:#ffffff;">${esc(co.siteUrl.replace(/^https?:\/\//, ""))}</a></td></tr>
 <tr><td bgcolor="${C.forestDark}" style="background:${C.forestDark};border-radius:0 0 12px 12px;padding:16px 32px 28px;font:11px/17px ${F};color:#8fb09f;border-top:1px solid ${C.forestDark};" align="center"><div style="border-top:1px solid #2a5541;padding-top:14px;">Bạn nhận được email này vì đã dùng địa chỉ này khi đặt dịch vụ tại ${esc(SITE.name)}. Nếu không phải bạn, vui lòng bỏ qua hoặc <a href="mailto:${SITE.email}" style="color:#b9d3c5;">báo cho chúng tôi</a>.<br>
@@ -243,7 +243,7 @@ ${esc(co.legalName)} · MST ${esc(co.taxCode)} · ${esc(co.legalAddress)}<br>
     `Tra cứu đơn: ${trackUrl}`,
     `Hỗ trợ: ${f.hotline} (${SITE.supportHours} hằng ngày)`,
     "",
-    `${SITE.name} — đại lý trung gian đặt dịch vụ du lịch tại Tà Xùa. Dịch vụ do đối tác trực tiếp cung cấp.`,
+    `${SITE.name} — nền tảng trung gian đặt dịch vụ du lịch tại Tà Xùa. Dịch vụ do đối tác trực tiếp cung cấp.`,
     `${co.legalName} · MST ${co.taxCode} · ${co.legalAddress}`,
     `${SITE.email} · ${co.siteUrl}`,
   ].join("\n");

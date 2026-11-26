@@ -69,7 +69,7 @@ export async function Footer({ settings }: { settings: Record<string, string> })
       <div className="border-t border-white/10 py-5 text-center text-xs leading-relaxed text-forest-300">
         <div className="container-page">
           <p>
-            {t("Tà Xùa Booking là đơn vị trung gian đặt dịch vụ du lịch tại Tà Xùa. Homestay, nhà xe và các dịch vụ trên website do chính chủ cơ sở sở hữu và vận hành; tên, hình ảnh thuộc về các cơ sở đó.")}
+            {t("Tà Xùa Booking là nền tảng trung gian đặt dịch vụ du lịch tại Tà Xùa. Homestay, nhà xe và các dịch vụ trên website do chính chủ cơ sở sở hữu và vận hành; tên, hình ảnh thuộc về các cơ sở đó.")}
           </p>
           {(legalName || taxCode) && (
             <p className="mt-1">

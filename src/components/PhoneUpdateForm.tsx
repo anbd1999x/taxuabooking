@@ -17,7 +17,7 @@ export function PhoneUpdateForm() {
         <input
           name="phone"
           inputMode="tel"
-          placeholder={t("Số điện thoại (VD: 0357452952)")}
+          placeholder={t("Số điện thoại (VD: 0912345678)")}
           className="flex-1 rounded-xl border border-gray-200 px-3.5 py-2.5 text-[15px] outline-none focus:border-forest-500 focus:ring-2 focus:ring-forest-200"
         />
         <button disabled={pending} className="rounded-xl bg-forest-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-forest-700 disabled:opacity-60">

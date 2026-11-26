@@ -7,7 +7,7 @@ import Link from "@/components/Link";
 import { getArticle } from "@/lib/queries";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/format";
-import { SITE } from "@/lib/site";
+import { ORG_ID, SITE, WEBSITE_ID } from "@/lib/site";
 import { renderMarkdown } from "@/lib/markdown";
 import { articleTopicLabel } from "@/lib/constants";
 import { getLocale, getT, lp, tLong } from "@/lib/i18n/server";
@@ -135,7 +135,8 @@ export default async function ArticlePage({
     .map((b) => { const [q, ...rest] = b.split("\n"); return { q: plain(q), a: plain(rest.join(" ")) }; })
     .filter((x) => x.q && x.a);
   const pageUrl = `${SITE.url}${localePath(`/kinh-nghiem/${a.slug}`, locale)}`;
-  const homeUrl = `${SITE.url}${localePath("/", locale)}`;
+  // Trang chủ bản tiếng Việt: đúng SITE.url, không có dấu "/" cuối (thống nhất với BreadcrumbLd).
+  const homeUrl = locale === "vi" ? SITE.url : `${SITE.url}${localePath("/", locale)}`;
   const extraLd = [
     {
       "@type": "BreadcrumbList",
@@ -151,15 +152,18 @@ export default async function ArticlePage({
   ];
 
   // JSON-LD Article cho Google.
+  const topicLabel = articleTopicLabel(a.topic);
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Article",
     "@id": `${pageUrl}#article`,
     headline: title,
-    // Bài review: nói rõ bài viết VỀ cơ sở nào (trùng @id LodgingBusiness ở trang đặt phòng).
+    // Bài review: nói rõ bài viết VỀ cơ sở nào (trùng @id LodgingBusiness ở trang đặt phòng — @id luôn theo URL bản tiếng Việt).
     ...(aboutHome
-      ? { about: { "@type": "LodgingBusiness", "@id": `${SITE.url}${localePath(`/homestay/${aboutHome.slug}`, locale)}#lodging`, name: tr(aboutHome.title), url: `${SITE.url}${localePath(`/homestay/${aboutHome.slug}`, locale)}` } }
+      ? { about: { "@type": "LodgingBusiness", "@id": `${SITE.url}/homestay/${aboutHome.slug}#lodging`, name: tr(aboutHome.title), url: `${SITE.url}${localePath(`/homestay/${aboutHome.slug}`, locale)}` } }
       : {}),
+    isPartOf: { "@id": WEBSITE_ID },
+    ...(topicLabel ? { articleSection: tr(topicLabel) } : {}),
     description: (await tLong(a.excerpt)) ?? undefined,
     image: a.coverImage ? [absUrl(a.coverImage)] : undefined,
     datePublished: a.createdAt.toISOString(),
@@ -167,10 +171,10 @@ export default async function ArticlePage({
     inLanguage: shownLang,
     mainEntityOfPage: pageUrl,
     // Trỏ về thực thể tổ chức khai ở layout gốc (@id) + logo: Google yêu cầu publisher có logo cho Article.
-    author: { "@type": "Organization", "@id": `${SITE.url}/#organization`, name: SITE.name, url: SITE.url },
+    author: { "@type": "Organization", "@id": ORG_ID, name: SITE.name, url: SITE.url },
     publisher: {
       "@type": "Organization",
-      "@id": `${SITE.url}/#organization`,
+      "@id": ORG_ID,
       name: SITE.name,
       url: SITE.url,
       logo: { "@type": "ImageObject", url: `${SITE.url}/icons/icon-512.png`, width: 512, height: 512 },

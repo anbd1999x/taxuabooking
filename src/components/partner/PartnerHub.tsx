@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { DemoModule } from "@/lib/module-demo";
 import { HUB, HUB_ORDER } from "./hub-data";
+import { useSitePhone } from "@/components/SiteContact";
+import { formatPhone } from "@/lib/trust-popup";
 
 const G = "oklch(0.29 0.055 160)";
 const O = "oklch(0.68 0.18 45)";
 const DIM = "oklch(0.5 0.02 160)";
 const LINE = "oklch(0.92 0.01 160)";
 const DOTS = ["oklch(0.55 0.12 155)", O, "oklch(0.55 0.13 250)", "oklch(0.55 0.13 300)"];
-const PEOPLE: [string, string, string][] = [["Bùi An", "0397 943 155", "0397943155"], ["Tăng Linh", "0357 452 952", "0357452952"]];
 const wrap: React.CSSProperties = { maxWidth: 1200, width: "100%", margin: "0 auto" };
 const mock: React.CSSProperties = { background: "white", borderRadius: 26, border: `1px solid ${LINE}`, boxShadow: "0 40px 80px -40px oklch(0.25 0.05 160 / .45)", padding: 16, display: "flex", flexDirection: "column", gap: 10 };
 
@@ -21,6 +22,7 @@ const mock: React.CSSProperties = { background: "white", borderRadius: 26, borde
  */
 export function PartnerHub({ initial }: { initial: DemoModule }) {
   const [mod, setMod] = useState<DemoModule>(initial);
+  const sitePhone = useSitePhone().replace(/D/g, ""); // SĐT chung của web (cấu hình ở /admin/popup)
   const [step, setStep] = useState(0);
   const [manual, setManual] = useState(false);
   const [faq, setFaq] = useState(0);
@@ -193,7 +195,7 @@ export function PartnerHub({ initial }: { initial: DemoModule }) {
             </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {PEOPLE.map(([name, phone, n]) => (
+            {([["Tà Xùa Booking", formatPhone(sitePhone), sitePhone]] as const).map(([name, phone, n]) => (
               <div key={n} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 12px 12px 16px", borderRadius: 18, background: "oklch(1 0 0 / .08)", border: "1px solid oklch(1 0 0 / .14)" }}>
                 <div style={{ flex: 1, minWidth: 0 }}><b style={{ display: "block", fontSize: 15 }}>{name}</b><span style={{ fontSize: 13, color: "oklch(0.85 0.02 160)" }}>{phone}</span></div>
                 <a href={`tel:${n}`} style={{ fontSize: 13, fontWeight: 800, padding: "9px 14px", borderRadius: 999, border: "1px solid oklch(1 0 0 / .3)", color: "white" }}>Gọi</a>

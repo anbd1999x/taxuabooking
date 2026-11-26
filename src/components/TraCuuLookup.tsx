@@ -177,7 +177,7 @@ export function TraCuuLookup({
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") doSearch(); }}
-                placeholder={tr("0357452952 hoặc TX-HT-BCL5B")}
+                placeholder={tr("0912345678 hoặc TX-HT-BCL5B")}
                 inputMode="search"
                 className="min-w-0 flex-1 border-0 bg-transparent py-2 text-[17px] font-bold tracking-[0.01em] text-ink outline-none sm:text-lg"
               />
@@ -215,7 +215,7 @@ export function TraCuuLookup({
         </div>
       </section>
 
-      <main className="mx-auto flex w-full max-w-[840px] flex-1 flex-col gap-3.5 px-4 pb-16 pt-5 sm:px-6">
+      <div className="mx-auto flex w-full max-w-[840px] flex-1 flex-col gap-3.5 px-4 pb-16 pt-5 sm:px-6">
         {showResults && (
           <>
             <div className="flex flex-wrap items-center justify-between gap-2.5" style={{ animation: "tx-in .4s ease both" }}>
@@ -382,7 +382,7 @@ export function TraCuuLookup({
         <div className="text-center text-sm" style={{ color: "oklch(0.45 0.02 160)" }}>
           {tr("Cần hỗ trợ? Gọi")}{" "}<a href={telHref} className="font-bold text-forest-700">{tr(phone)}</a> · <Link href="/huong-dan" className="font-bold text-forest-700">{tr("Xem hướng dẫn đặt dịch vụ")}</Link>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

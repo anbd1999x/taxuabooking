@@ -4,7 +4,10 @@ import { Be_Vietnam_Pro } from "next/font/google";
 import "./globals.css";
 import { SITE } from "@/lib/site";
 import { ogImages } from "@/lib/og";
-import { getLocale, getT } from "@/lib/i18n/server";
+import { getContentVersion, getLocale, getT } from "@/lib/i18n/server";
+import { contentScriptUrl } from "@/lib/i18n/content-store";
+import { DEFAULT_LOCALE } from "@/lib/i18n/config";
+import Script from "next/script";
 import { LOCALE_META } from "@/lib/i18n/config";
 
 const beVietnam = Be_Vietnam_Pro({
@@ -59,7 +62,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 // Dữ liệu có cấu trúc (JSON-LD) cho Google: doanh nghiệp du lịch + website.
-const jsonLd = (phone: string, lang: string) => ({
+const jsonLd = (phone: string, t: (s: string) => string) => ({
   "@context": "https://schema.org",
   "@graph": [
     {
@@ -67,12 +70,15 @@ const jsonLd = (phone: string, lang: string) => ({
       "@id": `${SITE.url}/#organization`,
       name: SITE.name,
       url: SITE.url,
-      description: SITE.description,
+      alternateName: ["Ta Xua Booking", "taxuabooking.com"],
+      legalName: SITE.legalName,
+      taxID: SITE.taxCode,
+      description: t(SITE.about), // câu mô tả thương hiệu chuẩn (một câu duy nhất ở mọi nơi)
       // Logo + ảnh đại diện + kênh liên hệ: Google dùng cho bảng thông tin thương hiệu, công cụ AI dùng để nhận diện thực thể.
       logo: { "@type": "ImageObject", url: `${SITE.url}/icons/icon-512.png`, width: 512, height: 512 },
       image: `${SITE.url}/og?u=${encodeURIComponent("/hero-taxua-v5.jpg")}`,
       email: SITE.email,
-      telephone: phone.replace(/\D/g, ""),
+      telephone: "+84" + phone.replace(/\D/g, "").replace(/^0/, ""),
       contactPoint: {
         "@type": "ContactPoint",
         contactType: "customer service",
@@ -100,8 +106,11 @@ const jsonLd = (phone: string, lang: string) => ({
       "@type": "WebSite",
       "@id": `${SITE.url}/#website`,
       name: SITE.name,
+      alternateName: ["Ta Xua Booking", "taxuabooking.com"],
       url: SITE.url,
-      inLanguage: lang,
+      description: t(SITE.description),
+      // Cùng một @id trên mọi bản ngôn ngữ ⇒ khai đủ 4 ngôn ngữ, không đổi theo trang.
+      inLanguage: ["vi", "en", "zh-CN", "ko"],
       publisher: { "@id": `${SITE.url}/#organization` },
     },
   ],
@@ -110,7 +119,11 @@ const jsonLd = (phone: string, lang: string) => ({
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   // SĐT chung toàn web (theo chủ sở hữu được chọn ở /admin/popup); DB lỗi thì dùng số mặc định.
   const phone = (await getSettings().catch(() => ({}) as Record<string, string>)).contactPhone || SITE.defaultPhone;
-  const lang = LOCALE_META[await getLocale()].htmlLang;
+  const locale = await getLocale();
+  const lang = LOCALE_META[locale].htmlLang;
+  // Bản en / zh / ko: map bản dịch nội dung nạp bằng script chạy TRƯỚC khi hydrate (xem contentScriptUrl).
+  const i18nScript = locale === DEFAULT_LOCALE ? null : contentScriptUrl(locale, await getContentVersion(locale));
+  const ldT = await getT();
   return (
     <html lang={lang} className={`${beVietnam.variable} h-full`}>
       <head>
@@ -128,7 +141,8 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         )}
       </head>
       <body className="min-h-full flex flex-col bg-cloud text-ink">
-        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd(phone, lang)) }} />
+        {i18nScript && <Script id="tx-i18n-content" src={i18nScript} strategy="beforeInteractive" />}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd(phone, ldT)) }} />
         {children}
       </body>
     </html>

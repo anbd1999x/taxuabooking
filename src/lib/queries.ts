@@ -1098,3 +1098,158 @@ export async function getTaxiRoutes(): Promise<TaxiRoute[]> {
     };
   });
 }
+
+/* ===================== Dữ liệu DẠNG BẢNG (trang danh mục, /llms.txt, /llms-full.txt) =====================
+   Chỉ đọc; trả số thuần để cache được. Giá phòng = giá đang bán theo từng thứ (giá-theo-thứ ?? salePrice ?? listPrice),
+   không gắn với ngày cụ thể nên KHÔNG tính tình trạng còn phòng. */
+
+export interface HomestayTableRoom {
+  name: string;
+  typeName: string;
+  capacity: number;
+  /** Sức chứa tối đa khi ở ghép (null = không nhận thêm). */
+  maxCapacity: number | null;
+  /** Giá đêm T2–T5: thấp nhất / cao nhất (bằng nhau khi 4 đêm cùng giá); null = chưa nhập giá. */
+  weekdayMin: number | null;
+  weekdayMax: number | null;
+  fri: number | null;
+  sat: number | null;
+  sun: number | null;
+  /** Giá đêm ngày lễ (null = không có giá lễ riêng). */
+  holiday: number | null;
+}
+
+export interface HomestayTableRow {
+  slug: string;
+  name: string;
+  area: string | null;
+  roomCount: number;
+  /** Giá đêm rẻ nhất trong tuần của phòng rẻ nhất (null = chưa công khai giá). */
+  priceFrom: number | null;
+  cloudView: boolean;
+  bathtub: boolean;
+  airCon: boolean;
+  breakfast: boolean;
+  heating: boolean;
+  rooms: HomestayTableRoom[];
+}
+
+async function getHomestayTableImpl(): Promise<HomestayTableRow[]> {
+  const list = await prisma.service.findMany({
+    where: { category: "HOMESTAY", published: true },
+    orderBy: [{ featured: "desc" }, { priorityOrder: "desc" }, { title: "asc" }],
+    select: {
+      slug: true,
+      title: true,
+      area: true,
+      roomTypes: {
+        orderBy: { sortOrder: "asc" },
+        select: {
+          name: true,
+          hasBathtub: true,
+          cloudView: true,
+          breakfast: true,
+          airCon: true,
+          heating: true,
+          rooms: {
+            orderBy: { sortOrder: "asc" },
+            select: {
+              name: true, capacity: true, maxCapacity: true, listPrice: true, salePrice: true, holidayPrice: true,
+              priceMon: true, priceTue: true, priceWed: true, priceThu: true, priceFri: true, priceSat: true, priceSun: true,
+            },
+          },
+        },
+      },
+    },
+  });
+  const pos = (n: number | null | undefined) => (n != null && n > 0 ? n : null);
+  return list.map((s) => {
+    const withRooms = s.roomTypes.filter((rt) => rt.rooms.length > 0);
+    const rooms: HomestayTableRoom[] = withRooms.flatMap((rt) =>
+      rt.rooms.map((r) => {
+        const p = roomPricing(r);
+        const day = (d: number) => pos(p.daysOfWeek?.[d] ?? p.weekdayPrice); // d theo getUTCDay(): 0 = CN
+        const wk = [1, 2, 3, 4].map(day).filter((x): x is number => x != null);
+        return {
+          name: r.name,
+          typeName: rt.name,
+          capacity: r.capacity,
+          maxCapacity: r.maxCapacity != null && r.maxCapacity > r.capacity ? r.maxCapacity : null,
+          weekdayMin: wk.length ? Math.min(...wk) : null,
+          weekdayMax: wk.length ? Math.max(...wk) : null,
+          fri: day(5),
+          sat: day(6),
+          sun: day(0),
+          holiday: pos(p.holidayPrice),
+        };
+      }),
+    );
+    const all = rooms.flatMap((r) => [r.weekdayMin, r.fri, r.sat, r.sun]).filter((x): x is number => x != null);
+    return {
+      slug: s.slug,
+      name: s.title,
+      area: s.area,
+      roomCount: rooms.length,
+      priceFrom: all.length ? Math.min(...all) : null,
+      // Tiện ích khai ở HẠNG phòng: nhà "có" khi ít nhất một hạng đang có phòng được tick.
+      cloudView: withRooms.some((rt) => rt.cloudView),
+      bathtub: withRooms.some((rt) => rt.hasBathtub),
+      airCon: withRooms.some((rt) => rt.airCon),
+      breakfast: withRooms.some((rt) => rt.breakfast),
+      heating: withRooms.some((rt) => rt.heating),
+      rooms,
+    };
+  });
+}
+/** Mọi homestay đang đăng kèm từng phòng + giá theo thứ (bảng so sánh ở /homestay, /llms.txt, /llms-full.txt). */
+export const getHomestayTable = unstable_cache(getHomestayTableImpl, ["homestay-table"], { revalidate: TTL });
+
+export interface CabinCompareRow {
+  slug: string;
+  title: string;
+  /** Mốc đầu tiên của lộ trình CHIỀU ĐI (giờ + nơi lên xe); null = nhà xe chưa khai lộ trình. */
+  departTime: string | null;
+  departPlace: string | null;
+  /** Mốc đầu tiên của lộ trình CHIỀU VỀ. */
+  returnTime: string | null;
+  /** Bảng giá chặng áp cho nhà xe: bảng riêng, chưa có thì bảng chung (như trang đặt vé). */
+  fares: { pickupPoint: string; destination: string | null; ticketType: "ROUND_TRIP" | "OUTBOUND" | "RETURN"; price: number }[];
+}
+
+async function getCabinCompareImpl(): Promise<CabinCompareRow[]> {
+  const order = [{ sortOrder: "asc" as const }, { createdAt: "asc" as const }];
+  const firstStop = { orderBy: { sortOrder: "asc" as const }, take: 1, select: { time: true, place: true } };
+  const [svcs, general] = await Promise.all([
+    prisma.service.findMany({
+      where: { category: "CABIN", published: true },
+      orderBy: [{ featured: "desc" }, { title: "asc" }],
+      select: {
+        slug: true,
+        title: true,
+        cabinPriceRows: { orderBy: order, select: { pickupPoint: true, destination: true, ticketType: true, price: true } },
+        cabinRoutes: { select: { direction: true, stops: firstStop } },
+      },
+    }),
+    prisma.cabinPriceRow.findMany({ where: { serviceId: null }, orderBy: order, select: { pickupPoint: true, destination: true, ticketType: true, price: true } }),
+  ]);
+  const clean = (x: string | undefined) => (x ? x.replace(/\s+/g, " ").trim() || null : null);
+  return svcs.map((s) => {
+    const out = s.cabinRoutes.find((r) => r.direction === "OUTBOUND")?.stops[0];
+    const ret = s.cabinRoutes.find((r) => r.direction === "RETURN")?.stops[0];
+    return {
+      slug: s.slug,
+      title: s.title,
+      departTime: clean(out?.time),
+      departPlace: clean(out?.place),
+      returnTime: clean(ret?.time),
+      fares: (s.cabinPriceRows.length ? s.cabinPriceRows : general).map((r) => ({
+        pickupPoint: r.pickupPoint,
+        destination: r.destination,
+        ticketType: r.ticketType,
+        price: toNumber(r.price) ?? 0,
+      })),
+    };
+  });
+}
+/** Nhà xe cabin đang đăng kèm giờ xuất phát + bảng giá chặng của TỪNG nhà xe (bảng so sánh ở /xe-cabin, /llms-full.txt). */
+export const getCabinCompare = unstable_cache(getCabinCompareImpl, ["cabin-compare"], { revalidate: TTL });

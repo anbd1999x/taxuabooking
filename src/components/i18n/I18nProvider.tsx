@@ -1,9 +1,9 @@
 "use client";
 
-import { createContext, Suspense, use, useContext, useMemo } from "react";
+import { createContext, useContext, useEffect, useMemo, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { DEFAULT_LOCALE, identityT, localePath, makeT, withVoice, type Dict, type Locale, type TFunc } from "@/lib/i18n/config";
-import { contentUrl, ssrContentStore } from "@/lib/i18n/content-store";
+import { CONTENT_GLOBAL, contentUrl, ssrContentStore } from "@/lib/i18n/content-store";
 
 interface I18nValue {
   locale: Locale;
@@ -12,50 +12,65 @@ interface I18nValue {
 
 const I18nContext = createContext<I18nValue>({ locale: DEFAULT_LOCALE, t: identityT });
 
-/** Promise tải bản dịch nội dung theo (ngôn ngữ, phiên bản) — giữ cố định để `use()` không treo lại khi chuyển trang. */
-const remote = new Map<string, Promise<Dict>>();
+/**
+ * Bản dịch nội dung DB (xem lib/i18n/content-store.ts) — đọc ĐỒNG BỘ, không treo (suspend):
+ *  - SSR: map layout vừa ghi trong tiến trình;
+ *  - trình duyệt: biến toàn cục do script `beforeInteractive` ở layout gốc gán TRƯỚC khi hydrate ⇒ khớp HTML server.
+ * Trường hợp hiếm (script lỗi mạng, hoặc đổi ngôn ngữ bằng điều hướng mềm): tải JSON rồi cập nhật — trong lúc chờ,
+ * chuỗi nội dung DB tạm hiện tiếng Việt. KHÔNG dùng `use()` + `<Suspense>` bọc trang: Suspense ở đây làm Next gửi
+ * mã 200 trước khi trang gọi notFound() / redirect() (soft 404 + mất 308 trên cả ba bản dịch).
+ */
+const EMPTY: Dict = {};
+const store = new Map<Locale, Dict>();
+const pending = new Set<Locale>();
+const listeners = new Set<() => void>();
 const RETRY_MS = [1500, 4000];
-async function fetchContent(locale: Locale, v: string): Promise<Dict | null> {
+
+function fromGlobal(locale: Locale): Dict | undefined {
+  const g = (globalThis as unknown as Record<string, { l?: string; d?: Dict } | undefined>)[CONTENT_GLOBAL];
+  return g && g.l === locale && g.d ? g.d : undefined;
+}
+
+async function fetchContent(locale: Locale, v: string): Promise<void> {
   for (let i = 0; ; i++) {
     try {
       const r = await fetch(contentUrl(locale, v));
-      if (r.ok) return (await r.json()) as Dict;
+      if (r.ok) {
+        store.set(locale, (await r.json()) as Dict);
+        break;
+      }
     } catch {
       /* lỗi mạng ⇒ thử lại */
     }
-    // Đang chờ thì HTML server (đã dịch) vẫn hiển thị nhờ Suspense — thử lại vài lần rồi mới rơi về map rỗng.
-    if (i >= RETRY_MS.length) return null; // báo lỗi để loadContent không ghi nhớ kết quả rỗng
+    if (i >= RETRY_MS.length) break; // tải lỗi hẳn ⇒ lần render / chuyển trang sau thử lại
     await new Promise((res) => setTimeout(res, RETRY_MS[i]));
   }
-}
-function loadContent(locale: Locale, v: string): Promise<Dict> {
-  const key = `${locale}:${v}`;
-  let p = remote.get(key);
-  if (!p) {
-    // Tải lỗi hẳn ⇒ bỏ khỏi bộ nhớ đệm để lần render / chuyển trang sau thử lại (không kẹt tiếng Việt tới khi F5).
-    p = fetchContent(locale, v).then((d) => {
-      if (d) return d;
-      remote.delete(key);
-      return {};
-    });
-    remote.set(key, p);
-  }
-  return p;
+  pending.delete(locale);
+  listeners.forEach((fn) => fn());
 }
 
-/**
- * Bản dịch nội dung DB theo phiên bản `v` (xem lib/i18n/content-store.ts): SSR đọc map layout vừa ghi trong
- * tiến trình; trình duyệt tải file JSON cache được.
- */
+function subscribe(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => {
+    listeners.delete(fn);
+  };
+}
+
 function useRemoteContent(locale: Locale, v: string): Dict {
-  if (typeof window === "undefined") return ssrContentStore()[locale] ?? {};
-  return use(loadContent(locale, v));
+  const content = useSyncExternalStore(
+    subscribe,
+    () => store.get(locale) ?? fromGlobal(locale) ?? EMPTY,
+    // Lúc SSR và lúc hydrate: server đọc map trong tiến trình; trình duyệt đọc biến toàn cục (đã có trước khi hydrate).
+    () => (typeof window === "undefined" ? (ssrContentStore()[locale] ?? EMPTY) : (fromGlobal(locale) ?? EMPTY)),
+  );
+  useEffect(() => {
+    if (content !== EMPTY || pending.has(locale)) return;
+    pending.add(locale);
+    void fetchContent(locale, v);
+  }, [content, locale, v]);
+  return content;
 }
 
-/**
- * Context có map nội dung tải riêng — nằm TRONG Suspense: lúc hydrate mà JSON chưa về thì React giữ nguyên
- * HTML server (đã dịch) thay vì hydrate lại cả root; chuyển trang (transition) thì giữ giao diện cũ.
- */
 function RemoteContentProvider({
   locale,
   dict,
@@ -100,11 +115,9 @@ export function I18nProvider({
   );
   if (contentVersion && !contentProp && locale !== DEFAULT_LOCALE) {
     return (
-      <Suspense fallback={null}>
-        <RemoteContentProvider locale={locale} dict={dict} v={contentVersion}>
-          {children}
-        </RemoteContentProvider>
-      </Suspense>
+      <RemoteContentProvider locale={locale} dict={dict} v={contentVersion}>
+        {children}
+      </RemoteContentProvider>
     );
   }
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;

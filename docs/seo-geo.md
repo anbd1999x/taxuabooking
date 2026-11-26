@@ -28,3 +28,11 @@
 - Mỗi 2–4 tuần: lấy truy vấn ở vị trí 5–20 có ≥ 10 lượt hiển thị → nâng cấp đúng trang đó (tiêu đề, đoạn mở, thêm mục / FAQ còn thiếu). Đây là cách lên top 5 nhanh nhất.
 - `node scripts/seo/audit.mjs [/duong-dan…]` rà nhanh tiêu đề, mô tả, H1, canonical, JSON-LD của trang thật.
 - Google không cho "Yêu cầu lập chỉ mục" qua API với trang thường (Indexing API chỉ dành cho tin tuyển dụng / livestream) ⇒ dùng sitemap; URL thật quan trọng thì bấm tay trong Search Console.
+
+## 4. Thực thể thương hiệu & dữ liệu cho AI (26/11/2026)
+- **Một câu mô tả thương hiệu**: `SITE.about` (đầy đủ: JSON-LD tổ chức, đầu `/llms.txt`) và `SITE.description` (≤155 ký tự: meta mặc định, footer) trong `src/lib/site.ts`. Vai trò luôn gọi là "nền tảng trung gian", không viết câu mô tả khác ở nơi khác. Tham chiếu tổ chức trong JSON-LD bằng `ORG_ID` / `WEBSITE_ID`, không nhúng lại khối TravelAgency.
+- **Mọi trình thu thập nhận metadata trong `<head>`**: `htmlLimitedBots: /.*/` ở `next.config.ts` (mặc định Next đẩy title / canonical xuống cuối body cho GPTBot, ClaudeBot…).
+- **KHÔNG bọc cả trang trong `<Suspense>` ở provider / layout**: Suspense phía trên trang làm Next gửi mã 200 trước khi trang gọi `notFound()` / `redirect()` (đã từng làm cả 3 bản /en /zh /ko thành soft 404). Bản dịch nội dung nạp bằng script `beforeInteractive` ở layout gốc (`contentScriptUrl`), `I18nProvider` đọc đồng bộ.
+- **Bot nhận nội dung không qua khung chờ**: `isBotRequest()` (`src/lib/bot.ts`) ⇒ trang danh mục và trang dịch vụ render thẳng, không `<Suspense>` (người thật vẫn có skeleton).
+- **Bảng dữ liệu dựng server** (`src/components/data/`): bảng mọi homestay ở `/homestay`, bảng so sánh nhà xe ở `/xe-cabin`, bảng giá chặng ở `/xe-om` / `/taxi`; số trong `SeoBlock` lấy từ DB qua prop `stats`, không viết tay. `/llms-full.txt` = toàn bộ bảng giá dạng markdown; `/llms.txt` có mục "Về Tà Xùa Booking" + câu hỏi thường gặp.
+- **Breadcrumb**: trang mới gọi `<BreadcrumbLd items={[…]}>` (`src/components/BreadcrumbLd.tsx`). `@id` của LodgingBusiness / quán cố định theo URL bản tiếng Việt để 4 bản ngôn ngữ là một thực thể.

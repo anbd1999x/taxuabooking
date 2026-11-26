@@ -6,6 +6,7 @@ import { getT, lp } from "@/lib/i18n/server";
 import { i18nMeta } from "@/lib/i18n/meta";
 import { CommitmentHeroLink } from "@/components/trust/CommitmentLink";
 import { GuideSteps, type GuideStep } from "@/components/guide/GuideSteps";
+import { BreadcrumbLd } from "@/components/BreadcrumbLd";
 
 export const dynamic = "force-dynamic";
 
@@ -187,6 +188,7 @@ export default async function GuidePage() {
 
   return (
     <div style={{ background: "oklch(0.975 0.008 150)", color: "oklch(0.22 0.03 160)" }}>
+      <BreadcrumbLd items={[{ name: tr("Trang chủ"), path: "/" }, { name: tr("Hướng dẫn"), path: "/huong-dan" }]} />
       {/* HERO */}
       <section style={{ background: "linear-gradient(180deg, oklch(0.95 0.025 160), oklch(0.975 0.008 150))", borderBottom: "1px solid oklch(0.93 0.01 160)" }}>
         <div className="mx-auto grid max-w-[1200px] items-end gap-[clamp(20px,4vw,48px)] px-[clamp(16px,3vw,28px)] pb-[clamp(24px,4vw,40px)] pt-[clamp(22px,4vw,44px)] min-[900px]:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">

@@ -289,7 +289,7 @@ export function TicketBooking({ venue: v, avail: a0, initialDay, base = "/ve" }:
   return (
     <div style={{ display: "flex", flexDirection: "column", paddingBottom: two ? 0 : 86, color: "oklch(0.22 0.03 160)" }}>
       <style>{KEYFRAMES}</style>
-      <main style={{ maxWidth: 1320, width: "100%", margin: "0 auto", padding: "18px clamp(16px,3vw,32px) 48px", display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ maxWidth: 1320, width: "100%", margin: "0 auto", padding: "18px clamp(16px,3vw,32px) 48px", display: "flex", flexDirection: "column", gap: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap", animation: "tkRise .35s ease both" }}>
           <div style={{ position: "relative", width: w >= 640 ? 200 : "100%", aspectRatio: "4/3", borderRadius: 16, overflow: "hidden", flex: "none" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -696,7 +696,7 @@ export function TicketBooking({ venue: v, avail: a0, initialDay, base = "/ve" }:
             </div>
           </aside>
         </div>
-      </main>
+      </div>
 
       {!two && (
         <div style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 40, background: "white", borderTop: `1px solid ${LINE}`, boxShadow: "0 -10px 30px -16px oklch(0.2 0.04 160 / .35)", padding: "10px 14px calc(10px + env(safe-area-inset-bottom))", display: "flex", alignItems: "center", gap: 10 }}>

@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 import { pageMeta } from "@/lib/og";
 import { getSettings } from "@/lib/queries";
-import { SITE } from "@/lib/site";
-import { getT } from "@/lib/i18n/server";
+import { ORG_ID, SITE, WEBSITE_ID } from "@/lib/site";
+import { getT, lp } from "@/lib/i18n/server";
+import { BreadcrumbLd } from "@/components/BreadcrumbLd";
 import { i18nMeta } from "@/lib/i18n/meta";
 
 export const dynamic = "force-dynamic";
@@ -22,8 +23,20 @@ export default async function ContactPage() {
   const facebook = s.contactFacebook;
   const address = s.contactAddress || t("Tà Xùa, Bắc Yên, Sơn La");
 
+  // JSON-LD: trang liên hệ của tổ chức khai ở layout gốc (chỉ tham chiếu @id, không nhúng lại thông tin).
+  const pageLd = {
+    "@context": "https://schema.org",
+    "@type": "ContactPage",
+    url: `${SITE.url}${await lp("/lien-he")}`,
+    name: t("Thông tin liên hệ"),
+    isPartOf: { "@id": WEBSITE_ID },
+    mainEntity: { "@id": ORG_ID },
+  };
+
   return (
     <div className="container-page max-w-2xl py-12">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(pageLd).replace(/</g, "\\u003c") }} />
+      <BreadcrumbLd items={[{ name: t("Trang chủ"), path: "/" }, { name: t("Liên hệ"), path: "/lien-he" }]} />
       <h1 className="text-2xl font-bold text-ink sm:text-3xl">{t("Thông tin liên hệ")}</h1>
       <p className="mt-2 text-gray-600">
         {t("Chúng tôi luôn sẵn sàng hỗ trợ bạn đặt xe, phòng và combo du lịch Tà Xùa.")}
@@ -42,7 +55,7 @@ export default async function ContactPage() {
       </div>
 
       <p className="mt-4 text-sm leading-relaxed text-gray-600">
-        {t("Tà Xùa Booking là đơn vị trung gian đặt dịch vụ du lịch tại Tà Xùa: chúng tôi tiếp nhận yêu cầu, xác nhận chỗ với chủ homestay/nhà xe rồi mới chốt đơn. Các cơ sở trên website do chính chủ cơ sở sở hữu và vận hành.")}
+        {t("Tà Xùa Booking là nền tảng trung gian đặt dịch vụ du lịch tại Tà Xùa: chúng tôi tiếp nhận yêu cầu, xác nhận chỗ với chủ homestay/nhà xe rồi mới chốt đơn. Các cơ sở trên website do chính chủ cơ sở sở hữu và vận hành.")}
       </p>
 
       <div className="mt-4 flex gap-2">

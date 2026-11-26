@@ -12,6 +12,7 @@ import type { CostPreset } from "@/components/itinerary/ItineraryCost";
 import { getT, tLong } from "@/lib/i18n/server";
 import { renderMarkdown } from "@/lib/markdown";
 import { i18nMeta } from "@/lib/i18n/meta";
+import { BreadcrumbLd } from "@/components/BreadcrumbLd";
 
 export const dynamic = "force-dynamic";
 
@@ -149,5 +150,17 @@ export default async function ItineraryPage({ searchParams }: { searchParams: Pr
 
   const settings = await getSettings();
   const zalo = "https://zalo.me/" + (settings.contactZalo || SITE.defaultZalo).replace(/\D/g, "");
-  return <ItineraryView plans={plans} places={places} cost={config.cost} zalo={zalo} prep={config.prep} initialPlan={initialPlan} preset={preset} />;
+  return (
+    <>
+      {/* Khớp breadcrumb đang hiện ở banner: Trang chủ / Cẩm nang / Lịch trình */}
+      <BreadcrumbLd
+        items={[
+          { name: tr("Trang chủ"), path: "/" },
+          { name: tr("Cẩm nang"), path: "/kinh-nghiem" },
+          { name: tr("Lịch trình"), path: "/lich-trinh" },
+        ]}
+      />
+      <ItineraryView plans={plans} places={places} cost={config.cost} zalo={zalo} prep={config.prep} initialPlan={initialPlan} preset={preset} />
+    </>
+  );
 }

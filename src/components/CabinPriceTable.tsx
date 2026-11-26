@@ -1,4 +1,5 @@
 import { getT } from "@/lib/i18n/server";
+import { SITE } from "@/lib/site";
 export interface CabinPriceRow {
   id: string;
   pickupPoint: string;
@@ -47,7 +48,7 @@ export async function CabinPriceTable({
   const bikeFrom = Number(settings.cabinBikeFrom || "180000");
   const footnote = t(settings.cabinFareFootnote || "Giá có thể thay đổi theo thời điểm. Vui lòng liên hệ trước để giữ chỗ.");
   const tagline = t(settings.cabinTagline || "Đi xa không chỉ là khoảng cách, mà là những trải nghiệm đáng nhớ!");
-  const phone = settings.contactPhone || "0357452952";
+  const phone = settings.contactPhone || SITE.defaultPhone;
 
   const cream = "#f4f1e4";
 

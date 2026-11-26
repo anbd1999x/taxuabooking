@@ -11,7 +11,8 @@ import Image from "next/image";
 import { getServiceDetail, getSettings, getHomestayCards, getTransportPoints, transportPricing } from "@/lib/queries";
 import { CATEGORIES, serviceCatSlug } from "@/lib/constants";
 import { formatPrice, toNumber } from "@/lib/format";
-import { SITE } from "@/lib/site";
+import { ORG_ID, SITE } from "@/lib/site";
+import { isBotRequest } from "@/lib/bot";
 import { AgentNote } from "@/components/AgentNote";
 import { prisma } from "@/lib/prisma";
 import { roomPricing, roomListPrice, roomListDaysOfWeek, isRoomPriceOnRequest } from "@/lib/availability";
@@ -133,6 +134,9 @@ export default async function ServiceDetailPage(props: PageProps) {
   const catSlug = catSlugOf(service.category);
   // Sai danh mục ⇒ 308 về URL chuẩn (giữ tín hiệu SEO).
   if (category !== catSlug) permanentRedirect(await lp(`/${catSlug}/${service.slug}`));
+  // Bot / công cụ AI không chạy JS: trang streaming để nội dung trong <div hidden> chờ script ⇒ gửi thẳng HTML đầy đủ.
+  // Người thật giữ khung chờ như cũ.
+  if (await isBotRequest()) return <ServiceDetailBody {...props} />;
   return (
     <Suspense fallback={<ServiceDetailSkeleton />}>
       <ServiceDetailBody {...props} />
@@ -331,12 +335,17 @@ async function ServiceDetailBody({
     // URL theo ngôn ngữ đang xem (en/zh/ko có tiền tố) + tên/tóm tắt đã dịch.
     const locale = await getLocale();
     const pageUrl = `${SITE.url}${localePath(`/${catSlug}/${service.slug}`, locale)}`;
+    // Tiện ích khai trong JSON-LD = đúng các cờ đang hiện trên thẻ phòng / mục tiện ích (nhãn của `roomTags`).
+    const amenityLd = ([[nTub, "Bồn tắm"], [nView, "View mây"], [nBf, "Ăn sáng"], [nAc, "Điều hoà"], [nHeat, "Sưởi ấm"]] as [number, string][])
+      .filter(([n]) => n > 0)
+      .map(([, label]) => ({ "@type": "LocationFeatureSpecification", name: tr(label), value: true }));
     const stayJsonLd = {
       "@context": "https://schema.org",
       "@graph": [
         {
           "@type": "LodgingBusiness",
-          "@id": `${pageUrl}#lodging`,
+          // @id LUÔN theo URL bản tiếng Việt: 4 bản ngôn ngữ là MỘT thực thể (`url` bên dưới mới theo ngôn ngữ).
+          "@id": `${SITE.url}/${catSlug}/${service.slug}#lodging`,
           name: tr(service.title),
           description: await tLong(service.summary),
           url: pageUrl,
@@ -348,12 +357,19 @@ async function ServiceDetailBody({
             ? { subjectOf: { "@type": "Article", "@id": `${SITE.url}${localePath(`/kinh-nghiem/${review.slug}`, locale)}#article`, url: `${SITE.url}${localePath(`/kinh-nghiem/${review.slug}`, locale)}`, headline: await tLong(review.title) } }
             : {}),
           // KHÔNG gắn số điện thoại của Tà Xùa Booking vào cơ sở lưu trú (Google coi là mạo danh chủ homestay).
-          // Đại lý đặt chỗ khai riêng ở `potentialAction.provider`.
+          // Đại lý đặt chỗ khai riêng ở `potentialAction.provider` (tham chiếu tổ chức ở layout gốc).
           potentialAction: {
             "@type": "ReserveAction",
             target: pageUrl,
-            provider: { "@type": "TravelAgency", name: SITE.name, url: SITE.url, telephone: phone.replace(/\s/g, "") },
+            provider: { "@id": ORG_ID },
           },
+          // Điểm + số đánh giá: chỉ khai khi trang đang hiện dòng "★ 4,8 · N đánh giá" (cùng số đã làm tròn).
+          ...(ratingN > 0 && ratingAvg != null
+            ? { aggregateRating: { "@type": "AggregateRating", ratingValue: Number(ratingAvg.toFixed(1)), reviewCount: ratingN, bestRating: 5 } }
+            : {}),
+          // Số phòng = số trên tab "Phòng · N" của trang.
+          numberOfRooms: nRooms,
+          ...(amenityLd.length ? { amenityFeature: amenityLd } : {}),
           address: {
             "@type": "PostalAddress",
             addressLocality: service.area ?? tr("Tà Xùa, Bắc Yên"),
@@ -478,6 +494,26 @@ async function ServiceDetailBody({
   const locale = await getLocale();
   const svcUrl = `${SITE.url}${localePath(`/${catSlug}/${service.slug}`, locale)}`;
   const svcPrice = Number(service.basePrice ?? 0);
+  // Giá trong JSON-LD = giá ĐANG HIỆN trên trang, không khai tình trạng còn chỗ viết cứng.
+  // • Nhà xe cabin có bảng "Giá vé theo chặng": khoảng giá của chính bảng đó (AggregateOffer).
+  // • Còn lại: dòng "Giá từ <giá> <đơn vị>" (Offer + đơn vị giá).
+  const fareRows = service.category === "CABIN" ? service.cabinPriceRows.map((r) => toNumber(r.price) ?? 0).filter((n) => n > 0) : [];
+  const svcOffers = fareRows.length
+    ? { "@type": "AggregateOffer", lowPrice: Math.min(...fareRows), highPrice: Math.max(...fareRows), offerCount: fareRows.length, priceCurrency: "VND", url: svcUrl }
+    : svcPrice > 0
+      ? {
+          "@type": "Offer",
+          price: svcPrice,
+          priceCurrency: "VND",
+          url: svcUrl,
+          priceSpecification: {
+            "@type": "UnitPriceSpecification",
+            price: svcPrice,
+            priceCurrency: "VND",
+            ...(service.priceUnit ? { unitText: tr(service.priceUnit) } : {}),
+          },
+        }
+      : null;
   const svcJsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -490,8 +526,10 @@ async function ServiceDetailBody({
         url: svcUrl,
         image: service.images.slice(0, 5).map((i) => absUrl(i.url)),
         areaServed: tr("Tà Xùa, Sơn La"),
-        provider: { "@type": "TravelAgency", name: SITE.name, url: SITE.url, telephone: phone.replace(/\s/g, "") },
-        ...(svcPrice > 0 ? { offers: { "@type": "Offer", price: svcPrice, priceCurrency: "VND", url: svcUrl, availability: "https://schema.org/InStock" } } : {}),
+        // Bên cung cấp = chính nhà xe / tài xế; Tà Xùa Booking chỉ là bên trung gian (tổ chức khai ở layout gốc).
+        provider: { "@type": "Organization", name: tr(service.title) },
+        broker: { "@id": ORG_ID },
+        ...(svcOffers ? { offers: svcOffers } : {}),
       },
       {
         "@type": "BreadcrumbList",

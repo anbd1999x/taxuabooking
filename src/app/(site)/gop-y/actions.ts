@@ -7,6 +7,7 @@ import type { FeedbackType } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCustomer } from "@/lib/customer";
 import { getT } from "@/lib/i18n/server";
+import { FEEDBACK_MAX_MEDIA, FEEDBACK_MEDIA_RE } from "@/lib/feedback";
 
 export interface SubmitState {
   ok?: boolean;
@@ -37,8 +38,15 @@ export async function submitFeedback(_prev: SubmitState, fd: FormData): Promise<
     .map((a) => a.trim())
     .filter(Boolean)
     .slice(0, 10);
-  const screenshotRaw = String(fd.get("screenshot") ?? "").trim();
-  const screenshot = screenshotRaw.startsWith("/uploads/") ? screenshotRaw : null;
+  // Ảnh / video đính kèm: chỉ nhận url do /api/gop-y/upload cấp.
+  const media = [
+    ...new Set(
+      String(fd.get("media") ?? "")
+        .split(",")
+        .map((u) => u.trim())
+        .filter((u) => FEEDBACK_MEDIA_RE.test(u)),
+    ),
+  ].slice(0, FEEDBACK_MAX_MEDIA);
 
   const created = await prisma.feedback.create({
     data: {
@@ -49,7 +57,7 @@ export async function submitFeedback(_prev: SubmitState, fd: FormData): Promise<
       mood,
       areas,
       message,
-      screenshot,
+      media,
       status: "NEW",
     },
     select: { id: true },

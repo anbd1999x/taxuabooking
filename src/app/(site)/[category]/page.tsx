@@ -5,13 +5,13 @@ import CategorySkeleton from "@/components/skeletons/CategorySkeleton";
 import { SitePhone } from "@/components/SiteContact";
 import { notFound } from "next/navigation";
 import { categoryBySlug, CATEGORY_LIST } from "@/lib/constants";
-import { listServicesByCategory, getHomestayRoomCards, getRentalBikes, getXeomRoutes, getTaxiRoutes, getTransportPoints, type ListFilters } from "@/lib/queries";
+import { listServicesByCategory, getHomestayRoomCards, getHomestayTable, getCabinCompare, getRentalBikes, getXeomRoutes, getTaxiRoutes, getTransportPoints, type ListFilters } from "@/lib/queries";
 import { getCabinOperators } from "@/lib/cabin";
 import { HomestayList } from "@/components/home/HomestayList";
 import { MotorbikeList } from "@/components/moto/MotorbikeList";
 import { XeomList } from "@/components/xeom/XeomList";
 import { TaxiList } from "@/components/taxi/TaxiList";
-import { findComboMatches, getComboOrigins, parseComboFilters } from "@/lib/combo";
+import { findComboMatches, getComboOrigins, parseComboFilters, roundTripFareFor } from "@/lib/combo";
 import { ServiceCard } from "@/components/ServiceCard";
 import { CabinList } from "@/components/cabin/CabinList";
 import { ComboSearch } from "@/components/combo/ComboSearch";
@@ -23,10 +23,20 @@ import { FilterBar } from "@/components/FilterBar";
 import { ScrollToResults } from "@/components/ScrollToResults";
 import { ogBlock } from "@/lib/og";
 import { categoryShareImage } from "@/lib/og-source";
-import { SeoBlock } from "@/components/SeoBlock";
+import { SeoBlock, type SeoStats } from "@/components/SeoBlock";
 import { ItemListLd } from "@/components/ItemListLd";
+import { HomestayTable } from "@/components/data/HomestayTable";
+import { CabinCompareTable, cabinBaseFares, CABIN_BASE_PICKUP } from "@/components/data/CabinCompareTable";
+import { RouteFareTable } from "@/components/data/RouteFareTable";
+import { buildFareLegs, legsMatching, rangeOf, type Range } from "@/components/data/fares";
+import { isBotRequest } from "@/lib/bot";
+import { isCommunalRoom } from "@/lib/occupancy";
+import { formatPrice } from "@/lib/format";
 
-/** Tiêu đề + mô tả tìm kiếm riêng cho 3 trang đặt dịch vụ chính (các danh mục khác dùng mẫu chung). */
+/**
+ * Tiêu đề + mô tả tìm kiếm riêng cho từng trang đặt dịch vụ (các danh mục khác dùng mẫu chung).
+ * Mô tả ở đây KHÔNG chứa con số viết tay: số homestay / giá vé thấp nhất được điền từ DB trong generateMetadata.
+ */
 const SEO_META: Record<string, { title: string; description: string }> = {
   MOTORBIKE: {
     title: "Thuê xe máy Tà Xùa: giá thuê theo ngày & xe còn trống",
@@ -42,11 +52,11 @@ const SEO_META: Record<string, { title: string; description: string }> = {
   },
   CABIN: {
     title: "Xe cabin Hà Nội – Tà Xùa: giá vé & chỗ trống",
-    description: "Đặt xe cabin giường nằm Hà Nội – Tà Xùa và các tỉnh: vé khứ hồi từ 500.000đ, chạy đêm 21h tới 6h sáng. Xem nhà xe còn chỗ theo ngày, đặt vé cả hai chiều.",
+    description: "Đặt xe cabin giường nằm Hà Nội – Tà Xùa và các tỉnh, chạy đêm 21h tới 6h sáng. Xem giá vé, nhà xe còn chỗ theo ngày và đặt vé cả hai chiều.",
   },
   HOMESTAY: {
     title: "Homestay Tà Xùa: giá & phòng trống theo ngày",
-    description: "Hơn 30 homestay, bungalow Tà Xùa view biển mây ở trung tâm, Đỉnh Gió, Khe Cải. Xem giá từng phòng và phòng trống theo ngày, đặt phòng không cần thanh toán online.",
+    description: "Homestay, bungalow Tà Xùa view biển mây ở trung tâm, Đỉnh Gió, Khe Cải. Xem giá từng phòng và phòng trống theo ngày, đặt phòng không cần thanh toán online.",
   },
   COMBO: {
     title: "Combo Tà Xùa: xe cabin khứ hồi + homestay trọn gói",
@@ -78,9 +88,17 @@ export async function generateMetadata({
   if (!cat) return {};
   const custom = SEO_META[cat.key];
   const title = custom ? t(custom.title) : t("{0}: giá & tình trạng còn chỗ", [t(cat.label)]);
-  const description = custom ? t(custom.description) : t("{0}: {1}. Xem giá và tình trạng còn chỗ theo ngày, gửi yêu cầu đặt nhanh tại Tà Xùa Booking.", [t(cat.label), t(cat.tagline)]);
+  let description = custom ? t(custom.description) : t("{0}: {1}. Xem giá và tình trạng còn chỗ theo ngày, gửi yêu cầu đặt nhanh tại Tà Xùa Booking.", [t(cat.label), t(cat.tagline)]);
+  // Số homestay đang đăng / giá vé khứ hồi thấp nhất lấy từ DB (cùng dữ liệu với bảng trên trang); lỗi đọc ⇒ giữ mô tả không số.
+  if (cat.key === "HOMESTAY") {
+    const n = (await getHomestayTable().catch(() => [])).length;
+    if (n > 0) description = t("{0} homestay, bungalow Tà Xùa view biển mây ở trung tâm, Đỉnh Gió, Khe Cải. Xem giá từng phòng và phòng trống theo ngày, đặt phòng không cần thanh toán online.", [n]);
+  } else if (cat.key === "CABIN") {
+    const rt = rangeOf((await getCabinCompare().catch(() => [])).map((c) => cabinBaseFares(c).round));
+    if (rt) description = t("Đặt xe cabin giường nằm Hà Nội – Tà Xùa và các tỉnh: vé khứ hồi từ {0}, chạy đêm 21h tới 6h sáng. Xem nhà xe còn chỗ theo ngày, đặt vé cả hai chiều.", [formatPrice(rt[0])]);
+  }
   return {
-    title,
+    title: title.length > 43 ? { absolute: title } : title, // dài thì không nối " | Tà Xùa Booking" (≤ 60 ký tự)
     description,
     alternates: await i18nAlternates(`/${cat.slug}`),
     // Ảnh chia sẻ = ảnh bìa dịch vụ nổi bật của chính danh mục này (xe cabin ra ảnh xe, homestay ra ảnh phòng...).
@@ -92,7 +110,9 @@ export async function generateMetadata({
  * Khung chờ đặt bằng <Suspense> NGAY TRONG trang (không dùng `loading.tsx`): `loading.tsx` ở đây sẽ bọc
  * luôn các trang con /[slug], khiến trang không tồn tại vẫn trả mã 200 (Google coi là "soft 404").
  */
-export default function CategoryPage(props: { params: Promise<{ category: string }>; searchParams: SP }) {
+export default async function CategoryPage(props: { params: Promise<{ category: string }>; searchParams: SP }) {
+  // Bot / công cụ AI không chạy JS: trang bọc <Suspense> gửi nội dung trong <div hidden> chờ script ⇒ dựng thẳng, không streaming.
+  if (await isBotRequest()) return <CategoryBody {...props} />;
   return (
     <Suspense fallback={<CategorySkeleton />}>
       <CategoryBody {...props} />
@@ -118,6 +138,9 @@ async function CategoryBody({
   const sp = ["CABIN", "COMBO", "HOMESTAY", "BUNGALOW", "MOTORBIKE"].includes(cat.key)
     ? await withSearchPrefs(rawSp, cat.key === "CABIN" ? "pax" : cat.key === "MOTORBIKE" ? null : "people")
     : rawSp;
+  /** Khoảng giá cho câu chữ của SeoBlock: "180.000đ" hoặc "180.000đ đến 280.000đ"; không có giá ⇒ null (câu tự bỏ). */
+  const rng = (r: Range | null): string | null =>
+    r ? (r[0] === r[1] ? formatPrice(r[0]) : t("{0} đến {1}", [formatPrice(r[0]), formatPrice(r[1])])) : null;
   /** Số khách từ URL (?pax=), mặc định 2, kẹp 1..20. */
   const paxParam = (v: unknown) => {
     const n = Math.floor(Number(typeof v === "string" ? v : NaN));
@@ -131,15 +154,37 @@ async function CategoryBody({
     const pickup = str(sp.pickup)?.trim() || null;
     // Mặc định (chưa chọn ngày) vẫn hiện tất cả nhà xe; chọn ngày để lọc theo chỗ trống.
     // Chọn điểm đón → giá lấy theo bảng giá chặng; danh sách điểm đón cũng lấy từ bảng giá.
-    const [operators, pickups] = await Promise.all([
+    const [operators, pickups, compare] = await Promise.all([
       getCabinOperators(from ?? null, to ?? null, pickup),
       getComboOrigins(),
+      getCabinCompare(), // mọi nhà xe đang đăng (không lọc theo ngày) + bảng giá chặng từng nhà xe
     ]);
+    // Số liệu cho câu chữ SeoBlock: đếm / thấp nhất / cao nhất từ chính bảng so sánh bên dưới.
+    const baseFares = compare.map(cabinBaseFares);
+    const normPlace = (x: string) => x.trim().toLowerCase().replace(/\s+/g, " ");
+    const otherPickups = [
+      ...new Map(
+        compare.flatMap((c) =>
+          c.fares
+            .filter((r) => r.ticketType !== "RETURN" && normPlace(r.pickupPoint) !== normPlace(CABIN_BASE_PICKUP))
+            .map((r) => [normPlace(r.pickupPoint), r.pickupPoint.trim()] as const),
+        ),
+      ).values(),
+    ];
+    const cabinStats: SeoStats = {
+      n: baseFares.filter((b) => b.round != null).length || null,
+      rt: rng(rangeOf(baseFares.map((b) => b.round))),
+      ow: rng(rangeOf(baseFares.flatMap((b) => [b.out, b.ret]))),
+      nPickups: otherPickups.length || null,
+      pickups: otherPickups.map((p) => t(p)).join(", "),
+      rtOther: rng(rangeOf(compare.flatMap((c) => otherPickups.map((p) => roundTripFareFor(c.fares, p))))),
+    };
     return (
       <>
         <CabinList operators={operators} from={from ?? ""} to={to ?? ""} pickup={pickup ?? ""} pickups={pickups} pax={paxParam(sp.pax)} />
         <ItemListLd name={t("Nhà xe cabin Hà Nội – Tà Xùa")} items={operators.map((o) => ({ name: t(o.title), path: `/xe-cabin/${o.slug}`, image: o.coverImage }))} />
-        <SeoBlock kind="CABIN" />
+        <CabinCompareTable rows={compare} />
+        <SeoBlock kind="CABIN" stats={cabinStats} />
       </>
     );
   }
@@ -203,6 +248,12 @@ async function CategoryBody({
       return s ? `/combo?${s}` : "/combo";
     };
     // ComboResults / ComboCustom tự có chỗ đặt công tắc chế độ (cùng hàng bộ lọc); các trạng thái còn lại dùng slot ở trang.
+    // Câu "combo giá bao nhiêu" của SeoBlock: chỉ điền số khi trang đang hiện KẾT QUẢ MẪU nguyên bản (không lọc, không đổi điểm đón).
+    const samplePrices =
+      isSample && !custom && !origin && !pm && budget == null && activeFilters.length === 0 && roomKind === "all" && result && result.busCount > 0
+        ? rangeOf(result.homes.filter((h) => h.plans.length > 0).map((h) => h.bestPricePerPerson))
+        : null;
+    const comboStats: SeoStats = samplePrices ? { from: dmy(from!), to: dmy(to!), adults, range: rng(samplePrices) } : {};
     const hasList = Boolean(from && to && result && (custom ? result.homes.length > 0 || (result.planCount > 0 && result.busCount > 0) : result.planCount > 0 && result.busCount > 0));
 
     return (
@@ -309,7 +360,7 @@ async function CategoryBody({
         </ScrollToResults>
 
         {/* SeoBlock tự có container-page (đệm 1rem / 1.5rem) mà ở đây đã nằm trong container-page ⇒ bù lề âm để khung rộng bằng khu đặt combo phía trên. */}
-        <div className="-mx-4 mt-10 sm:-mx-6"><SeoBlock kind="COMBO" /></div>
+        <div className="-mx-4 mt-10 sm:-mx-6"><SeoBlock kind="COMBO" stats={comboStats} /></div>
 
         <section className="mt-2 border-t border-gray-200 pt-6">
           <h2 className="text-sm font-semibold text-gray-500">{t("Dịch vụ khác tại Tà Xùa")}</h2>
@@ -328,7 +379,23 @@ async function CategoryBody({
 
   // ----- Homestay: trang danh sách "biển mây" (hero động + tìm kiếm + lưới) -----
   if (cat.key === "HOMESTAY") {
-    const homestays = await getHomestayRoomCards(str(sp.from) ?? null, str(sp.to) ?? null);
+    const [homestays, table] = await Promise.all([
+      getHomestayRoomCards(str(sp.from) ?? null, str(sp.to) ?? null),
+      getHomestayTable(), // mọi homestay đang đăng + từng phòng, giá theo thứ (không gắn ngày)
+    ]);
+    // Số liệu cho câu chữ SeoBlock, tính từ chính bảng bên dưới. Giá mỗi phòng = đêm rẻ nhất trong tuần của phòng đó.
+    const tableRooms = table.flatMap((h) => h.rooms.map((r) => ({ r, low: rangeOf([r.weekdayMin, r.fri, r.sat, r.sun])?.[0] ?? null })));
+    const roomLows = tableRooms.map((x) => x.low).filter((x): x is number => x != null).sort((a, b) => a - b);
+    const dormLow = rangeOf(tableRooms.filter((x) => isCommunalRoom(x.r.typeName, x.r.name)).map((x) => x.low));
+    const homeStats: SeoStats = {
+      n: table.length || null,
+      rooms: tableRooms.length || null,
+      priced: roomLows.length || null,
+      range: rng(rangeOf(roomLows)),
+      // Trung vị dưới: ít nhất một nửa số phòng có giá không vượt mức này.
+      median: roomLows.length ? formatPrice(roomLows[Math.floor((roomLows.length - 1) / 2)]) : null,
+      dormMin: dormLow ? formatPrice(dormLow[0]) : null,
+    };
     // Ảnh bìa + tóm tắt của nhà: gửi xuống client 1 lần/nhà (tách khỏi ~400 thẻ phòng để payload không phình).
     const homeInfo = Object.fromEntries(homestays.map((h) => [h.slug, { cover: h.homeCover ?? null, desc: h.homeDesc ?? "" }]));
     const roomCards = homestays.map(({ homeCover: _c, homeDesc: _d, ...r }) => r);
@@ -345,19 +412,10 @@ async function CategoryBody({
           initialView={str(sp.view) === "home" ? "home" : "room"}
           initialPeople={Math.min(20, Math.max(0, Math.trunc(Number(str(sp.people))) || 0))}
         />
-        {/* Link tới MỌI homestay, dựng phía server: lưới thẻ phía trên chỉ dựng 24 thẻ đầu (cuộn mới nạp thêm)
-            nên Google không thấy link của các homestay còn lại. */}
-        <nav aria-label={t("Tất cả homestay tại Tà Xùa")} className="container-page pb-6 pt-2">
-          <h2 className="text-sm font-semibold text-gray-500">{t("Tất cả homestay tại Tà Xùa")}</h2>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {[...new Map(homestays.map((h) => [h.slug, h.homeName])).entries()].map(([slug, name]) => (
-              <Link key={slug} href={`/homestay/${slug}`} className="rounded-full bg-white px-3.5 py-2 text-sm text-forest-700 ring-1 ring-forest-200 hover:bg-forest-50">
-                {t(name)}
-              </Link>
-            ))}
-          </div>
-        </nav>
-        <SeoBlock kind="HOMESTAY" />
+        {/* Bảng MỌI homestay, dựng phía server: lưới thẻ phía trên chỉ dựng 24 thẻ đầu (cuộn mới nạp thêm)
+            nên Google / công cụ AI không thấy link và số liệu của các homestay còn lại. */}
+        <HomestayTable rows={table} />
+        <SeoBlock kind="HOMESTAY" stats={homeStats} />
       </>
     );
   }
@@ -367,10 +425,21 @@ async function CategoryBody({
     const from = str(sp.from);
     const to = str(sp.to);
     const bikes = await getRentalBikes(from ?? null, to ?? null);
+    // Giá thuê thấp nhất của từng loại xe (gộp các tiệm) cho câu chữ SeoBlock.
+    const typeLow = new Map<string, number>();
+    for (const b of bikes) if (b.pricePerDay > 0) typeLow.set(b.name, Math.min(typeLow.get(b.name) ?? Infinity, b.pricePerDay));
+    const typeList = [...typeLow.entries()].sort((a, b) => a[1] - b[1]);
+    const bikeStats: SeoStats = {
+      types: typeList.length || null,
+      range: rng(rangeOf(typeList.map(([, p]) => p))),
+      list: typeList.slice(0, 6).map(([name, p]) => `${t(name)} ${formatPrice(p)}`).join(", "),
+    };
+    const shops = [...new Map(bikes.map((b) => [b.serviceSlug, b])).values()];
     return (
       <>
         <MotorbikeList bikes={bikes} from={from ?? ""} to={to ?? ""} />
-        <SeoBlock kind="MOTORBIKE" />
+        <ItemListLd name={t("Thuê xe máy Tà Xùa")} items={shops.map((b) => ({ name: t(b.shopTitle), path: `/${cat.slug}/${b.serviceSlug}` }))} />
+        <SeoBlock kind="MOTORBIKE" stats={bikeStats} />
       </>
     );
   }
@@ -378,10 +447,24 @@ async function CategoryBody({
   // ----- Xe ôm: hero động + tìm kiếm + danh sách tuyến (bám thiết kế) -----
   if (cat.key === "XEOM") {
     const [routes, points] = await Promise.all([getXeomRoutes(), getTransportPoints()]);
+    // Số liệu cho câu chữ SeoBlock từ chính bảng giá chặng bên dưới. Chặng tới một điểm nhận diện theo TÊN điểm admin đặt.
+    const xeomLegs = buildFareLegs(routes, points).filter((l) => l.one);
+    const spine = legsMatching(xeomLegs, /sống lưng|khủng long/i);
+    const dolphin = legsMatching(xeomLegs, /cá heo/i);
+    const xeomStats: SeoStats = {
+      legs: xeomLegs.length || null,
+      one: rng(rangeOf(xeomLegs.flatMap((l) => l.one ?? []))),
+      spine1: rng(spine.one),
+      spine2: rng(spine.two),
+      dolphin1: rng(dolphin.one),
+      dolphin2: rng(dolphin.two),
+    };
     return (
       <>
         <XeomList routes={routes} points={points} />
-        <SeoBlock kind="XEOM" />
+        <ItemListLd name={t("Xe ôm Tà Xùa")} items={routes.map((r) => ({ name: t(r.title), path: `/${cat.slug}/${r.slug}`, image: r.image }))} />
+        <RouteFareTable kind="XEOM" routes={routes} points={points} />
+        <SeoBlock kind="XEOM" stats={xeomStats} />
       </>
     );
   }
@@ -392,7 +475,9 @@ async function CategoryBody({
     return (
       <>
         <TaxiList routes={routes} points={points} />
-        <SeoBlock kind="TAXI" />
+        <ItemListLd name={t("Taxi Tà Xùa")} items={routes.map((r) => ({ name: t(r.title), path: `/${cat.slug}/${r.slug}`, image: r.image }))} />
+        <RouteFareTable kind="TAXI" routes={routes} points={points} />
+        <SeoBlock kind="TAXI" stats={{ day: rng(rangeOf(routes.map((r) => r.pricing.dayPrice))) }} />
       </>
     );
   }

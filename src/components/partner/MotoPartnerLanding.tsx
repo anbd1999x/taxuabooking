@@ -6,6 +6,8 @@
  * Ảnh: public/hop-tac/xe-*.jpg (ảnh xe thật của các tiệm trên Tà Xùa Booking).
  */
 import { useEffect, useState, type CSSProperties } from "react";
+import { useSitePhone } from "@/components/SiteContact";
+import { formatPhone } from "@/lib/trust-popup";
 
 const G = "oklch(0.29 0.055 160)";
 const O = "oklch(0.68 0.18 45)";
@@ -51,7 +53,6 @@ const FAQ = [
   ["Khách đặt qua Zalo thì có ghi vào được không?", "Được. Bạn tạo đơn trong vài giây và ghi nguồn khách là Zalo, CTV hay khách quen để cuối tháng xem nguồn nào nhiều khách."],
   ["Dữ liệu trong sổ cũ có chuyển vào được không?", "Gửi tụi mình danh sách xe và các đơn đang có, tụi mình nhập giúp trong buổi cài đặt."],
 ];
-const PEOPLE = [["Bùi An", "0397 943 155"], ["Tăng Linh", "0357 452 952"]];
 
 const BAR = {
   r: ["oklch(0.58 0.13 250)", "white", "oklch(0.58 0.13 250)", "solid"],
@@ -81,6 +82,7 @@ const wrap: CSSProperties = { maxWidth: 1200, width: "100%", margin: "0 auto", p
 const card: CSSProperties = { background: "white", borderRadius: 20, boxShadow: "0 20px 40px -24px oklch(0.2 0.05 160 / .4)", animation: "mpUp .4s ease both" };
 
 export default function MotoPartnerLanding() {
+  const sitePhone = useSitePhone().replace(/D/g, ""); // SĐT chung của web (cấu hình ở /admin/popup)
   const [step, setStep] = useState(0);
   const [tick, setTick] = useState(0);
   const [manual, setManual] = useState(false);
@@ -382,7 +384,7 @@ export default function MotoPartnerLanding() {
             <h2 style={{ margin: 0, fontSize: "clamp(28px,4vw,44px)", fontWeight: 800, lineHeight: 1.1, letterSpacing: "-.03em" }}>Dùng thử cho tiệm của bạn.</h2>
             <p style={{ margin: 0, fontSize: 16, lineHeight: 1.6, color: "oklch(0.88 0.02 160)", maxWidth: 440 }}>Gửi tụi mình danh sách xe, tụi mình ngồi cùng bạn cài đặt và hướng dẫn trong một buổi.</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 420 }}>
-              {PEOPLE.map(([name, phone]) => {
+              {([["Tà Xùa Booking", formatPhone(sitePhone)]] as const).map(([name, phone]) => {
                 const n = phone.replace(/\D/g, "");
                 return (
                   <div key={n} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 10px 10px 16px", borderRadius: 18, background: "oklch(1 0 0 / .08)", border: "1px solid oklch(1 0 0 / .14)" }}>

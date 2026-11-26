@@ -11,8 +11,9 @@ import { PlaceGallery } from "./place/PlaceGallery";
 import { ExpandableDescription } from "./place/ExpandableDescription";
 import { PlaceReviews, type ReviewItem } from "./place/PlaceReviews";
 import { SaveButton } from "./place/SaveButton";
-import { getT, tLong } from "@/lib/i18n/server";
+import { getT, lp, tLong } from "@/lib/i18n/server";
 import type { TFunc } from "@/lib/i18n/config";
+import { BreadcrumbLd } from "./BreadcrumbLd";
 
 const PAGE = "oklch(0.975 0.01 150)";
 const G = "oklch(0.29 0.055 160)";
@@ -126,13 +127,19 @@ export async function PlaceDetail({ place, basePath }: { place: Place & { review
       : [];
   const related = [...sameArea, ...fill];
 
-  const pageUrl = `${SITE.url}${basePath}/${place.slug}`;
+  // URL theo ngôn ngữ đang xem (khớp canonical); @id cố định theo bản tiếng Việt để 4 bản ngôn ngữ là MỘT thực thể.
+  const viUrl = `${SITE.url}${basePath}/${place.slug}`;
+  const pageUrl = `${SITE.url}${await lp(`${basePath}/${place.slug}`)}`;
+  const absImg = (u: string) => (u.startsWith("http://") || u.startsWith("https://") ? u : `${SITE.url}${u}`);
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": place.kind === "CAFE" ? "CafeOrCoffeeShop" : "Restaurant",
+    "@id": `${viUrl}#place`,
     name: place.name,
     url: pageUrl,
-    image: gallery.length ? gallery : undefined,
+    image: gallery.length ? gallery.map(absImg) : undefined, // Google yêu cầu URL ảnh tuyệt đối
+    ...(place.lat != null && place.lng != null ? { geo: { "@type": "GeoCoordinates", latitude: place.lat, longitude: place.lng } } : {}),
+    ...(place.mapUrl ? { hasMap: place.mapUrl } : {}),
     address: {
       "@type": "PostalAddress",
       streetAddress: place.address ?? undefined,
@@ -141,7 +148,6 @@ export async function PlaceDetail({ place, basePath }: { place: Place & { review
       addressCountry: "VN",
     },
     priceRange: place.price ?? undefined,
-    openingHours: place.hours ?? undefined,
     ...(avg != null
       ? { aggregateRating: { "@type": "AggregateRating", ratingValue: Number(avg.toFixed(1)), reviewCount: count } }
       : {}),
@@ -168,6 +174,13 @@ export async function PlaceDetail({ place, basePath }: { place: Place & { review
   return (
     <div style={{ background: PAGE }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <BreadcrumbLd
+        items={[
+          { name: tr("Trang chủ"), path: "/" },
+          { name: tr(listLabel), path: basePath },
+          { name: tr(place.name), path: `${basePath}/${place.slug}` },
+        ]}
+      />
       <div className="container-page flex min-w-0 flex-col gap-[22px] pb-16 pt-5 [overflow-x:clip]">
         {/* Breadcrumb */}
         <nav className="flex flex-wrap gap-2 text-sm" style={{ color: MUTED }}>

@@ -4,7 +4,8 @@ import { We, useVoice } from "@/components/SiteContact";
 import { useActionState, useEffect, useRef, useState } from "react";
 import Link from "@/components/Link";
 import type { FeedbackType } from "@prisma/client";
-import { FEEDBACK_AREAS, FEEDBACK_MOODS, FEEDBACK_TYPES, feedbackType } from "@/lib/feedback";
+import { FEEDBACK_AREAS, FEEDBACK_MAX_MEDIA, FEEDBACK_MOODS, FEEDBACK_TYPES, feedbackType, isVideoUrl } from "@/lib/feedback";
+import { thumbUrl } from "@/lib/image-loader";
 import { submitFeedback, type SubmitState } from "@/app/(site)/gop-y/actions";
 import { useT } from "@/components/i18n/I18nProvider";
 
@@ -19,7 +20,7 @@ export function GopYForm({ loggedIn, userName }: { loggedIn: boolean; userName: 
   const [areas, setAreas] = useState<string[]>([]);
   const [msg, setMsg] = useState("");
   const [anon, setAnon] = useState(false);
-  const [shot, setShot] = useState<string>("");
+  const [media, setMedia] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [upErr, setUpErr] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
@@ -30,26 +31,34 @@ export function GopYForm({ loggedIn, userName }: { loggedIn: boolean; userName: 
       setMsg("");
       setMood(0);
       setAreas([]);
-      setShot("");
+      setMedia([]);
     }
   }, [state.ok]);
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!file) return;
-    if (!loggedIn) return;
+    if (!files.length || !loggedIn) return;
     setUpErr("");
+    const room = FEEDBACK_MAX_MEDIA - media.length;
+    if (files.length > room) setUpErr(tr("Tối đa {0} ảnh / video cho mỗi góp ý.", [FEEDBACK_MAX_MEDIA]));
     setUploading(true);
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/gop-y/upload", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) setUpErr(tr(data.error) || tr("Tải ảnh thất bại."));
-      else setShot(data.url);
+      for (const file of files.slice(0, room)) {
+        const isVideo = file.type.startsWith("video/") || /\.(mp4|mov|m4v|webm)$/i.test(file.name);
+        if (file.size > (isVideo ? 50 : 10) * 1024 * 1024) {
+          setUpErr(isVideo ? tr("Video vượt quá 50MB.") : tr("Ảnh vượt quá 10MB."));
+          continue;
+        }
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch("/api/gop-y/upload", { method: "POST", body: fd });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.url) setUpErr(data.error ? tr(data.error) : tr("Tải tệp thất bại. Thử lại nhé."));
+        else setMedia((prev) => (prev.length < FEEDBACK_MAX_MEDIA ? [...prev, data.url] : prev));
+      }
     } catch {
-      setUpErr(tr("Tải ảnh thất bại. Thử lại nhé."));
+      setUpErr(tr("Tải tệp thất bại. Thử lại nhé."));
     } finally {
       setUploading(false);
     }
@@ -195,35 +204,53 @@ export function GopYForm({ loggedIn, userName }: { loggedIn: boolean; userName: 
         />
       </label>
 
-      {/* Ảnh chụp màn hình */}
+      {/* Ảnh / video đính kèm */}
       <div className="flex flex-col gap-1.5">
         <span className="text-[13px] font-bold text-gray-700">
-          {tr("Ảnh chụp màn hình")}{" "}<span className="font-medium text-gray-400">{tr("(nếu báo lỗi)")}</span>
+          {tr("Ảnh hoặc video đính kèm")}{" "}
+          <span className="font-medium text-gray-400">{tr("(không bắt buộc, tối đa {0})", [FEEDBACK_MAX_MEDIA])}</span>
         </span>
-        {shot ? (
-          <div className="relative w-fit">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={shot} alt={tr("Ảnh chụp màn hình")} className="max-h-40 rounded-xl border border-gray-200" />
-            <button
-              type="button"
-              onClick={() => setShot("")}
-              className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-xs font-bold text-white"
-              aria-label={tr("Xoá ảnh")}
+        <div className="flex flex-wrap gap-2.5">
+          {media.map((u) => (
+            <div key={u} className="relative h-24 w-24">
+              {isVideoUrl(u) ? (
+                <>
+                  <video src={`${u}#t=0.1`} muted playsInline preload="metadata" className="h-full w-full rounded-xl border border-gray-200 bg-black object-cover" />
+                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-xl text-white drop-shadow">▶</span>
+                </>
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={thumbUrl(u, 256)} alt={tr("Ảnh đính kèm")} className="h-full w-full rounded-xl border border-gray-200 object-cover" />
+              )}
+              <button
+                type="button"
+                onClick={() => setMedia((prev) => prev.filter((x) => x !== u))}
+                className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-gray-900 text-xs font-bold text-white"
+                aria-label={tr("Bỏ tệp này")}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          {media.length < FEEDBACK_MAX_MEDIA && (
+            <label
+              className={`flex h-24 items-center justify-center rounded-2xl border border-dashed border-gray-300 px-4 text-center text-sm text-gray-400 ${
+                media.length ? "w-24" : "w-full"
+              } ${loggedIn ? "cursor-pointer hover:border-forest-400 hover:text-forest-600" : "cursor-not-allowed opacity-60"}`}
             >
-              ×
-            </button>
-          </div>
-        ) : (
-          <label
-            className={`flex h-24 cursor-pointer items-center justify-center rounded-2xl border border-dashed border-gray-300 text-sm text-gray-400 ${
-              loggedIn ? "hover:border-forest-400 hover:text-forest-600" : "cursor-not-allowed opacity-60"
-            }`}
-          >
-            {uploading ? tr("Đang tải ảnh…") : tr("Kéo thả hoặc bấm để chọn ảnh")}
-            <input type="file" accept="image/*" className="hidden" disabled={!loggedIn || uploading} onChange={onFile} />
-          </label>
-        )}
-        {upErr && <span className="text-[13px] font-semibold text-red-600">{tr(upErr)}</span>}
+              {uploading ? tr("Đang tải…") : media.length ? tr("+ Thêm") : tr("Bấm để chọn ảnh hoặc video")}
+              <input
+                type="file"
+                multiple
+                accept="image/*,video/mp4,video/quicktime,video/webm"
+                className="hidden"
+                disabled={!loggedIn || uploading}
+                onChange={onFile}
+              />
+            </label>
+          )}
+        </div>
+        {upErr && <span className="text-[13px] font-semibold text-red-600">{upErr}</span>}
       </div>
 
       {/* Ẩn danh (khi đã đăng nhập) */}
@@ -246,12 +273,12 @@ export function GopYForm({ loggedIn, userName }: { loggedIn: boolean; userName: 
       <input type="hidden" name="mood" value={mood} />
       <input type="hidden" name="areas" value={areas.join(",")} />
       <input type="hidden" name="anon" value={anon ? "1" : "0"} />
-      <input type="hidden" name="screenshot" value={shot} />
+      <input type="hidden" name="media" value={media.join(",")} />
 
       {loggedIn ? (
         <button
           type="submit"
-          disabled={pending}
+          disabled={pending || uploading}
           className="rounded-full bg-sunset-500 py-3.5 text-center text-base font-extrabold text-white transition hover:bg-sunset-600 disabled:opacity-70"
         >
           {pending ? tr("Đang gửi…") : tr("Gửi góp ý")}

@@ -7,6 +7,7 @@ import { parseTrustPopup, TRUST_POPUP_KEY, OFFICIAL_SITES, visiblePeople } from 
 import { CommitmentIntro, FiveKhongBlock, PeopleColumn, PromisesBlock } from "@/components/trust/parts";
 import { getT } from "@/lib/i18n/server";
 import { i18nMeta } from "@/lib/i18n/meta";
+import { BreadcrumbLd } from "@/components/BreadcrumbLd";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,7 @@ export default async function CommitmentPage() {
       className="bg-forest-50/40"
       style={{ fontFamily: "'Be Vietnam Pro',system-ui,sans-serif", color: "oklch(0.22 0.03 160)" }}
     >
+      <BreadcrumbLd items={[{ name: t("Trang chủ"), path: "/" }, { name: t("Cam kết uy tín"), path: "/cam-ket" }]} />
       <h1 className="sr-only">{t("Cam kết uy tín của Tà Xùa Booking")}</h1>
       <div className="container-page py-8 sm:py-12">
         {/* Thẻ chính: 2 cột như popup */}

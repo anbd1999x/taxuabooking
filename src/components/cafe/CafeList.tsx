@@ -484,7 +484,7 @@ export function CafeList({ cafes }: { cafes: CafeCard[] }) {
       </div>
 
       {/* LIST */}
-      <main ref={listRef} className="container-page flex flex-col gap-[22px] pb-16 pt-9">
+      <div ref={listRef} className="container-page flex flex-col gap-[22px] pb-16 pt-9">
         {/* Tips */}
         <div className="grid gap-3 sm:grid-cols-3">
           {tips.map((tp) => (
@@ -599,7 +599,7 @@ export function CafeList({ cafes }: { cafes: CafeCard[] }) {
             ))}
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

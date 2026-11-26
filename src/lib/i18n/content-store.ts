@@ -21,3 +21,16 @@ export function ssrContentStore(): Partial<Record<Locale, Dict>> {
 export function contentUrl(locale: Locale, v: string): string {
   return `/api/i18n/content?l=${locale}&v=${encodeURIComponent(v)}`;
 }
+
+/** Tên biến toàn cục mà bản SCRIPT của map gán vào: `self.__TX_I18N = { l, d }`. */
+export const CONTENT_GLOBAL = "__TX_I18N";
+
+/**
+ * URL bản SCRIPT của map bản dịch (cùng dữ liệu với `contentUrl`, bọc thành lệnh gán biến toàn cục). Layout gốc nạp
+ * bằng `<Script strategy="beforeInteractive">` ⇒ Next chạy xong script này RỒI MỚI hydrate ⇒ Client Component có map
+ * ngay ở lần render đầu, không cần `use()` + `<Suspense>` (lớp Suspense đó từng khiến mọi trang /en /zh /ko gửi mã 200
+ * trước khi trang kịp gọi notFound() / redirect()).
+ */
+export function contentScriptUrl(locale: Locale, v: string): string {
+  return `${contentUrl(locale, v)}&js=1`;
+}

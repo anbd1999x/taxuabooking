@@ -111,6 +111,20 @@ export const FEEDBACK_FAQS: { q: string; a: string }[] = [
   },
 ];
 
+// ---- Ảnh / video đính kèm góp ý ----
+export const FEEDBACK_MAX_MEDIA = 4;
+/** Chỉ nhận url do chính route /api/gop-y/upload cấp (tiền tố "gopy-"). */
+export const FEEDBACK_MEDIA_RE = /^\/uploads\/gopy-[a-z0-9-]+\.(jpg|png|webp|avif|gif|mp4|mov|m4v|webm)$/;
+
+export function isVideoUrl(url: string): boolean {
+  return /\.(mp4|mov|m4v|webm)$/i.test(url);
+}
+
+/** Danh sách đính kèm để hiển thị: ảnh chụp màn hình của góp ý cũ + `media`, bỏ trùng. */
+export function feedbackMedia(f: { screenshot: string | null; media: string[] }): string[] {
+  return [...new Set([f.screenshot, ...(f.media ?? [])].filter((u): u is string => Boolean(u)))];
+}
+
 /** "2 giờ trước", "3 ngày trước"… từ số phút. */
 export function agoText(mins: number, t: TFunc = identityT): string {
   if (mins < 1) return t("Vừa xong");

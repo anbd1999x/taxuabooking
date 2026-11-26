@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { OFFICIAL_SITES, telHref, zaloHref, type TrustPerson } from "@/lib/trust-popup";
+import { OFFICIAL_SITES, formatPhone, type TrustPerson } from "@/lib/trust-popup";
+import { useSitePhone } from "@/components/SiteContact";
 import { useT } from "@/components/i18n/I18nProvider";
 import Link from "@/components/Link";
 
@@ -37,8 +38,11 @@ function PhoneIcon() {
 export function PersonCard({ u, wide }: { u: TrustPerson; wide: boolean }) {
   const tr = useT();
   const av = wide ? 96 : 72;
-  const tel = telHref(u);
-  const zalo = zaloHref(u);
+  // MỘT số điện thoại duy nhất trên toàn web = số chọn ở /admin/popup ("Dùng SĐT này cho toàn bộ trang web"):
+  // thẻ của người nào cũng hiện + gọi + Zalo tới số chung đó, không dùng số riêng từng người.
+  const site = useSitePhone().replace(/\D/g, "");
+  const tel = site ? `tel:${site}` : "";
+  const zalo = site ? `https://zalo.me/${site}` : "";
   return (
     <div
       style={{
@@ -80,7 +84,7 @@ export function PersonCard({ u, wide }: { u: TrustPerson; wide: boolean }) {
       </div>
       <div style={{ minWidth: 0, width: "100%" }}>
         <div style={{ fontSize: 16, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{tr(u.name)}</div>
-        <div style={{ fontSize: 12, fontWeight: 600, color: "oklch(0.85 0.03 160)", marginTop: 2, whiteSpace: "nowrap" }}>{tr(u.phone)}</div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: "oklch(0.85 0.03 160)", marginTop: 2, whiteSpace: "nowrap" }}>{tr(formatPhone(site))}</div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 6, width: "100%" }}>
         <a

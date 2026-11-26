@@ -103,7 +103,7 @@ export function BackgroundMusic() {
 
   return (
     <>
-      <audio ref={ref} src={SRC} loop preload="auto" onPause={() => setPlaying(false)} onPlay={() => setPlaying(true)} />
+      <audio ref={ref} src={SRC} loop preload="none" onPause={() => setPlaying(false)} onPlay={() => setPlaying(true)} />
       <button
         type="button"
         onClick={toggle}

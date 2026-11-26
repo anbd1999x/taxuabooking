@@ -9,6 +9,7 @@ import { ARTICLE_TOPICS, articleTopicLabel } from "@/lib/constants";
 import { getT } from "@/lib/i18n/server";
 import { i18nAlternates, i18nMeta, i18nOg } from "@/lib/i18n/meta";
 import { ItemListLd } from "@/components/ItemListLd";
+import { BreadcrumbLd } from "@/components/BreadcrumbLd";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +64,13 @@ export default async function ArticlesPage({
 
   return (
     <div className="container-page py-8">
+      <BreadcrumbLd
+        items={[
+          { name: tr("Trang chủ"), path: "/" },
+          { name: tr("Kinh nghiệm Tà Xùa"), path: "/kinh-nghiem" },
+          ...(topic ? [{ name: heading, path: `/kinh-nghiem?topic=${topic}` }] : []),
+        ]}
+      />
       <ItemListLd name={heading} items={articles.map((a) => ({ name: tr(a.title), path: `/kinh-nghiem/${a.slug}`, image: a.coverImage }))} />
       <h1 className="text-2xl font-bold text-ink sm:text-3xl">
         {heading}

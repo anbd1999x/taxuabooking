@@ -63,8 +63,8 @@ export default async function HomePage() {
   const cut = m?.index != null ? m.index + m[0].length : -1;
   const heroLead = cut > 0 ? heroTitle.slice(0, cut).trim() : heroTitle;
   const heroRest = cut > 0 ? heroTitle.slice(cut).trim() : "";
-  const phone = settings.contactPhone || "0357452952";
-  const zalo = settings.contactZalo || "0357452952";
+  const phone = settings.contactPhone || SITE.defaultPhone;
+  const zalo = settings.contactZalo || SITE.defaultZalo;
 
   const combo = {
     title: t(settings.cabinComboTitle || "Xe cabin + home view kính trung tâm"),

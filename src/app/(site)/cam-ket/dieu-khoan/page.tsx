@@ -41,7 +41,7 @@ const DEFINITIONS: string[] = [
   "**Sự cố ngoài ý muốn:** việc xảy ra không do Tà Xùa Booking chủ động gây ra. Ví dụ: xe hỏng, homestay khoá nhầm phòng, nhà cung cấp đổi giá mà không báo, thiên tai, sạt lở, cấm đường.",
   "**Giá niêm yết:** giá công khai của chính nhà cung cấp (fanpage, website, bảng giá) cho cùng dịch vụ, đang tồn tại tại thời điểm chốt bill.",
   "**Kênh chính thức:** website taxuabooking.com, Zalo và hotline ghi ở cuối trang, và tài khoản ngân hàng Bùi Danh An hoặc Tăng Mai Linh.",
-  "**Vai trò của Tà Xùa Booking:** đơn vị trung gian tiếp nhận và điều phối đặt dịch vụ. Homestay, nhà xe và các dịch vụ khác do chính chủ cơ sở (nhà cung cấp) sở hữu và vận hành; Tà Xùa Booking không phải chủ sở hữu và không phải website riêng của các cơ sở đó.",
+  "**Vai trò của Tà Xùa Booking:** nền tảng trung gian tiếp nhận và điều phối đặt dịch vụ. Homestay, nhà xe và các dịch vụ khác do chính chủ cơ sở (nhà cung cấp) sở hữu và vận hành; Tà Xùa Booking không phải chủ sở hữu và không phải website riêng của các cơ sở đó.",
 ];
 
 const SECTIONS: Section[] = [

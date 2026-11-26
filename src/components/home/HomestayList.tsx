@@ -831,7 +831,7 @@ export function HomestayList({
       </div>
 
       {/* LIST — cột lọc trái (mobile: bottom sheet) + sắp xếp & công tắc chế độ + lưới thẻ */}
-      <main ref={listRef} className="container-page pb-24 pt-9">
+      <div ref={listRef} className="container-page pb-24 pt-9">
         <div className="mb-4">
           <h2 className="m-0 text-[clamp(22px,2.6vw,30px)] font-extrabold tracking-[-0.02em] text-ink">
             {view === "home" ? tr("{0} homestay phù hợp", [homes.length]) : tr("{0} loại phòng phù hợp", [items.length])}
@@ -1109,7 +1109,7 @@ export function HomestayList({
         )}
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

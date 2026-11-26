@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import Link from "@/components/Link";
 import { pageMeta } from "@/lib/og";
 import { getSettings } from "@/lib/queries";
-import { SITE } from "@/lib/site";
+import { ORG_ID, SITE, WEBSITE_ID } from "@/lib/site";
 import { formatPhone, parseTrustPopup, TRUST_POPUP_KEY, visibleLegalNames } from "@/lib/trust-popup";
-import { getT } from "@/lib/i18n/server";
+import { getT, lp } from "@/lib/i18n/server";
+import { BreadcrumbLd } from "@/components/BreadcrumbLd";
 import { i18nMeta } from "@/lib/i18n/meta";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +13,7 @@ export const dynamic = "force-dynamic";
 export const generateMetadata = () => i18nMeta({
   title: "Giới thiệu: đại lý đặt xe, phòng Tà Xùa",
   description:
-    "Tà Xùa Booking là ai: thông tin người chịu trách nhiệm, địa chỉ, số điện thoại, email và vai trò đại lý đặt chỗ homestay, xe cabin tại Tà Xùa.",
+    "Tà Xùa Booking là ai: thông tin người chịu trách nhiệm, địa chỉ, số điện thoại, email và vai trò nền tảng trung gian đặt dịch vụ homestay, xe cabin tại Tà Xùa.",
   path: "/gioi-thieu",
 });
 
@@ -47,8 +48,20 @@ export default async function AboutPage() {
     ["Website", "taxuabooking.com"],
   ];
 
+  // JSON-LD: trang giới thiệu của tổ chức khai ở layout gốc (chỉ tham chiếu @id, không nhúng lại thông tin).
+  const pageLd = {
+    "@context": "https://schema.org",
+    "@type": "AboutPage",
+    url: `${SITE.url}${await lp("/gioi-thieu")}`,
+    name: t("Giới thiệu Tà Xùa Booking"),
+    isPartOf: { "@id": WEBSITE_ID },
+    mainEntity: { "@id": ORG_ID },
+  };
+
   return (
     <div className="container-page py-8">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(pageLd).replace(/</g, "\\u003c") }} />
+      <BreadcrumbLd items={[{ name: t("Trang chủ"), path: "/" }, { name: t("Giới thiệu"), path: "/gioi-thieu" }]} />
       <nav className="mb-4 text-sm text-gray-500">
         <Link href="/" className="hover:text-forest-700">{t("Trang chủ")}</Link>
         <span className="mx-2">/</span>
@@ -58,7 +71,7 @@ export default async function AboutPage() {
       <div className="mx-auto max-w-3xl">
         <h1 className="text-2xl font-bold text-ink sm:text-3xl">{t("Giới thiệu Tà Xùa Booking")}</h1>
         <p className="mt-3 text-[15px] leading-relaxed text-gray-700">
-          {t("Tà Xùa Booking là")}{" "}<b>{t("đơn vị trung gian (đại lý) đặt dịch vụ du lịch tại Tà Xùa")}</b>{t(": homestay, xe cabin, thuê xe máy, xe ôm, taxi và combo. Chúng tôi")}{" "}<b>{t("không phải chủ homestay hay nhà xe")}</b>{t("; mọi dịch vụ trên website do các đối tác – chính chủ cơ sở – sở hữu, vận hành và trực tiếp cung cấp.")}
+          {t("Tà Xùa Booking là")}{" "}<b>{t("nền tảng trung gian đặt dịch vụ du lịch tại Tà Xùa")}</b>{t(": homestay, xe cabin, thuê xe máy, xe ôm, taxi và combo. Chúng tôi")}{" "}<b>{t("không phải chủ homestay hay nhà xe")}</b>{t("; mọi dịch vụ trên website do các đối tác – chính chủ cơ sở – sở hữu, vận hành và trực tiếp cung cấp.")}
         </p>
 
         <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-black/5">

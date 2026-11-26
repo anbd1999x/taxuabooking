@@ -23,7 +23,7 @@ export function TicketList({ days, cards, base = "/ve" }: { days: string[]; card
   };
 
   return (
-    <main style={{ maxWidth: 1320, width: "100%", margin: "0 auto", padding: "26px clamp(16px,3vw,32px) 56px", display: "flex", flexDirection: "column", gap: 18, color: "oklch(0.22 0.03 160)" }}>
+    <div style={{ maxWidth: 1320, width: "100%", margin: "0 auto", padding: "26px clamp(16px,3vw,32px) 56px", display: "flex", flexDirection: "column", gap: 18, color: "oklch(0.22 0.03 160)" }}>
       <style>{KEYFRAMES}</style>
       <div style={{ animation: "tkRise .4s ease both" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
@@ -82,6 +82,6 @@ export function TicketList({ days, cards, base = "/ve" }: { days: string[]; card
       </div>
       {!shown.length && <div style={{ padding: "40px 20px", textAlign: "center", border: "1.5px dashed oklch(0.85 0.02 160)", borderRadius: 22, background: "white", color: "oklch(0.48 0.02 160)" }}>{t("Chưa có vé cho bộ lọc này.")}</div>}
       <style>{".tk-card{transition:box-shadow .25s}.tk-card:hover{box-shadow:0 22px 44px -24px oklch(0.25 0.06 180 / .4)}"}</style>
-    </main>
+    </div>
   );
 }

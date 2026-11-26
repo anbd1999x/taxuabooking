@@ -405,7 +405,7 @@ export function RestaurantList({ items: all, initialArea = "" }: { items: Restau
       </div>
 
       {/* LIST */}
-      <main className="container-page flex flex-col gap-[22px] pb-[72px] pt-9">
+      <div className="container-page flex flex-col gap-[22px] pb-[72px] pt-9">
         <div className="grid gap-3" style={{ gridTemplateColumns: w >= 760 ? "repeat(3,minmax(0,1fr))" : "1fr" }}>
           {[
             { k: "01", t: tr("Nhóm đông đặt mâm từ chiều"), d: tr("Cuối tuần quán kín nhanh, gọi trước 15:00 để giữ bàn và chọn món.") },
@@ -505,7 +505,7 @@ export function RestaurantList({ items: all, initialArea = "" }: { items: Restau
             ))}
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

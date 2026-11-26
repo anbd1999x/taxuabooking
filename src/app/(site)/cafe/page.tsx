@@ -6,6 +6,7 @@ import { CafeList, type CafeCard } from "@/components/cafe/CafeList";
 import { getT } from "@/lib/i18n/server";
 import { i18nMeta } from "@/lib/i18n/meta";
 import { ItemListLd } from "@/components/ItemListLd";
+import { BreadcrumbLd } from "@/components/BreadcrumbLd";
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +92,7 @@ export default async function CafePage() {
 
   return (
     <>
+      <BreadcrumbLd items={[{ name: tr("Trang chủ"), path: "/" }, { name: tr("Cafe săn mây"), path: "/cafe" }]} />
       <ItemListLd name={tr("Quán cafe Tà Xùa")} items={places.filter((p) => p.slug).map((p) => ({ name: tr(p.name), path: `/cafe/${p.slug}`, image: p.coverImage }))} />
       <CafeList cafes={cafes} />
     </>

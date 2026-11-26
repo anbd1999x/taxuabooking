@@ -424,7 +424,7 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
       </div>
 
       {/* LIST */}
-      <main ref={listRef} className="container-page flex flex-col gap-[18px] pb-14 pt-9">
+      <div ref={listRef} className="container-page flex flex-col gap-[18px] pb-14 pt-9">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <div className="text-[clamp(22px,2.6vw,28px)] font-extrabold tracking-[-0.02em] text-ink">{tr(listTitle)}</div>
@@ -541,7 +541,7 @@ export function MotorbikeList({ bikes, from, to }: { bikes: RentalBike[]; from: 
             ))}
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

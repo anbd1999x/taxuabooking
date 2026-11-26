@@ -7,9 +7,12 @@ import {
   FB_POSTS_KEY,
   FB_PROFILE_KEY,
   FEEDBACK_STATUSES,
+  feedbackMedia,
   feedbackStatus,
   feedbackType,
+  isVideoUrl,
 } from "@/lib/feedback";
+import { thumbUrl } from "@/lib/image-loader";
 import { ActionForm } from "@/components/admin/ActionForm";
 import {
   deleteFeedback,
@@ -183,11 +186,19 @@ export default async function AdminFeedbackPage({
                   </div>
                 )}
 
-                {f.screenshot && (
-                  <a href={f.screenshot} target="_blank" rel="noopener noreferrer" className="mt-2 block w-fit">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={f.screenshot} alt="Ảnh chụp màn hình" className="max-h-40 rounded-lg border border-gray-200" />
-                  </a>
+                {feedbackMedia(f).length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {feedbackMedia(f).map((m) =>
+                      isVideoUrl(m) ? (
+                        <video key={m} src={`${m}#t=0.1`} controls playsInline preload="metadata" className="max-h-48 max-w-xs rounded-lg border border-gray-200 bg-black" />
+                      ) : (
+                        <a key={m} href={m} target="_blank" rel="noopener noreferrer" className="block w-fit">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={thumbUrl(m, 384)} alt="Ảnh đính kèm" className="h-32 w-32 rounded-lg border border-gray-200 object-cover" />
+                        </a>
+                      ),
+                    )}
+                  </div>
                 )}
 
                 {/* Trả lời chính thức */}

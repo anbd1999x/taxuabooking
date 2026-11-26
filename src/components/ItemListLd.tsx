@@ -17,7 +17,7 @@ export async function ItemListLd({ name, items, max = 60 }: { name: string; item
     "@context": "https://schema.org",
     "@type": "ItemList",
     name,
-    numberOfItems: items.length,
+    numberOfItems: Math.min(items.length, max),
     itemListElement: items.slice(0, max).map((it, i) => ({
       "@type": "ListItem",
       position: i + 1,

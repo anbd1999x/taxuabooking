@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "@/components/Link";
 import type { FeedbackStatus, FeedbackType } from "@prisma/client";
 import {
@@ -8,7 +8,9 @@ import {
   feedbackStatus,
   feedbackType,
   FEEDBACK_TYPES,
+  isVideoUrl,
 } from "@/lib/feedback";
+import { thumbUrl } from "@/lib/image-loader";
 import { addComment, toggleVote } from "@/app/(site)/gop-y/actions";
 import { useT } from "@/components/i18n/I18nProvider";
 
@@ -29,6 +31,8 @@ export interface WallItem {
   message: string;
   authorName: string; // đã xử lý ẩn danh ở server
   avatar: string | null; // ẩn danh ⇒ null
+  anon: boolean; // ẩn danh ⇒ hiện hình người thay cho chữ cái đầu
+  media: string[]; // ảnh / video đính kèm (url /uploads/…)
   mine: boolean;
   mins: number;
   mood: number | null;
@@ -52,8 +56,18 @@ function Badge({ bg, fg, children }: { bg: string; fg: string; children: React.R
   );
 }
 
-/** Ảnh đại diện tròn: ảnh Google / Facebook nếu có (lỗi tải ⇒ chữ cái đầu), không thì vòng tròn chữ cái đầu tên. */
-function Avatar({ name, url, size = 28, admin = false }: { name: string; url: string | null; size?: number; admin?: boolean }) {
+// Màu nền vòng tròn chữ cái (tài khoản không có ảnh — đăng ký bằng SĐT): chọn theo tên để mỗi người một màu cố định.
+const AVATAR_TONES = [
+  ["#dff3e6", "#17663b"],
+  ["#ffe9d1", "#b45a0c"],
+  ["#e3ecff", "#2a55c0"],
+  ["#fbe3ee", "#b0306b"],
+  ["#ece6ff", "#5b3fc4"],
+  ["#dbf3f4", "#0f6f78"],
+];
+
+/** Ảnh đại diện tròn: ảnh Google / Facebook nếu có (lỗi tải ⇒ chữ cái đầu); không có ảnh ⇒ vòng tròn màu + chữ cái đầu tên; ẩn danh ⇒ hình người. */
+function Avatar({ name, url, size = 28, admin = false, anon = false }: { name: string; url: string | null; size?: number; admin?: boolean; anon?: boolean }) {
   const [broken, setBroken] = useState(false);
   const letter = (name.trim()[0] ?? "?").toUpperCase();
   const box = { width: size, height: size, fontSize: Math.round(size * 0.42) };
@@ -62,14 +76,61 @@ function Avatar({ name, url, size = 28, admin = false }: { name: string; url: st
       // eslint-disable-next-line @next/next/no-img-element
       <img src={url} alt="" referrerPolicy="no-referrer" loading="lazy" onError={() => setBroken(true)} style={box} className="flex-none rounded-full object-cover ring-1 ring-black/5" />
     );
+  if (admin)
+    return (
+      <span aria-hidden style={box} className="flex flex-none items-center justify-center rounded-full bg-forest-700 font-extrabold text-white">
+        TX
+      </span>
+    );
+  if (anon)
+    return (
+      <span aria-hidden style={box} className="flex flex-none items-center justify-center rounded-full bg-gray-200 text-gray-500">
+        <svg viewBox="0 0 24 24" width={Math.round(size * 0.6)} height={Math.round(size * 0.6)} fill="currentColor">
+          <circle cx="12" cy="8.5" r="4" />
+          <path d="M4 20.5c0-4.1 3.6-6.5 8-6.5s8 2.4 8 6.5z" />
+        </svg>
+      </span>
+    );
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const [bg, fg] = AVATAR_TONES[h % AVATAR_TONES.length];
   return (
-    <span
-      aria-hidden
-      style={box}
-      className={`flex flex-none items-center justify-center rounded-full font-extrabold ${admin ? "bg-forest-700 text-white" : "bg-[oklch(0.93_0.03_155)] text-forest-800"}`}
-    >
-      {admin ? "TX" : letter}
+    <span aria-hidden style={{ ...box, background: bg, color: fg }} className="flex flex-none items-center justify-center rounded-full font-extrabold ring-1 ring-black/5">
+      {letter}
     </span>
+  );
+}
+
+/** Lưới ảnh / video đính kèm dưới nội dung góp ý: ảnh bấm để xem lớn, video phát tại chỗ. */
+function MediaStrip({ media, onOpen }: { media: string[]; onOpen: (url: string) => void }) {
+  const tr = useT();
+  if (!media.length) return null;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {media.map((u) =>
+        isVideoUrl(u) ? (
+          <video
+            key={u}
+            src={`${u}#t=0.1`}
+            controls
+            playsInline
+            preload="metadata"
+            className="max-h-64 w-full max-w-sm rounded-xl border border-gray-200 bg-black"
+          />
+        ) : (
+          <button
+            key={u}
+            type="button"
+            onClick={() => onOpen(u)}
+            title={tr("Xem ảnh lớn")}
+            className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 transition hover:opacity-90"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={thumbUrl(u, 384)} alt={tr("Ảnh đính kèm")} loading="lazy" className="h-28 w-28 object-cover sm:h-36 sm:w-36" />
+          </button>
+        ),
+      )}
+    </div>
   );
 }
 
@@ -89,6 +150,16 @@ export function FeedbackWall({
   const [openId, setOpenId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [toast, setToast] = useState("");
+  const [zoom, setZoom] = useState<string | null>(null); // ảnh đính kèm đang xem lớn
+
+  useEffect(() => {
+    if (!zoom) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setZoom(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [zoom]);
   const [, startTransition] = useTransition();
 
   function flash(msg: string) {
@@ -238,6 +309,17 @@ export function FeedbackWall({
                 )}
 
                 <div className="flex min-w-0 flex-col gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <Avatar name={f.authorName} url={f.avatar} size={38} anon={f.anon} />
+                    <div className="min-w-0 leading-tight">
+                      <div className="truncate text-sm font-extrabold text-ink">
+                        {tr(f.authorName)}
+                        {f.mine && <span className="font-semibold text-gray-400">{" "}{tr("(bạn)")}</span>}
+                      </div>
+                      <div className="text-xs text-gray-500">{agoText(f.mins, tr)}</div>
+                    </div>
+                  </div>
+
                   <div className="flex flex-wrap items-center gap-1.5">
                     <Badge bg={ty.bg} fg={ty.fg}>{tr(ty.short)}</Badge>
                     <Badge bg={st.bg} fg={st.fg}>{tr(st.name)}</Badge>
@@ -248,16 +330,11 @@ export function FeedbackWall({
                     ))}
                   </div>
 
-                  <p className="text-[15px] leading-relaxed text-gray-800">{tr(f.message)}</p>
+                  <p className="whitespace-pre-line text-[15px] leading-relaxed text-gray-800">{tr(f.message)}</p>
+
+                  <MediaStrip media={f.media} onOpen={setZoom} />
 
                   <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 text-xs text-gray-500">
-                    <span className="flex items-center gap-1.5">
-                      <Avatar name={f.authorName} url={f.avatar} size={22} />
-                      <span>
-                        <b className="text-gray-700">{tr(f.authorName)}</b>
-                        {f.mine && <span className="text-gray-400">{" "}{tr("(bạn)")}</span>} · {agoText(f.mins, tr)}
-                      </span>
-                    </span>
                     {f.mood ? <span>{tr("Chấm web {0}/5", [f.mood])}</span> : null}
                     <button
                       type="button"
@@ -278,7 +355,7 @@ export function FeedbackWall({
                     <div className="flex flex-col gap-2 border-l-2 border-gray-100 pl-3">
                       {f.comments.map((c) => (
                         <div key={c.id} className="flex gap-2 text-[13px] leading-snug">
-                          <Avatar name={c.authorName} url={c.avatar} size={26} admin={c.isAdmin} />
+                          <Avatar name={c.authorName} url={c.avatar} size={30} admin={c.isAdmin} />
                           <div className="min-w-0">
                             <b className={c.isAdmin ? "text-forest-700" : "text-gray-700"}>
                               {c.isAdmin ? tr("Tà Xùa Booking") : tr(c.authorName)}
@@ -319,6 +396,26 @@ export function FeedbackWall({
               </article>
             );
           })}
+        </div>
+      )}
+
+      {zoom && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setZoom(null)}
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/85 p-3"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={thumbUrl(zoom, 1440)} alt={tr("Ảnh đính kèm")} className="max-h-full max-w-full rounded-lg object-contain" />
+          <button
+            type="button"
+            onClick={() => setZoom(null)}
+            aria-label={tr("Đóng")}
+            className="absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-white/15 text-xl font-bold text-white hover:bg-white/25"
+          >
+            ×
+          </button>
         </div>
       )}
 

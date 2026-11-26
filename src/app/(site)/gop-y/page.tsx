@@ -9,6 +9,7 @@ import {
   FB_OWNER_KEY,
   FB_POSTS_KEY,
   FB_PROFILE_KEY,
+  feedbackMedia,
   parseFbPosts,
 } from "@/lib/feedback";
 import { GopYForm } from "@/components/gopy/GopYForm";
@@ -70,6 +71,8 @@ export default async function GopYPage() {
     message: f.message,
     authorName: f.anon ? t("Ẩn danh") : f.authorName,
     avatar: f.anon ? null : (f.customer?.avatar ?? null),
+    anon: f.anon,
+    media: feedbackMedia(f),
     mine: Boolean(customer && f.customerId === customer.id),
     mins: mins(f.createdAt, now),
     mood: f.mood,

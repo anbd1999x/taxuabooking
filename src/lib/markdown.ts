@@ -1,3 +1,4 @@
+import { thumbUrl } from "@/lib/image-loader";
 /**
  * Markdown tối giản → HTML cho bài viết (chuẩn SEO: h2/h3 thật, p, danh sách,
  * ảnh, link). Toàn bộ input được escape trước nên an toàn khi render.
@@ -21,6 +22,18 @@ function inline(s: string): string {
     })
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+}
+
+/**
+ * Ảnh trong thân bài: ảnh của site (/uploads…) đi qua /thumb (WebP, đúng bề rộng khung bài ~760px) kèm srcset —
+ * ảnh gốc admin tải lên thường 200 KB–4 MB. Ảnh ngoài (http…) giữ nguyên.
+ */
+function imgTag(src: string, alt: string): string {
+  const small = thumbUrl(src, 828);
+  if (small === src) return `<img src="${src}" alt="${alt}" loading="lazy" decoding="async" />`;
+  const esc = (u: string) => u.replace(/&/g, "&amp;");
+  const set = [480, 828, 1440].map((w) => `${esc(thumbUrl(src, w))} ${w}w`).join(", ");
+  return `<img src="${esc(small)}" srcset="${set}" sizes="(max-width: 800px) 100vw, 760px" alt="${alt}" loading="lazy" decoding="async" />`;
 }
 
 export function renderMarkdown(src: string): string {
@@ -76,7 +89,7 @@ export function renderMarkdown(src: string): string {
     m = t.match(/^##\s+(.*)/);
     if (m) { flushPara(); flushList(); out.push(`<h2>${inline(m[1])}</h2>`); continue; }
     m = t.match(/^!\[([^\]]*)\]\((\/[^\s)]+|https?:\/\/[^\s)]+)\)$/);
-    if (m) { flushPara(); flushList(); out.push(`<img src="${m[2]}" alt="${m[1]}" loading="lazy" decoding="async" />`); continue; }
+    if (m) { flushPara(); flushList(); out.push(imgTag(m[2], m[1])); continue; }
     m = t.match(/^[-•]\s+(.*)/);
     if (m) { flushPara(); list.push(m[1]); continue; }
     m = t.match(/^&gt;\s?(.*)/);

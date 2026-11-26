@@ -1,3 +1,4 @@
+import { SITE } from "@/lib/site";
 import "server-only";
 import { randomUUID } from "crypto";
 import bcrypt from "bcryptjs";
@@ -68,13 +69,13 @@ async function seedDemo(tx: Tx) {
   // Chủ xe demo (không đăng nhập bằng mật khẩu được — chỉ vào qua nút demo).
   let owner = await tx.adminUser.findUnique({ where: { username: DEMO_USERNAME } });
   if (!owner) {
-    owner = await tx.adminUser.create({ data: { username: DEMO_USERNAME, name: "Nhà xe Mây Tà Xùa", role: "PROVIDER", phone: "0397943155", passwordHash: await bcrypt.hash(randomUUID(), 8) } });
+    owner = await tx.adminUser.create({ data: { username: DEMO_USERNAME, name: "Nhà xe Mây Tà Xùa", role: "PROVIDER", phone: SITE.defaultPhone, passwordHash: await bcrypt.hash(randomUUID(), 8) } });
   }
   await tx.adminUser.deleteMany({ where: { providerId: owner.id, role: "STAFF" } });
   await tx.service.deleteMany({ where: { slug: DEMO_SLUG } });
 
   const svc = await tx.service.create({
-    data: { slug: DEMO_SLUG, category: "MOTORBIKE", title: "Nhà xe Mây Tà Xùa (demo)", summary: "Nhà xe mẫu cho bản demo quản lý xe.", description: "Dữ liệu mẫu, không bán trên web.", published: false, ownerId: owner.id, contactPhone: "0397943155" },
+    data: { slug: DEMO_SLUG, category: "MOTORBIKE", title: "Nhà xe Mây Tà Xùa (demo)", summary: "Nhà xe mẫu cho bản demo quản lý xe.", description: "Dữ liệu mẫu, không bán trên web.", published: false, ownerId: owner.id, contactPhone: SITE.defaultPhone },
   });
   const pg1 = await tx.rentalVehicle.create({ data: { serviceId: svc.id, vehicleType: "Yamaha PG-1", pricePerDay: 280000, totalUnits: 5 } });
   const wave = await tx.rentalVehicle.create({ data: { serviceId: svc.id, vehicleType: "Honda Wave", pricePerDay: 180000, totalUnits: 3 } });

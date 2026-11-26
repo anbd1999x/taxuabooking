@@ -36,7 +36,8 @@ export async function i18nMeta(o: {
   const title = t(o.title);
   const description = t(o.description);
   return {
-    title,
+    // Dài hơn 43 ký tự thì KHÔNG nối " | Tà Xùa Booking" (17 ký tự) để tiêu đề không vượt 60.
+    title: title.length > 43 ? { absolute: title } : title,
     description,
     alternates: await i18nAlternates(o.path),
     openGraph: await i18nOg({ ...o, title, description, alt: o.alt ? t(o.alt) : undefined }),
