@@ -584,7 +584,7 @@ export function TicketBooking({ venue: v, avail: a0, initialDay, base = "/ve" }:
                     <div style={h2}>{T === "RESTAURANT" ? t("Đặt món trước") : t("Đồ ăn uống kèm")}</div>
                     <div style={hint}>{T === "RESTAURANT" ? t("Bếp chuẩn bị sẵn, lên món ngay khi bạn tới") : t("Nhận tại quầy bằng mã QR, không phải xếp hàng")}</div>
                   </div>
-                  {!(T === "RESTAURANT" && v.policy === "min") && <span onClick={next} style={{ cursor: "pointer", fontSize: 13, fontWeight: 800, color: "oklch(0.4 0.08 160)", whiteSpace: "nowrap" }}>{t("Bỏ qua")} →</span>}
+                  {!(T === "RESTAURANT" && v.policy === "min") && <span onClick={next} style={{ cursor: "pointer", fontSize: 13, fontWeight: 800, color: "oklch(0.4 0.08 160)", whiteSpace: "nowrap" }}>{t("Bỏ qua")}</span>}
                 </div>
                 {T === "RESTAURANT" && (
                   <div style={{ fontSize: 13, lineHeight: 1.5, padding: "10px 14px", borderRadius: 14, background: "oklch(0.97 0.03 80)", color: "oklch(0.42 0.08 55)" }}>

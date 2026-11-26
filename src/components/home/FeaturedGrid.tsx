@@ -219,9 +219,6 @@ function Card({
               <b className="text-lg" style={{ color: "oklch(0.45 0.1 158)" }}>{price != null ? t(formatPrice(price)) : t("Liên hệ")}</b>
               {price != null && s.priceUnit && <span className="text-xs" style={{ color: "oklch(0.5 0.02 160)" }}>{t(s.priceUnit)}</span>}
             </span>
-            <span className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-full font-extrabold" style={{ background: "oklch(0.95 0.025 155)", color: "oklch(0.35 0.08 158)" }}>
-              →
-            </span>
           </div>
         </div>
       </div>

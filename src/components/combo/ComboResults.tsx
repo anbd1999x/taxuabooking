@@ -378,9 +378,10 @@ export function ComboResults({
               className="flex items-center justify-between gap-2.5 rounded-[14px] bg-[oklch(0.96_0.025_155)] px-4 py-[11px] text-sm font-bold text-[oklch(0.32_0.08_158)] hover:text-sunset-600"
             >
               <span>{tr("Chưa biết đi đâu? Xem lịch trình gợi ý {0} ngày {1} đêm", [nights + 1, nights])}</span>
-              <span>→</span>
             </Link>
           )}
+          {/* Link hướng dẫn check legit + đặt 6 bước ngay đầu danh sách combo (không phải mở form mới thấy). */}
+          <CommitmentLink className="flex items-center gap-2 rounded-[14px] bg-[oklch(0.97_0.03_75)] px-4 py-[11px] text-sm font-bold text-[oklch(0.42_0.11_55)] hover:text-sunset-600" />
 
           {entries.length === 0 && (
             <div className="flex flex-col items-center gap-2.5 rounded-[20px] border-[1.5px] border-dashed border-[oklch(0.86_0.02_160)] bg-white px-5 py-10 text-center text-[oklch(0.5_0.02_160)]">
@@ -977,7 +978,7 @@ function ComboPlanCard({
                 </button>
                 <ItineraryLink nights={nights} cost={{ roomTotal: plan.roomCost, rooms: plan.roomIds.length, pax: people, bus: bus ? { transport: "cabin", total: cabinCost } : null, discount: plan.noDiscount ? 0 : comboDiscount * people }} />
                 <CommitmentLink className="flex items-center justify-center gap-1.5 text-center text-xs font-semibold text-forest-700 transition hover:text-forest-900" />
-                <p className="text-center text-xs leading-relaxed text-gray-500">{tr("Giá tham khảo · chủ dịch vụ gọi xác nhận, không thanh toán online.")}</p>
+                <p className="text-center text-xs leading-relaxed text-gray-500">{tr("Giá tham khảo · tụi mình gọi xác nhận, không thanh toán online.")}</p>
               </div>
             )}
           </div>

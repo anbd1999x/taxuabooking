@@ -550,7 +550,7 @@ export default function BookingsListClient({
           const m = minsAgo(r.createdAt);
           const urg = isUrgent(r);
           const payText = r.pay === "full" ? "Đã thu đủ" : r.pay === "dep" ? `Cọc ${K(r.collected)}` : "Chưa thu";
-          const payTone = r.pay === "full" ? "text-forest-700 bg-forest-500" : r.pay === "dep" ? "text-amber-600 bg-amber-500" : "text-gray-500 bg-gray-400";
+          const payTone = r.pay === "full" ? "text-forest-700 bg-forest-500" : r.pay === "dep" ? "text-amber-600 bg-amber-500" : "text-red-600 bg-red-500";
           const payPct = r.price ? Math.min(100, Math.round((r.collected / r.price) * 100)) : 0;
           const phoneDigits = r.phone.replace(/\D/g, "");
           return (
@@ -809,7 +809,7 @@ export default function BookingsListClient({
               <div className="flex flex-col gap-2 rounded-2xl border border-gray-100 bg-white px-4 py-3.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-xs font-bold text-gray-500">Thanh toán</div>
-                  <span className={`text-xs font-bold ${dx.pay === "full" ? "text-forest-700" : dx.pay === "dep" ? "text-amber-600" : "text-gray-500"}`}>
+                  <span className={`text-xs font-bold ${dx.pay === "full" ? "text-forest-700" : dx.pay === "dep" ? "text-amber-600" : "text-red-600"}`}>
                     {dx.pay === "full" ? "Đã thu đủ" : `Đã thu ${K(dx.collected)}${dx.price != null ? ` / ${K(dx.price)}` : ""}`}
                   </span>
                 </div>

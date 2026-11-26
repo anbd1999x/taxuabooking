@@ -363,7 +363,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
                     <div className="text-sm font-bold text-ink">{tr("Số khách")}</div>
                     <div className="mt-0.5 text-xs text-gray-500">
                       {fare == null
-                        ? tr("Nhà xe báo giá khi gọi xác nhận")
+                        ? tr("Tụi mình báo giá khi gọi xác nhận")
                         : tr("Vé {0}: {1}/khách (nằm ghép)", [roundTrip ? tr("khứ hồi") : tr("1 chiều"), tr(vnd(fare))])}
                     </div>
                   </div>
@@ -374,7 +374,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
                   </div>
                 </div>
                 {people > maxPeople && maxPeople > 0 && (
-                  <p className="text-xs font-semibold text-sunset-600">{tr("Chuyến chỉ còn {0} chỗ — nhà xe sẽ gọi xác nhận.", [maxPeople])}</p>
+                  <p className="text-xs font-semibold text-sunset-600">{tr("Chuyến chỉ còn {0} chỗ — tụi mình sẽ gọi xác nhận.", [maxPeople])}</p>
                 )}
 
                 {/* Chỗ nằm trên xe cabin: cabin đôi nằm ghép / cabin đơn nằm riêng (giống combo) */}
@@ -429,7 +429,7 @@ export function CabinBooking({ serviceId, outbound, ret, phone, zalo, pickupProv
                   </div>
                 )}
                 <p className="text-center text-xs leading-relaxed text-gray-500">
-                  {tr("Chỗ được giữ sau khi nhà xe gọi xác nhận. Chưa cần thanh toán.")}
+                  {tr("Chỗ được giữ sau khi tụi mình gọi xác nhận. Chưa cần thanh toán.")}
                 </p>
               </div>
             ) : (

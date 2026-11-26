@@ -63,7 +63,7 @@ export function CabinSearch({
           disabled={pending}
           className="flex items-center justify-center gap-2 rounded-2xl bg-sunset-500 px-6 py-4 text-base font-bold text-white transition hover:bg-sunset-600 active:scale-[0.98] disabled:cursor-wait disabled:opacity-80"
         >
-          {t("Tìm vé")}{" "}<span>→</span>
+          {t("Tìm vé")}
         </button>
       </div>
     </div>

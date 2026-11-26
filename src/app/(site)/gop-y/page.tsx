@@ -139,14 +139,14 @@ export default async function GopYPage() {
                   rel="noopener noreferrer"
                   className="flex items-center justify-between rounded-2xl bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700"
                 >
-                  {t("Nhắn Zalo")}{" "}<span>{t(zalo)} →</span>
+                  {t("Nhắn Zalo")}{" "}<span>{t(zalo)}</span>
                 </a>
               )}
               <a
                 href={`tel:${phone.replace(/\s/g, "")}`}
                 className="flex items-center justify-between rounded-2xl bg-forest-50 px-4 py-3 text-sm font-bold text-forest-700"
               >
-                {t("Gọi hotline")}{" "}<span>{t(phone)} →</span>
+                {t("Gọi hotline")}{" "}<span>{t(phone)}</span>
               </a>
               {email && (
                 <a

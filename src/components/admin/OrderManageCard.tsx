@@ -36,7 +36,7 @@ export interface ManageBooking {
 
 const PAY_LABEL = { UNPAID: "Chưa thu", DEPOSITED: "Đã cọc", PAID: "Đã thanh toán đủ" } as const;
 const PAY_TONE = {
-  UNPAID: "bg-amber-100 text-amber-700",
+  UNPAID: "bg-red-50 text-red-600",
   DEPOSITED: "bg-sky-100 text-sky-700",
   PAID: "bg-forest-100 text-forest-700",
 } as const;

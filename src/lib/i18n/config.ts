@@ -60,7 +60,13 @@ export type Dict = Record<string, string>;
 /** Hàm dịch: khoá = chuỗi tiếng Việt gốc; thiếu bản dịch ⇒ trả nguyên tiếng Việt. */
 export type TFunc = <K extends string | null | undefined>(key: K, vars?: TVars) => K extends string ? string : K;
 
-export const identityT = ((key: string | null | undefined, vars?: TVars) => (key ? interpolate(key, vars) : key)) as TFunc;
+/**
+ * Bỏ mũi tên "→" ở CUỐI nhãn (vd "Xem cam kết uy tín →") cho giao diện gọn — làm ở đây để mọi nhãn + bản dịch
+ * (khoá từ điển vẫn giữ "→") cùng được bỏ một chỗ. Mũi tên giữa câu ("Mới → Đã xác nhận") giữ nguyên.
+ */
+const noTailArrow = (s: string): string => (s.endsWith("→") ? s.replace(/\s*→$/, "") : s);
+
+export const identityT = ((key: string | null | undefined, vars?: TVars) => (key ? noTailArrow(interpolate(key, vars)) : key)) as TFunc;
 
 /**
  * Dựng hàm dịch: tra từ điển giao diện trước, rồi tới bản dịch nội dung admin nhập (DB).
@@ -114,6 +120,6 @@ export function makeT(dict: Dict, content?: Dict): TFunc {
     let hit = lookup(norm, dict, content);
     // giữ khoảng trắng đầu/cuối của chuỗi gốc quanh bản dịch
     if (hit !== undefined && core !== key) hit = key.slice(0, key.indexOf(core)) + hit + key.slice(key.indexOf(core) + core.length);
-    return interpolate(hit ?? key, vars);
+    return noTailArrow(interpolate(hit ?? key, vars));
   }) as TFunc;
 }

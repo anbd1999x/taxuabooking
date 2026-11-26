@@ -45,7 +45,7 @@ export function vnPhoneError(raw: string): string | null {
   const sub = s.slice(3);
   // Toàn số chỉ có ≤2 chữ số khác nhau (0900000000, 0999999999) hoặc thuê bao là dãy liên tiếp.
   if (new Set(s).size <= 2 || isSequential(sub)) {
-    return "Số điện thoại không hợp lệ — vui lòng nhập số thật của bạn (nhà cung cấp sẽ liên hệ qua Zalo/điện thoại).";
+    return "Số điện thoại không hợp lệ — vui lòng nhập số thật của bạn (tụi mình sẽ liên hệ qua Zalo/điện thoại).";
   }
   return null;
 }
