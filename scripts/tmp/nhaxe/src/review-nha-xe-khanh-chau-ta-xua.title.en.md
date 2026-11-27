@@ -1,0 +1,1 @@
+Review of Khánh Châu bus to Tà Xùa: fares, timetable, pick-up points

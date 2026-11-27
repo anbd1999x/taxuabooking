@@ -1,0 +1,1 @@
+Từ Lạng Sơn đi Tà Xùa chưa có xe cabin đón tại chỗ: về Hà Nội khoảng 150km, lên 1 trong 5 xe đêm 21h–22h, vé khứ hồi từ 500.000đ, đón Bắc Giang 800.000đ.

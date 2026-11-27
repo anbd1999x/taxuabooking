@@ -1,0 +1,576 @@
+query,page,clicks,impressions,ctr,position
+"taxuabooking","https://taxuabooking.com/",141,158,0.8924,1.1
+"tà xùa booking","https://taxuabooking.com/",29,69,0.4203,3.9
+"taxi tà xùa","https://taxuabooking.com/taxi",8,73,0.1096,4.9
+"booking tà xùa","https://taxuabooking.com/",7,33,0.2121,5.0
+"nhà mây si tà xùa","https://taxuabooking.com/homestay/nha-may-si",6,39,0.1538,3.3
+"nhà bên suối retreat tà xùa","https://taxuabooking.com/homestay/nha-ben-suoi",4,93,0.0430,7.1
+"noọng ơi homestay tà xùa","https://taxuabooking.com/en/homestay/noong-oi-homestay",4,6,0.6667,4.5
+"taxuabooking","https://taxuabooking.com/tra-cuu",3,104,0.0288,2.7
+"dốc mơ homestay tà xùa","https://taxuabooking.com/homestay/doc-mo-homestay",2,13,0.1538,5.8
+"mon's house tà xùa","https://taxuabooking.com/homestay/mons-house-ta-xua",2,9,0.2222,5.6
+"mống vàng tà xùa","https://taxuabooking.com/homestay/mong-vang-retreat",2,5,0.4000,7.8
+"nhà bên suối tà xùa","https://taxuabooking.com/homestay/nha-ben-suoi",2,68,0.0294,6.2
+"nhà xe tiến thành tà xùa","https://taxuabooking.com/xe-cabin/nha-xe-tien-thanh",2,52,0.0385,7.4
+"đặt phòng tà xùa","https://taxuabooking.com/homestay",2,20,0.1000,8.1
+"a phủ homestay tà xùa","https://taxuabooking.com/homestay/a-phu-homes",1,12,0.0833,11.3
+"a phủ homestay tà xùa","https://taxuabooking.com/homestay/a-phu-lung-chung/phong/cmvzfclt6000euns4fml3to5a",1,27,0.0370,10.4
+"biển mây homestay tà xùa","https://taxuabooking.com/kinh-nghiem/homestay-ta-xua-view-may-dep",1,3,0.3333,10.3
+"bản đồ du lịch tà xùa","https://taxuabooking.com/ban-do",1,25,0.0400,6.1
+"bếp ăn xuân thì tà xùa","https://taxuabooking.com/nha-hang/bep-an-xuan-thi-ta-xua",1,15,0.0667,6.9
+"chillin house tà xùa","https://taxuabooking.com/kinh-nghiem/review-chillin-house-ta-xua",1,7,0.1429,9.3
+"homestay thác mây tà xùa","https://taxuabooking.com/homestay/thac-may-ta-xua/phong/cmw0kx39p000zry274yht64qu",1,2,0.5000,8.5
+"khánh châu limousine","https://taxuabooking.com/xe-cabin/nha-xe-khanh-chau",1,16,0.0625,8.7
+"khèn coffee tà xùa","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e8cc000cunhsqtg6v983",1,7,0.1429,12.1
+"khèn coffee tà xùa","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e8kv001aunhsqz451ksb",1,1,1.0000,28.0
+"khèn homestay tà xùa","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e8ge000sunhskmweqzyo",1,16,0.0625,7.4
+"la cheu home tà xùa","https://taxuabooking.com/en/homestay/la-cheu-homestay/phong/cmw4fb6sv0002pk28dwv0zb15",1,5,0.2000,7.0
+"mi ami mountain retreat","https://taxuabooking.com/en/cafe/mi-ami-mountain-retreat-cafe-nha-hang",1,6,0.1667,10.7
+"mon house tà xùa","https://taxuabooking.com/homestay/mons-house-ta-xua/phong/cmvzgibd70002unrss916h3qg",1,1,1.0000,3.0
+"mây hạ retreat tà xùa","https://taxuabooking.com/kinh-nghiem/review-may-ha-retreat-ta-xua",1,5,0.2000,3.4
+"mây si homestay","https://taxuabooking.com/homestay/nha-may-si",1,19,0.0526,4.9
+"mống vàng retreat - tà xùa","https://taxuabooking.com/homestay/mong-vang-retreat/phong/cmvzfhynt000hunhs16d6woli",1,34,0.0294,7.7
+"mống vàng retreat tà xùa","https://taxuabooking.com/homestay/mong-vang-retreat/phong/cmvzfhynt000hunhs16d6woli",1,6,0.1667,7.7
+"nhà bên suối retreat","https://taxuabooking.com/homestay/nha-ben-suoi",1,35,0.0286,6.6
+"nhà hàng đồi mây tà xùa","https://taxuabooking.com/nha-hang/nha-hang-doi-may",1,10,0.1000,5.6
+"nhà xe khánh châu","https://taxuabooking.com/xe-cabin/nha-xe-khanh-chau",1,37,0.0270,8.8
+"nhà xe khánh châu đi tà xùa","https://taxuabooking.com/xe-cabin/nha-xe-khanh-chau",1,30,0.0333,8.8
+"noọng ơi homestay tà xùa","https://taxuabooking.com/en/kinh-nghiem/review-noong-oi-homestay-ta-xua",1,6,0.1667,7.2
+"phỏng lài homestay tà xùa","https://taxuabooking.com/homestay/phong-lai-homstay",1,5,0.2000,10.0
+"taxi tà xùa","https://taxuabooking.com/taxi/taxi-linh-nhung-2486",1,11,0.0909,8.5
+"taxuabooking","https://taxuabooking.com/chinh-sach-bao-mat",1,2,0.5000,6.5
+"taxuabooking","https://taxuabooking.com/gop-y",1,38,0.0263,1.5
+"taxuabooking","https://taxuabooking.com/homestay/lao-xan",1,3,0.3333,3.0
+"thuê xe máy tà xùa","https://taxuabooking.com/thue-xe-may",1,27,0.0370,9.6
+"thuê xe máy ở tà xùa","https://taxuabooking.com/kinh-nghiem/thue-xe-may-ta-xua",1,1,1.0000,22.0
+"tà xùa hills homestay","https://taxuabooking.com/homestay/ta-xua-hill",1,14,0.0714,10.1
+"xe cabin đi tà xùa","https://taxuabooking.com/xe-cabin",1,5,0.2000,7.6
+"xe hà nội tà xùa cabin đôi","https://taxuabooking.com/kinh-nghiem/gia-ve-xe-cabin-ha-noi-ta-xua",1,1,1.0000,21.0
+"xe hà nội tà xùa cabin đôi","https://taxuabooking.com/xe-cabin",1,3,0.3333,10.3
+"xe ôm tà xùa","https://taxuabooking.com/taxi",1,1,1.0000,4.0
+"xe ôm tà xùa","https://taxuabooking.com/xe-om",1,8,0.1250,3.0
+"ăn sáng tà xùa","https://taxuabooking.com/kinh-nghiem/an-sang-ta-xua-quan-mo-som",1,15,0.0667,5.7
+"ăn sáng ở tà xùa","https://taxuabooking.com/kinh-nghiem/an-sang-ta-xua-quan-mo-som",1,5,0.2000,4.4
+"1 ngày","https://taxuabooking.com/taxi",0,1,0.0000,5.0
+"1 người","https://taxuabooking.com/thue-xe-may",0,1,0.0000,12.0
+"2 người","https://taxuabooking.com/thue-xe-may",0,1,0.0000,2.0
+"2 vợ chồng","https://taxuabooking.com/kinh-nghiem/bungalow-ta-xua",0,1,0.0000,5.0
+"21h","https://taxuabooking.com/xe-cabin/nha-xe-thanh-my-2",0,1,0.0000,8.0
+"68 mạc thái tông","https://taxuabooking.com/",0,5,0.0000,7.6
+"68 mạc thái tông","https://taxuabooking.com/xe-cabin/nha-xe-khanh-chau",0,15,0.0000,9.8
+"68 mạc thái tông hà nội","https://taxuabooking.com/xe-cabin/nha-xe-khanh-chau",0,8,0.0000,10.0
+"68 mạc thái tông hà nội","https://taxuabooking.com/xe-cabin/nha-xe-tien-thanh",0,2,0.0000,6.5
+"700.000đ","https://taxuabooking.com/en/kinh-nghiem/homestay-ta-xua-gia-re",0,1,0.0000,6.0
+"a lầu homestay tà xùa","https://taxuabooking.com/homestay/cloud-forest-ta-xua/phong/cmw90hn3j0006unvgros1g52f",0,1,0.0000,9.0
+"a phủ home","https://taxuabooking.com/homestay/a-phu-homes",0,7,0.0000,9.9
+"a phủ home tà xùa","https://taxuabooking.com/homestay/a-phu-homes",0,11,0.0000,10.4
+"a phủ homestay","https://taxuabooking.com/homestay/a-phu-homes",0,4,0.0000,8.0
+"a phủ homestay tà xùa","https://taxuabooking.com/homestay/a-phu-homes/phong/cmvzffn49000iun5g54891ncf",0,1,0.0000,8.0
+"a phủ homestay tà xùa","https://taxuabooking.com/homestay/a-phu-lung-chung/phong/cmvzfcltz000iuns4ujdmovpc",0,1,0.0000,7.0
+"a phủ home’s","https://taxuabooking.com/homestay/a-phu-homes",0,7,0.0000,9.9
+"a phủ home’s","https://taxuabooking.com/homestay/a-phu-homes/phong/cmvzffn5f000oun5g2z9v6neu",0,1,0.0000,9.0
+"a phủ home’s","https://taxuabooking.com/homestay/a-phu-lung-chung/phong/cmvzfclt6000euns4fml3to5a",0,1,0.0000,8.0
+"amei hill tà xùa","https://taxuabooking.com/lich-trinh",0,1,0.0000,11.0
+"ameii hill","https://taxuabooking.com/en/lich-trinh",0,1,0.0000,2.0
+"an phú homestay tà xùa","https://taxuabooking.com/homestay/a-phu-homes",0,1,0.0000,10.0
+"bao nhiêu tiền","https://taxuabooking.com/kinh-nghiem/homestay-ta-xua-gia-re",0,1,0.0000,6.0
+"bao tiền","https://taxuabooking.com/taxi",0,1,0.0000,4.0
+"biển mây homestay tà xùa","https://taxuabooking.com/homestay",0,1,0.0000,6.0
+"book phòng tà xùa","https://taxuabooking.com/homestay",0,4,0.0000,8.0
+"booking tà xùa","https://taxuabooking.com/gioi-thieu",0,1,0.0000,5.0
+"booking tà xùa","https://taxuabooking.com/homestay",0,9,0.0000,5.0
+"booking tà xùa","https://taxuabooking.com/lien-he",0,2,0.0000,10.0
+"booking tà xùa","https://taxuabooking.com/ve",0,2,0.0000,4.0
+"bài đánh giá về a phủ home’s","https://taxuabooking.com/homestay/a-phu-homes",0,3,0.0000,10.3
+"bài đánh giá về bếp nhà táo khe cải","https://taxuabooking.com/homestay/bep-nha-tao",0,6,0.0000,7.7
+"bài đánh giá về mống vàng retreat - tà xùa sơn la","https://taxuabooking.com/homestay/mong-vang-retreat",0,1,0.0000,10.0
+"bài đánh giá về nhà bên suối retreat - tà xùa sơn la","https://taxuabooking.com/homestay/nha-ben-suoi",0,4,0.0000,7.5
+"bài đánh giá về nhặt nắng house tà xùa","https://taxuabooking.com/en/homestay/nhat-nang-house-ta-xua",0,1,0.0000,11.0
+"bài đánh giá về phỏng lài homestay sơn la","https://taxuabooking.com/homestay/phong-lai-homstay",0,5,0.0000,7.0
+"bản mây homestay tà xùa","https://taxuabooking.com/cafe/may-ban-ta-xua-homestay-coffee",0,1,0.0000,5.0
+"bản mây homestay tà xùa","https://taxuabooking.com/homestay",0,1,0.0000,10.0
+"bản mây homestay tà xùa","https://taxuabooking.com/homestay/ban-may-ta-xua-retreat/phong/cmvzejtgc000wun78mgr84ffr",0,3,0.0000,7.3
+"bản mây homestay tà xùa","https://taxuabooking.com/homestay/may-ban-ta-xua/phong/cmvzehgy5000sunf0jpcc79n1",0,3,0.0000,9.0
+"bản mây tà xùa","https://taxuabooking.com/cafe/may-ban-ta-xua-homestay-coffee",0,1,0.0000,2.0
+"bản mây tà xùa retreat","https://taxuabooking.com/homestay/ban-may-ta-xua-retreat",0,6,0.0000,7.7
+"bản mây tà xùa retreat","https://taxuabooking.com/homestay/ban-may-ta-xua-retreat/phong/cmvzejtgc000wun78mgr84ffr",0,3,0.0000,10.0
+"bản việt homestay tà xùa","https://taxuabooking.com/homestay/may-ban-ta-xua/phong/cmvzehgvv000gunf06k0k5ga9",0,1,0.0000,8.0
+"bản việt homestay tà xùa","https://taxuabooking.com/homestay/may-ban-ta-xua/phong/cmvzehgy5000sunf0jpcc79n1",0,2,0.0000,20.5
+"bản đồ tà xùa","https://taxuabooking.com/ban-do",0,14,0.0000,5.9
+"bếp nhà táo","https://taxuabooking.com/homestay/bep-nha-tao",0,12,0.0000,9.3
+"bếp nhà táo homestay","https://taxuabooking.com/en/homestay/bep-nha-tao",0,6,0.0000,7.5
+"bếp nhà táo homestay","https://taxuabooking.com/homestay/bep-nha-tao",0,5,0.0000,7.2
+"bếp nhà táo homestay tà xùa","https://taxuabooking.com/en/homestay/bep-nha-tao",0,1,0.0000,9.0
+"bếp nhà táo homestay tà xùa","https://taxuabooking.com/homestay/bep-nha-tao",0,5,0.0000,8.0
+"bếp nhà táo khe cải","https://taxuabooking.com/en/homestay/bep-nha-tao",0,9,0.0000,9.6
+"bếp nhà táo khe cải","https://taxuabooking.com/homestay/bep-nha-tao",0,41,0.0000,8.7
+"bếp nhà táo tà xùa","https://taxuabooking.com/en/homestay/bep-nha-tao",0,1,0.0000,6.0
+"bếp nhà táo tà xùa","https://taxuabooking.com/homestay/bep-nha-tao",0,8,0.0000,6.5
+"bếp ăn xuân thì","https://taxuabooking.com/nha-hang/bep-an-xuan-thi-ta-xua",0,9,0.0000,6.4
+"bếp ăn xuân thì tà xùa","https://taxuabooking.com/en/nha-hang/bep-an-xuan-thi-ta-xua",0,2,0.0000,4.0
+"bếp ăn xuân thì tà xùa","https://taxuabooking.com/nha-hang",0,1,0.0000,12.0
+"cafe mị ơi tà xùa","https://taxuabooking.com/cafe/mi-oi-cafe",0,1,0.0000,10.0
+"cafe mị ơi tà xùa","https://taxuabooking.com/en/cafe/mi-oi-cafe",0,1,0.0000,9.0
+"cafe panorama tà xùa","https://taxuabooking.com/cafe/panorama-coffee",0,19,0.0000,6.8
+"cafe tháng 10 tà xùa","https://taxuabooking.com/cafe",0,1,0.0000,11.0
+"cafe tháng 10 tà xùa","https://taxuabooking.com/cafe/ca-phe-thang-10",0,6,0.0000,5.2
+"cafe đỉnh gió","https://taxuabooking.com/kinh-nghiem/quan-ca-phe-san-may-ta-xua-theo-khu",0,1,0.0000,10.0
+"casa tà xùa homestay","https://taxuabooking.com/",0,1,0.0000,35.0
+"checker tà xùa","https://taxuabooking.com/ban-do",0,1,0.0000,10.0
+"chi phí đi tà xùa 2 ngày 1 đêm","https://taxuabooking.com/kinh-nghiem/homestay-ta-xua-gia-re",0,1,0.0000,3.0
+"chi phí đi tà xùa 3 ngày 2 đêm","https://taxuabooking.com/kinh-nghiem/homestay-ta-xua-gia-re",0,1,0.0000,4.0
+"chill out village tà xùa","https://taxuabooking.com/kinh-nghiem/review-chillout-village-ta-xua",0,7,0.0000,10.7
+"chillin house","https://taxuabooking.com/en/homestay/chillin-house-ta-xua",0,2,0.0000,8.0
+"chillin house tà xùa","https://taxuabooking.com/en/homestay/chillin-house-ta-xua",0,16,0.0000,6.4
+"chillin house tà xùa","https://taxuabooking.com/ko/homestay/chillin-house-ta-xua",0,1,0.0000,8.0
+"chillout village - homestay tà xùa","https://taxuabooking.com/kinh-nghiem/review-chillout-village-ta-xua",0,7,0.0000,7.4
+"chillout village tà xùa","https://taxuabooking.com/homestay/chillout-village/phong/cmvxlqsxp01cplr273iduxytx",0,1,0.0000,81.0
+"chillout village tà xùa","https://taxuabooking.com/homestay/chillout-village/phong/cmvxoy8el00g5rz29i7j135c3",0,1,0.0000,89.0
+"chụp ảnh tà xùa","https://taxuabooking.com/kinh-nghiem/meo-chup-anh-san-may-bang-dien-thoai",0,5,0.0000,8.2
+"cloud forest","https://taxuabooking.com/kinh-nghiem/review-cloud-forest-ta-xua",0,1,0.0000,70.0
+"cloud forest ta xua","https://taxuabooking.com/en/homestay/cloud-forest-ta-xua/phong/cmw90hncm0012unvgg2rak9c4",0,1,0.0000,81.0
+"cloud forest ta xua","https://taxuabooking.com/en/kinh-nghiem/review-cloud-forest-ta-xua",0,1,0.0000,20.0
+"cloud forest tà xùa","https://taxuabooking.com/en/homestay/cloud-forest-ta-xua/phong/cmw90hncm0012unvgg2rak9c4",0,1,0.0000,86.0
+"cloud forest tà xùa","https://taxuabooking.com/homestay/cloud-forest-ta-xua/phong/cmw90hn2h0004unvgh513hzav",0,3,0.0000,35.7
+"cloud forest tà xùa","https://taxuabooking.com/homestay/cloud-forest-ta-xua/phong/cmw90hn8f000ounvg7v6o08un",0,1,0.0000,10.0
+"cloud forest tà xùa","https://taxuabooking.com/kinh-nghiem/review-cloud-forest-ta-xua",0,1,0.0000,18.0
+"cloud garden","https://taxuabooking.com/kinh-nghiem/review-cloud-garden-ta-xua",0,1,0.0000,11.0
+"cloud garden tà xùa","https://taxuabooking.com/en/homestay/ta-xua-retreat/phong/cmw96gvql000cunjkm1etfzm9",0,9,0.0000,9.3
+"cloud garden tà xùa","https://taxuabooking.com/en/homestay/ta-xua-retreat/phong/cmw96gvrr000gunjko6ayzj54",0,3,0.0000,11.0
+"cloud garden tà xùa","https://taxuabooking.com/kinh-nghiem/review-cloud-garden-ta-xua",0,13,0.0000,11.2
+"combo du lịch tà xùa","https://taxuabooking.com/combo",0,2,0.0000,8.5
+"combo nhà xe quang nghĩa tà xùa","https://taxuabooking.com/kinh-nghiem/review-nha-xe-quang-nghia-ta-xua",0,1,0.0000,5.0
+"combo tà xùa","https://taxuabooking.com/combo",0,1,0.0000,7.0
+"cuối tuần","https://taxuabooking.com/kinh-nghiem/homestay-ta-xua-gia-re",0,1,0.0000,2.0
+"cà phê làng văn hoá tà xùa","https://taxuabooking.com/cafe/cafe-lang-van-hoa",0,3,0.0000,6.3
+"cánh cam tà xùa","https://taxuabooking.com/nha-hang/tiem-nuong-canh-cam",0,3,0.0000,10.0
+"có","https://taxuabooking.com/homestay/a-phu-homes/phong/cmvzffn65000sun5gilshko96",0,1,0.0000,7.0
+"có","https://taxuabooking.com/kinh-nghiem/homestay-ta-xua-gia-re",0,1,0.0000,7.0
+"có","https://taxuabooking.com/xe-om",0,1,0.0000,2.0
+"cơm vị nhà tà xùa","https://taxuabooking.com/nha-hang",0,1,0.0000,9.0
+"cần bao nhiêu tiền","https://taxuabooking.com/en/kinh-nghiem/review-ta-xua-tat-tan-tat",0,1,0.0000,7.0
+"cỏ lạ homestay tà xùa","https://taxuabooking.com/en/homestay/co-la-homestay",0,1,0.0000,11.0
+"cỏ lạ homestay tà xùa","https://taxuabooking.com/homestay/co-la-homestay",0,1,0.0000,6.0
+"cỏ lạ tà xùa","https://taxuabooking.com/en/homestay/co-la-homestay/phong/cmvzd3r1j000aunhg16dfxuim",0,4,0.0000,10.8
+"cỏ lạ tà xùa","https://taxuabooking.com/homestay/co-la-homestay",0,8,0.0000,10.5
+"dbtt tà xùa","https://taxuabooking.com/kinh-nghiem/thoi-tiet-ta-xua-theo-thang",0,1,0.0000,9.0
+"dinh gio ta xua","https://taxuabooking.com/kinh-nghiem/dinh-gio-ta-xua",0,1,0.0000,6.0
+"dolphin rock ta xua","https://taxuabooking.com/en/kinh-nghiem/mom-ca-heo-cay-co-don-ta-xua",0,1,0.0000,96.0
+"dê homestay & restaurant tà xùa","https://taxuabooking.com/en/kinh-nghiem/review-de-homestay-ta-xua",0,22,0.0000,9.7
+"dê homestay & restaurant tà xùa","https://taxuabooking.com/homestay/de-homestay-ta-xua",0,1,0.0000,11.0
+"dê homestay tà xùa","https://taxuabooking.com/en/kinh-nghiem/review-de-homestay-ta-xua",0,4,0.0000,9.0
+"dê homestay tà xùa","https://taxuabooking.com/homestay/de-homestay-ta-xua",0,2,0.0000,8.5
+"dốc mơ homestay tà xùa","https://taxuabooking.com/homestay/doc-mo-homestay/phong/cmw31sd0t0004unx8x3tgjlc5",0,1,0.0000,6.0
+"dốc mơ homestay tà xùa","https://taxuabooking.com/homestay/doc-mo-homestay/phong/cmw31sd9m000eunx8unns2nom",0,1,0.0000,11.0
+"giá","https://taxuabooking.com/xe-cabin/nha-xe-khanh-chau",0,1,0.0000,4.0
+"giá","https://taxuabooking.com/xe-om",0,1,0.0000,3.0
+"giá homestay","https://taxuabooking.com/kinh-nghiem/homestay-ta-xua-gia-re",0,1,0.0000,10.0
+"giá homestay tà xùa","https://taxuabooking.com/homestay",0,2,0.0000,9.0
+"giá mi ami mountain retreat","https://taxuabooking.com/en/cafe/mi-ami-mountain-retreat-cafe-nha-hang",0,1,0.0000,4.0
+"giá phòng","https://taxuabooking.com/en/homestay/mong-vang-retreat",0,1,0.0000,8.0
+"giá phòng","https://taxuabooking.com/homestay/ban-may-ta-xua-retreat/phong/cmvzejtbr0008un78eo5v83lo",0,1,0.0000,3.0
+"giá phòng","https://taxuabooking.com/homestay/ban-may-ta-xua-retreat/phong/cmvzejtgc000wun78mgr84ffr",0,1,0.0000,4.0
+"giá phòng chi tiết","https://taxuabooking.com/homestay/may-ban-ta-xua/phong/cmvzehgy5000sunf0jpcc79n1",0,1,0.0000,3.0
+"giá phòng tà xùa","https://taxuabooking.com/homestay",0,9,0.0000,8.1
+"giá phòng tà xùa","https://taxuabooking.com/kinh-nghiem/homestay-ta-xua-gia-re",0,1,0.0000,6.0
+"giá sao","https://taxuabooking.com/kinh-nghiem/homestay-ta-xua-gia-re",0,1,0.0000,5.0
+"giá thuê xe máy tà xùa","https://taxuabooking.com/thue-xe-may",0,2,0.0000,6.5
+"giá thì sao","https://taxuabooking.com/homestay/lao-xan",0,1,0.0000,7.0
+"giá vé cập nhật","https://taxuabooking.com/xe-cabin",0,1,0.0000,3.0
+"gợi ý","https://taxuabooking.com/kinh-nghiem/review-may-ha-retreat-ta-xua",0,1,0.0000,5.0
+"hanoi to ta xua bus","https://taxuabooking.com/en/xe-cabin",0,2,0.0000,7.5
+"happy town tà xùa","https://taxuabooking.com/en/homestay/happy-town-ta-xua",0,1,0.0000,1.0
+"happy town tà xùa","https://taxuabooking.com/homestay/happy-town-ta-xua/phong/cmw95wyfv000vunlkwhpus3nf",0,17,0.0000,10.1
+"happy town tà xùa","https://taxuabooking.com/homestay/happy-town-ta-xua/phong/cmw95wygu000zunlkuch712o6",0,1,0.0000,10.0
+"hiên nhà nắng tà xùa","https://taxuabooking.com/en/homestay/nhat-nang-house-ta-xua",0,1,0.0000,11.0
+"hoa tà xùa","https://taxuabooking.com/kinh-nghiem/mua-hoa-ta-xua",0,2,0.0000,7.5
+"home cỏ lạ tà xùa","https://taxuabooking.com/en/homestay/co-la-homestay",0,2,0.0000,9.5
+"home thác mây tà xùa","https://taxuabooking.com/homestay/thac-may-ta-xua",0,2,0.0000,8.0
+"homestay","https://taxuabooking.com/homestay/thac-may-ta-xua/phong/cmw0kx39p000zry274yht64qu",0,1,0.0000,2.0
+"homestay bếp nhà táo tà xùa","https://taxuabooking.com/en/homestay/bep-nha-tao",0,3,0.0000,8.3
+"homestay bếp nhà táo tà xùa","https://taxuabooking.com/homestay/bep-nha-tao",0,7,0.0000,6.9
+"homestay gió bản tà xùa giá","https://taxuabooking.com/homestay",0,1,0.0000,11.0
+"homestay khe cải tà xùa","https://taxuabooking.com/cafe/tiem-ca-phe-hoang-hon",0,1,0.0000,1.0
+"homestay khe cải tà xùa","https://taxuabooking.com/kinh-nghiem/homestay-ta-xua-view-may-dep",0,1,0.0000,66.0
+"homestay nhà bên suối","https://taxuabooking.com/homestay/nha-ben-suoi",0,3,0.0000,43.3
+"homestay thác mây tà xùa","https://taxuabooking.com/en/homestay/thac-may-ta-xua",0,1,0.0000,6.0
+"homestay thác mây tà xùa","https://taxuabooking.com/homestay/thac-may-ta-xua",0,12,0.0000,6.9
+"homestay thác mây tà xùa","https://taxuabooking.com/homestay/thac-may-ta-xua/phong/cmw0ipufk0004unys2ey8p3pq",0,1,0.0000,10.0
+"homestay trung tâm tà xùa","https://taxuabooking.com/homestay",0,1,0.0000,9.0
+"homestay tà xùa","https://taxuabooking.com/homestay",0,3,0.0000,23.7
+"homestay tà xùa","https://taxuabooking.com/homestay/a-phu-lung-chung/phong/cmvzfclri0006uns414jd8dpo",0,1,0.0000,10.0
+"homestay tà xùa","https://taxuabooking.com/kinh-nghiem/homestay-ta-xua-gia-re",0,2,0.0000,16.5
+"homestay tà xùa","https://taxuabooking.com/kinh-nghiem/homestay-ta-xua-view-may-dep",0,2,0.0000,56.0
+"homestay tà xùa c","https://taxuabooking.com/homestay",0,2,0.0000,49.5
+"homestay tà xùa c","https://taxuabooking.com/kinh-nghiem/homestay-ta-xua-gia-re",0,1,0.0000,29.0
+"homestay tà xùa lu trế","https://taxuabooking.com/en/homestay/cloud-forest-ta-xua/phong/cmw90hn2h0004unvgh513hzav",0,1,0.0000,2.0
+"homestay tại tà xùa","https://taxuabooking.com/homestay",0,1,0.0000,76.0
+"homestay đỉnh gió tà xùa","https://taxuabooking.com/kinh-nghiem/dinh-gio-ta-xua",0,14,0.0000,7.8
+"homestay đỉnh tà xùa","https://taxuabooking.com/kinh-nghiem/o-ta-xua-nen-chon-khu-nao",0,1,0.0000,8.0
+"hà nội tà xùa","https://taxuabooking.com/kinh-nghiem/duong-di-ta-xua-tu-ha-noi",0,1,0.0000,59.0
+"hà nội tà xùa","https://taxuabooking.com/xe-cabin",0,1,0.0000,5.0
+"hà nội tà xùa bao nhiều tiếng","https://taxuabooking.com/kinh-nghiem/ta-xua-o-dau-cach-ha-noi-bao-nhieu-km",0,2,0.0000,9.0
+"hà nội đi tà xùa mấy tiếng","https://taxuabooking.com/kinh-nghiem/ta-xua-o-dau-cach-ha-noi-bao-nhieu-km",0,1,0.0000,11.0
+"khe cải","https://taxuabooking.com/cafe/tiem-ca-phe-hoang-hon",0,1,0.0000,3.0
+"khe cải tà xùa","https://taxuabooking.com/kinh-nghiem/o-ta-xua-nen-chon-khu-nao",0,2,0.0000,3.5
+"khe cải tà xùa- homestay- cà phê bắc yên sơn la","https://taxuabooking.com/cafe/tiem-ca-phe-hoang-hon",0,8,0.0000,7.9
+"khèn","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e8ge000sunhskmweqzyo",0,1,0.0000,4.0
+"khèn cafe tà xùa","https://taxuabooking.com/cafe/khen-coffee-house",0,2,0.0000,10.0
+"khèn cafe tà xùa","https://taxuabooking.com/en/homestay/khen-coffee-house-ta-xua/phong/cmw93e8at0006unhstifdfox5",0,1,0.0000,6.0
+"khèn cafe tà xùa","https://taxuabooking.com/en/homestay/khen-coffee-house-ta-xua/phong/cmw93e8hv000yunhsun1uz6i8",0,1,0.0000,5.0
+"khèn cafe tà xùa","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e8cc000cunhsqtg6v983",0,1,0.0000,9.0
+"khèn cafe tà xùa","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e8ge000sunhskmweqzyo",0,2,0.0000,8.5
+"khèn coffee","https://taxuabooking.com/en/homestay/khen-coffee-house-ta-xua",0,1,0.0000,5.0
+"khèn coffee house","https://taxuabooking.com/en/cafe/khen-coffee-house",0,2,0.0000,3.5
+"khèn coffee house","https://taxuabooking.com/en/homestay/khen-coffee-house-ta-xua",0,9,0.0000,10.9
+"khèn coffee house tà xùa","https://taxuabooking.com/cafe/khen-coffee-house",0,1,0.0000,10.0
+"khèn coffee house tà xùa","https://taxuabooking.com/en/cafe/khen-coffee-house",0,1,0.0000,8.0
+"khèn coffee house tà xùa","https://taxuabooking.com/en/homestay/khen-coffee-house-ta-xua",0,1,0.0000,9.0
+"khèn coffee house tà xùa","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e8bu000aunhsfrd57lo4",0,4,0.0000,11.0
+"khèn coffee house tà xùa","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e8cc000cunhsqtg6v983",0,2,0.0000,10.5
+"khèn coffee house tà xùa","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e8ge000sunhskmweqzyo",0,3,0.0000,8.7
+"khèn coffee tà xùa","https://taxuabooking.com/cafe/khen-coffee-house",0,9,0.0000,10.0
+"khèn coffee tà xùa","https://taxuabooking.com/en/cafe/khen-coffee-house",0,3,0.0000,11.3
+"khèn coffee tà xùa","https://taxuabooking.com/en/homestay/khen-coffee-house-ta-xua",0,3,0.0000,6.3
+"khèn coffee tà xùa","https://taxuabooking.com/en/homestay/khen-coffee-house-ta-xua/phong/cmw93e8at0006unhstifdfox5",0,1,0.0000,63.0
+"khèn coffee tà xùa","https://taxuabooking.com/en/homestay/khen-coffee-house-ta-xua/phong/cmw93e8he000wunhs4mvcfrmz",0,1,0.0000,94.0
+"khèn coffee tà xùa","https://taxuabooking.com/en/homestay/khen-coffee-house-ta-xua/phong/cmw93e8hv000yunhsun1uz6i8",0,1,0.0000,89.0
+"khèn coffee tà xùa","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e8at0006unhstifdfox5",0,1,0.0000,12.0
+"khèn coffee tà xùa","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e8bu000aunhsfrd57lo4",0,4,0.0000,9.0
+"khèn coffee tà xùa","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e8ef000kunhsi6q7wqg6",0,1,0.0000,11.0
+"khèn coffee tà xùa","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e8fd000ounhsiwm6dpms",0,1,0.0000,75.0
+"khèn coffee tà xùa","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e8ge000sunhskmweqzyo",0,21,0.0000,10.0
+"khèn coffee tà xùa","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e8iw0012unhsnag480ih",0,1,0.0000,9.0
+"khèn coffee tà xùa","https://taxuabooking.com/ko/homestay/khen-coffee-house-ta-xua",0,1,0.0000,107.0
+"khèn coffee tà xùa","https://taxuabooking.com/zh/homestay/khen-coffee-house-ta-xua",0,1,0.0000,101.0
+"khèn homestay tà xùa","https://taxuabooking.com/cafe/khen-coffee-house",0,3,0.0000,9.7
+"khèn homestay tà xùa","https://taxuabooking.com/en/homestay/khen-coffee-house-ta-xua",0,1,0.0000,6.0
+"khèn homestay tà xùa","https://taxuabooking.com/en/homestay/khen-coffee-house-ta-xua/phong/cmw93e8cc000cunhsqtg6v983",0,1,0.0000,6.0
+"khèn homestay tà xùa","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e8ba0008unhsn49tmmyn",0,1,0.0000,10.0
+"khèn homestay tà xùa","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e8bu000aunhsfrd57lo4",0,1,0.0000,8.0
+"khèn homestay tà xùa","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e8cc000cunhsqtg6v983",0,1,0.0000,8.0
+"khèn homestay tà xùa","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e8ef000kunhsi6q7wqg6",0,8,0.0000,8.8
+"khèn tà xùa","https://taxuabooking.com/cafe/khen-coffee-house",0,3,0.0000,10.0
+"khèn tà xùa","https://taxuabooking.com/en/homestay/khen-coffee-house-ta-xua",0,1,0.0000,5.0
+"khèn tà xùa","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e8bu000aunhsfrd57lo4",0,1,0.0000,10.0
+"khèn tà xùa","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e8ge000sunhskmweqzyo",0,2,0.0000,9.5
+"la cheu home","https://taxuabooking.com/en/homestay/la-cheu-homestay/phong/cmw4fb6sv0002pk28dwv0zb15",0,3,0.0000,13.0
+"la cheu home tà xùa","https://taxuabooking.com/en/homestay/la-cheu-homestay",0,2,0.0000,5.0
+"la cheu home tà xùa","https://taxuabooking.com/kinh-nghiem/review-la-cheu-homestay-ta-xua",0,2,0.0000,10.5
+"lao xan boutique stay","https://taxuabooking.com/en/homestay/lao-xan/phong/cmw0j4lo90006unwg6yy5y880",0,1,0.0000,11.0
+"lao xan boutique stay","https://taxuabooking.com/homestay/lao-xan",0,31,0.0000,5.8
+"lao xan boutique stay","https://taxuabooking.com/homestay/lao-xan/phong/cmw0j4lr6000cunwgublvb6ma",0,2,0.0000,11.0
+"lao xan boutique stay","https://taxuabooking.com/kinh-nghiem/review-lao-xan-ta-xua",0,3,0.0000,6.7
+"leo núi tà xùa","https://taxuabooking.com/kinh-nghiem/trekking-dinh-ta-xua",0,1,0.0000,77.0
+"leo tà xùa","https://taxuabooking.com/kinh-nghiem/trekking-dinh-ta-xua",0,1,0.0000,62.0
+"lili mountain","https://taxuabooking.com/cafe/lili-mountain-tiem-ca-phe-tu-te",0,2,0.0000,6.0
+"lili mountain","https://taxuabooking.com/en/cafe/lili-mountain-tiem-ca-phe-tu-te",0,4,0.0000,5.0
+"limousine hà nội tà xùa","https://taxuabooking.com/xe-cabin/nha-xe-khanh-chau",0,1,0.0000,25.0
+"lonely tree ta xua","https://taxuabooking.com/en/kinh-nghiem/mom-ca-heo-cay-co-don-ta-xua",0,2,0.0000,10.5
+"lù homestay tà xùa","https://taxuabooking.com/homestay/cloud-forest-ta-xua/phong/cmw90hn2h0004unvgh513hzav",0,1,0.0000,6.0
+"lưng chừng homestay tà xùa","https://taxuabooking.com/homestay/a-phu-lung-chung/phong/cmvzfclst000cuns401hiuveh",0,4,0.0000,5.3
+"lưng chừng homestay tà xùa","https://taxuabooking.com/homestay/a-phu-lung-chung/phong/cmvzfclt6000euns4fml3to5a",0,1,0.0000,6.0
+"lưng chừng house tà xùa","https://taxuabooking.com/homestay/a-phu-lung-chung/phong/cmvzfclst000cuns401hiuveh",0,3,0.0000,8.0
+"lịch trình du lịch 2 ngày 1 đêm","https://taxuabooking.com/kinh-nghiem/homestay-ta-xua-gia-re",0,1,0.0000,32.0
+"lịch trình du lịch 2 ngày 1 đêm","https://taxuabooking.com/kinh-nghiem/lich-trinh-ta-xua-2-ngay-1-dem",0,1,0.0000,26.0
+"map tà xùa","https://taxuabooking.com/ban-do",0,5,0.0000,8.6
+"map tà xùa","https://taxuabooking.com/en/ban-do",0,2,0.0000,9.5
+"may hill tà xùa","https://taxuabooking.com/en/homestay/may-ha-retreat/phong/cmvzgr85t0010unc0kr2n85gt",0,1,0.0000,54.0
+"may hill tà xùa","https://taxuabooking.com/homestay/ta-xua-hill",0,2,0.0000,41.0
+"minh châu limousine vp hà nội","https://taxuabooking.com/xe-cabin/nha-xe-khanh-chau",0,3,0.0000,42.0
+"mon house tà xùa","https://taxuabooking.com/en/homestay/mons-house-ta-xua/phong/cmvzgibd80008unrskne158yh",0,1,0.0000,10.0
+"mon house tà xùa","https://taxuabooking.com/homestay/mons-house-ta-xua",0,5,0.0000,6.6
+"mon house tà xùa","https://taxuabooking.com/homestay/mons-house-ta-xua/phong/cmvzgibd8000cunrscoy5jm45",0,3,0.0000,7.3
+"mon house tà xùa","https://taxuabooking.com/homestay/mons-house-ta-xua/phong/cmvzgibd8000dunrspqe9fr0b",0,4,0.0000,6.5
+"mon house tà xùa","https://taxuabooking.com/homestay/mons-house-ta-xua/phong/cmvzgibd8000hunrsrpm4c42b",0,1,0.0000,10.0
+"mon's house","https://taxuabooking.com/en/homestay/mons-house-ta-xua/phong/cmvzgibd80008unrskne158yh",0,1,0.0000,14.0
+"mon's house","https://taxuabooking.com/en/homestay/mons-house-ta-xua/phong/cmvzgibd8000dunrspqe9fr0b",0,1,0.0000,19.0
+"mon's house","https://taxuabooking.com/homestay/mons-house-ta-xua",0,5,0.0000,8.0
+"mon's house","https://taxuabooking.com/homestay/mons-house-ta-xua/phong/cmvzgibd8000dunrspqe9fr0b",0,1,0.0000,8.0
+"mon's house","https://taxuabooking.com/homestay/mons-house-ta-xua/phong/cmvzgibd8000gunrslagtghbd",0,1,0.0000,27.0
+"mon's house tà xùa","https://taxuabooking.com/homestay/mons-house-ta-xua/phong/cmvzgibd8000dunrspqe9fr0b",0,6,0.0000,9.5
+"mon's house tà xùa","https://taxuabooking.com/homestay/mons-house-ta-xua/phong/cmvzgibd8000funrso0hj8i5s",0,1,0.0000,8.0
+"mon's house tà xùa","https://taxuabooking.com/homestay/mons-house-ta-xua/phong/cmvzgibd8000hunrsrpm4c42b",0,1,0.0000,10.0
+"mây bản tà xùa","https://taxuabooking.com/cafe/may-ban-ta-xua-homestay-coffee",0,1,0.0000,1.0
+"mây hạ retreat tà xùa","https://taxuabooking.com/en/homestay/may-ha-retreat/phong/cmvzgr814000eunc0bv2hu8b6",0,1,0.0000,9.0
+"mây hạ retreat tà xùa","https://taxuabooking.com/en/homestay/may-ha-retreat/phong/cmvzgr84r000uunc0xu5glm3r",0,8,0.0000,7.4
+"mây hạ retreat tà xùa","https://taxuabooking.com/homestay/may-ha-retreat",0,21,0.0000,4.0
+"mây hạ retreat tà xùa","https://taxuabooking.com/homestay/may-ha-retreat/phong/cmvzgr814000eunc0bv2hu8b6",0,1,0.0000,8.0
+"mây hạ retreat tà xùa","https://taxuabooking.com/homestay/may-ha-retreat/phong/cmvzgr82e000kunc04moav6lq",0,1,0.0000,8.0
+"mây si homestay","https://taxuabooking.com/en/homestay/nha-may-si/phong/cmvw8mylf0001pb27nzxg0tqb",0,3,0.0000,7.0
+"mây si homestay","https://taxuabooking.com/homestay",0,2,0.0000,7.5
+"mây si homestay tà xùa","https://taxuabooking.com/homestay",0,1,0.0000,7.0
+"mây si homestay tà xùa","https://taxuabooking.com/homestay/nha-may-si",0,6,0.0000,6.8
+"mây si homestay tà xùa","https://taxuabooking.com/kinh-nghiem/review-nha-may-si-ta-xua",0,1,0.0000,7.0
+"mít house tà xùa","https://taxuabooking.com/en/homestay/cloud-forest-ta-xua/phong/cmw90hne50018unvg214kel4o",0,2,0.0000,10.5
+"mít house tà xùa","https://taxuabooking.com/homestay/cloud-forest-ta-xua/phong/cmw90hne50018unvg214kel4o",0,3,0.0000,9.3
+"mùa hoa tà xùa","https://taxuabooking.com/kinh-nghiem/mua-hoa-ta-xua",0,1,0.0000,6.0
+"mống vàng","https://taxuabooking.com/homestay/mong-vang-retreat/phong/cmvzfhynt000hunhs16d6woli",0,1,0.0000,10.0
+"mống vàng retreat","https://taxuabooking.com/en/homestay/mong-vang-retreat",0,21,0.0000,9.2
+"mống vàng retreat","https://taxuabooking.com/en/homestay/mong-vang-retreat/phong/cmvzfhynt0005unhs3fxkw0xv",0,2,0.0000,15.0
+"mống vàng retreat","https://taxuabooking.com/en/homestay/mong-vang-retreat/phong/cmvzfhynt000funhseertw66q",0,1,0.0000,16.0
+"mống vàng retreat","https://taxuabooking.com/homestay/mong-vang-retreat",0,7,0.0000,8.7
+"mống vàng retreat","https://taxuabooking.com/homestay/mong-vang-retreat/phong/cmvzfhynt000hunhs16d6woli",0,16,0.0000,8.7
+"mống vàng retreat - tà xùa","https://taxuabooking.com/en/homestay/mong-vang-retreat",0,8,0.0000,7.9
+"mống vàng retreat - tà xùa","https://taxuabooking.com/en/homestay/mong-vang-retreat/phong/cmvzfhynt0002unhsyfzzzart",0,4,0.0000,8.8
+"mống vàng retreat - tà xùa","https://taxuabooking.com/en/homestay/mong-vang-retreat/phong/cmvzfhynt000funhseertw66q",0,1,0.0000,10.0
+"mống vàng retreat - tà xùa","https://taxuabooking.com/en/homestay/mong-vang-retreat/phong/cmvzfhynu000lunhsqgiv2ii4",0,2,0.0000,9.0
+"mống vàng retreat - tà xùa","https://taxuabooking.com/homestay/mong-vang-retreat",0,7,0.0000,9.6
+"mống vàng retreat - tà xùa sơn la","https://taxuabooking.com/en/homestay/mong-vang-retreat",0,2,0.0000,10.0
+"mống vàng retreat - tà xùa sơn la","https://taxuabooking.com/en/homestay/mong-vang-retreat/phong/cmvzfhynt0005unhs3fxkw0xv",0,1,0.0000,11.0
+"mống vàng retreat - tà xùa sơn la","https://taxuabooking.com/homestay/mong-vang-retreat",0,3,0.0000,9.3
+"mống vàng retreat - tà xùa sơn la","https://taxuabooking.com/homestay/mong-vang-retreat/phong/cmvzfhynt000hunhs16d6woli",0,4,0.0000,10.0
+"mống vàng retreat tà xùa","https://taxuabooking.com/en/homestay/mong-vang-retreat",0,5,0.0000,7.2
+"mống vàng retreat tà xùa","https://taxuabooking.com/homestay/mong-vang-retreat/phong/cmvzfhynt0003unhs8ysg1g54",0,2,0.0000,7.5
+"mống vàng tà xùa","https://taxuabooking.com/homestay/mong-vang-retreat/phong/cmvzfhynt000hunhs16d6woli",0,11,0.0000,9.3
+"ngày nào đó cafe tà xùa","https://taxuabooking.com/kinh-nghiem/quan-ca-phe-san-may-ta-xua-theo-khu",0,1,0.0000,5.0
+"nha cua an ta xua","https://taxuabooking.com/cafe/nha-cua-an-homestay-coffee",0,2,0.0000,9.0
+"nhà bên rừng tà xùa","https://taxuabooking.com/homestay/nha-ben-suoi",0,1,0.0000,7.0
+"nhà bên suối","https://taxuabooking.com/homestay/nha-ben-suoi",0,1,0.0000,1.0
+"nhà bên suối retreat - tà xùa","https://taxuabooking.com/homestay/nha-ben-suoi",0,28,0.0000,6.6
+"nhà bên suối retreat - tà xùa sơn la","https://taxuabooking.com/homestay/nha-ben-suoi",0,12,0.0000,6.3
+"nhà của an homestay cafe tà xùa","https://taxuabooking.com/cafe/nha-cua-an-homestay-coffee",0,1,0.0000,11.0
+"nhà của táo homestay tà xùa","https://taxuabooking.com/homestay/bep-nha-tao/phong/cmvzgzk2d0010unj8next9ux1",0,1,0.0000,9.0
+"nhà của đậu tà xùa","https://taxuabooking.com/homestay",0,3,0.0000,9.0
+"nhà hàng a phủ","https://taxuabooking.com/en/nha-hang/nha-hang-a-phu-tinh-hoa-am-thuc-ta-xua",0,1,0.0000,2.0
+"nhà hàng a phủ tà xùa","https://taxuabooking.com/en/nha-hang/nha-hang-a-phu-tinh-hoa-am-thuc-ta-xua",0,1,0.0000,7.0
+"nhà hàng a phủ tà xùa","https://taxuabooking.com/nha-hang",0,34,0.0000,8.9
+"nhà hàng a phủ tà xùa","https://taxuabooking.com/nha-hang/nha-hang-a-phu-tinh-hoa-am-thuc-ta-xua",0,14,0.0000,7.9
+"nhà hàng h'mông tà xùa","https://taxuabooking.com/cafe/nha-h-mong",0,4,0.0000,6.3
+"nhà hàng tà xùa","https://taxuabooking.com/nha-hang",0,5,0.0000,5.4
+"nhà hàng đồi mây tà xùa","https://taxuabooking.com/nha-hang",0,3,0.0000,9.0
+"nhà mây si tà xùa","https://taxuabooking.com/",0,1,0.0000,10.0
+"nhà mây si tà xùa","https://taxuabooking.com/en/homestay/nha-may-si/phong/cmvw8mylf0001pb27nzxg0tqb",0,2,0.0000,8.0
+"nhà mây si tà xùa","https://taxuabooking.com/homestay",0,9,0.0000,8.7
+"nhà mây si tà xùa","https://taxuabooking.com/kinh-nghiem/homestay-ta-xua-gia-re",0,2,0.0000,4.5
+"nhà mây si tà xùa","https://taxuabooking.com/kinh-nghiem/review-nha-may-si-ta-xua",0,4,0.0000,8.3
+"nhà xe bình minh tà xùa","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e89t0004unhs8uvgmlyd",0,1,0.0000,14.0
+"nhà xe khánh duy tà xùa","https://taxuabooking.com/xe-cabin/nha-xe-khanh-chau",0,2,0.0000,9.5
+"nhà xe khánh thịnh tà xùa","https://taxuabooking.com/xe-cabin/nha-xe-khanh-chau",0,1,0.0000,20.0
+"nhà xe minh châu tà xùa","https://taxuabooking.com/xe-cabin/nha-xe-khanh-chau",0,1,0.0000,37.0
+"nhà xe quang nghĩa","https://taxuabooking.com/kinh-nghiem/review-nha-xe-quang-nghia-ta-xua",0,5,0.0000,12.0
+"nhà xe quang nghĩa","https://taxuabooking.com/xe-cabin/nha-xe-quang-nghia-2",0,2,0.0000,8.0
+"nhà xe quang nghĩa hà nội tà xùa","https://taxuabooking.com/kinh-nghiem/review-nha-xe-quang-nghia-ta-xua",0,1,0.0000,8.0
+"nhà xe quang nghĩa hà nội tà xùa","https://taxuabooking.com/xe-cabin/nha-xe-quang-nghia-2",0,1,0.0000,11.0
+"nhà xe thành mỹ","https://taxuabooking.com/xe-cabin/nha-xe-thanh-my-2",0,8,0.0000,8.3
+"nhà xe thành mỹ tà xùa","https://taxuabooking.com/xe-cabin/nha-xe-thanh-my-2",0,4,0.0000,8.5
+"nhà xe tiến thành tà xùa","https://taxuabooking.com/en/xe-cabin/nha-xe-tien-thanh?pax=2",0,8,0.0000,7.1
+"nhà xe vân nam tà xùa","https://taxuabooking.com/xe-cabin",0,2,0.0000,6.0
+"nhà xe xuân trường tà xùa","https://taxuabooking.com/xe-cabin/nha-xe-xuan-truong",0,23,0.0000,8.2
+"nhặt nắng house tà xùa","https://taxuabooking.com/en/homestay/nhat-nang-house-ta-xua",0,7,0.0000,10.3
+"noọng ơi homestay tà xùa","https://taxuabooking.com/cafe/noong-oi-homestay-coffee",0,15,0.0000,8.7
+"noọng ơi homestay tà xùa","https://taxuabooking.com/en/homestay/noong-oi-homestay/phong/cmvxpmelb01c9rz29q4nt2706",0,1,0.0000,10.0
+"noọng ơi homestay tà xùa","https://taxuabooking.com/homestay/noong-oi-homestay",0,8,0.0000,4.6
+"noọng ơi homestay tà xùa","https://taxuabooking.com/homestay/noong-oi-homestay/phong/cmvxpf7ff00rcrz29njf4dkdb",0,3,0.0000,8.0
+"noọng ơi homestay tà xùa","https://taxuabooking.com/homestay/noong-oi-homestay/phong/cmvxpsxth017fp827db2e0wwb",0,5,0.0000,8.8
+"nên đi tà xùa hay sapa","https://taxuabooking.com/kinh-nghiem/ta-xua-hay-sapa-y-ty",0,5,0.0000,8.0
+"nướng cánh cam tà xùa","https://taxuabooking.com/nha-hang/tiem-nuong-canh-cam",0,3,0.0000,14.0
+"nửa ngày","https://taxuabooking.com/xe-om",0,1,0.0000,9.0
+"october cafe","https://taxuabooking.com/en/cafe/ca-phe-thang-10",0,1,0.0000,12.0
+"panorama cafe","https://taxuabooking.com/cafe/panorama-coffee",0,1,0.0000,1.0
+"panorama coffee","https://taxuabooking.com/cafe/panorama-coffee",0,2,0.0000,10.5
+"panorama coffee ta xua","https://taxuabooking.com/cafe",0,2,0.0000,38.5
+"panorama coffee ta xua","https://taxuabooking.com/cafe/panorama-coffee",0,8,0.0000,11.5
+"panorama tà xùa","https://taxuabooking.com/cafe/panorama-coffee",0,39,0.0000,5.7
+"panorama tà xùa","https://taxuabooking.com/kinh-nghiem/o-ta-xua-nen-chon-khu-nao",0,1,0.0000,5.0
+"pao homestay tà xùa","https://taxuabooking.com/en/homestay/pao-homestay/phong/cmvzfuvtb0065nl28y6cuw228",0,1,0.0000,51.0
+"pao homestay tà xùa","https://taxuabooking.com/homestay/a-phu-lung-chung/phong/cmvzfclqp0004uns4mf6w2u12",0,1,0.0000,56.0
+"pao homestay tà xùa","https://taxuabooking.com/homestay/pao-homestay",0,10,0.0000,5.8
+"pao homestay tà xùa","https://taxuabooking.com/homestay/pao-homestay/phong/cmvzfpdao000fnl2807aalqv5",0,1,0.0000,5.0
+"pao homestay tà xùa","https://taxuabooking.com/homestay/pao-homestay/phong/cmvzfv6ux028unq28zyz1q8vr",0,3,0.0000,7.3
+"pao homestay tà xùa","https://taxuabooking.com/homestay/pao-homestay/phong/cmvzg5irx00conl28smvptq12",0,4,0.0000,12.0
+"phòng 1 giường","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e8cc000cunhsqtg6v983",0,1,0.0000,2.0
+"phòng cộng đồng","https://taxuabooking.com/kinh-nghiem/homestay-ta-xua-gia-re",0,2,0.0000,6.0
+"phòng tà xùa","https://taxuabooking.com/homestay",0,3,0.0000,10.7
+"phỏng lài homestay","https://taxuabooking.com/homestay/phong-lai-homstay",0,5,0.0000,9.2
+"phỏng lài homestay","https://taxuabooking.com/kinh-nghiem/homestay-ta-xua-gia-re",0,1,0.0000,7.0
+"pàng village","https://taxuabooking.com/homestay/pang-village-ta-xua/phong/cmw97mhxy000eunngf4btp0h6",0,1,0.0000,12.0
+"quán tà xùa","https://taxuabooking.com/nha-hang",0,4,0.0000,13.3
+"quán ăn ngon tà xùa","https://taxuabooking.com/nha-hang/bep-an-xuan-thi-ta-xua",0,1,0.0000,1.0
+"quán ăn ngon ở tà xùa","https://taxuabooking.com/nha-hang/bep-an-xuan-thi-ta-xua",0,2,0.0000,1.5
+"quán ăn tà xùa","https://taxuabooking.com/nha-hang",0,3,0.0000,9.3
+"quán ăn tà xùa","https://taxuabooking.com/nha-hang/bep-an-xuan-thi-ta-xua",0,1,0.0000,1.0
+"rêu homestay","https://taxuabooking.com/en/kinh-nghiem/review-reu-homestay-ta-xua",0,1,0.0000,21.0
+"rêu homestay tà xùa","https://taxuabooking.com/homestay",0,1,0.0000,9.0
+"rêu homestay tà xùa","https://taxuabooking.com/ko/homestay/reu-homestay-ta-xua",0,1,0.0000,9.0
+"samu retreat tà xùa","https://taxuabooking.com/nha-hang/nha-hang-sammu-ta-xua",0,1,0.0000,2.0
+"sapa tà xùa","https://taxuabooking.com/kinh-nghiem/ta-xua-hay-sapa-y-ty",0,1,0.0000,10.0
+"skyline homestay tà xùa","https://taxuabooking.com/kinh-nghiem/homestay-ta-xua-view-may-dep",0,1,0.0000,6.0
+"ta xua best time to visit","https://taxuabooking.com/en/lich-trinh",0,1,0.0000,4.0
+"ta xua map","https://taxuabooking.com/ban-do",0,1,0.0000,8.0
+"ta xua maps","https://taxuabooking.com/ban-do",0,1,0.0000,2.0
+"ta xua o dau","https://taxuabooking.com/en/lich-trinh",0,1,0.0000,66.0
+"ta xua retreat","https://taxuabooking.com/en/homestay/ta-xua-retreat",0,1,0.0000,1.0
+"ta xua vietnam best time to visit","https://taxuabooking.com/en/kinh-nghiem",0,1,0.0000,87.0
+"ta xua vietnam map","https://taxuabooking.com/ban-do",0,1,0.0000,10.0
+"ta xua vietnam map","https://taxuabooking.com/en/ban-do",0,2,0.0000,9.0
+"ta xua vs sapa","https://taxuabooking.com/kinh-nghiem/ta-xua-hay-sapa-y-ty",0,1,0.0000,7.0
+"ta xua 中文","https://taxuabooking.com/zh/kinh-nghiem/kinh-nghiem-du-lich-ta-xua-tu-a-z",0,2,0.0000,10.5
+"ta xùa","https://taxuabooking.com/kinh-nghiem/ta-xua-o-dau-cach-ha-noi-bao-nhieu-km",0,2,0.0000,71.0
+"taxi tà xùa","https://taxuabooking.com/taxi/taxi-hang-khua-9772",0,1,0.0000,9.0
+"taxi tà xùa","https://taxuabooking.com/taxi/taxi-taxi-sau-nu-6326",0,9,0.0000,7.9
+"taxi tà xùa","https://taxuabooking.com/xe-om",0,3,0.0000,11.0
+"taxua","https://taxuabooking.com/",0,6,0.0000,8.5
+"taxua","https://taxuabooking.com/en",0,2,0.0000,11.5
+"taxua","https://taxuabooking.com/en/gioi-thieu",0,1,0.0000,9.0
+"taxuabooking","https://taxuabooking.com/ban-do",0,29,0.0000,1.2
+"taxuabooking","https://taxuabooking.com/cafe",0,1,0.0000,5.0
+"taxuabooking","https://taxuabooking.com/cafe/hien",0,8,0.0000,9.8
+"taxuabooking","https://taxuabooking.com/cafe/nha-cua-an-homestay-coffee",0,1,0.0000,3.0
+"taxuabooking","https://taxuabooking.com/cam-ket",0,11,0.0000,3.5
+"taxuabooking","https://taxuabooking.com/combo",0,4,0.0000,1.3
+"taxuabooking","https://taxuabooking.com/en/gioi-thieu",0,1,0.0000,1.0
+"taxuabooking","https://taxuabooking.com/en/lich-trinh",0,1,0.0000,1.0
+"taxuabooking","https://taxuabooking.com/en/taxi",0,4,0.0000,1.0
+"taxuabooking","https://taxuabooking.com/gioi-thieu",0,19,0.0000,1.0
+"taxuabooking","https://taxuabooking.com/homestay",0,79,0.0000,1.6
+"taxuabooking","https://taxuabooking.com/homestay/nha-ben-suoi",0,2,0.0000,6.5
+"taxuabooking","https://taxuabooking.com/huong-dan",0,67,0.0000,5.2
+"taxuabooking","https://taxuabooking.com/kinh-nghiem/dinh-gio-ta-xua",0,1,0.0000,4.0
+"taxuabooking","https://taxuabooking.com/kinh-nghiem/du-lich-ta-xua-cho-bo-me",0,1,0.0000,7.0
+"taxuabooking","https://taxuabooking.com/kinh-nghiem/lich-trinh-ta-xua-2-ngay-1-dem",0,1,0.0000,5.0
+"taxuabooking","https://taxuabooking.com/kinh-nghiem/ta-xua-cuoi-tuan-dan-van-phong",0,1,0.0000,11.0
+"taxuabooking","https://taxuabooking.com/ko/gioi-thieu",0,1,0.0000,1.0
+"taxuabooking","https://taxuabooking.com/ko/gop-y",0,1,0.0000,1.0
+"taxuabooking","https://taxuabooking.com/ko/ve",0,1,0.0000,1.0
+"taxuabooking","https://taxuabooking.com/lien-he",0,82,0.0000,2.5
+"taxuabooking","https://taxuabooking.com/nha-hang",0,71,0.0000,2.1
+"taxuabooking","https://taxuabooking.com/nha-hang/nha-hang-doi-may",0,1,0.0000,7.0
+"taxuabooking","https://taxuabooking.com/taxi",0,22,0.0000,2.0
+"taxuabooking","https://taxuabooking.com/ve",0,2,0.0000,1.0
+"taxuabooking","https://taxuabooking.com/xe-cabin",0,5,0.0000,2.4
+"taxuabooking","https://taxuabooking.com/xe-om",0,5,0.0000,5.4
+"thac may ta xua","https://taxuabooking.com/",0,2,0.0000,6.5
+"thac may ta xua","https://taxuabooking.com/en/homestay/thac-may-ta-xua",0,1,0.0000,10.0
+"thac may ta xua","https://taxuabooking.com/homestay/thac-may-ta-xua",0,8,0.0000,8.1
+"thacmay taxua","https://taxuabooking.com/homestay/thac-may-ta-xua",0,4,0.0000,9.5
+"thacmaytaxua","https://taxuabooking.com/homestay/thac-may-ta-xua",0,2,0.0000,8.5
+"thung lũng mây homestay tà xùa","https://taxuabooking.com/homestay/khen-coffee-house-ta-xua/phong/cmw93e8cc000cunhsqtg6v983",0,1,0.0000,9.0
+"thuê phòng tà xùa","https://taxuabooking.com/homestay",0,2,0.0000,8.5
+"thuê taxi","https://taxuabooking.com/taxi",0,1,0.0000,9.0
+"thuê xe moto","https://taxuabooking.com/thue-xe-may",0,1,0.0000,8.0
+"thuê xe máy tà xùa","https://taxuabooking.com/kinh-nghiem/thue-xe-may-ta-xua",0,4,0.0000,14.5
+"thuê xe máy tà xùa","https://taxuabooking.com/thue-xe-may/de-homestay",0,1,0.0000,14.0
+"thuê xe máy ở tà xùa","https://taxuabooking.com/thue-xe-may",0,1,0.0000,29.0
+"thuê xe máy ở tà xùa","https://taxuabooking.com/xe-om",0,1,0.0000,40.0
+"thuê xe tà xùa","https://taxuabooking.com/thue-xe-may",0,1,0.0000,6.0
+"thuê xe ở hà nội","https://taxuabooking.com/kinh-nghiem/thue-xe-may-ta-xua",0,1,0.0000,14.0
+"thào cafe tà xùa","https://taxuabooking.com/cafe/thao-coffee-ta-xua",0,5,0.0000,12.4
+"thào coffee tà xùa","https://taxuabooking.com/cafe/thao-coffee-ta-xua",0,17,0.0000,11.6
+"thào coffee tà xùa menu","https://taxuabooking.com/cafe/thao-coffee-ta-xua",0,2,0.0000,17.0
+"thào cà phê tà xùa","https://taxuabooking.com/cafe/thao-coffee-ta-xua",0,1,0.0000,13.0
+"thác mây homestay tà xùa","https://taxuabooking.com/homestay/thac-may-ta-xua",0,22,0.0000,10.7
+"thác mây homestay tà xùa","https://taxuabooking.com/homestay/thac-may-ta-xua/phong/cmw0kx39p000zry274yht64qu",0,2,0.0000,13.0
+"thác mây tà xùa","https://taxuabooking.com/homestay/nha-may-si",0,1,0.0000,4.0
+"thác mây tà xùa","https://taxuabooking.com/homestay/thac-may-ta-xua",0,5,0.0000,10.0
+"thác mây tà xùa","https://taxuabooking.com/homestay/thac-may-ta-xua/phong/cmw0kx39p000zry274yht64qu",0,1,0.0000,11.0
+"thác mây tà xùa homestay","https://taxuabooking.com/en/homestay/thac-may-ta-xua",0,1,0.0000,6.0
+"thác mây tà xùa homestay","https://taxuabooking.com/homestay",0,1,0.0000,10.0
+"thác mây tà xùa homestay","https://taxuabooking.com/homestay/thac-may-ta-xua",0,33,0.0000,9.9
+"thác mây tà xùa homestay","https://taxuabooking.com/homestay/thac-may-ta-xua/phong/cmw0ipufk0004unys2ey8p3pq",0,1,0.0000,8.0
+"tháng 12 đi tà xùa được không","https://taxuabooking.com/kinh-nghiem/san-may-ta-xua-thang-12-tet",0,3,0.0000,8.7
+"thông tin đặt phòng","https://taxuabooking.com/homestay/ta-xua-hill",0,1,0.0000,2.0
+"thời tiết tà xùa tháng 12","https://taxuabooking.com/kinh-nghiem/thoi-tiet-ta-xua-theo-thang",0,4,0.0000,7.3
+"tiệm cafe hoàng hôn tà xùa","https://taxuabooking.com/cafe/tiem-ca-phe-hoang-hon",0,8,0.0000,6.1
+"tiệm cà phê hoàng hôn tà xùa","https://taxuabooking.com/cafe/tiem-ca-phe-hoang-hon",0,18,0.0000,5.9
+"tiệm nướng cánh cam","https://taxuabooking.com/nha-hang/tiem-nuong-canh-cam",0,33,0.0000,9.5
+"tiệm nướng cánh cam tà xùa","https://taxuabooking.com/nha-hang/tiem-nuong-canh-cam",0,45,0.0000,8.1
+"trekking tà xùa","https://taxuabooking.com/kinh-nghiem/trekking-dinh-ta-xua",0,11,0.0000,68.3
+"trà sữa gần đây","https://taxuabooking.com/cafe/ca-phe-thang-10",0,1,0.0000,1.0
+"trạm mây khe cải","https://taxuabooking.com/nha-hang/tram-may-ta-xua",0,9,0.0000,9.8
+"trạm mây tà xùa","https://taxuabooking.com/cafe",0,1,0.0000,49.0
+"trạm mây tà xùa","https://taxuabooking.com/cafe/tram-may-ta-xua-2",0,1,0.0000,9.0
+"trạm mây tà xùa","https://taxuabooking.com/kinh-nghiem/quan-ca-phe-san-may-ta-xua-theo-khu",0,1,0.0000,16.0
+"trạm mây tà xùa","https://taxuabooking.com/nha-hang/tiem-lau-nuong-tram-may",0,1,0.0000,25.0
+"trạm mây tà xùa","https://taxuabooking.com/nha-hang/tram-may-ta-xua",0,15,0.0000,8.4
+"tà xùa","https://taxuabooking.com/en/kinh-nghiem/review-ta-xua-tat-tan-tat",0,1,0.0000,14.0
+"tà xùa","https://taxuabooking.com/kinh-nghiem/ta-xua-o-dau-cach-ha-noi-bao-nhieu-km",0,1,0.0000,84.0
+"tà xùa","https://taxuabooking.com/kinh-nghiem/thoi-tiet-ta-xua-theo-thang",0,1,0.0000,3.0
+"tà xùa","https://taxuabooking.com/lich-trinh",0,1,0.0000,9.0
+"tà xùa 2 ngày 1 đêm","https://taxuabooking.com/kinh-nghiem/lich-trinh-ta-xua-2-ngay-1-dem",0,8,0.0000,4.6
+"tà xùa bmt","https://taxuabooking.com/nha-hang",0,1,0.0000,2.0
+"tà xùa booking","https://taxuabooking.com/gioi-thieu",0,1,0.0000,5.0
+"tà xùa booking","https://taxuabooking.com/homestay",0,6,0.0000,7.0
+"tà xùa booking","https://taxuabooking.com/huong-dan",0,3,0.0000,6.3
+"tà xùa booking","https://taxuabooking.com/ve",0,1,0.0000,10.0
+"tà xùa bản đồ","https://taxuabooking.com/ban-do",0,1,0.0000,6.0
+"tà xùa cách hà nội bao nhiêu km","https://taxuabooking.com/kinh-nghiem/duong-di-ta-xua-tu-ha-noi",0,1,0.0000,68.0
+"tà xùa cách hà nội bao nhiêu km","https://taxuabooking.com/kinh-nghiem/ta-xua-o-dau-cach-ha-noi-bao-nhieu-km",0,3,0.0000,39.0
+"tà xùa cách sapa bao nhiêu km","https://taxuabooking.com/kinh-nghiem/ta-xua-hay-sapa-y-ty",0,5,0.0000,10.8
+"tà xùa có gần sapa không","https://taxuabooking.com/kinh-nghiem/ta-xua-hay-sapa-y-ty",0,8,0.0000,9.5
+"tà xùa có phải ở sapa không","https://taxuabooking.com/kinh-nghiem/ta-xua-hay-sapa-y-ty",0,1,0.0000,9.0
+"tà xùa có đặc sản gì mang về làm quà","https://taxuabooking.com/kinh-nghiem/qua-ta-xua-mua-gi-lam-qua",0,4,0.0000,8.0
+"tà xùa gần sapa không","https://taxuabooking.com/kinh-nghiem/ta-xua-hay-sapa-y-ty",0,12,0.0000,10.0
+"tà xùa happy hill","https://taxuabooking.com/homestay/ta-xua-hill",0,1,0.0000,19.0
+"tà xùa happy hill","https://taxuabooking.com/homestay/ta-xua-hill/phong/cmvzh3ke5001qunicmt0uevjh",0,1,0.0000,58.0
+"tà xùa happy hill","https://taxuabooking.com/kinh-nghiem/homestay-ta-xua-gia-re",0,1,0.0000,40.0
+"tà xùa hay sapa xa hơn","https://taxuabooking.com/kinh-nghiem/ta-xua-hay-sapa-y-ty",0,10,0.0000,7.4
+"tà xùa hay sapa đẹp hơn","https://taxuabooking.com/kinh-nghiem/ta-xua-hay-sapa-y-ty",0,6,0.0000,10.0
+"tà xùa hill","https://taxuabooking.com/homestay/ta-xua-hill",0,5,0.0000,20.4
+"tà xùa hills","https://taxuabooking.com/homestay/ta-xua-hill",0,39,0.0000,8.2
+"tà xùa hills","https://taxuabooking.com/homestay/ta-xua-hill/phong/cmvzh3ke5001qunicmt0uevjh",0,1,0.0000,62.0
+"tà xùa homestay","https://taxuabooking.com/homestay",0,2,0.0000,8.5
+"tà xùa homestay","https://taxuabooking.com/kinh-nghiem/homestay-ta-xua-view-may-dep",0,1,0.0000,4.0
+"tà xùa lào cai","https://taxuabooking.com/kinh-nghiem/o-ta-xua-nen-chon-khu-nao",0,2,0.0000,34.5
+"tà xùa map","https://taxuabooking.com/ban-do",0,38,0.0000,8.1
+"tà xùa maps","https://taxuabooking.com/ban-do",0,4,0.0000,6.0
+"tà xùa mountain view","https://taxuabooking.com/homestay/cloud-forest-ta-xua/phong/cmw90hn8f000ounvg7v6o08un",0,1,0.0000,10.0
+"tà xùa mây homestay","https://taxuabooking.com/kinh-nghiem/homestay-ta-xua-view-may-dep",0,2,0.0000,40.5
+"tà xùa quán","https://taxuabooking.com/lich-trinh",0,1,0.0000,20.0
+"tà xùa quán","https://taxuabooking.com/nha-hang",0,2,0.0000,16.5
+"tà xùa sapa","https://taxuabooking.com/kinh-nghiem/ta-xua-hay-sapa-y-ty",0,11,0.0000,7.3
+"tà xùa tháng 12","https://taxuabooking.com/kinh-nghiem/san-may-ta-xua-thang-12-tet",0,10,0.0000,9.6
+"tà xùa tháng 12 có đẹp không","https://taxuabooking.com/kinh-nghiem/san-may-ta-xua-thang-12-tet",0,1,0.0000,10.0
+"tà xùa thì sao","https://taxuabooking.com/kinh-nghiem/bungalow-ta-xua",0,1,0.0000,4.0
+"tà xùa thì sao","https://taxuabooking.com/kinh-nghiem/review-chillout-village-ta-xua",0,1,0.0000,2.0
+"tà xùa village","https://taxuabooking.com/kinh-nghiem/review-chillout-village-ta-xua",0,5,0.0000,6.2
+"tà xùa và sapa cách nhau bao xa","https://taxuabooking.com/kinh-nghiem/ta-xua-hay-sapa-y-ty",0,5,0.0000,8.6
+"tà xùa về hà nội mất bao lâu","https://taxuabooking.com/kinh-nghiem/ta-xua-o-dau-cach-ha-noi-bao-nhieu-km",0,1,0.0000,10.0
+"tà xùa ở đâu","https://taxuabooking.com/kinh-nghiem/ta-xua-o-dau-cach-ha-noi-bao-nhieu-km",0,3,0.0000,75.0
+"tà xùa ở đâu cách hà nội bao nhiêu km","https://taxuabooking.com/kinh-nghiem/ta-xua-o-dau-cach-ha-noi-bao-nhieu-km",0,4,0.0000,16.5
+"táo homestay tà xùa","https://taxuabooking.com/en/homestay/bep-nha-tao",0,1,0.0000,12.0
+"táo homestay tà xùa","https://taxuabooking.com/homestay/happy-town-ta-xua/phong/cmw95wyeb000punlk92vb25kr",0,1,0.0000,16.0
+"táo homestay tà xùa","https://taxuabooking.com/homestay/happy-town-ta-xua/phong/cmw95wyfv000vunlkwhpus3nf",0,1,0.0000,18.0
+"táo homestay tà xùa","https://taxuabooking.com/homestay/nha-cua-an-ta-xua/phong/cmw94adj9000iunb0y8ivtmwa",0,1,0.0000,69.0
+"tên home","https://taxuabooking.com/homestay",0,1,0.0000,4.0
+"từ sapa đi tà xùa bao nhiêu km","https://taxuabooking.com/kinh-nghiem/ta-xua-hay-sapa-y-ty",0,1,0.0000,9.0
+"từ đây đến tà xùa bao nhiêu km","https://taxuabooking.com/kinh-nghiem/ta-xua-o-dau-cach-ha-noi-bao-nhieu-km",0,2,0.0000,5.5
+"van, minibus, car rental from hanoi to ta xua with driver","https://taxuabooking.com/en/kinh-nghiem/duong-di-ta-xua-tu-ha-noi",0,1,0.0000,20.0
+"vua lẩu nướng tà xùa","https://taxuabooking.com/nha-hang/vua-lau-nuong-ta-xua",0,2,0.0000,8.5
+"xe cabin hà nội tà xùa","https://taxuabooking.com/xe-cabin",0,5,0.0000,7.8
+"xe cabin tà xùa","https://taxuabooking.com/",0,1,0.0000,8.0
+"xe cabin tà xùa","https://taxuabooking.com/xe-cabin",0,2,0.0000,6.5
+"xe cabin đôi hà nội - tà xùa","https://taxuabooking.com/xe-cabin",0,1,0.0000,10.0
+"xe cabin đôi đi tà xùa","https://taxuabooking.com/xe-cabin",0,4,0.0000,8.8
+"xe ghép hà nội tà xùa","https://taxuabooking.com/xe-cabin",0,1,0.0000,29.0
+"xe ghép tà xùa hà nội","https://taxuabooking.com/xe-cabin",0,2,0.0000,9.0
+"xe khách hải phòng tà xùa","https://taxuabooking.com/kinh-nghiem/diem-don-xe-cabin-cac-tinh",0,1,0.0000,40.0
+"xe thành mỹ","https://taxuabooking.com/xe-cabin/nha-xe-thanh-my-2",0,2,0.0000,8.0
+"xe ô tô","https://taxuabooking.com/xe-om",0,1,0.0000,5.0
+"xe ôm tà xùa","https://taxuabooking.com/thue-xe-may",0,1,0.0000,9.0
+"xuân thì tà xùa","https://taxuabooking.com/nha-hang",0,3,0.0000,10.0
+"xím vàng","https://taxuabooking.com/kinh-nghiem/xim-vang-mua-lua-chin",0,2,0.0000,57.0
+"xím vàng tà xùa","https://taxuabooking.com/kinh-nghiem/xim-vang-mua-lua-chin",0,3,0.0000,38.7
+"xím vàng ở đâu","https://taxuabooking.com/kinh-nghiem/xim-vang-mua-lua-chin",0,2,0.0000,90.5
+"yen bai","https://taxuabooking.com/xe-om",0,1,0.0000,12.0
+"ăn gì ở tà xùa","https://taxuabooking.com/nha-hang/com-nha-namiya-dinh-gio",0,1,0.0000,1.0
+"đi tà xùa","https://taxuabooking.com/kinh-nghiem/meo-chup-anh-san-may-bang-dien-thoai",0,1,0.0000,15.0
+"đi tà xùa","https://taxuabooking.com/kinh-nghiem/o-ta-xua-nen-chon-khu-nao",0,2,0.0000,16.0
+"đi từ nam định","https://taxuabooking.com/kinh-nghiem/homestay-ta-xua-gia-re",0,1,0.0000,10.0
+"đi vào cuối tuần","https://taxuabooking.com/",0,1,0.0000,10.0
+"đi đôi","https://taxuabooking.com/xe-cabin/nha-xe-xuan-truong",0,1,0.0000,6.0
+"đường lên tà xùa","https://taxuabooking.com/kinh-nghiem/duong-di-ta-xua-tu-ha-noi",0,1,0.0000,19.0
+"đường đi tà xùa","https://taxuabooking.com/kinh-nghiem/duong-di-ta-xua-tu-ha-noi",0,1,0.0000,19.0
+"đường đi tà xùa từ hà nội","https://taxuabooking.com/kinh-nghiem/duong-di-ta-xua-tu-ha-noi",0,1,0.0000,8.0
+"đặc sản tà xùa làm quà","https://taxuabooking.com/kinh-nghiem/qua-ta-xua-mua-gi-lam-qua",0,4,0.0000,8.3
+"đặc sản tà xùa mua về làm quà","https://taxuabooking.com/kinh-nghiem/qua-ta-xua-mua-gi-lam-qua",0,7,0.0000,9.4
+"đặt phòng homestay tà xùa","https://taxuabooking.com/homestay",0,1,0.0000,11.0
+"đặt phòng tà xùa","https://taxuabooking.com/",0,8,0.0000,6.0
+"đặt phòng ở tà xùa","https://taxuabooking.com/homestay",0,1,0.0000,11.0
+"đỉnh gió - tà xùa - homestay, cafe & more","https://taxuabooking.com/kinh-nghiem/dinh-gio-ta-xua",0,4,0.0000,7.5
+"đỉnh gió tà xùa","https://taxuabooking.com/kinh-nghiem/dinh-gio-ta-xua",0,9,0.0000,16.1
+"đỉnh tà xùa homestay","https://taxuabooking.com/kinh-nghiem/o-ta-xua-nen-chon-khu-nao",0,1,0.0000,22.0
+"đồi mây tà xùa","https://taxuabooking.com/nha-hang/nha-hang-doi-may",0,17,0.0000,6.3
+"房租多少","https://taxuabooking.com/zh/kinh-nghiem/homestay-ta-xua-gia-re",0,1,0.0000,9.0
+"따카페","https://taxuabooking.com/ko/cafe",0,1,0.0000,10.0
+"하노이 오토바이 렌트","https://taxuabooking.com/ko",0,1,0.0000,7.0

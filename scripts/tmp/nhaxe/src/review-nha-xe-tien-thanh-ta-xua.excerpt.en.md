@@ -1,0 +1,1 @@
+Tiến Thành bus to Tà Xùa: 600.000đ return, 24-cabin sleeper with massage, limousine straight to Tà Xùa, pick-up in 8 provinces, beds to rest before check-in.

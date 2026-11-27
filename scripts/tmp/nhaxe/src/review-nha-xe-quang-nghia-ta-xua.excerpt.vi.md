@@ -1,0 +1,1 @@
+Nhà xe Quang Nghĩa đi Tà Xùa: vé khứ hồi 650.000đ, đi 22h từ Mỹ Đình, nhiều cabin đôi, trả khách tận homestay và có chỗ ngủ chờ nhận phòng.

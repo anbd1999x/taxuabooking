@@ -1,0 +1,2 @@
+const T215 = /(?<![\d.,])215(?=\s?(?:km|公里|킬로|\*\*)|\s*(?:–|-|~|đến|to|至|到)\s*220)/g;
+const FORCE = /(Rà phanh liên tục 15km|Cách tính đoạn 15km này|15km đèo từ Bắc Yên)/;

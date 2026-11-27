@@ -1,0 +1,1 @@
+Quang Nghĩa bus to Tà Xùa: 650.000đ return, leaves 10pm from Mỹ Đình, plenty of double cabins, drops you at your homestay and has a rest area before check-in.

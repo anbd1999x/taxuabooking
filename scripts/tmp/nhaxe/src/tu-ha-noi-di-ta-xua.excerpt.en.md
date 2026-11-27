@@ -1,0 +1,1 @@
+Five overnight sleeper cabin buses run from Hanoi to Tà Xùa, boarding in Cầu Giấy or Mỹ Đình at 21:00 to 22:00. Round trip 500.000đ to 650.000đ.

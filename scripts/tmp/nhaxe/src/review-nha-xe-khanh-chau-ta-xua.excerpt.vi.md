@@ -1,0 +1,1 @@
+Review nhà xe Khánh Châu đi Tà Xùa: vé khứ hồi 500.000đ, đi 21h từ 68 Mạc Thái Tông, lộ trình, khoang cabin, giá đón 10 tỉnh và ưu nhược điểm.

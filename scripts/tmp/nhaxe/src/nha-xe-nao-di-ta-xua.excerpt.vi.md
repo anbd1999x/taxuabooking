@@ -1,0 +1,1 @@
+Nhà xe nào đi Tà Xùa? Hiện có 4 nhà xe cabin chạy hằng ngày từ Hà Nội: Khánh Châu, Thành Mỹ, Tiến Thành, Quang Nghĩa. Vé khứ hồi 500.000đ – 650.000đ, đi 21h – 22h.

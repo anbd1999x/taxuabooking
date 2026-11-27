@@ -1,0 +1,1 @@
+Which bus operators go to Tà Xùa? Four sleeper cabin bus operators currently run daily from Hanoi: Khánh Châu, Thành Mỹ, Tiến Thành and Quang Nghĩa. Round trip 500.000đ – 650.000đ, departing 21:00 – 22:00.

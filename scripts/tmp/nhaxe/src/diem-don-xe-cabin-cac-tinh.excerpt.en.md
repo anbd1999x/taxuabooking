@@ -1,0 +1,1 @@
+Cabin buses to Tà Xùa pick up at 68 Mạc Thái Tông, 24 Đinh Núp and Mễ Trì (Hanoi) from 21:00 to 22:00, plus 12 provinces. Round trip from 500.000đ; from the provinces 600.000đ to 1.050.000đ.

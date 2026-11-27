@@ -1,0 +1,17 @@
+import { PrismaClient } from "@prisma/client";
+const p = new PrismaClient();
+const n = (x) => (x == null ? null : Number(x));
+const cab = await p.service.findMany({ where: { category: "CABIN", published: true }, select: { title: true, slug: true, featured: true } });
+console.log("CABIN", cab);
+const rows = await p.cabinPriceRow.findMany({ include: { service: { select: { title: true } } } });
+for (const r of rows) console.log("PRICE", r.service?.title ?? "(chung)", JSON.stringify({ ...r, service: undefined, id: undefined }));
+const homes = await p.service.findMany({ where: { category: { in: ["HOMESTAY", "BUNGALOW"] }, published: true }, select: { title: true, slug: true, area: true, easyRoad: true, roomTypes: { select: { name: true, cloudView: true, hasBathtub: true, rooms: { select: { listPrice: true, salePrice: true } } } } } });
+console.log("HOMES", homes.length);
+const rowsH = homes.map((h) => { const pr = h.roomTypes.flatMap((t) => t.rooms.map((r) => n(r.salePrice) ?? n(r.listPrice))).filter(Boolean); return { t: h.title, s: h.slug, area: h.area, min: Math.min(...pr), max: Math.max(...pr), view: h.roomTypes.some((t) => t.cloudView), tub: h.roomTypes.some((t) => t.hasBathtub), easy: h.easyRoad }; }).sort((a, b) => a.min - b.min);
+console.log("VIEW", rowsH.filter((x) => x.view).length, "TUB", rowsH.filter((x) => x.tub).length);
+for (const r of rowsH) console.log("H", JSON.stringify(r));
+const bikes = await p.rentalVehicle.findMany({ select: { name: true, pricePerDay: true, service: { select: { title: true, published: true } } } });
+for (const b of bikes) if (b.service.published) console.log("BIKE", b.service.title, b.name, n(b.pricePerDay));
+const set = await p.siteSetting.findMany({ where: { key: { in: ["comboDiscount"] } } });
+console.log("SET", JSON.stringify(set));
+await p.$disconnect();

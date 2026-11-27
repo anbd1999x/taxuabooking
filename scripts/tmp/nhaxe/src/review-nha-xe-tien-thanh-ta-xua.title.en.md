@@ -1,0 +1,1 @@
+Tiến Thành bus to Tà Xùa review: fares and homestay drop-off

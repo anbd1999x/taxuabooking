@@ -1,0 +1,1 @@
+Bảng so sánh 4 nhà xe Hà Nội – Tà Xùa (Khánh Châu, Thành Mỹ, Tiến Thành, Quang Nghĩa): giá vé, giờ chạy, phòng chờ có giường, trả tận homestay. Cập nhật 11/2026.

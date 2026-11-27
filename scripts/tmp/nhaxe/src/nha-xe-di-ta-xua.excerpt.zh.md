@@ -1,0 +1,1 @@
+对比河内去塔萨的 5 家车公司：Khánh Châu、Xuân Trường、Thành Mỹ、Tiến Thành、Quang Nghĩa。往返票 500.000đ 至 650.000đ，21:00 至 22:00 发车。

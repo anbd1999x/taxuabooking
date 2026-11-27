@@ -1,0 +1,371 @@
+## song-lung-khung-long-ta-xua.content: 15→14 x0, 215 x1
+   giữ: …**Sống lưng khủng long Tà Xùa** nằm ở bản Chống Tra (khu Háng Đồng cũ), cách trung tâm Tà Xùa khoảng **12 đến 15km**
+   giữ: …- **Vị trí:** bản Chống Tra, nay thuộc xã Tà Xùa, Sơn La; cách trung tâm khoảng 12 đến 15km, chạy xe máy mất 30 đến 40 phút.
+   giữ: …- **Khoảng cách:** 12 đến 15km từ trung tâm Tà Xùa
+   giữ: …Sống lưng khủng long cách trung tâm Tà Xùa khoảng 12 đến 15km, ở bản Chống Tra thuộc khu Háng Đồng cũ
+   215: …Trung tâm Tà Xùa cách Hà Nội khoảng 215km.
+## kinh-nghiem-san-may-ta-xua.content: 15→14 x0, 215 x1
+   giữ: …- **Điểm xa nhất:** Sống lưng khủng long cách trung tâm 12 đến 15km, đi bộ thêm 1 đến 1,5km, xe ôm 300.000đ đến 350.000đ một chiều.
+   giữ: …- **Sống lưng khủng long:** quãng đường 12 đến 15km cộng thêm 1 đến 1,5km đi bộ dốc
+   giữ: … Cách trung tâm 12 đến 15km, đi bộ 1 đến 1,5km 
+   215: …Trung tâm Tà Xùa nằm ở độ cao khoảng 1.500m, thuộc tỉnh Sơn La, cách Hà Nội khoảng 215km
+## trekking-dinh-ta-xua.content: 15→14 x1, 215 x1
+   giữ: …Nó khác hẳn việc đi bộ 1 đến 1,5km ở Sống lưng khủng long, điểm săn mây cách trung tâm xã Tà Xùa 12 đến 15km.
+   giữ: …Theo thông tin phổ biến của các đoàn leo, lối được nhắc nhiều nhất bắt đầu từ phía Trạm Tấu; phía Sơn La có người nhắc tới hướng Xím Vàng, x
+   giữ: … Bản Chống Tra, cách trung tâm 12 đến 15km 
+   ĐỔI: …- **Thuốc cá nhân, băng dán, tiền mặt.** ATM gần nhất ở Bắc Yên, cách trung tâm Tà Xùa 15km đèo.
+   giữ: …Sống lưng khủng long ở bản Chống Tra cách trung tâm 12 đến 15km, đi bộ 1 đến 1,5km, vé khoảng 20.000đ và xong trong một buổi sáng
+   215: …- **Xã Tà Xùa, Sơn La:** khu du lịch săn mây, cách Hà Nội khoảng 215km, đi qua Bắc Yên
+## combo-xe-cabin-homestay-ta-xua.content: 15→14 x0, 215 x1
+   215: …Tà Xùa cách Hà Nội khoảng 215–220 km, đoạn cuối là đèo dốc, nên khách không tự lái thường chọn xe cabin đêm
+## diem-don-xe-cabin-cac-tinh.content: 15→14 x1, 215 x0
+   ĐỔI: …Từ Bắc Yên lên Tà Xùa còn khoảng 15km đèo dốc; lộ trình Quang Nghĩa ghi Bắc Yên là điểm "Trung chuyển"
+## chuan-bi-gi-khi-di-ta-xua.content: 15→14 x5, 215 x0
+   ĐỔI: …đồ giữ ấm theo lớp cho buổi săn mây 5h sáng, một đôi giày đế bám, sạc dự phòng, thuốc say xe cho 15km đèo cuối và 500.000đ đến 1.000.000đ ti
+   ĐỔI: …ATM gần nhất ở Bắc Yên, cách 15km đèo.
+   ĐỔI: …**Về hành lý:** nên mang **vali cỡ vừa hoặc ba lô** cho gọn, vì xe tới Bắc Yên khoảng 4h rồi mới lên trung tâm Tà Xùa khoảng 6h qua 15km đèo
+   ĐỔI: …Xe tới Bắc Yên rồi mới lên Tà Xùa qua 15km đèo, nên vali cỡ vừa hoặc ba lô sẽ gọn và dễ xoay xở hơn.
+   ĐỔI: …ATM gần nhất nằm ở Bắc Yên, cách 15km đèo.
+## ta-xua-hay-sapa-y-ty.excerpt: 15→14 x0, 215 x1
+   215: …Tà Xùa cách Hà Nội 215km, Sapa 320km
+## ta-xua-hay-sapa-y-ty.content: 15→14 x1, 215 x5
+   ĐỔI: … Xe đêm, 15km đèo cuối từ Bắc Yên 
+   giữ: …Sống lưng khủng long xa hơn (12 đến 15km) và khó đi hơn, xe ôm 300.000đ đến 350.000đ một chiều cho 1 khách
+   215: …Tà Xùa gần Hà Nội hơn (khoảng 215km so với khoảng 320km của Sapa); chọn nơi nào nên dựa vào việc bạn muốn săn mây ngay tại phòng, cần tiện n
+   215: …Hà Nội đi Tà Xùa khoảng 210 đến 215km, xe cabin đêm tới trung tâm khoảng 6h sáng; Hà Nội đi Sapa khoảng 320km, đi cao tốc mất 5 đến 6 tiếng;
+   215: … Khoảng 210 đến 215km 
+   215: …khoảng 215km, đi xe đêm
+   215: …Sapa xa Hà Nội hơn, khoảng 320km so với khoảng 210 đến 215km của Tà Xùa
+## du-lich-ta-xua-cung-gia-dinh-tre-nho.content: 15→14 x4, 215 x1
+   ĐỔI: …Phần khó nhất với bé là 15km đèo từ Bắc Yên lên và cái lạnh 5 đến 10°C của đêm mùa đông.
+   ĐỔI: …- **Đèo:** 15km cuối từ Bắc Yên dốc liên tục, nhiều cua tay áo, ô tô chạy mất 40 đến 50 phút
+   ĐỔI: …Phần khó là 15km đèo cuối và chỗ đỗ, xem bài [đi Tà Xùa bằng ô tô tự lái](/kinh-nghiem/di-ta-xua-bang-o-to-tu-lai).
+   giữ: …- **Sống lưng khủng long:** cách trung tâm 12 đến 15km, 1 đến 1,5km cuối là lối mòn dốc phải đi bộ
+   ĐỔI: …Bé cần chịu được 15km đèo cuối và đêm lạnh 5 đến 10°C vào mùa đông
+   215: … Khoảng 215km, 6 đến 7 tiếng lái, nên tới trước 16h 
+## meo-chong-say-xe-deo-ta-xua.excerpt: 15→14 x1, 215 x0
+   ĐỔI: …Đoạn đèo 15km Bắc Yên – Tà Xùa cua liên tục khiến nhiều người say xe
+## meo-chong-say-xe-deo-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …**15km đèo cuối từ Bắc Yên lên**
+## song-dien-thoai-atm-wifi-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …- **ATM gần nhất ở thị trấn Bắc Yên**, cách 15km đèo — đừng để hết tiền mới tìm.
+## 48-gio-o-ta-xua-nhat-ky.content: 15→14 x1, 215 x0
+   ĐỔI: …**uống thuốc say xe trước khi xe vào đèo** (khoảng 2h sáng) dù bạn tự tin đến đâu — 15km cuối là dốc cua liên tục.
+## ta-xua-mua-he-thang-5-8.content: 15→14 x1, 215 x0
+   ĐỔI: …- **Đường trơn sau mưa.** Đoạn 15km đèo và các nhánh vào bản có chỗ bám đất đỏ, xe máy rất dễ trượt
+## o-ta-xua-nen-chon-khu-nao.content: 15→14 x2, 215 x0
+   ĐỔI: …Xe cabin chỉ chạy tới Bắc Yên, khách đi tiếp xe trung chuyển khoảng 15km đèo
+   ĐỔI: …Xe cabin chỉ tới Bắc Yên, sau đó xe trung chuyển đưa lên khoảng 15km đèo
+## qua-ta-xua-mua-gi-lam-qua.content: 15→14 x1, 215 x0
+   ĐỔI: …ATM gần nhất cũng ở Bắc Yên, cách 15km đèo, nên rút tiền trước khi lên núi
+## trai-nghiem-xe-cabin-di-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …tới Bắc Yên, xe nghỉ thêm một nhịp rồi bắt đầu **15km đèo cuối** — đoạn cua liên tục, ai say xe sẽ cảm nhận rõ nhất ở đây.
+## du-lich-ta-xua-cho-bo-me.content: 15→14 x1, 215 x0
+   ĐỔI: …Đoạn dễ mệt nhất là **15km đèo cuối** từ ngã ba lên trung tâm Tà Xùa, nhiều khúc cua.
+## kinh-nghiem-du-lich-ta-xua-tu-a-z.content: 15→14 x3, 215 x1
+   ĐỔI: …- **Ở đâu:** xã Tà Xùa, tỉnh Sơn La, cách Hà Nội khoảng 215–220km, cách Bắc Yên 15km đèo.
+   giữ: …- **Tháng 9 – đầu tháng 10 (mùa lúa):** ruộng bậc thang Xím Vàng cách trung tâm khoảng 15km chín vàng, hợp ghép với một buổi săn mây.
+   ĐỔI: …Hà Nội → QL32 (Sơn Tây – Thanh Sơn) → Thu Cúc → QL37 → Phù Yên → Bắc Yên → 15km đèo lên Tà Xùa
+   ĐỔI: …- **Đường khó.** 15km đèo từ Bắc Yên lên và cung ra sống lưng khủng long không hợp tay lái non.
+   215: …- **Ở đâu:** xã Tà Xùa, tỉnh Sơn La, cách Hà Nội khoảng 215–220km, cách Bắc Yên 15km đèo.
+## ban-do-du-lich-ta-xua-diem-check-in.content: 15→14 x1, 215 x0
+   giữ: …- **Xa, đi riêng:** Sống lưng khủng long (khoảng 12 km), Trạm Mâm Xôi ở Xím Vàng (khoảng 15 km, chỉ đẹp mùa lúa).
+   ĐỔI: …Từ thị trấn Bắc Yên, nơi xe cabin dừng, lên tới đây là khoảng 15 km đường đèo
+   giữ: …**Trạm Mâm Xôi** thuộc xã Xím Vàng, cách trung tâm Tà Xùa khoảng 15 km
+## di-ta-xua-co-nguy-hiem-khong.excerpt: 15→14 x1, 215 x0
+   ĐỔI: …Đường đèo 15 km, sương mù, sống núi hẹp và cái lạnh ban đêm: những rủi ro thật và cách đi an toàn cho người lần đầu lên núi.
+## di-ta-xua-co-nguy-hiem-khong.content: 15→14 x1, 215 x0
+   ĐỔI: …Từ thị trấn Bắc Yên lên trung tâm Tà Xùa là khoảng **15 km đường đèo** liên tục, nhiều khúc cua tay áo và dốc dài
+## dat-xe-di-ta-xua.content: 15→14 x2, 215 x0
+   ĐỔI: …Tà Xùa thuộc tỉnh Sơn La, cách Hà Nội khoảng 240 km, đoạn cuối là khoảng 15 km đèo dốc từ Bắc Yên lên trung tâm xã
+   ĐỔI: …Xe cabin lớn dừng ở khu vực Bắc Yên, khách chuyển sang xe nhỏ đi nốt khoảng 15 km đèo lên trung tâm Tà Xùa
+## review-ta-xua-tat-tan-tat.content: 15→14 x2, 215 x0
+   ĐỔI: …Từ Hà Nội lên khoảng 240 km; từ Bắc Yên còn khoảng 15 km đèo dốc nữa mới tới trung tâm xã
+   ĐỔI: …Ô tô tự lái và xe máy phượt cũng đi được, nhưng 15 km đèo cuối có nhiều cua gấp và hay có sương mù
+## nha-xe-di-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …- **Chiều đi mất 8 đến 9 tiếng.** Xe tới thị trấn Bắc Yên khoảng 4h sáng (riêng Xuân Trường ghi 5h15), rồi đi nốt khoảng 15 km đèo lên trung
+## review-nha-xe-khanh-chau-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …- **Khoảng 4h00, Bắc Yên:** nghỉ thêm một nhịp trước khi vào khoảng 15 km đèo cuối.
+## xe-giuong-nam-limousine-di-ta-xua.content: 15→14 x2, 215 x0
+   ĐỔI: …- **Chặng lên đèo:** khoảng 15 km từ Bắc Yên lên trung tâm Tà Xùa, tới nơi khoảng 6h.
+   ĐỔI: …Các nhà xe trên Tà Xùa Booking đều có chặng từ thị trấn Bắc Yên lên trung tâm Tà Xùa, khoảng 15 km đèo, đã nằm trong giá vé và lịch chạy.
+## so-sanh-nha-xe-di-ta-xua.content: 15→14 x1, 215 x2
+   ĐỔI: …Nhà xe nào cũng qua cùng một đoạn đèo 15 km từ Bắc Yên lên Tà Xùa
+   215: …Tổng thời gian mỗi chiều khoảng **8 tiếng** cho quãng đường chừng 215 – 220 km.
+   215: …Khoảng 8 tiếng mỗi chiều cho quãng đường chừng 215 – 220 km
+## xe-cabin-tra-khach-tan-homestay-ta-xua.excerpt: 15→14 x1, 215 x0
+   ĐỔI: …Cách đi tiếp 15km đèo lên Tà Xùa, về home ở Đỉnh Gió, Khe Cải, Chung Trinh, giá xe ôm và phụ thu nhận phòng sớm.
+## xe-cabin-tra-khach-tan-homestay-ta-xua.content: 15→14 x5, 215 x0
+   ĐỔI: …Từ Bắc Yên còn khoảng 15km đường đèo nữa, đi bằng xe trung chuyển
+   ĐỔI: …- **Bắc Yên – Tà Xùa khoảng 15km đường đèo**, đi tiếp bằng xe trung chuyển (limousine hoặc xe 16, 29 chỗ).
+   ĐỔI: …Từ Bắc Yên lên Tà Xùa khoảng **15km đường đèo**, quanh co và dốc
+   ĐỔI: …Từ Bắc Yên lên Tà Xùa khoảng 15km đường đèo, đi bằng xe trung chuyển.
+   ĐỔI: …limousine hoặc xe 16, 29 chỗ, khoảng 15km đường đèo
+## gia-xe-om-taxi-ta-xua.content: 15→14 x2, 215 x0
+   giữ: …Đây là chặng đắt nhất từ mọi điểm đón, vì cách trung tâm 12 đến 15km và nằm riêng một hướng:
+   ĐỔI: …Từ Bắc Yên lên trung tâm Tà Xùa là khoảng 15km đèo; bảng chặng taxi còn trống và 3 tài xế xe ôm cũng chưa khai chặng nào đi Bắc Yên
+   ĐỔI: …Chặng Bắc Yên lên Tà Xùa dài khoảng 15km đèo và chưa có giá taxi niêm yết trên hệ thống
+## thue-xe-may-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …- **Tại thị trấn Bắc Yên:** chỉ nên thuê từ đây nếu bạn tự tin chạy 15 km đèo lên Tà Xùa.
+   giữ: … khoảng 15 km 
+## lich-trinh-ta-xua-2-ngay-1-dem.content: 15→14 x1, 215 x1
+   ĐỔI: …Tự lái hay đi xe máy mất 6–7 tiếng, thêm 15 km đèo dốc cuối cùng, không hợp với chuyến ngắn.
+   215: …Tà Xùa là xã vùng cao của tỉnh Sơn La, trung tâm ở độ cao khoảng 1.500 m, cách Hà Nội 215–220 km; mùa săn mây từ tháng 10 đến tháng 4.
+## lich-trinh-ta-xua-3-ngay-2-dem.content: 15→14 x1, 215 x1
+   giữ: …Đi từ tháng 6 đến tháng 9, bạn có thể đổi buổi sáng ngày 3 thành chuyến sang **Xím Vàng** (cách trung tâm khoảng 15 km) xem ruộng bậc thang 
+   ĐỔI: …Đường khoảng 215–220 km, đoạn cuối 15 km đèo dốc, sương mù dày
+   215: …Đường khoảng 215–220 km, đoạn cuối 15 km đèo dốc, sương mù dày
+## review-cham-hoang-hon-ta-xua.content: 15→14 x2, 215 x0
+   ĐỔI: …Xe cabin chỉ chạy tới Bắc Yên, từ đó đi tiếp khoảng 15km đường đèo bằng xe trung chuyển (limousine hoặc xe 16, 29 chỗ) lên Tà Xùa, và xe tru
+   ĐỔI: …Xe cabin chỉ chạy tới Bắc Yên; từ đó đi tiếp khoảng 15km đường đèo bằng xe trung chuyển (limousine hoặc xe 16, 29 chỗ) lên Tà Xùa
+## review-chillin-house-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …xe cabin chỉ chạy tới Bắc Yên, xuống đó có **xe trung chuyển** (limousine hoặc xe 16, 29 chỗ) đi tiếp khoảng 15km đường đèo lên và **đưa tới
+## review-a-phu-homes-ta-xua.content: 15→14 x2, 215 x0
+   ĐỔI: …Xe cabin chỉ chạy tới Bắc Yên, từ đó đi tiếp khoảng 15km đường đèo bằng xe trung chuyển (limousine hoặc xe 16, 29 chỗ) lên Tà Xùa; nhà ở nga
+   ĐỔI: …Từ đó đi tiếp khoảng 15km đường đèo bằng xe trung chuyển (limousine hoặc xe 16, 29 chỗ) lên Tà Xùa; nhà ngay mặt đường trung tâm, cạnh tỉnh 
+## review-chung-chinh-homestay-ta-xua.content: 15→14 x2, 215 x0
+   ĐỔI: …**Xe cabin chỉ chạy tới Bắc Yên**, từ đó đi tiếp **xe trung chuyển** (limousine hoặc xe 16, 29 chỗ) khoảng 15km đường đèo lên Tà Xùa, xe tru
+   ĐỔI: …Từ đó đi tiếp xe trung chuyển (limousine hoặc xe 16, 29 chỗ) khoảng 15km đường đèo, xe trung chuyển từ Bắc Yên lên đưa tới tận cửa nhà.
+## review-a-phu-lung-chung-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Xe cabin chỉ chạy tới thị trấn Bắc Yên, xuống đó đi tiếp xe trung chuyển khoảng 15km đường đèo lên là được đưa tới tận cửa, không phải kéo v
+## review-chillout-village-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Đi xe cabin thì xe chỉ chạy tới Bắc Yên, từ đó đi xe trung chuyển (limousine hoặc xe 16, 29 chỗ) khoảng 15km đường đèo lên Tà Xùa; chuyện xu
+## review-lang-thang-homestay-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …quán ăn, tạp hoá, chỗ thuê xe máy đều gần; đi xe cabin thì xuống Bắc Yên, đi tiếp khoảng 15km đường đèo bằng xe trung chuyển là lên tới trun
+## review-cloud-garden-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Xe cabin chỉ chạy tới Bắc Yên; xuống đó, xe trung chuyển đi tiếp khoảng 15km đường đèo lên và đưa tới tận cửa, cứ báo nhà giờ xe tới là được
+## review-may-ban-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Cái mình thấy tiện nhất là **nhà có xe cabin đôi khứ hồi riêng**, đón ở Hà Nội, Bắc Ninh, Bắc Giang, giá 450.000đ/người cho cả chiều đi lẫn 
+## review-mons-house-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Đi xe cabin thì xe chỉ chạy tới Bắc Yên, từ đó đi tiếp xe trung chuyển (limousine hoặc xe 16, 29 chỗ) khoảng 15km đường đèo lên Tà Xùa; chi 
+## review-nha-may-si-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Đi xe cabin thì xe chỉ tới Bắc Yên, từ đó đi tiếp khoảng 15km đường đèo bằng xe trung chuyển (limousine hoặc xe 16, 29 chỗ) lên Tà Xùa.
+## review-nha-ben-suoi-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Đi xe cabin thì xe chỉ chạy tới Bắc Yên, từ đó đi xe trung chuyển (limousine hoặc xe 16, 29 chỗ) khoảng 15km đường đèo lên Tà Xùa; chuyện xu
+## review-khen-coffee-house-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Đi xe cabin thì xe chỉ chạy tới Bắc Yên, đi tiếp xe trung chuyển (limousine hoặc xe 16, 29 chỗ) khoảng 15km đường đèo lên trung tâm Tà Xùa r
+## review-mong-vang-retreat-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Đi xe cabin thì xe chỉ tới Bắc Yên, từ đó đi tiếp khoảng 15km đường đèo bằng xe trung chuyển (limousine hoặc xe 16, 29 chỗ) lên trung tâm Tà
+## ta-xua-thang-6.content: 15→14 x1, 215 x0
+   ĐỔI: …- **Xe:** chặng Hà Nội lên Tà Xùa mất khoảng 8 tiếng, có 15km đèo ở đoạn cuối
+## review-reu-homestay-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Đi xe cabin đêm từ Hà Nội, xe chỉ chạy tới Bắc Yên, từ đó đi xe trung chuyển (limousine hoặc xe 16, 29 chỗ) khoảng 15km đường đèo lên trung 
+## review-sunset-clouds-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Đi xe cabin đêm thì xe chỉ tới Bắc Yên, từ đó đi tiếp khoảng 15km đường đèo bằng xe trung chuyển (limousine hoặc xe 16, 29 chỗ) lên Tà Xùa; 
+## review-thac-may-ta-xua.content: 15→14 x1, 215 x0
+   giữ: …Từ home ra **Đỉnh Gió khoảng 0,5km**, tới **Khe Cải (Emei Hill) khoảng 6km**, còn Sống lưng khủng long, Thảo Nguyên, Cây Cô Đơn và Mỏm Cá He
+   ĐỔI: …Muốn ra Sống lưng khủng long thì thuê xe máy hoặc xe ôm, quãng 15km đường đèo; chi tiết ở bài [Sống lưng khủng long Tà Xùa](/kinh-nghiem/son
+   giữ: …- Xa Sống lưng khủng long và Mỏm Cá Heo (khoảng 15km), muốn đi phải thuê xe.
+   giữ: …Nhà ở khu Đỉnh Gió, xã Tà Xùa, Bắc Yên, Sơn La, cách Đỉnh Gió khoảng 0,5km, Khe Cải khoảng 6km và Sống lưng khủng long khoảng 15km.
+## review-nhat-nang-house-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Đi xe cabin thì xe chỉ chạy tới Bắc Yên, từ đó đi tiếp xe trung chuyển khoảng 15km đường đèo lên Tà Xùa; chi tiết có ở bài [xe cabin lên Tà 
+## review-ta-xua-clouds-homestay.content: 15→14 x1, 215 x0
+   ĐỔI: …Đi xe cabin thì xe chỉ chạy tới Bắc Yên, từ đó xe trung chuyển đi tiếp khoảng 15km đường đèo lên và đưa tới tận cửa
+## review-la-cheu-homestay-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Đi xe cabin thì xe chỉ tới Bắc Yên, từ đó đi tiếp xe trung chuyển (limousine hoặc xe 16, 29 chỗ) khoảng 15km đường đèo lên Tà Xùa; chuyện nà
+## review-pao-homestay-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Đi xe cabin thì xe chỉ tới Bắc Yên, từ đó đi tiếp khoảng 15km đường đèo bằng xe trung chuyển (limousine hoặc xe 16, 29 chỗ) lên Tà Xùa; chuy
+## review-ta-xua-hill.content: 15→14 x2, 215 x0
+   ĐỔI: …Đi xe cabin thì **xe chỉ chạy tới Bắc Yên**, từ đó đi xe trung chuyển (limousine hoặc xe 16, 29 chỗ) khoảng 15km đường đèo lên Tà Xùa; chuyệ
+   ĐỔI: …Xe cabin chỉ chạy tới Bắc Yên, từ đó đi xe trung chuyển (limousine hoặc xe 16, 29 chỗ) khoảng 15km đường đèo lên Tà Xùa
+## review-noong-oi-homestay-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Đi xe cabin thì xe chỉ chạy tới Bắc Yên, từ đó đi xe trung chuyển (limousine hoặc xe 16, 29 chỗ) khoảng 15km đường đèo lên Tà Xùa; chuyện xu
+## review-phong-lai-homstay-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Đi xe cabin thì xe chỉ chạy tới Bắc Yên, từ đó đi tiếp xe trung chuyển (limousine hoặc xe 16, 29 chỗ) khoảng 15km đường đèo lên Tà Xùa; chi 
+## review-tho-garden-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Thơ Garden thuộc [nhà xe Thành Mỹ](/xe-cabin/nha-xe-thanh-my-2), tuyến xe cabin Hà Nội – Bắc Yên khá quen; xuống Bắc Yên đi tiếp xe trung ch
+## review-soc-nau-homestay-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Đi xe cabin đêm thì xe tới Bắc Yên, đi tiếp xe trung chuyển (limousine hoặc xe 16, 29 chỗ) khoảng 15km đường đèo lên trung tâm là gần nhà, x
+## review-co-la-homestay-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Nhà ở **khu trung tâm Tà Xùa**, gần quán ăn, cà phê và chỗ xe trung chuyển từ Bắc Yên lên hay thả khách (xe cabin chỉ chạy tới Bắc Yên, từ đ
+## ta-xua-o-dau-cach-ha-noi-bao-nhieu-km.excerpt: 15→14 x0, 215 x1
+   215: …Thuộc tỉnh Sơn La, cách Hà Nội khoảng 215km, không phải Lào Cai
+## ta-xua-o-dau-cach-ha-noi-bao-nhieu-km.content: 15→14 x7, 215 x8
+   ĐỔI: …Trong đó 15km cuối là đèo dốc từ Bắc Yên lên.
+   giữ: …- **Tới nơi:** Đỉnh Gió cách trung tâm khoảng 2km, Sống lưng khủng long 12 đến 15km.
+   ĐỔI: … 15km đèo 
+   ĐỔI: …Cả tuyến là đường nhựa, phần khó dồn vào 15km cuối
+   ĐỔI: …Từ đây lên trung tâm Tà Xùa còn 15km dốc liên tục, nhiều cua tay áo; ô tô con mất khoảng 40 đến 50 phút.
+   giữ: … 12 đến 15km 
+   giữ: … khoảng 15km 
+   ĐỔI: …Khu trung tâm cao khoảng 1.500m và cách Bắc Yên 15km đường đèo.
+   ĐỔI: …Đoạn cuối gồm 15km đèo dốc từ Bắc Yên lên trung tâm.
+   ĐỔI: …Phần khó là 15km đèo cuối, dốc và nhiều cua tay áo, hay có sương mù sau 16h.
+   215: …Tà Xùa cách Hà Nội khoảng 215km: ô tô chạy 6 đến 7 tiếng, xe cabin đêm rời Hà Nội 21h đến 22h và tới nơi khoảng 6h sáng
+   215: …- **Cách Hà Nội:** khoảng 215km theo cung Sơn Tây, Thanh Sơn, Phù Yên, Bắc Yên
+   215: …Tà Xùa cách Hà Nội khoảng 215km và đi theo hướng Phú Thọ, Phù Yên
+   215: …Từ trung tâm Hà Nội tới trung tâm Tà Xùa khoảng **215km**
+   215: …Có nơi ghi 240km do tính từ điểm xuất phát khác; con số nên dùng để lên lịch là 210 đến 215km.
+   215: … khoảng 215km 
+   215: …lấy quãng đường từ nhà bạn tới Hà Nội, cộng thêm khoảng 215km
+   215: …Tà Xùa cách Hà Nội khoảng 215km theo cung Sơn Tây, Thanh Sơn, Phù Yên, Bắc Yên
+## lich-trinh-chi-phi-ta-xua.content: 15→14 x1, 215 x1
+   ĐỔI: …Cả hai cách đều đổi sang **xe trung chuyển** ở thị trấn Bắc Yên để lên 15 km đèo cuối
+   215: …Tà Xùa là xã vùng cao của tỉnh Sơn La, trung tâm xã ở độ cao khoảng 1.500 m, cách Hà Nội 215–220 km
+## di-ta-xua-bang-o-to-tu-lai.excerpt: 15→14 x1, 215 x1
+   ĐỔI: …sedan gầm thấp lên được, giờ xuất phát, cách đổ đèo 15km từ Bắc Yên, homestay có đường ô tô vào, điểm phải đổi xe ôm.
+   215: …Tự lái ô tô Hà Nội – Tà Xùa 215km: sedan gầm thấp lên được, giờ xuất phát, cách đổ đèo 15km từ Bắc Yên, homestay có đường ô tô vào, điểm phả
+## di-ta-xua-bang-o-to-tu-lai.content: 15→14 x7, 215 x3
+   ĐỔI: …Phần khó nằm ở 15km đèo cuối, chuyện đỗ xe và việc chọn homestay có đường ô tô vào
+   ĐỔI: …- **Cung phổ biến:** Hà Nội, Sơn Tây, Thanh Sơn, Thu Cúc, Phù Yên, Bắc Yên, rồi 15km đèo lên Tà Xùa.
+   ĐỔI: …- **Đoạn khó nhất:** 15km từ Bắc Yên lên, dốc liên tục, nhiều cua tay áo
+   ĐỔI: … 15km đèo dốc liên tục 
+   ĐỔI: …## 15km đèo Bắc Yên lên Tà Xùa: lái thế nào cho an toàn?
+   ĐỔI: …Rà phanh liên tục 15km là cách nhanh nhất làm nóng và mất phanh.
+   ĐỔI: …Riêng 15km đèo cuối từ Bắc Yên mất 40 đến 50 phút.
+   215: …- **Quãng đường:** Hà Nội đến trung tâm Tà Xùa khoảng **215km**, 6 đến 7 tiếng lái; tính cả nghỉ ăn sáng, ăn trưa là khoảng 8 tiếng.
+   215: … khoảng 215km 
+   215: …Khoảng 6 đến 7 tiếng lái cho 215km; cộng nghỉ ăn sáng, ăn trưa là khoảng 8 tiếng từ lúc rời nhà
+## review-ban-may-ta-xua-retreat.content: 15→14 x1, 215 x0
+   ĐỔI: …Xe cabin chỉ chạy tới Bắc Yên, từ đó đi xe trung chuyển (limousine hoặc xe 16, 29 chỗ) khoảng 15km đường đèo lên Tà Xùa, nhà ngay mặt đường 
+## review-may-ha-retreat-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Lợi nhất là **xe cabin của nhà xe chạy tới Bắc Yên, rồi xe trung chuyển (limousine hoặc xe 16, 29 chỗ) đi tiếp khoảng 15km đường đèo lên đưa
+## review-pang-village-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Xe cabin chạy tới Bắc Yên, từ đó xe trung chuyển (limousine hoặc xe 16, 29 chỗ) đi tiếp khoảng 15km đường đèo lên đưa tới tận cửa nhà, đỡ ph
+## ta-xua-thang-4.content: 15→14 x1, 215 x0
+   ĐỔI: …- **Tự lái thì tính chỗ đỗ.** Đường lên dài 15km đèo dốc, dịp lễ xe đông; đọc trước bài [đi Tà Xùa bằng ô tô tự lái](/kinh-nghiem/di-ta-xua-
+## review-nha-xe-thanh-my-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …- **Khoảng 4h00, Bắc Yên:** dừng chân trước 15km đèo cuối.
+## review-nha-xe-tien-thanh-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Với xe giường nằm cỡ lớn, đoạn 15km đèo cuối thường phải chuyển sang xe nhỏ; limousine bỏ được bước này.
+## review-nha-xe-xuan-truong-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …- **Khoảng 5h15:** tới thị trấn Bắc Yên, nghỉ chân trước 15km đèo cuối.
+## tu-bac-giang-di-ta-xua.content: 15→14 x3, 215 x0
+   ĐỔI: …Đoạn đèo 15km còn lại do xe nhỏ của nhà xe đảm nhận, bạn hỏi rõ chặng này khi đặt
+   ĐỔI: …Dễ say xe thì đọc [mẹo chống say trên 15km đèo](/kinh-nghiem/meo-chong-say-xe-deo-ta-xua).
+   ĐỔI: …Tới thị trấn Bắc Yên, bạn đổi thêm một lần sang xe nhỏ cho 15km đèo cuối.
+## tu-bac-ninh-di-ta-xua.content: 15→14 x2, 215 x0
+   ĐỔI: …Khoảng 15km đèo cuối lên Tà Xùa đi bằng xe trung chuyển của nhà xe (limousine hoặc xe 16, 29 chỗ)
+   ĐỔI: …Nhà xe dùng xe nhỏ chở khách đi tiếp khoảng 15km đèo lên Tà Xùa, bạn báo tên homestay khi đặt để tính điểm trả.
+## tu-buon-ma-thuot-di-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Đoạn đèo 15km còn lại do xe trung chuyển của nhà xe chở (limousine hoặc xe 16, 29 chỗ), khoảng 6h00 thì lên tới Tà Xùa
+## tu-can-tho-di-ta-xua.content: 15→14 x4, 215 x0
+   ĐỔI: …- **Từ Nội Bài lên Tà Xùa:** xe cabin giường nằm chạy đêm 8–9 tiếng tới thị trấn Bắc Yên, đổi xe trung chuyển đi tiếp 15km đèo.
+   ĐỔI: …Cách tính đoạn 15km này nên hỏi nhà xe lúc đặt.
+   ĐỔI: …- Thuốc chống say xe cho 15km đèo cuối, xem [mẹo chống say xe đèo](/kinh-nghiem/meo-chong-say-xe-deo-ta-xua).
+   ĐỔI: …Nhà xe dùng xe trung chuyển chở khách đi tiếp khoảng 15km đèo, bạn báo tên homestay khi đặt vé để tính điểm trả.
+## tu-da-lat-di-ta-xua.content: 15→14 x3, 215 x0
+   ĐỔI: …- **Chặng cuối:** xe cabin dừng ở thị trấn Bắc Yên, 15km đèo còn lại do xe trung chuyển của nhà xe chở, bạn hỏi rõ khi đặt.
+   ĐỔI: …Đoạn 15km từ Bắc Yên lên toàn cua tay áo, ai dễ say xe nên đọc [mẹo chống say xe đèo Tà Xùa](/kinh-nghiem/meo-chong-say-xe-deo-ta-xua).
+   ĐỔI: …Đoạn 15km lên Tà Xùa do xe trung chuyển của nhà xe chở, bạn báo tên homestay và hỏi rõ điểm trả khi đặt vé
+## tu-da-nang-di-ta-xua.content: 15→14 x3, 215 x0
+   ĐỔI: … Xe cabin đêm, 15km cuối đi xe trung chuyển 
+   ĐỔI: …Xe cabin cỡ lớn dừng ở Bắc Yên, đoạn đèo khoảng 15km lên Tà Xùa do xe trung chuyển của nhà xe chở, loại limousine hoặc xe 16, 29 chỗ; cách t
+   ĐỔI: …Người dễ say xe nên xem trước [mẹo vượt 15km đèo](/kinh-nghiem/meo-chong-say-xe-deo-ta-xua).
+## tu-ha-nam-di-ta-xua.content: 15→14 x3, 215 x0
+   ĐỔI: …15km đèo cuối lên Tà Xùa đi bằng xe trung chuyển của nhà xe.
+   ĐỔI: …Từ đây còn khoảng 15km đèo, nhà xe bố trí xe trung chuyển (limousine hoặc xe 16, 29 chỗ) đưa khách lên.
+   ĐỔI: …Người dễ say xe nên chuẩn bị trước cho 15km dốc này, mẹo cụ thể ở bài [chống say xe đèo Tà Xùa](/kinh-nghiem/meo-chong-say-xe-deo-ta-xua).
+## tu-hai-duong-di-ta-xua.content: 15→14 x2, 215 x0
+   ĐỔI: …- **Chặng cuối:** xe cabin chỉ tới thị trấn Bắc Yên, 15km đèo lên Tà Xùa do xe nhỏ của nhà xe chở.
+   ĐỔI: …Từ Bắc Yên lên Tà Xùa là 15km đèo
+## tu-hai-phong-di-ta-xua.content: 15→14 x4, 215 x0
+   ĐỔI: …- **Chặng cuối:** xe cabin dừng ở thị trấn Bắc Yên, 15km đèo còn lại đi xe trung chuyển của nhà xe.
+   ĐỔI: …Xe dừng ở thị trấn Bắc Yên, từ đó còn khoảng 15km dốc và cua tay áo
+   ĐỔI: …![Khu homestay trên sườn núi ở trung tâm Tà Xùa, nơi xe trung chuyển trả khách sau chặng đèo 15km từ Bắc Yên](/uploads/1793637277119-eb07e6f
+   ĐỔI: …Riêng ở Bắc Yên thì khách nào cũng đổi sang xe nhỏ cho 15km đèo cuối.
+## tu-hue-di-ta-xua.content: 15→14 x2, 215 x0
+   ĐỔI: …Xe trung chuyển leo khoảng 15km đèo từ Bắc Yên lên Tà Xùa.
+   giữ: …**Máy bay từ Phú Bài.** Sân bay Phú Bài cách trung tâm Huế khoảng 15km về phía nam
+   ĐỔI: …Tại Bắc Yên, nhà xe chuyển khách sang xe nhỏ hơn (limousine, xe 16 hoặc 29 chỗ) để đi khoảng 15km lên xã Tà Xùa, tới nơi lúc khoảng 6h00
+## tu-hung-yen-di-ta-xua.content: 15→14 x2, 215 x0
+   ĐỔI: …Xe lớn dừng tại đây, 15km đèo lên Tà Xùa do xe nhỏ của nhà xe chở tiếp, tới nơi tầm 6h00
+   ĐỔI: …Nhà xe chở tiếp bằng xe nhỏ (limousine hoặc xe 16, 29 chỗ) cho khoảng 15km đèo
+## tu-lao-cai-di-ta-xua.content: 15→14 x3, 215 x0
+   ĐỔI: …- **Chặng cuối:** xe lớn dừng ở thị trấn Bắc Yên khoảng 4h00, xe trung chuyển của nhà xe chở tiếp 15km đèo.
+   ĐỔI: …Từ đây khách sang limousine hoặc xe 16, 29 chỗ của chính nhà xe để leo 15km đèo
+   ĐỔI: …Lối này vòng hơn nhưng là quốc lộ, và 15km cuối từ Bắc Yên lên Tà Xùa vẫn là đèo
+## tu-ha-noi-di-ta-xua.content: 15→14 x4, 215 x0
+   ĐỔI: …- **Giờ giấc:** xe lăn bánh 21h00, 21h30 hoặc 22h00; tới thị trấn Bắc Yên khoảng 4h00, đổi xe nhỏ leo 15km đèo, khoảng 6h00 tới Tà Xùa.
+   ĐỔI: … Tự cầm lái 200 đến 240km, có 15km đèo dốc cuối 
+   ĐỔI: …**Xe cabin cỡ lớn dừng ở thị trấn Bắc Yên.** Đoạn Bắc Yên lên Tà Xùa dài khoảng 15km đèo, khách chuyển sang xe trung chuyển của chính nhà xe
+   ĐỔI: …Khoảng 15km đèo còn lại đi bằng xe trung chuyển của nhà xe, tới Tà Xùa khoảng 6h00.
+## tu-ha-tinh-di-ta-xua.content: 15→14 x2, 215 x0
+   giữ: …Giữa hai khu là khoảng 10–15km đường nội đô, đi taxi hoặc xe công nghệ
+   ĐỔI: …Xe cabin cỡ lớn dừng tại đây, khách chuyển sang xe nhỏ của nhà xe để leo khoảng 15km đèo.
+   ĐỔI: …Đoạn 15km đèo còn lại nhà xe chở bằng xe nhỏ, vì vậy bạn cần báo tên homestay ngay khi đặt vé.
+## tu-lang-son-di-ta-xua.content: 15→14 x4, 215 x0
+   ĐỔI: …bạn về Hà Nội (khoảng 150km, chừng 3 tiếng xe khách) rồi lên xe cabin đêm lúc 21h00 đến 22h00, vé khứ hồi 500.000đ đến 650.000đ một người.**
+   ĐỔI: … khoảng 15km đèo 
+   ĐỔI: …- Chặng 15km cuối nhiều cua, người dễ say nên xem trước [cách chống say xe trên đèo](/kinh-nghiem/meo-chong-say-xe-deo-ta-xua).
+   ĐỔI: …Xe lớn dừng ở thị trấn Bắc Yên, 15km đèo còn lại đi xe trung chuyển của nhà xe
+## tu-nam-dinh-di-ta-xua.content: 15→14 x2, 215 x0
+   ĐỔI: …Xe dừng ở thị trấn Bắc Yên, 15km đèo còn lại đi xe nhỏ của nhà xe.
+   ĐỔI: …Đoạn khó nhất của cả tuyến là 15km cuối, từ thị trấn Bắc Yên lên xã Tà Xùa
+## tu-nghe-an-di-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Chặng đèo khoảng 15km lên Tà Xùa do xe trung chuyển của nhà xe chở, tới nơi khoảng 6h00
+## tu-nha-trang-di-ta-xua.content: 15→14 x2, 215 x0
+   ĐỔI: …Khoảng 15km đèo còn lại do xe trung chuyển của nhà xe chở, cách tính chặng này bạn hỏi rõ khi đặt
+   ĐỔI: …Đoạn 15km Bắc Yên – Tà Xùa thì đi xe trung chuyển của nhà xe.
+## tu-ninh-binh-di-ta-xua.content: 15→14 x2, 215 x0
+   ĐỔI: …Xe tới thị trấn Bắc Yên khoảng 4h00, rồi khách chuyển sang xe nhỏ đi nốt 15km đèo, tới Tà Xùa khoảng 6h00.
+   ĐỔI: …Khách Ninh Bình đi xe trung chuyển ra Hà Nội, 21h00 lên xe cabin tới Bắc Yên, rồi đổi xe nhỏ đi 15km cuối lên Tà Xùa.
+## tu-phu-quoc-di-ta-xua.content: 15→14 x2, 215 x0
+   ĐỔI: …Từ thị trấn Bắc Yên, xe trung chuyển chở tiếp 15km đèo lên Tà Xùa.
+   ĐỔI: … 15km đèo, tới khoảng 6h 
+## tu-phu-tho-di-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …- **Tới nơi:** xe lớn dừng ở thị trấn Bắc Yên khoảng 4h00, xe trung chuyển của nhà xe leo tiếp 15km đèo lên Tà Xùa.
+## tu-pleiku-di-ta-xua.content: 15→14 x2, 215 x0
+   ĐỔI: …Mắt xích cuối là 15km đèo do xe trung chuyển của nhà xe chở, vì xe cabin cỡ lớn dừng ở Bắc Yên.
+   ĐỔI: …Ở Bắc Yên, khách chuyển sang limousine hoặc xe 16, 29 chỗ của nhà xe để leo 15km đèo
+## tu-quang-binh-di-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Xe lớn không leo đèo, nên nhà xe đưa khách sang xe trung chuyển để đi tiếp khoảng 15km lên Tà Xùa, có mặt lúc khoảng 6h00.
+## tu-quang-ninh-di-ta-xua.content: 15→14 x2, 215 x0
+   ĐỔI: …Con đèo dài khoảng 15km lên trung tâm Tà Xùa quá hẹp và dốc với xe lớn, nên nhà xe chuyển khách sang limousine hoặc xe 16 chỗ, 29 chỗ
+   ĐỔI: …Xe cabin dừng ở thị trấn Bắc Yên, 15km đèo còn lại do xe trung chuyển của nhà xe chở
+## tu-quy-nhon-di-ta-xua.content: 15→14 x2, 215 x0
+   ĐỔI: …- Xe cabin dừng ở thị trấn Bắc Yên khoảng 4h00, 15km đèo cuối đi xe trung chuyển của nhà xe.
+   ĐỔI: …Đoạn còn lại dài khoảng 15km, toàn dốc và cua, do xe trung chuyển của nhà xe chở (limousine hoặc xe 16, 29 chỗ)
+## tu-sai-gon-di-ta-xua.content: 15→14 x4, 215 x0
+   ĐỔI: …- **Lộ trình từ TP.HCM:** máy bay tới Nội Bài, xe cabin chạy đêm từ Hà Nội tới thị trấn Bắc Yên, xe trung chuyển 15km đèo lên Tà Xùa.
+   ĐỔI: …**Bắc Yên → Tà Xùa** khoảng 15km đèo bằng xe trung chuyển của chính nhà xe đó.
+   ĐỔI: …Đoạn 15km đèo còn lại do limousine hoặc xe 16, 29 chỗ của nhà xe chở, tới Tà Xùa khoảng 6h
+   ĐỔI: …Người dễ say xe xem thêm [mẹo qua 15km đèo](/kinh-nghiem/meo-chong-say-xe-deo-ta-xua).
+## tu-thai-binh-di-ta-xua.content: 15→14 x3, 215 x0
+   ĐỔI: …Xe cabin cỡ lớn dừng ở đây, khách sang xe nhỏ của nhà xe để leo 15km đèo.
+   ĐỔI: …Từ thị trấn Bắc Yên, xe trung chuyển của nhà xe (limousine hoặc xe 16, 29 chỗ) chở khách lên Tà Xùa, quãng đèo dài khoảng 15km
+   ĐỔI: …- **Chuẩn bị cho đèo và lạnh.** Người quen đường đồng bằng dễ say ở 15km cua liên tục cuối chặng, xem trước [mẹo chống say xe đèo Tà Xùa](/k
+## tu-thai-nguyen-di-ta-xua.content: 15→14 x3, 215 x0
+   ĐỔI: … khoảng 15km đèo 
+   ĐỔI: …Khoảng 15km đèo cuối đi bằng xe nhỏ hơn (limousine, xe 16 hoặc 29 chỗ); chặng này tính tiền ra sao thì hỏi rõ khi đặt.
+   ĐỔI: …Khách Thái Nguyên đi xe trung chuyển về Hà Nội, lên xe cabin lúc 21h00 tại 68 Mạc Thái Tông, rồi đổi xe nhỏ ở Bắc Yên cho 15km đèo cuối.
+## tu-vinh-phuc-di-ta-xua.content: 15→14 x3, 215 x0
+   ĐỔI: …- **Chặng cuối:** xe cabin lớn dừng ở Bắc Yên, khoảng 15km đèo lên Tà Xùa đi bằng xe trung chuyển của nhà xe, chi phí chặng này hỏi rõ khi đ
+   ĐỔI: …- **Rạng sáng ngày 1:** khoảng 5h15 tới thị trấn Bắc Yên, chuyển sang xe nhỏ leo 15km đèo
+   ĐỔI: …Phần khó vẫn là 15km dốc từ Bắc Yên lên
+## tu-thanh-hoa-di-ta-xua.content: 15→14 x1, 215 x0
+   ĐỔI: …Đoạn đèo 15km cuối do xe trung chuyển của nhà xe chở
+## ha-giang-hay-ta-xua.excerpt: 15→14 x0, 215 x1
+   215: …Tà Xùa cách Hà Nội 215km, đi gọn 2N1Đ bằng xe cabin đêm; Hà Giang 300km, vòng cung đá cần 3–4 ngày
+## ha-giang-hay-ta-xua.content: 15→14 x2, 215 x3
+   ĐỔI: … 15km đèo cuối từ Bắc Yên lên 
+   ĐỔI: …Đoạn khó nhất là 15km đèo cuối, đi xe cabin thì không phải tự lái
+   215: …cách Hà Nội khoảng 210 đến 215km, đi xe cabin đêm, sáng ra đã đứng giữa vùng săn mây
+   215: … Khoảng 210 đến 215km 
+   215: …Tà Xùa gần Hà Nội hơn, khoảng 210 đến 215km so với khoảng 300km lên TP Hà Giang
+## cao-bang-hay-ta-xua.excerpt: 15→14 x0, 215 x1
+   215: …Tà Xùa cách Hà Nội khoảng 215km, đi 2N1Đ săn mây; Cao Bằng khoảng 300km, cần 3N2Đ xem thác Bản Giốc
+## cao-bang-hay-ta-xua.content: 15→14 x1, 215 x3
+   ĐỔI: …Tà Xùa có 15km đèo cuối từ Bắc Yên lên; nên chọn homestay có nhãn "Đường dễ đi" ở trung tâm
+   215: …Tà Xùa cách Hà Nội khoảng 210 đến 215km, đi xe đêm là tới; Cao Bằng cách khoảng 280 đến 300km, riêng thác Bản Giốc còn thêm khoảng 80 đến 90
+   215: … Khoảng 210 đến 215km 
+   215: …Đường từ Hà Nội lên Tà Xùa chỉ khoảng 210 đến 215km.
+## mu-cang-chai-hay-ta-xua.excerpt: 15→14 x0, 215 x1
+   215: …Tà Xùa cách Hà Nội 215km, Mù Cang Chải 300km
+## mu-cang-chai-hay-ta-xua.content: 15→14 x2, 215 x4
+   ĐỔI: … 15km đèo từ Bắc Yên lên 
+   ĐỔI: …Đoạn cuối là 15km đèo, người hay say xe nên đọc trước bài [mẹo chống say xe đèo Tà Xùa](/kinh-nghiem/meo-chong-say-xe-deo-ta-xua).
+   215: …Từ Hà Nội lên Tà Xùa chừng 210 đến 215km, đi xe cabin đêm thì sáng ra khoảng 6h đã tới; Mù Cang Chải xa hơn, khoảng 280 đến 300km, và cần ít
+   215: …- **Đường từ Hà Nội:** Tà Xùa khoảng 210 đến 215km; Mù Cang Chải khoảng 280 đến 300km, đường đi qua đèo Khau Phạ.
+   215: … Khoảng 210 đến 215km 
+   215: …Tà Xùa chừng 210 đến 215km, có chuyến cabin chạy đêm và xuống xe lúc khoảng 6h sáng.
+## tay-bac-nen-di-dau-so-sanh-ta-xua.excerpt: 15→14 x0, 215 x1
+   215: …so sánh Tà Xùa (khoảng 215km, xe đêm) với Sapa, Hà Giang, Mộc Châu, Mù Cang Chải, Cao Bằng theo số ngày nghỉ, tháng và người đi cùng.
+## tay-bac-nen-di-dau-so-sanh-ta-xua.content: 15→14 x1, 215 x3
+   ĐỔI: … 15km đèo cuối từ Bắc Yên 
+   giữ: …![Đồi ruộng bậc thang Mâm Xôi giữa thung lũng xã Xím Vàng, cách trung tâm Tà Xùa khoảng 15km](/uploads/1794462912490-55dc3ecd6669.jpg)
+   215: …Có 2 ngày cuối tuần thì Tà Xùa (khoảng 210–215km, đi xe đêm) và Mộc Châu (khoảng 180–200km) là hai lựa chọn gọn nhất; có từ 3 đến 4 ngày mới
+   215: … Khoảng 210–215km 
+   215: …Tà Xùa cách Hà Nội khoảng 210–215km
+
+LỆCH:

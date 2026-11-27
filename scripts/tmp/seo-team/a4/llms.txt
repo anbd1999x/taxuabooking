@@ -1,0 +1,364 @@
+# Tà Xùa Booking
+
+> Tà Xùa Booking là nền tảng trung gian đặt dịch vụ du lịch tại Tà Xùa, chuyên cung cấp dịch vụ đặt homestay, xe cabin, thuê xe máy, xe ôm, taxi và combo du lịch. Nền tảng hỗ trợ tra cứu giá, tình trạng phòng và gửi yêu cầu đặt dịch vụ trực tuyến.
+>
+> Tà Xùa Booking (http://localhost:3000) là website đặt dịch vụ du lịch Tà Xùa (xã Tà Xùa, tỉnh Sơn La, Việt Nam; cách Hà Nội khoảng 215–220 km): xe cabin giường nằm Hà Nội – Tà Xùa, homestay/bungalow săn mây, thuê xe máy, xe ôm, taxi và combo xe + homestay. Khách xem giá và tình trạng còn chỗ theo ngày rồi gửi yêu cầu đặt; không thanh toán online, Tà Xùa Booking gọi lại xác nhận. Hỗ trợ 8:00–23:00 hằng ngày, điện thoại/Zalo 0357 452 952.
+
+Giá trong file này lấy trực tiếp từ dữ liệu đang bán, cập nhật ngày 27/11/2026. Giá thay đổi theo ngày trong tuần, mùa và dịp lễ; giá chính xác hiện trên trang khi chọn ngày. Dữ liệu đầy đủ dạng bảng (giá từng phòng, bảng giá chặng từng nhà xe, xe ôm, taxi, xe máy, quãng đường xe chạy từ từng homestay tới các điểm check-in theo dẫn đường OpenStreetMap, lịch mùa mây, lúa chín, hoa, sương muối): http://localhost:3000/llms-full.txt
+
+Ngôn ngữ: tiếng Việt (gốc), English (/en), 中文 (/zh), 한국어 (/ko). Tiếng Trung gọi Tà Xùa là 塔萨, tiếng Hàn là 따쑤아.
+
+## Về Tà Xùa Booking
+
+- Loại hình: nền tảng trung gian đặt dịch vụ du lịch (không phải chủ homestay hay nhà xe; dịch vụ do chủ cơ sở tại Tà Xùa cung cấp).
+- Thanh toán: không thu tiền online trên website. Khách gửi yêu cầu đặt, được gọi lại xác nhận rồi mới đặt cọc bằng chuyển khoản.
+- Đơn vị kinh doanh: Tà Xùa Booking (cá nhân kinh doanh)
+- Người chịu trách nhiệm: Bùi Danh An, Tăng Mai Linh
+- Mã số thuế: 042098000948
+- Địa chỉ đăng ký: Đậu Liêu, Hồng Lĩnh, Hà Tĩnh
+- Khu vực hoạt động: Tà Xùa, Bắc Yên, Sơn La
+- Điện thoại / Zalo: 0357 452 952
+- Email: lienhe@taxuabooking.com
+- Giờ hỗ trợ: 8:00–23:00 hằng ngày (giờ Việt Nam)
+- Chi tiết: http://localhost:3000/gioi-thieu, cam kết và điều khoản: http://localhost:3000/cam-ket
+
+## Trang chính
+
+- [Xe cabin Hà Nội – Tà Xùa](http://localhost:3000/xe-cabin): tìm nhà xe còn chỗ theo ngày đi + ngày về, đặt vé cabin đơn/đôi.
+- [Homestay Tà Xùa](http://localhost:3000/homestay): homestay, bungalow view biển mây, giá theo từng phòng và từng đêm.
+- [Combo xe cabin + homestay](http://localhost:3000/combo): ghép vé khứ hồi với phòng còn trống theo ngân sách.
+- [Thuê xe máy Tà Xùa](http://localhost:3000/thue-xe-may), [Xe ôm](http://localhost:3000/xe-om), [Taxi](http://localhost:3000/taxi)
+- [Lịch trình & chi phí đi Tà Xùa](http://localhost:3000/lich-trinh): lịch trình theo giờ 2 ngày 1 đêm, 3 ngày 2 đêm, tự tính chi phí theo số người.
+- [Bản đồ Tà Xùa](http://localhost:3000/ban-do): bản đồ vệ tinh các điểm check-in và cung đường từng ngày.
+- [Nhà hàng, quán ăn](http://localhost:3000/nha-hang) và [quán cafe](http://localhost:3000/cafe) ở Tà Xùa theo khu vực, kèm giá tham khảo và giờ mở cửa.
+- [Kinh nghiệm du lịch Tà Xùa](http://localhost:3000/kinh-nghiem): cẩm nang, lịch trình, di chuyển, ăn uống. Trang theo chủ đề: [Điểm đến Tà Xùa: điểm check-in và trải nghiệm](http://localhost:3000/kinh-nghiem/chu-de/diem-den), [Lịch trình du lịch Tà Xùa và chi phí](http://localhost:3000/kinh-nghiem/chu-de/lich-trinh), [Kinh nghiệm di chuyển đi Tà Xùa](http://localhost:3000/kinh-nghiem/chu-de/di-chuyen), [Ăn gì ở Tà Xùa: món ngon, quán ăn và đặc sản](http://localhost:3000/kinh-nghiem/chu-de/an-uong), [Cẩm nang du lịch Tà Xùa: mẹo và lưu ý](http://localhost:3000/kinh-nghiem/chu-de/cam-nang), [Review homestay Tà Xùa](http://localhost:3000/kinh-nghiem/chu-de/review-homestay).
+- [Hướng dẫn đặt dịch vụ](http://localhost:3000/huong-dan), [Cam kết](http://localhost:3000/cam-ket), [Giới thiệu](http://localhost:3000/gioi-thieu), [Liên hệ](http://localhost:3000/lien-he)
+- [Phần mềm quản lý tiệm cho thuê xe máy](http://localhost:3000/hop-tac/xe-may): dành cho chủ tiệm (đối tác).
+
+## Nhà xe cabin Hà Nội – Tà Xùa đang mở bán
+
+- [Nhà xe Khánh Châu](http://localhost:3000/xe-cabin/nha-xe-khanh-chau): khứ hồi từ Hà Nội 500.000đ; xuất phát 21:00 tại 68 Mạc Thái Tông; Nhà xe có đón khách từ các tỉnh phía Bắc lên Tà Xùa
+- [Nhà xe Xuân Trường](http://localhost:3000/xe-cabin/nha-xe-xuan-truong): khứ hồi từ Hà Nội 550.000đ; xuất phát 21:30 tại Đối Diện cổng Bệnh Viện Hồng Ngọc; Nhà xe Xuân Trường – Tuyến Tà Xùa
+- [Nhà Xe Thành Mỹ](http://localhost:3000/xe-cabin/nha-xe-thanh-my-2): khứ hồi từ Hà Nội 600.000đ; xuất phát 22:00 tại 24 Đình Núp; Nhà xe Thành Mỹ vận hành chuyến Tà xùa
+- [Nhà xe Tiến Thành](http://localhost:3000/xe-cabin/nha-xe-tien-thanh): khứ hồi từ Hà Nội 600.000đ; xuất phát 21:00 tại Mễ Trì; Nhà xe có đón trả tận nơi đối với một số home dốc hoặc xa trung tâm!
+- [Nhà xe Quang Nghĩa](http://localhost:3000/xe-cabin/nha-xe-quang-nghia-2): khứ hồi từ Hà Nội 650.000đ; xuất phát 22:00 tại CC2 Mễ Trì, Mỹ Đình, Nam Từ Liêm; Chỉ đón chuyên tuyến Hà Nội - Tà Xùa, có đón trả khách + hành lý tận homestay!
+
+Các xe cabin chạy đêm hằng ngày, tới trung tâm Tà Xùa khoảng 6h sáng; chiều về rời Tà Xùa khoảng 12h, tới Hà Nội khoảng 19h. So sánh chi tiết: http://localhost:3000/kinh-nghiem/so-sanh-nha-xe-di-ta-xua
+
+## Homestay, bungalow tại Tà Xùa (38 cơ sở)
+
+Giá phòng thấp nhất của từng cơ sở dao động từ 113.000đ đến 1.300.000đ một đêm. Phần lớn homestay nhận phòng từ 14h, trả phòng trước 12h. Đặt qua website không cần thanh toán online.
+
+- [Nhà Mây Si](http://localhost:3000/homestay/nha-may-si): khu Trung tâm Tà Xùa; 8 phòng; phòng từ 375.000đ/đêm; có view mây, sưởi; Nhà Mây – Homestay giữa lòng Tà Xùa
+- [La Chếu Homestay](http://localhost:3000/homestay/la-cheu-homestay): khu Đỉnh Gió; 20 phòng; phòng từ 675.000đ/đêm; có view mây, bồn tắm, ăn sáng, sưởi; Homestay Tà Xùa 20 phòng với các căn bungalow view biển mây có bồn tắm, nhà view núi mây và dãy phòng La Chếu ban công…
+- [Chillout Village](http://localhost:3000/homestay/chillout-village): khu Khe Cải; 14 phòng; phòng từ 650.000đ/đêm; CHILLOUT VILLAGE – Tọa lạc tại Bản Khe Cải, Tà Xùa, Bắc Yên, Sơn La. Không gian nghỉ dưỡng giữa núi rừng Tây Bắc với hệ…
+- [Thác Mây Tà Xùa](http://localhost:3000/homestay/thac-may-ta-xua): khu Đỉnh Gió; 13 phòng; phòng từ 1.300.000đ/đêm; có view mây, bồn tắm, điều hòa, ăn sáng; Thác Mây Tà Xùa — Đỉnh Gió: 13 phòng gồm 3 căn Lux 60m2 bồn tắm kính panorama săn mây và 10 phòng VIP 2–3 giường Queen…
+- [Khèn Coffee House Tà Xùa](http://localhost:3000/homestay/khen-coffee-house-ta-xua): khu Đỉnh Gió; 13 phòng; phòng từ 300.000đ/đêm; có view mây, bồn tắm; Khèn Coffee House Tà Xùa — homestay kèm quán cà phê view biển mây: 15 phòng từ phòng 1 giường săn mây, phòng có bồn tắm…
+- [Tà Xùa Retreat](http://localhost:3000/homestay/ta-xua-retreat): khu Trung tâm Tà Xùa; 9 phòng; phòng từ 768.000đ/đêm; có ăn sáng; Tà Xùa Retreat — homestay với 3 bungalow (có căn 4 khách cho gia đình), phòng Vườn Mây và Ban Mai cho cặp đôi; giá đã g…
+- [Nhặt Nắng House](http://localhost:3000/homestay/nhat-nang-house-ta-xua): khu Trung tâm Tà Xùa; 17 phòng; phòng từ 705.000đ/đêm; có bồn tắm, điều hòa, sưởi; Nhặt Nắng House Tà Xùa — 17 căn riêng chia 3 khu Nắng, Đào, Mận trong tổ hợp có tiệm ăn Xuân Thì và cà phê; có căn bồn…
+- [Nhà bên suối](http://localhost:3000/homestay/nha-ben-suoi): khu Trung tâm Tà Xùa; 16 phòng; phòng từ 720.000đ/đêm; Homestay Nhà bên suối Retreat — Tà Xùa, các căn view suối/mây, đặt phòng theo đêm.
+- [Cỏ Lạ Homestay](http://localhost:3000/homestay/co-la-homestay): khu Trung tâm Tà Xùa; 20 phòng; phòng từ 775.000đ/đêm; có bồn tắm, ăn sáng; Homestay ngay trung tâm Tà Xùa với 20 phòng chia 3 khu Mơ – Lê – Đào, có phòng bồn tắm, giá đã gồm ăn sáng; hỗ trợ thuê…
+- [Pàng Village Tà Xùa](http://localhost:3000/homestay/pang-village-ta-xua): khu Bản Cáo A, Tà Xùa (KM18 ĐT112); 18 phòng; phòng từ 960.000đ/đêm; có view mây, bồn tắm, ăn sáng, sưởi; Pàng Village (Paang Village) Tà Xùa — quần thể nhà gỗ giữa vườn hoa tại Bản Cáo A: dãy Achu phòng đôi 4 khách và dãy Sa…
+- [Cloud Forest Tà Xùa](http://localhost:3000/homestay/cloud-forest-ta-xua): khu Đỉnh Gió; 16 phòng; phòng từ 700.000đ/đêm; có view mây, bồn tắm, ăn sáng, sưởi; Cloud Forest Tà Xùa — quần thể nhà gỗ giữa rừng tại bản Chung Trinh: 10 căn house riêng 45–50m² (nhiều căn có bồn tắm v…
+- [Noong ơi Homestay](http://localhost:3000/homestay/noong-oi-homestay): khu Khe Cải; 11 phòng; phòng từ 550.000đ/đêm; Noong Ơi Homestay – Tà Xùa
+- [Nhà của An](http://localhost:3000/homestay/nha-cua-an-ta-xua): khu Đỉnh Gió; 11 phòng; phòng từ 500.000đ/đêm; Nhà của An — 10 căn phòng thiết kế đồng bộ tại Tà Xùa, phòng khép kín có nóng lạnh, ấm siêu tốc, máy sấy; miễn phí nước…
+- [Bếp Nhà Táo](http://localhost:3000/homestay/bep-nha-tao): khu Khe Cải, Tà Xùa; 13 phòng; phòng từ 750.000đ/đêm; có bồn tắm, điều hòa, sưởi; Bếp Nhà Táo — Khe Cải, Tà Xùa (cơ sở 2 Đồi Mây): 13 phòng gồm phòng đơn, phòng đơn có bồn tắm, phòng đôi 2 giường và ph…
+- [Chạm hoàng hôn](http://localhost:3000/homestay/cham-hoang-hon): khu Đỉnh Gió; 7 phòng; phòng từ 650.000đ/đêm; có view mây; Haus Meej Tà Xùa — homestay kèm quán cafe Haus Meej tại Đỉnh Gió: phòng Sunset ngắm hoàng hôn, 4 phòng Mountain View và…
+- [Phỏng Lài Homstay](http://localhost:3000/homestay/phong-lai-homstay): khu Trung tâm Tà Xùa; 11 phòng; phòng từ 650.000đ/đêm; có view mây, bồn tắm, điều hòa, ăn sáng, sưởi; Phỏng Lài Homestay – Điểm dừng chân bình yên giữa núi rừng Tà Xùa, Bắc Yên, Sơn La. Tận hưởng không gian nghỉ dưỡng riê…
+- [Lao Xan Boutique Stay](http://localhost:3000/homestay/lao-xan): khu Trung tâm Tà Xùa, xã Tà Xùa, Sơn La; 7 phòng; phòng từ 725.000đ/đêm; có view mây, điều hòa; Một nơi để chậm lại giữa mây trời Tà Xùa — boutique stay phong cách mộc Tây Bắc tại trung tâm Tà Xùa, có nhà hàng, quầy…
+- [Mây Hạ Retreat](http://localhost:3000/homestay/may-ha-retreat): khu Mống Vàng; 17 phòng; phòng từ 550.000đ/đêm; có điều hòa; Mây Hạ Retreat — Tà Xùa: phòng đơn tiêu chuẩn 2 khách wc khép kín, phòng đôi VIP 4 khách và khu bungalow VIP 1–2 mặt kí…
+- [Lang Thang Homestay](http://localhost:3000/homestay/lang-thang-homestay): khu Trung tâm Tà Xùa; 10 phòng; phòng từ 675.000đ/đêm; Lang Thang Homestay Tà Xùa – điểm dừng chân bình yên giữa núi rừng Tây Bắc, nơi bạn có thể tận hưởng không khí trong là…
+- [Bản Mây Tà Xùa Retreat](http://localhost:3000/homestay/ban-may-ta-xua-retreat): khu Trung tâm Tà Xùa; 19 phòng; phòng từ 500.000đ/đêm; có view mây, bồn tắm, điều hòa, sưởi; Homestay ngay trung tâm Tà Xùa — view săn mây, phòng bồn tắm, phòng 2 kính, phòng cộng đồng.
+- [Dốc Mơ Homestay](http://localhost:3000/homestay/doc-mo-homestay): khu Trung tâm Tà Xùa; 10 phòng; phòng từ 499.000đ/đêm; có view mây, sưởi; Dốc Mơ Homestay — "Nhà trong mây" Tà Xùa: 10 căn gồm Dốc Mơ, Cozy, Sweet và Nhà sàn H'mong (tới 12 khách). Đệm sưởi ấm…
+- [Mây Bản Tà Xùa](http://localhost:3000/homestay/may-ban-ta-xua): khu Mống Vàng; 18 phòng; phòng từ 600.000đ/đêm; có điều hòa, sưởi; Homestay view thung lũng tại Tà Xùa với 18 phòng: phòng kính view thung lũng và nhà sàn ấm cúng, đầy đủ điều hòa 2 chiề…
+- [Mống Vàng Retreat](http://localhost:3000/homestay/mong-vang-retreat): khu Gần trung tâm Tà Xùa; 20 phòng; phòng từ 650.000đ/đêm; có view mây, bồn tắm, ăn sáng, sưởi; Retreat nhà gỗ giữa đồi chè Tà Xùa, cách trung tâm 1km: phòng full gỗ ban công riêng hoặc view kính bồn tắm, biển mây t…
+- [Tà Xùa Hill](http://localhost:3000/homestay/ta-xua-hill): khu Trung tâm Tà Xùa; 21 phòng; phòng từ 375.000đ/đêm; có bồn tắm, điều hòa, sưởi; Tà Xùa Hill — hệ thống 21 phòng đa dạng: bungalow Moon/Mây Hill bồn tắm view kính, căn Đồi Mây 3 kính, phòng Hill cho c…
+- [A Phủ Home's Lưng Chừng](http://localhost:3000/homestay/a-phu-lung-chung): khu Trung tâm Tà Xùa; 8 phòng; phòng từ 600.000đ/đêm; A Phủ Home's Lưng Chừng — homestay 8 căn phòng ấm cúng tại Tà Xùa, mỗi căn 1 giường đôi 1m8x2m cho 2 khách (tối đa 3),…
+- [Happy Town Tà Xùa](http://localhost:3000/homestay/happy-town-ta-xua): khu Đỉnh Gió; 15 phòng; phòng từ 200.000đ/đêm; Happy Town Tà Xùa — khu lưu trú vui nhộn với 7 phòng Táo, lều Cam cắm trại cho nhóm 4 người và bungalow Happy giá chỉ t…
+- [Mon's House Tà Xùa](http://localhost:3000/homestay/mons-house-ta-xua): khu Trung tâm Tà Xùa; 18 phòng; phòng từ 550.000đ/đêm; có bồn tắm, điều hòa, sưởi; Homestay 18 phòng gồm khu nhà sàn (phòng đôi, phòng đơn, family 10–12 khách) và khu bungalow VIP điều hòa — có phòng bồ…
+- [Thơ Garden Tà Xùa](http://localhost:3000/homestay/tho-garden-ta-xua): khu Trung tâm Tà Xùa; 10 phòng; phòng từ 450.000đ/đêm; có sưởi; Thơ Garden (Ther Garden) Tà Xùa — 10 phòng ấm cúng: phòng đôi 2 giường cho nhóm 4–6 người, phòng Triple và Double cho c…
+- [Sunset Clouds Tà Xùa](http://localhost:3000/homestay/sunset-clouds-ta-xua): khu Bản Chung Trinh, Tà Xùa; 9 phòng; phòng từ 800.000đ/đêm; có view mây, điều hòa; Sunset Clouds Tà Xùa — homestay tại bản Chung Trinh, phòng nào cũng săn mây ngay tại phòng: 4 căn Family VIP 2 tầng cho…
+- [A Phủ Home's](http://localhost:3000/homestay/a-phu-homes): khu Trung tâm Tà Xùa; 9 phòng; phòng từ 113.000đ/đêm; Homestay A Phủ ở Tà Xùa — phòng Mắt Núi, bungalow gỗ, phòng Family và phòng cộng đồng (dorm).
+- [Chung Chinh Homestay](http://localhost:3000/homestay/chung-chinh-homestay): khu Bản Chung Trinh, xã Tà Xùa; 15 phòng; phòng từ 650.000đ/đêm; có view mây; Chung Chinh Homestay — bản Chung Trinh, xã Tà Xùa: nhà sàn mặt kính, bungalow view thung lũng săn mây và phòng VIP 2–3…
+- [Pao homestay](http://localhost:3000/homestay/pao-homestay): khu Trung tâm Tà Xùa; 7 phòng; phòng từ 550.000đ/đêm; Home trung tâm view kính săn mây
+- [Chillin House](http://localhost:3000/homestay/chillin-house-ta-xua): khu Đỉnh Gió; 5 phòng; phòng từ 1.050.000đ/đêm; có view mây, bồn tắm, ăn sáng; Chillin House Tà Xùa — 5 phòng vách kính nhìn thẳng ra núi và biển mây, có phòng Suite bồn tắm ngắm mây. Giá đã gồm ăn…
+- [Cloud Garden](http://localhost:3000/homestay/cloud-garden-ta-xua): khu Trung tâm Tà Xùa; 10 phòng; phòng từ 700.000đ/đêm; có view mây, điều hòa, sưởi; Cloud Garden Tà Xùa — khu bungalow, nhà vườn sinh thái yên tĩnh giữa vườn đào và vườn trà shan tuyết: bungalow săn mây…
+- [Dê Homestay](http://localhost:3000/homestay/de-homestay-ta-xua): khu Trung tâm xã Tà Xùa; 8 phòng; phòng từ 475.000đ/đêm; có sưởi; Dê Homestay nằm ngay trung tâm xã Tà Xùa, trên tuyến phố đi bộ Thiên đường mây, mặt đường tỉnh lộ 112 — gần khèn check-…
+- [Rêu Homestay](http://localhost:3000/homestay/reu-homestay-ta-xua): khu Trung tâm Tà Xùa; 18 phòng; phòng từ 555.000đ/đêm; có ăn sáng; Rêu Homestay Tà Xùa — 18 phòng riêng khép kín ở hai khu nhà 2 tầng và 3 tầng, có phòng VIP 2 mặt kính và phòng đôi cho…
+- [Sóc Nâu Homestay](http://localhost:3000/homestay/soc-nau-homestay-ta-xua): khu Trung tâm Tà Xùa; 21 phòng; phòng từ 355.000đ/đêm; có điều hòa; Sóc Nâu Homestay Tà Xùa — 21 phòng riêng khép kín: phòng đơn giá từ 355.000đ/đêm, phòng đôi nhà sàn cho nhóm 4–6 người,…
+- [Tà Xùa Clouds Homestay](http://localhost:3000/homestay/ta-xua-clouds-homestay): khu Trung tâm Tà Xùa; 19 phòng; phòng từ 400.000đ/đêm; có view mây; Tà Xùa Clouds Homestay — mặt đường chính khu trung tâm Tà Xùa, phòng từ 2 đến 30 khách, sức chứa tới 150 khách/đêm, có…
+
+## Thuê xe máy tại Tà Xùa
+
+- [Dê homestay](http://localhost:3000/thue-xe-may/de-homestay): thuê từ 180.000đ/ngày; Thuê xe máy uy tín, lâu năm tại trung tâm Tà Xùa của Dê Homestay — Honda PG1 280.000đ/ngày, nhiều màu (đen, t…
+- [Anh Đạt Tà Xùa](http://localhost:3000/thue-xe-may/anh-dat-ta-xua): thuê từ 180.000đ/ngày; Thuê xe máy anh Đạt ngay trung tâm Tà Xùa — Honda Wave bền bỉ, tiết kiệm xăng, leo dốc khoẻ, chỉ 180.000đ/ngà…
+- [G-Bike](http://localhost:3000/thue-xe-may/g-bike): thuê từ 280.000đ/ngày; G-Bike — đơn vị cho thuê Honda PG1 uy tín tại Tà Xùa (280.000đ/ngày, 4 màu) kèm gói xe ôm bản địa: tài xế que…
+
+## Xe ôm tại Tà Xùa
+
+[Xe ôm Tà Xùa](http://localhost:3000/xe-om): 3 tài xế / dịch vụ đang đăng. Giá tính theo chặng một chiều cho mỗi xe máy, dùng cho cả hai hướng. Thuê nguyên ngày, 1 khách: 500.000đ – 600.000đ. Nguyên ngày, 2 khách chung xe: 700.000đ – 900.000đ.
+
+- Trung tâm Tà Xùa ↔ Thảo nguyên – Mỏm cá heo – Cây cô đơn: 1 khách 250.000đ – 300.000đ; 2 khách chung xe 350.000đ – 400.000đ (một chiều)
+- Trung tâm Tà Xùa ↔ Sống lưng khủng long: 1 khách 300.000đ – 350.000đ; 2 khách chung xe 400.000đ – 450.000đ (một chiều)
+- Trung tâm Tà Xùa ↔ Hồ mắt Ngọc: 1 khách 150.000đ; 2 khách chung xe 200.000đ (một chiều)
+- Trung tâm Tà Xùa ↔ Khe Cải: 1 khách 100.000đ; 2 khách chung xe 150.000đ (một chiều)
+- Trung tâm Tà Xùa ↔ Núi đôi thiếu nữ: 1 khách 100.000đ; 2 khách chung xe 150.000đ (một chiều)
+- Trung tâm Tà Xùa ↔ Đỉnh Gió: 1 khách 100.000đ; 2 khách chung xe 150.000đ (một chiều)
+- Trung tâm Tà Xùa ↔ Khèn Coffee: 1 khách 100.000đ; 2 khách chung xe 150.000đ (một chiều)
+- Thảo nguyên – Mỏm cá heo – Cây cô đơn ↔ Hồ mắt Ngọc: 1 khách 150.000đ; 2 khách chung xe 200.000đ (một chiều)
+- Thảo nguyên – Mỏm cá heo – Cây cô đơn ↔ Núi đôi thiếu nữ: 1 khách 250.000đ; 2 khách chung xe 300.000đ (một chiều)
+- Thảo nguyên – Mỏm cá heo – Cây cô đơn ↔ Khe Cải: 1 khách 200.000đ; 2 khách chung xe 250.000đ (một chiều)
+- Thảo nguyên – Mỏm cá heo – Cây cô đơn ↔ Đỉnh Gió: 1 khách 250.000đ; 2 khách chung xe 300.000đ (một chiều)
+- Thảo nguyên – Mỏm cá heo – Cây cô đơn ↔ Khèn Coffee: 1 khách 250.000đ; 2 khách chung xe 300.000đ (một chiều)
+- Sống lưng khủng long ↔ Hồ mắt Ngọc: 1 khách 400.000đ; 2 khách chung xe 500.000đ (một chiều)
+- Sống lưng khủng long ↔ Núi đôi thiếu nữ: 1 khách 350.000đ; 2 khách chung xe 450.000đ (một chiều)
+- Sống lưng khủng long ↔ Khe Cải: 1 khách 350.000đ; 2 khách chung xe 450.000đ (một chiều)
+- Còn 12 chặng khác trong http://localhost:3000/llms-full.txt
+
+## Taxi tại Tà Xùa
+
+[Taxi Tà Xùa](http://localhost:3000/taxi): 8 xe / dịch vụ đang đăng. Giá chặng tính một chiều cho cả xe, dùng cho cả hai hướng. Thuê nguyên ngày, cả xe: 1.700.000đ – 2.000.000đ.
+
+
+
+## Ăn uống tại Tà Xùa
+
+### Nhà hàng, quán ăn
+
+- [Nhà Hàng A Phủ – Tinh Hoa Ẩm Thực Tà Xùa](http://localhost:3000/nha-hang/nha-hang-a-phu-tinh-hoa-am-thuc-ta-xua): khu Trung tâm; Địa chỉ quen của các đoàn khách: gà đen, cá suối, trâu gác bếp đủ món, phục vụ nhanh kể cả cuối tuần đông.
+- [Bếp ăn Xuân Thì Tà Xùa](http://localhost:3000/nha-hang/bep-an-xuan-thi-ta-xua): khu Trung tâm; Từ 90.000đ; Cơm phần nóng sốt giá dễ chịu — lựa chọn gọn nhẹ cho bữa trưa giữa lịch trình dày.
+- [Nhà Hàng Đồi Mây](http://localhost:3000/nha-hang/nha-hang-doi-may): khu Trung tâm; Vừa ăn vừa ngắm thung lũng; hợp bữa tối thong thả sau một ngày săn mây.
+- [Nhà hàng Hang Chú – Tà Xùa](http://localhost:3000/nha-hang/nha-hang-hang-chu-ta-xua): khu Khe Cải; Không gian rộng, nhận đặt mâm cho đoàn — nên gọi trước vào cuối tuần.
+- [Vua Lẩu – Nướng Tà Xùa](http://localhost:3000/nha-hang/vua-lau-nuong-ta-xua): khu Trung tâm; Chuyên lẩu và nướng, nhiều lựa chọn nước lẩu; hợp nhóm bạn tụ tập.
+- [Nhà Hàng – Coffee Gió Bản Tà Xùa](http://localhost:3000/nha-hang/nha-hang-coffee-gio-ban-ta-xua): khu Trung tâm; Ăn uống và cà phê trong cùng một điểm, tiện ghé bất kỳ khung giờ nào.
+- [Nhà Hàng Bếp Việt](http://localhost:3000/nha-hang/nha-hang-bep-viet): khu Trung tâm; Thực đơn cơm Việt quen vị — lựa chọn an toàn khi đi cùng trẻ nhỏ, người lớn tuổi.
+- [Trạm Mây Tà Xùa](http://localhost:3000/nha-hang/tram-may-ta-xua): khu Khe Cải; Từ 249.000đ; Nhà hàng set món ở Khe Cải, ô dù và đèn dây hướng ra biển mây; giá set từ 249.000đ, đẹp nhất lúc hoàng hôn.
+- [Nhà Hàng Phố Núi](http://localhost:3000/nha-hang/nha-hang-pho-nui): khu Sống lưng khủng long; Nằm hướng Háng Đồng — điểm nạp năng lượng hiếm hoi gần sống lưng khủng long.
+- [Tiệm Nướng Cánh Cam](http://localhost:3000/nha-hang/tiem-nuong-canh-cam): khu Trung tâm; Tiệm nướng ở trung tâm có bàn dài ngoài trời nhìn ra biển mây; nhận trang trí bàn sinh nhật, kỷ niệm với nến…
+
+### Quán cafe
+
+- [Thào Coffee Tà Xùa](http://localhost:3000/cafe/thao-coffee-ta-xua): khu Trung tâm; 40000; Mở từ 5h sáng tới khuya — điểm hẹn của dân săn bình minh lẫn hội 'ngồi lì' buổi tối.
+- [Tiệm Cà Phê Hoàng Hôn](http://localhost:3000/cafe/tiem-ca-phe-hoang-hon): khu Khe Cải; Tọa lạc tại bản Khe Cải, Tà Xùa, Tiệm Cà Phê Hoàng Hôn là điểm dừng chân dành cho những ai yêu thích vẻ đẹp b…
+- [Panorama Coffee](http://localhost:3000/cafe/panorama-coffee): khu Đỉnh Gió; Từ 40.000đ; Góc nhìn toàn cảnh đúng chất 'panorama'; giá đồ uống công khai dễ chọn.
+- [Mị ơi Cafe](http://localhost:3000/cafe/mi-oi-cafe): khu Đỉnh Gió; Từ 50.000đ; Nhiều góc chụp ảnh được chăm chút — hợp hội mê sống ảo.
+- [Sunset Clouds Coffee](http://localhost:3000/cafe/sunset-clouds-coffee): khu Sống lưng khủng long; Quán cà phê của Sunset Clouds: chòi gỗ nhìn biển mây và hoàng hôn, tối có dãy nhà kính chữ A lên đèn lung lin…
+- [Cloud Coffee – Cloud Forest Tà Xùa](http://localhost:3000/cafe/cloud-coffee-cloud-forest-ta-xua): khu Đỉnh Gió; Quầy cà phê gỗ ấm áp trong khuôn viên Cloud Forest, bản Chung Trinh, giữa rừng nhà gỗ nhìn thẳng xuống thung…
+- [Mây Bay Coffee](http://localhost:3000/cafe/may-bay-coffee): khu Đỉnh Gió; Quán cà phê mái gỗ ở Đỉnh Gió, ca cao nóng kèm kẹo dẻo và góc ngắm hoàng hôn rơi sau dãy núi.
+- [An's Coffee – Tà Xùa](http://localhost:3000/cafe/an-s-coffee-ta-xua): khu Đỉnh Gió; Ban công gỗ ở Đỉnh Gió nhìn thẳng ra thung lũng, sáng mùa mây ngồi ghế gỗ là thấy mây ngay dưới chân.
+- [Cafe Làng Văn Hóa](http://localhost:3000/cafe/cafe-lang-van-hoa): khu Đỉnh Gió; Sân sỏi rợp cẩm tú cầu, mái hiên treo đèn lồng đỏ nhìn ra núi; vừa uống cà phê vừa ăn được bữa cơm nóng.
+- [Hiên](http://localhost:3000/cafe/hien): khu Đỉnh Gió; Quầy bar tường vàng, gạch bông, khăn thổ cẩm và một sàn gỗ ngoài trời rộng nhìn ra thung lũng Đỉnh Gió.
+- [Nhà Của An Homestay & Coffee](http://localhost:3000/cafe/nha-cua-an-homestay-coffee): khu Đỉnh Gió; Sân sỏi đặt ghế xếp dưới ô dù hướng ra thung lũng, lọ hoa dại trên bàn, có bún phở nóng cho bữa sáng.
+- [Moong Homestay & Coffee](http://localhost:3000/cafe/moong-homestay-coffee): khu Đỉnh Gió; Homestay kèm cà phê ở Đỉnh Gió: lối đi gỗ chạy dọc sườn đồi, ban công gỗ nhìn ra đồi chè và núi xa.
+- [Mi Ami Mountain Retreat – Cafe & Nhà hàng](http://localhost:3000/cafe/mi-ami-mountain-retreat-cafe-nha-hang): khu Đỉnh Gió; Nhà gỗ lên đèn ấm áp ở Đỉnh Gió, vừa cafe vừa nhà hàng, đồ ăn bày gốm đẹp; còn có phòng nghỉ cửa kính lớn.
+- [Chillout Village – Nhà hàng & Cafe](http://localhost:3000/cafe/chillout-village-nha-hang-cafe): khu Khe Cải; Nhà hàng & cafe trong khu nghỉ Chillout Village ở Khe Cải: hồ bơi ngoài trời, phòng ăn vách kính nhìn mây, lử…
+- [Lili Mountain – Tiệm cà phê Tử Tế](http://localhost:3000/cafe/lili-mountain-tiem-ca-phe-tu-te): khu Khe Cải; Tiệm cà phê gỗ nhỏ ở Khe Cải với matcha, đồ uống pha màu đẹp mắt và bàn nhìn ra thung lũng mờ sương.
+- [Khe Cải Coffee (Ngày Nào Đó)](http://localhost:3000/cafe/khe-cai-coffee-ngay-nao-do): khu Khe Cải; Quán cà phê ở Khe Cải có điểm đứng ngắm bình minh trên biển mây; mở từ 6h, đúng giờ mây đẹp nhất.
+- [Noong Ơi Homestay Coffee](http://localhost:3000/cafe/noong-oi-homestay-coffee): khu Khe Cải; Homestay cà phê giữa rừng thông ở Khe Cải: hiên gỗ, vách kính ngắm hoàng hôn trên mây, bàn gỗ quanh thân cây.
+- [Cà phê Tháng 10](http://localhost:3000/cafe/ca-phe-thang-10): khu Trung tâm; Nhà gỗ hiên rộng giữa trung tâm Tà Xùa, sân lát đá, cờ dây đỏ và hoa trước cửa; ngồi ngoài trời thong thả cả…
+- [Nhà H'Mông](http://localhost:3000/cafe/nha-h-mong): khu Trung tâm; Mở tới 23h — chỗ ngồi ấm cho buổi tối lạnh khi các quán khác đã đóng.
+- [MẬN – The Cocktail Bar](http://localhost:3000/cafe/man-the-cocktail-bar): khu Trung tâm; Không phải cà phê mà là quán cocktail hiếm hoi trên núi — đổi gió cho buổi tối Tà Xùa.
+- [Mây Bản Tà Xùa – Homestay & Coffee](http://localhost:3000/cafe/may-ban-ta-xua-homestay-coffee): khu Mống Vàng; Homestay & cà phê ở Mống Vàng: dãy nhà gỗ, cổng gỗ đèn vàng, sân rộng có chỗ đỗ ô tô và hướng ngắm hoàng hôn.
+- [Hiên Nhà trên Thảo Nguyên](http://localhost:3000/cafe/hien-nha-tren-thao-nguyen): khu Thảo nguyên; Nhà gỗ vách kính giữa Thảo nguyên Tà Xùa, nhìn ra đồi cỏ và lều trắng; ngồi trong ấm, bước ra là đồi cỏ.
+- [Khèn Coffee House](http://localhost:3000/cafe/khen-coffee-house): khu Làng Chếu; Quán cà phê kiêm homestay ở khu Đỉnh Gió: vườn hoa, vườn rau và căn nhà gỗ trên cao có cầu thang hoa để chụp…
+- [Trạm Mây Tà Xùa](http://localhost:3000/cafe/tram-may-ta-xua-2): khu Khe Cải; Nhà gỗ treo cờ đỏ ở Khe Cải, sân sỏi rộng và lan can nhìn thẳng ra biển mây; có đồ ăn.
+
+## Câu hỏi thường gặp
+
+### Đặt homestay Tà Xùa ở đâu?
+
+Đặt tại trang [Homestay Tà Xùa](http://localhost:3000/homestay) của Tà Xùa Booking: 38 homestay, bungalow đang đăng, xem giá từng phòng và phòng trống theo ngày rồi gửi yêu cầu đặt, không cần thanh toán online.
+
+### Đặt xe đi Tà Xùa ở đâu?
+
+Đặt vé xe cabin giường nằm Hà Nội – Tà Xùa tại [trang xe cabin](http://localhost:3000/xe-cabin) (5 nhà xe đang mở bán). Đi lại tại Tà Xùa có [xe ôm](http://localhost:3000/xe-om), [taxi](http://localhost:3000/taxi) và [thuê xe máy](http://localhost:3000/thue-xe-may).
+
+### Website đặt phòng Tà Xùa uy tín?
+
+Tà Xùa Booking (http://localhost:3000) là nền tảng trung gian công khai đơn vị kinh doanh, mã số thuế 042098000948 và người chịu trách nhiệm tại [trang giới thiệu](http://localhost:3000/gioi-thieu), kèm [cam kết](http://localhost:3000/cam-ket) xử lý khi có sai sót. Khách không phải trả tiền online khi gửi yêu cầu đặt.
+
+### Homestay Tà Xùa view biển mây?
+
+17 homestay đang đăng có hạng phòng view mây, ví dụ [Nhà Mây Si](http://localhost:3000/homestay/nha-may-si), [La Chếu Homestay](http://localhost:3000/homestay/la-cheu-homestay), [Thác Mây Tà Xùa](http://localhost:3000/homestay/thac-may-ta-xua), [Khèn Coffee House Tà Xùa](http://localhost:3000/homestay/khen-coffee-house-ta-xua), [Pàng Village Tà Xùa](http://localhost:3000/homestay/pang-village-ta-xua). Lọc tiện ích "View mây" tại [trang homestay](http://localhost:3000/homestay) để xem đủ. Mây là thời tiết nên không ngày nào chắc chắn có.
+
+### Đặt combo xe và homestay Tà Xùa ở đâu?
+
+Tại [trang combo](http://localhost:3000/combo): nhập ngày đi, ngày về, số người để hệ thống ghép vé xe cabin khứ hồi với phòng còn trống và tính giá trọn gói mỗi người, rẻ hơn đặt lẻ 25.000đ mỗi khách.
+
+## Bài viết cẩm nang
+
+### [Di chuyển](http://localhost:3000/kinh-nghiem/chu-de/di-chuyen)
+
+- [Từ Thanh Hóa đi Tà Xùa: ra Hà Nội nối xe cabin đêm](http://localhost:3000/kinh-nghiem/tu-thanh-hoa-di-ta-xua): Từ Thanh Hóa đi Tà Xùa chưa có xe cabin đón: ra Hà Nội khoảng 160km bằng xe khách hoặc tàu, nối 1 trong 5 xe cabin 21h00, vé khứ hồi từ 500.000đ.
+- [Từ Lạng Sơn đi Tà Xùa: về Hà Nội nối xe cabin 500.000đ](http://localhost:3000/kinh-nghiem/tu-lang-son-di-ta-xua): Từ Lạng Sơn đi Tà Xùa chưa có xe cabin đón tại chỗ: về Hà Nội khoảng 150km, lên 1 trong 5 xe đêm 21h–22h, vé khứ hồi từ 500.000đ, đón Bắc Giang 800.000đ.
+- [Từ Hà Tĩnh đi Tà Xùa: ra Hà Nội rồi nối xe cabin đêm](http://localhost:3000/kinh-nghiem/tu-ha-tinh-di-ta-xua): Từ Hà Tĩnh đi Tà Xùa: ra Hà Nội khoảng 340km rồi lên 1 trong 5 xe cabin đêm 21h00–22h00, vé khứ hồi 500.000đ–650.000đ, khoảng 6h00 sáng tới nơi.
+- [Từ Hà Nội đi Tà Xùa: 5 nhà xe cabin, lên xe ở đâu?](http://localhost:3000/kinh-nghiem/tu-ha-noi-di-ta-xua): Từ Hà Nội đi Tà Xùa có 5 nhà xe cabin chạy đêm, đón ở Cầu Giấy, Mỹ Đình lúc 21h đến 22h, tới nơi 6h sáng. Vé khứ hồi 500.000đ đến 650.000đ.
+- [Review nhà xe Xuân Trường đi Tà Xùa: vé 550.000đ, đón Vĩnh Phúc](http://localhost:3000/kinh-nghiem/review-nha-xe-xuan-truong-ta-xua): Nhà xe Xuân Trường đi Tà Xùa: vé khứ hồi 550.000đ từ Hà Nội, đi 21h30, tới 6h sáng, đón Vĩnh Phúc, Bắc Ninh, Bắc Giang và cách đặt vé.
+- [Review nhà xe Tiến Thành đi Tà Xùa: giá vé, trả tận homestay](http://localhost:3000/kinh-nghiem/review-nha-xe-tien-thanh-ta-xua): Nhà xe Tiến Thành đi Tà Xùa: vé khứ hồi 600.000đ, xe 24 cabin có massage, limousine chạy thẳng lên Tà Xùa, đón 8 tỉnh, có giường nghỉ chờ nhận phòng.
+- [Review nhà xe Thành Mỹ đi Tà Xùa: giá vé, giờ chạy, phòng nghỉ chờ](http://localhost:3000/kinh-nghiem/review-nha-xe-thanh-my-ta-xua): Nhà xe Thành Mỹ đi Tà Xùa: vé khứ hồi 600.000đ, đi 22h từ 24 Đinh Núp, có limousine ban ngày, đón Nội Bài, phòng nghỉ có giường miễn phí tới 12h.
+- [Review nhà xe Quang Nghĩa đi Tà Xùa: giá vé, giờ chạy, trả tận homestay](http://localhost:3000/kinh-nghiem/review-nha-xe-quang-nghia-ta-xua): Nhà xe Quang Nghĩa đi Tà Xùa: vé khứ hồi 650.000đ, đi 22h từ Mỹ Đình, nhiều cabin đôi, trả khách tận homestay và có chỗ ngủ chờ nhận phòng.
+- [Review nhà xe Khánh Châu đi Tà Xùa: giá vé, giờ chạy, điểm đón](http://localhost:3000/kinh-nghiem/review-nha-xe-khanh-chau-ta-xua): Review nhà xe Khánh Châu đi Tà Xùa: vé khứ hồi 500.000đ, đi 21h từ 68 Mạc Thái Tông, lộ trình, khoang cabin, giá đón 10 tỉnh và ưu nhược điểm.
+- [Nhà xe đi Tà Xùa: so sánh 5 nhà xe cabin từ Hà Nội](http://localhost:3000/kinh-nghiem/nha-xe-di-ta-xua): So sánh 5 nhà xe đi Tà Xùa từ Hà Nội: Khánh Châu, Xuân Trường, Thành Mỹ, Tiến Thành, Quang Nghĩa. Vé khứ hồi 500.000đ đến 650.000đ, đi 21h đến 22h.
+- [Xe cabin đi Tà Xùa đón ở đâu? Điểm đón Hà Nội, 12 tỉnh](http://localhost:3000/kinh-nghiem/diem-don-xe-cabin-cac-tinh): Xe cabin đi Tà Xùa đón ở 68 Mạc Thái Tông, 24 Đinh Núp, Mễ Trì (Hà Nội) lúc 21h đến 22h, 12 tỉnh. Vé khứ hồi từ 500.000đ, từ tỉnh 600.000đ đến 1.050.000đ.
+- [Từ Vĩnh Phúc đi Tà Xùa: xe cabin 600.000đ khứ hồi](http://localhost:3000/kinh-nghiem/tu-vinh-phuc-di-ta-xua): Từ Vĩnh Phúc đi Tà Xùa có nhà xe Xuân Trường đón, vé khứ hồi 600.000đ, hơn vé Hà Nội 50.000đ. Xe rời Hà Nội 21h30, tới Tà Xùa khoảng 6h sáng.
+- [Xe Thái Nguyên đi Tà Xùa: vé khứ hồi 700.000đ, đi thế nào?](http://localhost:3000/kinh-nghiem/tu-thai-nguyen-di-ta-xua): Từ Thái Nguyên đi Tà Xùa có nhà xe Khánh Châu đón bằng xe trung chuyển, vé khứ hồi 700.000đ. Xe cabin rời Hà Nội 21h00, tới Tà Xùa khoảng 6h sáng.
+- [Từ Thái Bình đi Tà Xùa: 2 nhà xe đón, vé từ 900.000đ](http://localhost:3000/kinh-nghiem/tu-thai-binh-di-ta-xua): Từ Thái Bình đi Tà Xùa có 2 nhà xe cabin đón bằng xe trung chuyển: Khánh Châu 900.000đ, Tiến Thành 950.000đ khứ hồi. Xe rời Hà Nội 21h00, 6h00 tới nơi.
+- [Từ Sài Gòn (TP.HCM) đi Tà Xùa: bay Nội Bài, nối xe cabin](http://localhost:3000/kinh-nghiem/tu-sai-gon-di-ta-xua): Từ Sài Gòn đi Tà Xùa: bay Tân Sơn Nhất – Nội Bài khoảng 2 giờ 10 phút, tối lên xe cabin 21h–22h, vé khứ hồi 500.000đ–650.000đ, 6h sáng tới nơi.
+- [Từ Quy Nhơn đi Tà Xùa: bay Phù Cát – Nội Bài, đi xe cabin](http://localhost:3000/kinh-nghiem/tu-quy-nhon-di-ta-xua): Từ Quy Nhơn đi Tà Xùa: bay Phù Cát – Nội Bài khoảng 1 tiếng 35 phút, tối lên xe cabin 21h–22h, vé khứ hồi 500.000đ–650.000đ, đón sân bay 800.000đ.
+- [Từ Quảng Ninh đi Tà Xùa: xe đón tận tỉnh giá 950.000đ](http://localhost:3000/kinh-nghiem/tu-quang-ninh-di-ta-xua): Từ Quảng Ninh đi Tà Xùa chỉ nhà xe Khánh Châu có đón, vé khứ hồi 950.000đ gồm trung chuyển về Hà Nội, xe cabin chạy 21h00, tới Tà Xùa 6h sáng.
+- [Từ Quảng Bình đi Tà Xùa: bay Đồng Hới, nối xe cabin](http://localhost:3000/kinh-nghiem/tu-quang-binh-di-ta-xua): Từ Quảng Bình đi Tà Xùa: bay Đồng Hới – Nội Bài hơn 1 tiếng, nối xe cabin đêm 21h00–22h00, vé khứ hồi 500.000đ–650.000đ, đón Nội Bài 800.000đ.
+- [Từ Pleiku đi Tà Xùa: bay Nội Bài rồi xe cabin từ 500.000đ](http://localhost:3000/kinh-nghiem/tu-pleiku-di-ta-xua): Từ Pleiku đi Tà Xùa: bay ra Nội Bài chưa tới 2 tiếng, lên xe cabin 21h–22h, 6h sáng tới nơi. Vé xe khứ hồi 500.000đ–650.000đ, đón sân bay 800.000đ.
+- [Từ Phú Thọ đi Tà Xùa: xe cabin có đón dọc đường không?](http://localhost:3000/kinh-nghiem/tu-phu-tho-di-ta-xua): Từ Phú Thọ đi Tà Xùa: xe cabin nghỉ ở Phú Thọ khoảng 2h nhưng chưa có giá đón. Về Hà Nội lên xe 21h–22h, vé từ 500.000đ, hoặc Vĩnh Phúc 600.000đ khứ hồi.
+- [Từ Phú Quốc đi Tà Xùa: đường bay, xe cabin, lịch 4 ngày](http://localhost:3000/kinh-nghiem/tu-phu-quoc-di-ta-xua): Từ Phú Quốc đi Tà Xùa: bay thẳng tới Nội Bài hơn 2 tiếng, tối lên xe cabin 21h–22h, vé khứ hồi 500.000đ–650.000đ. Lịch 4–5 ngày và cách khớp giờ bay.
+- [Xe Ninh Bình đi Tà Xùa: 2 nhà xe cabin, giá từ 850.000đ](http://localhost:3000/kinh-nghiem/tu-ninh-binh-di-ta-xua): Xe Ninh Bình đi Tà Xùa có Khánh Châu 850.000đ và Tiến Thành 1.000.000đ khứ hồi, gồm trung chuyển ra Hà Nội. Xe cabin chạy 21h00, tới nơi khoảng 6h00.
+- [Từ Nha Trang đi Tà Xùa: bay Cam Ranh ra Nội Bài, nối xe đêm](http://localhost:3000/kinh-nghiem/tu-nha-trang-di-ta-xua): Từ Nha Trang đi Tà Xùa: bay Cam Ranh – Nội Bài khoảng 2 tiếng, nối xe cabin 21h–22h, vé khứ hồi từ 500.000đ, đón sân bay 800.000đ, cần khoảng 4 ngày.
+- [Từ Nghệ An đi Tà Xùa: từ Vinh nối xe cabin thế nào?](http://localhost:3000/kinh-nghiem/tu-nghe-an-di-ta-xua): Từ Nghệ An đi Tà Xùa: Vinh ra Hà Nội khoảng 300km bằng xe giường nằm 5 đến 6 tiếng hoặc tàu, rồi nối 1 trong 5 xe cabin 21h00, vé khứ hồi từ 500.000đ.
+- [Từ Nam Định đi Tà Xùa: xe cabin 1.000.000đ khứ hồi](http://localhost:3000/kinh-nghiem/tu-nam-dinh-di-ta-xua): Từ Nam Định đi Tà Xùa chỉ Tiến Thành đón tại tỉnh, 1.000.000đ khứ hồi gồm trung chuyển. Tự lên Hà Nội thì vé cabin từ 500.000đ, xe chạy 21h00.
+- [Từ Lào Cai, Sa Pa đi Tà Xùa: đường đi, xe cabin, giá vé](http://localhost:3000/kinh-nghiem/tu-lao-cai-di-ta-xua): Từ Lào Cai đi Tà Xùa không có xe thẳng: về Hà Nội khoảng 290km rồi lên xe cabin đêm 21h–22h, vé khứ hồi 500.000đ–650.000đ, 6h sáng tới Tà Xùa.
+- [Từ Hưng Yên đi Tà Xùa: 2 nhà xe đón, vé từ 700.000đ](http://localhost:3000/kinh-nghiem/tu-hung-yen-di-ta-xua): Từ Hưng Yên đi Tà Xùa có 2 nhà xe cabin đón bằng xe trung chuyển: Khánh Châu 700.000đ, Tiến Thành 1.000.000đ khứ hồi. Xe rời Hà Nội 21h, tới nơi 6h sáng.
+- [Từ Huế đi Tà Xùa: bay ra Nội Bài, nối xe cabin đêm](http://localhost:3000/kinh-nghiem/tu-hue-di-ta-xua): Từ Huế đi Tà Xùa: bay Phú Bài – Nội Bài khoảng 1 tiếng 15 phút, nối xe cabin đêm 21h00–22h00, vé khứ hồi từ 500.000đ, đón tại Nội Bài 800.000đ.
+- [Từ Hải Phòng đi Tà Xùa: 3 nhà xe cabin, vé từ 950.000đ](http://localhost:3000/kinh-nghiem/tu-hai-phong-di-ta-xua): Từ Hải Phòng đi Tà Xùa có 3 nhà xe cabin đón tại chỗ, vé khứ hồi 950.000đ đến 1.050.000đ, đi đêm khoảng 10 đến 12 tiếng, tới Tà Xùa 6h sáng.
+- [Xe Hải Dương đi Tà Xùa: 3 nhà xe đón, vé từ 800.000đ](http://localhost:3000/kinh-nghiem/tu-hai-duong-di-ta-xua): Xe Hải Dương đi Tà Xùa có 3 nhà xe cabin đón: Khánh Châu 800.000đ, Thành Mỹ 950.000đ, Tiến Thành 1.000.000đ khứ hồi, đi đêm, 6h sáng tới nơi.
+- [Từ Hà Nam đi Tà Xùa: xe cabin đón tại tỉnh 850.000đ](http://localhost:3000/kinh-nghiem/tu-ha-nam-di-ta-xua): Từ Hà Nam đi Tà Xùa có nhà xe Khánh Châu đón, 850.000đ khứ hồi gồm trung chuyển về Hà Nội. Xe cabin chạy 21h00, tới Tà Xùa khoảng 6h00 sáng.
+- [Từ Đà Nẵng đi Tà Xùa: bay ra Nội Bài, nối xe cabin đêm](http://localhost:3000/kinh-nghiem/tu-da-nang-di-ta-xua): Từ Đà Nẵng đi Tà Xùa: bay khoảng 1 tiếng 25 phút ra Nội Bài, nối xe cabin 21h–22h, vé khứ hồi từ 500.000đ, đón tại sân bay Nội Bài 800.000đ khứ hồi.
+- [Từ Đà Lạt đi Tà Xùa: bay ra Nội Bài, nối xe cabin đêm](http://localhost:3000/kinh-nghiem/tu-da-lat-di-ta-xua): Từ Đà Lạt đi Tà Xùa: bay Liên Khương – Nội Bài khoảng 1 tiếng 50 phút, tối lên xe cabin 21h–22h, vé khứ hồi 500.000đ–650.000đ, nên nghỉ 4–5 ngày.
+- [Từ Cần Thơ đi Tà Xùa: bay ra Nội Bài rồi đi xe cabin đêm](http://localhost:3000/kinh-nghiem/tu-can-tho-di-ta-xua): Từ Cần Thơ đi Tà Xùa: bay thẳng ra Nội Bài khoảng 2 giờ 10 phút, nối xe cabin 21h–22h, khứ hồi từ 500.000đ, đón tại sân bay 800.000đ. Nên có 5 ngày.
+- [Từ Buôn Ma Thuột đi Tà Xùa: máy bay + xe cabin, mấy ngày?](http://localhost:3000/kinh-nghiem/tu-buon-ma-thuot-di-ta-xua): Từ Buôn Ma Thuột đi Tà Xùa: bay ra Nội Bài gần 2 tiếng, nối 1 trong 5 nhà xe cabin chạy 21h–22h, khứ hồi từ 500.000đ, cần 4–5 ngày nghỉ.
+- [Từ Bắc Ninh đi Tà Xùa: 4 nhà xe cabin, vé từ 700.000đ](http://localhost:3000/kinh-nghiem/tu-bac-ninh-di-ta-xua): Từ Bắc Ninh đi Tà Xùa có 4 nhà xe cabin đón, vé khứ hồi 700.000đ đến 950.000đ, xe đêm tới nơi khoảng 6h sáng. Cách đón, giờ chạy, chi phí.
+- [Xe Bắc Giang đi Tà Xùa: 4 nhà xe đón, vé từ 800.000đ](http://localhost:3000/kinh-nghiem/tu-bac-giang-di-ta-xua): Xe Bắc Giang đi Tà Xùa: 4 nhà xe cabin, khứ hồi 800.000đ đến 1.000.000đ, Thành Mỹ đón 19:30 ở BigC, Đình Trám, Vân Trung, Quang Châu, tới nơi 6h sáng.
+- [Giá xe ôm, taxi Tà Xùa: bảng giá từng chặng, thuê ngày](http://localhost:3000/kinh-nghiem/gia-xe-om-taxi-ta-xua): Giá xe ôm Tà Xùa từ 50.000đ đến 400.000đ một chiều, thuê ngày 500.000đ đến 600.000đ. Giá taxi Tà Xùa nguyên ngày 1.700.000đ đến 2.000.000đ một xe.
+- [Combo Tà Xùa: xe cabin + homestay giá bao nhiêu, đặt ở đâu?](http://localhost:3000/kinh-nghiem/combo-xe-cabin-homestay-ta-xua): Combo Tà Xùa ghép vé xe cabin khứ hồi với homestay: 2 người, 1 đêm ngày thường từ 825.000đ một người, giảm 25.000đ mỗi khách, không trả tiền online.
+- [Đi Tà Xùa bằng ô tô tự lái: đường đi, đèo dốc, chỗ đỗ xe](http://localhost:3000/kinh-nghiem/di-ta-xua-bang-o-to-tu-lai): Tự lái ô tô Hà Nội – Tà Xùa 215km: sedan gầm thấp lên được, giờ xuất phát, cách đổ đèo 15km từ Bắc Yên, homestay có đường ô tô vào, điểm phải đổi xe ôm.
+- [Xe cabin có trả tận homestay ở Tà Xùa không? Xuống Bắc Yên rồi lên Tà Xùa thế nào](http://localhost:3000/kinh-nghiem/xe-cabin-tra-khach-tan-homestay-ta-xua): Xe cabin Hà Nội – Tà Xùa chỉ chạy tới Bắc Yên, không trả tận homestay. Cách đi tiếp 15km đèo lên Tà Xùa, về home ở Đỉnh Gió, Khe Cải, Chung Trinh, giá xe ôm và phụ thu nhận phòng sớm.
+- [Thuê xe máy ở Tà Xùa ở đâu? 3 điểm thuê, giá từ 180.000đ/ngày (2026)](http://localhost:3000/kinh-nghiem/thue-xe-may-ta-xua): Thuê xe máy ở Tà Xùa ở đâu? 3 điểm thuê ngay trung tâm: Anh Đạt, Dê Homestay, G-Bike. Honda Wave 180.000đ/ngày, Yamaha PG1 280.000đ/ngày, kèm thủ tục và lưu ý đổ đèo.
+- [So sánh nhà xe đi Tà Xùa 2026: bảng giá, giờ chạy, dịch vụ](http://localhost:3000/kinh-nghiem/so-sanh-nha-xe-di-ta-xua): Bảng so sánh 4 nhà xe Hà Nội – Tà Xùa (Khánh Châu, Thành Mỹ, Tiến Thành, Quang Nghĩa): giá vé, giờ chạy, phòng chờ có giường, trả tận homestay. Cập nhật 11/2026.
+- [Xe giường nằm, limousine đi Tà Xùa: 8 tiêu chí chọn nhà xe tốt](http://localhost:3000/kinh-nghiem/xe-giuong-nam-limousine-di-ta-xua): Xe giường nằm, cabin, limousine đi Tà Xùa khác gì nhau? Dịch vụ một chuyến gồm những gì và 8 tiêu chí đánh giá nhà xe chất lượng trước khi đặt vé.
+- [Đặt xe đi Tà Xùa: giá vé, giờ chạy và cách đặt chỗ từ A–Z](http://localhost:3000/kinh-nghiem/dat-xe-di-ta-xua): Hướng dẫn đặt xe đi Tà Xùa từ Hà Nội và các tỉnh: giá vé khứ hồi từng điểm đón, giờ xe chạy, cabin đơn hay đôi, cách đặt chỗ online và các lỗi hay gặp.
+- [Một đêm trên xe cabin đi Tà Xùa: chọn cabin đơn hay đôi, nằm tầng nào?](http://localhost:3000/kinh-nghiem/trai-nghiem-xe-cabin-di-ta-xua): Khoang cabin có gì, lịch trình 21h – 5h sáng từng chặng, khác biệt giữa cabin đơn và cabin đôi, nên nằm tầng trên hay tầng dưới và 8 thứ nên cầm sẵn trong tay.
+- [Say xe đèo lên Tà Xùa: mẹo vượt 15km dốc nhẹ nhàng](http://localhost:3000/kinh-nghiem/meo-chong-say-xe-deo-ta-xua): Đoạn đèo 15km Bắc Yên – Tà Xùa cua liên tục khiến nhiều người say xe. Tổng hợp mẹo chống say hiệu quả: thuốc, chỗ ngồi, ăn uống trước chuyến và xử lý khi đã say.
+- [Từ Mộc Châu, Sơn La sang Tà Xùa: đường đi & gợi ý ghép tuyến](http://localhost:3000/kinh-nghiem/tu-moc-chau-son-la-sang-ta-xua): Đang ở Mộc Châu hoặc TP Sơn La muốn sang Tà Xùa? Quãng đường, thời gian chạy xe, tình trạng đèo và cách ghép 2 điểm thành một chuyến Tây Bắc trọn vẹn.
+
+### [Lịch trình & chi phí](http://localhost:3000/kinh-nghiem/chu-de/lich-trinh)
+
+- [Tà Xùa tháng 11: đầu mùa mây, chưa có giá lễ, nên đi?](http://localhost:3000/kinh-nghiem/ta-xua-thang-11): Tà Xùa tháng 11 mở đầu mùa mây: ngày 10–18°C, đêm có hôm dưới 10°C, trời khô, không có đêm giá lễ. Bảng giá theo thứ của 5 homestay và chi phí mẫu.
+- [Tà Xùa tháng 10: mây bắt đầu về, còn lúa chín không?](http://localhost:3000/kinh-nghiem/ta-xua-thang-10): Tà Xùa tháng 10 se lạnh dần, mây có thể bắt đầu, lúa Xím Vàng còn tới đầu tháng. Không có đêm giá lễ. So nửa đầu với nửa cuối tháng và giá 5 homestay.
+- [Tà Xùa tháng 9: lúa chín Xím Vàng, giá phòng dịp 2/9](http://localhost:3000/kinh-nghiem/ta-xua-thang-9): Tà Xùa tháng 9 vào mùa lúa chín Xím Vàng, cách trung tâm 15km, đẹp từ giữa tháng. Đêm 01–02/09 tính giá lễ. Lịch từng tuần, cách đi và giá phòng.
+- [Tà Xùa tháng 8: cuối hè, mùa táo mèo, giá trước lễ 2/9](http://localhost:3000/kinh-nghiem/ta-xua-thang-8): Tà Xùa tháng 8 mát 20–26°C, mưa nhiều, mây ít, táo mèo vào mùa. Đêm 31/08 đã tính giá lễ Quốc khánh. So tháng 8 với tháng 9 và cách né giá lễ.
+- [Tà Xùa tháng 7: giữa mùa mưa, đi được không, cần lưu ý gì?](http://localhost:3000/kinh-nghiem/ta-xua-thang-7): Tà Xùa tháng 7 mát 20–26°C, mưa nhiều, mây ít, vắng khách. Bảng điểm nào đi được sau mưa, giá xe ôm và taxi ngày, chi phí nhóm 4 người từ 663.000đ.
+- [Tà Xùa tháng 6: trốn nóng 20–26°C, đi cùng gia đình](http://localhost:3000/kinh-nghiem/ta-xua-thang-6): Tà Xùa tháng 6 mát 20–26°C khi đồng bằng 36–38°C, mưa chiều, mây ít, không có đêm giá lễ. Chọn homestay có bể bơi, điều hoà và lịch 3 ngày 2 đêm.
+- [Tà Xùa tháng 5: đầu mùa mưa, vắng khách, có nên đi?](http://localhost:3000/kinh-nghiem/ta-xua-thang-5): Tà Xùa tháng 5 mát 20–26°C, mưa chiều và đêm, mây ít. Đêm 01–02/05 còn giá lễ, từ 03/05 về giá thường. Nhịp một ngày, giá phòng từ 200.000đ.
+- [Tà Xùa tháng 4: còn mây không, giá phòng 30/4 ra sao?](http://localhost:3000/kinh-nghiem/ta-xua-thang-4): Tà Xùa tháng 4 ấm 15–22°C, mây thưa dần, núi xanh lại. Đêm 29–30/04 tính giá lễ, cao hơn ngày thường 345.000đ–600.000đ một phòng. Lịch từng tuần.
+- [Tà Xùa tháng 3: cuối mùa mây, trời ấm, có còn mây không?](http://localhost:3000/kinh-nghiem/ta-xua-thang-3): Tà Xùa tháng 3 ấm dần 15–22°C, vẫn trong mùa mây chính và không có đêm giá lễ. Bảng so 4 tháng, vé 6 điểm săn mây, giá phòng view mây từ 650.000đ.
+- [Tà Xùa tháng 2: hoa mận, giá phòng Tết, đi ngày nào đẹp?](http://localhost:3000/kinh-nghiem/ta-xua-thang-2): Tà Xùa tháng 2 có mận trắng, đào bản và mây giữa mùa, đêm 5–10°C. Tết 2027 tính giá lễ 6 đêm 06–11/02. Bảng giá 5 homestay và ngày nên đi.
+- [Tà Xùa tháng 1: hoa tớ dày, đêm 5–10°C, có nên đi không?](http://localhost:3000/kinh-nghiem/ta-xua-thang-1): Tà Xùa tháng 1 lạnh nhất năm: ngày 10–18°C, đêm 5–10°C, mây dày, hoa tớ dày nở tới giữa tháng. Lịch từng tuần, giá phòng 3 mức và đồ cần mang.
+- [Đi Tà Xùa với trẻ nhỏ: chọn xe, homestay cho gia đình](http://localhost:3000/kinh-nghiem/du-lich-ta-xua-cung-gia-dinh-tre-nho): Đi Tà Xùa với trẻ nhỏ được không? 32/38 homestay miễn phí trẻ dưới 6 tuổi, taxi nguyên ngày từ 1.700.000đ, 8 homestay cho gia đình, lịch 2 ngày 1 đêm.
+- [Tà Xùa tháng 12: mây dày, đêm 5–10°C, giá phòng ra sao](http://localhost:3000/kinh-nghiem/ta-xua-thang-12): Tà Xùa tháng 12 giữa mùa mây: ngày 10–18°C, đêm 5–10°C, hoa tớ dày nở cuối tháng. Giá phòng ngày thường, thứ 7, đêm lễ 31/12 và lịch trình gợi ý.
+- [Chi phí du lịch Tà Xùa tự túc: bảng giá từng khoản, 3 mức](http://localhost:3000/kinh-nghiem/chi-phi-du-lich-ta-xua-tu-tuc): Chi phí du lịch Tà Xùa tự túc 2N1Đ từ 965.000đ, 3N2Đ từ 1.435.000đ một người: vé cabin 500.000đ, phòng chia đôi từ 100.000đ, xe máy, vé điểm.
+- [Giá homestay Tà Xùa Tết 2027: phòng đêm lễ, vé xe, đặt khi nào?](http://localhost:3000/kinh-nghiem/di-ta-xua-dip-tet-2027): Giá homestay Tà Xùa Tết Dương lịch và Tết Nguyên đán 2027: phòng 2 người từ 500.000đ, bảng so sánh với ngày thường, vé xe cabin và thời điểm nên đặt.
+- [Lịch trình & chi phí Tà Xùa 2026: 2N1Đ, 3N2Đ hết bao nhiêu tiền?](http://localhost:3000/kinh-nghiem/lich-trinh-chi-phi-ta-xua): Lịch trình Tà Xùa theo từng giờ kèm chi phí từng khoản cho 4 phương án từ Hà Nội: 2N1Đ từ 1,76 triệu, 3N2Đ từ 2,47 triệu đồng/người, đi xe cabin đêm hoặc limousine sáng.
+- [Lịch trình Tà Xùa 3 ngày 2 đêm: 3 sáng săn mây, chọn xe, chọn home (2026)](http://localhost:3000/kinh-nghiem/lich-trinh-ta-xua-3-ngay-2-dem): Lịch trình Tà Xùa 3N2Đ theo từng giờ: chia 3 buổi sáng săn mây, cung Háng Đồng – bản Mông, đồi chè, ở 1 hay đổi homestay, chi phí 1,9–3 triệu/người.
+- [Lịch trình Tà Xùa 2 ngày 1 đêm chi tiết: săn mây, chọn xe, chọn home (2026)](http://localhost:3000/kinh-nghiem/lich-trinh-ta-xua-2-ngay-1-dem): Lịch trình Tà Xùa 2N1Đ từ Hà Nội theo từng giờ: xe cabin đêm, 2 buổi sáng săn mây, so sánh 5 nhà xe, chọn homestay 1 đêm, chi phí 1,3–1,9 triệu/người.
+- [Đưa bố mẹ đi Tà Xùa: chọn homestay & lịch trình nhẹ nhàng cho người lớn tuổi](http://localhost:3000/kinh-nghiem/du-lich-ta-xua-cho-bo-me): Tà Xùa đẹp nhưng đường đèo và dậy sớm săn mây không phải ai cũng hợp. Kinh nghiệm đưa bố mẹ, ông bà đi Tà Xùa an toàn, thoải mái mà vẫn ngắm được biển mây.
+- [48 giờ ở Tà Xùa: nhật ký chuyến đi 'chữa lành' của dân văn phòng](http://localhost:3000/kinh-nghiem/48-gio-o-ta-xua-nhat-ky): Tối thứ 6 còn ngồi deadline ở Hà Nội, 5h sáng thứ 7 đã đứng trên biển mây. Nhật ký 48 giờ ở Tà Xùa — từng mốc giờ, từng bữa ăn, từng khoảnh khắc đáng tiền.
+- [Đi Tà Xùa nhóm đông 10–20 người: thuê nguyên homestay](http://localhost:3000/kinh-nghiem/di-ta-xua-nhom-dong-thue-nguyen-homestay): Kinh nghiệm tổ chức chuyến Tà Xùa cho nhóm đông, team building công ty: thuê nguyên căn homestay, đặt xe cả đoàn, chia phòng, lên lịch chung và dự trù ngân sách.
+- [Liên tuyến Tà Xùa – Trạm Tấu – Mù Cang Chải 4N3Đ](http://localhost:3000/kinh-nghiem/lich-trinh-ta-xua-tram-tau-mu-cang-chai): Gợi ý cung liên tuyến cho dân mê Tây Bắc: săn mây Tà Xùa, tắm khoáng nóng Trạm Tấu, ruộng bậc thang Mù Cang Chải — lộ trình từng ngày và lưu ý đường đèo.
+- [Du lịch Tà Xùa một mình: an toàn, chi phí & lịch trình solo](http://localhost:3000/kinh-nghiem/du-lich-ta-xua-mot-minh): Đi Tà Xùa solo có an toàn không? Kinh nghiệm cho người đi một mình: chọn xe, chọn phòng dorm hay phòng riêng, ghép đoàn săn mây và mẹo tiết kiệm chi phí.
+- [Tà Xùa cho cặp đôi: lịch trình lãng mạn & góc chụp ảnh đẹp](http://localhost:3000/kinh-nghiem/ta-xua-cho-cap-doi): Gợi ý chuyến Tà Xùa cho hai người: bungalow riêng tư view mây, cabin đôi trên xe đêm, các khung giờ chụp ảnh couple đẹp nhất và những trải nghiệm chỉ dành cho 2 người.
+
+### [Cẩm nang & mẹo](http://localhost:3000/kinh-nghiem/chu-de/cam-nang)
+
+- [Tà Xùa mùa nào đẹp nhất? Bảng 12 tháng mây, hoa, lúa](http://localhost:3000/kinh-nghiem/ta-xua-mua-nao-dep-nhat): Tà Xùa mùa nào đẹp nhất? Mùa mây tháng 11 đến tháng 3, hoa mận đào tháng 1 đến tháng 2, lúa chín Xím Vàng tháng 9. Bảng 12 tháng để chọn lịch đi.
+- [Giá homestay Tà Xùa: ngày thường, thứ 7, lễ chênh bao nhiêu?](http://localhost:3000/kinh-nghiem/gia-homestay-ta-xua-ngay-thuong-cuoi-tuan-le): Giá homestay Tà Xùa ngày thường mức giữa 750.000đ một phòng; đêm thứ 7 có 91% số phòng tăng khoảng 300.000đ, đêm lễ tăng khoảng 600.000đ. Có bảng theo khu.
+- [Du lịch Tà Xùa nên đặt dịch vụ ở đâu? Xe, phòng, xe máy, taxi (2026)](http://localhost:3000/kinh-nghiem/du-lich-ta-xua-nen-dat-dich-vu-o-dau): Du lịch Tà Xùa nên đặt dịch vụ ở đâu? Bảng tổng hợp nơi đặt xe cabin, homestay, xe máy, xe ôm, taxi kèm giá tham khảo 11/2026, thứ tự đặt và thời điểm đặt.
+- [Ở Tà Xùa nên chọn khu nào? Trung tâm, Đỉnh Gió, Khe Cải](http://localhost:3000/kinh-nghiem/o-ta-xua-nen-chon-khu-nao): Ở Tà Xùa nên chọn khu nào? So sánh 6 khu, 38 homestay: trung tâm 21 nơi, Đỉnh Gió 8, Khe Cải 3; giá niêm yết, đường vào, xe ôm 100.000đ một chiều.
+- [Tà Xùa ở đâu? Cách Hà Nội bao nhiêu km, đi mấy tiếng](http://localhost:3000/kinh-nghiem/ta-xua-o-dau-cach-ha-noi-bao-nhieu-km): Tà Xùa ở đâu? Thuộc tỉnh Sơn La, cách Hà Nội khoảng 215km, không phải Lào Cai. Xe cabin đêm tới nơi 6h sáng, vé khứ hồi từ 500.000đ, ô tô lái 6–7 tiếng.
+- [Tà Xùa hay Sapa: có gần nhau không, nên đi nơi nào?](http://localhost:3000/kinh-nghiem/ta-xua-hay-sapa-y-ty): Tà Xùa hay Sapa? Hai nơi khác tỉnh, cách xa, khó ghép một chuyến. Tà Xùa cách Hà Nội khoảng 215km, Sapa 320km. So sánh cả Y Tý theo mây, ruộng, chi phí.
+- [Đi Tà Xùa cần chuẩn bị gì? Checklist đồ theo 2 mùa](http://localhost:3000/kinh-nghiem/chuan-bi-gi-khi-di-ta-xua): Đi Tà Xùa cần chuẩn bị gì: checklist đồ cho mùa đông 5–10°C và mùa hè 20°C, vali cỡ nào khi đi xe cabin, tiền mặt 500.000đ, thứ không cần mang.
+- [Kinh nghiệm săn mây Tà Xùa: đoán mây, giờ dậy, 7 điểm ngắm](http://localhost:3000/kinh-nghiem/kinh-nghiem-san-may-ta-xua): Kinh nghiệm săn mây Tà Xùa: mùa mây tháng 11 đến tháng 3, có mặt trước 6h, cách đoán mây từ tối hôm trước, so sánh 7 điểm ngắm, xe ôm từ 100.000đ.
+- [Homestay Tà Xùa có điều hoà, đệm sưởi: 21 nơi ngủ ấm mùa đông](http://localhost:3000/kinh-nghiem/homestay-ta-xua-co-dieu-hoa-dem-suoi): 21 homestay Tà Xùa có đệm sưởi hoặc điều hoà, giá từ 375.000đ: nơi nào có cả hai, nơi nào kèm ăn sáng, bảng so sánh và mẹo ngủ ấm trên núi.
+- [Homestay nào ở Tà Xùa view biển mây đẹp? 13 nơi săn mây tại phòng (2026)](http://localhost:3000/kinh-nghiem/homestay-ta-xua-view-may-dep): Homestay Tà Xùa nào view biển mây đẹp? 13 nơi có phòng săn mây ngay tại phòng ở Đỉnh Gió, bản Chung Trinh, trung tâm: giá từ 499.000đ/đêm, bồn tắm, ăn sáng.
+- [Đặt phòng Tà Xùa ở đâu? 4 kênh đặt và kênh nào hợp với bạn (2026)](http://localhost:3000/kinh-nghiem/dat-phong-ta-xua-o-dau): Đặt phòng Tà Xùa ở đâu uy tín? So sánh 4 kênh: nhắn trực tiếp homestay, nền tảng đặt phòng lớn, Tà Xùa Booking và tới nơi mới tìm, kèm giá phòng theo từng khu.
+- [Bungalow Tà Xùa 2026: 11 nơi view mây, có bồn tắm, từ 200.000đ/đêm](http://localhost:3000/kinh-nghiem/bungalow-ta-xua): Review 11 cụm bungalow Tà Xùa đang mở bán: giá ngày thường và thứ 7, căn nào có bồn tắm, gồm ăn sáng, hợp cặp đôi, gia đình hay nhóm bạn.
+- [Homestay Tà Xùa giá rẻ 2026: 16 nơi dưới 700.000đ/đêm](http://localhost:3000/kinh-nghiem/homestay-ta-xua-gia-re): Homestay Tà Xùa giá rẻ theo từng mức: dorm 150.000đ, phòng riêng từ 300.000đ, view mây từ 499.000đ, bồn tắm từ 650.000đ, kèm mẹo đặt phòng rẻ.
+- [Review Tà Xùa tất tần tật 2026–2027: đi, ở, ăn, chơi, chi phí](http://localhost:3000/kinh-nghiem/review-ta-xua-tat-tan-tat): Review Tà Xùa đầy đủ cho người đi lần đầu: mùa nào có mây, đi xe gì, ở khu nào, 13 điểm check-in, ăn gì, chi phí 2 ngày 1 đêm và những điểm trừ nên biết trước.
+- [Đi Tà Xùa có nguy hiểm không? 9 lưu ý an toàn cần biết](http://localhost:3000/kinh-nghiem/di-ta-xua-co-nguy-hiem-khong): Đi Tà Xùa có nguy hiểm không? Đường đèo 15 km, sương mù, sống núi hẹp và cái lạnh ban đêm: những rủi ro thật và cách đi an toàn cho người lần đầu lên núi.
+- [Kinh nghiệm đặt phòng homestay Tà Xùa: cọc bao nhiêu là đủ?](http://localhost:3000/kinh-nghiem/kinh-nghiem-dat-phong-homestay-ta-xua): Kinh nghiệm đặt phòng homestay Tà Xùa: đặt trước bao lâu, giá phòng thật, cọc bao nhiêu, những câu phải hỏi trước khi chuyển khoản và cách tránh mất tiền oan.
+- [Kinh nghiệm du lịch Tà Xùa từ A–Z 2026–2027: review chi tiết](http://localhost:3000/kinh-nghiem/kinh-nghiem-du-lich-ta-xua-tu-a-z): Review Tà Xùa từ A–Z: đi mùa nào dễ gặp mây, đi bằng gì, ở khu nào, ăn gì, chơi đâu, chi phí bao nhiêu và những điểm trừ nên biết trước khi lên đường.
+- [Xuống xe đêm ở Tà Xùa lúc 6h sáng, 14h mới nhận phòng: 8 tiếng đó làm gì?](http://localhost:3000/kinh-nghiem/xuong-xe-dem-ta-xua-sang-som-lam-gi): Xe cabin thả khách ở Tà Xùa khoảng 6h sáng, còn homestay 14h mới cho nhận phòng. Mình gom lại chính sách nhận phòng sớm của từng home, giá thật, và cách tiêu 8 tiếng đó để khỏi ngồi ôm balo ngoài trời lạnh.
+- [Tà Xùa mùa đông lạnh cỡ nào? Mặc gì, có băng giá không (2026–2027)](http://localhost:3000/kinh-nghiem/ta-xua-mua-dong-lanh-mac-gi): Mùa đông là mùa mây đẹp nhất Tà Xùa nhưng cũng lạnh nhất. Nhiệt độ bao nhiêu, có băng giá không, mặc gì và chọn phòng thế nào để vừa săn mây vừa không run cầm cập.
+- [Tà Xùa mùa hè tháng 5 – 8: mát 20°C, vắng khách, có còn mây không?](http://localhost:3000/kinh-nghiem/ta-xua-mua-he-thang-5-8): Đi Tà Xùa mùa thấp điểm thực tế ra sao: nhiệt độ, mưa chiều, cơ hội gặp mây luồn, 5 cái lợi và những cái dở nói thẳng, mang gì và lịch 2 ngày 1 đêm gợi ý.
+- [Săn mây hụt ở Tà Xùa: trời trắng xóa thì làm gì cho đáng chuyến đi?](http://localhost:3000/kinh-nghiem/san-may-hut-o-ta-xua-lam-gi): Không ai nói trước được mây. Lên Tà Xùa đúng hôm sương mù trắng xóa hay trời quang không một gợn mây thì chơi gì, ăn gì, chụp gì để chuyến đi vẫn đáng? Kinh nghiệm thật ở đây.
+- [8 sai lầm thường gặp khi lần đầu đi Tà Xùa](http://localhost:3000/kinh-nghiem/sai-lam-lan-dau-di-ta-xua): Đi Tà Xùa lần đầu dễ mắc các lỗi: đến trưa mới săn mây, mặc thiếu ấm, không đặt phòng trước, tham lịch trình... Danh sách 8 sai lầm và cách né từng cái.
+- [Tà Xùa có ATM, wifi, sóng điện thoại không? Thực tế dịch vụ](http://localhost:3000/kinh-nghiem/song-dien-thoai-atm-wifi-ta-xua): Giải đáp loạt câu hỏi thực tế trước chuyến đi: sóng điện thoại nhà mạng nào khoẻ, wifi homestay thế nào, ATM gần nhất ở đâu, có chuyển khoản được không, trạm y tế & cây xăng.
+- [Du lịch Tà Xùa văn minh: ứng xử với bản làng & giữ sạch núi](http://localhost:3000/kinh-nghiem/du-lich-ta-xua-van-minh): Tà Xùa đẹp nhờ thiên nhiên và con người — và dễ tổn thương vì chính du lịch. Bộ quy tắc ứng xử khi vào bản, chụp ảnh người dân, xả rác và bảo vệ đồi cỏ.
+- [7 mẹo chụp ảnh săn mây Tà Xùa đẹp bằng điện thoại](http://localhost:3000/kinh-nghiem/meo-chup-anh-san-may-bang-dien-thoai): Không cần máy ảnh xịn: 7 mẹo giúp ảnh biển mây Tà Xùa chụp bằng điện thoại vẫn 'ra chất' — giờ chụp, bố cục, chỉnh tay HDR, chống ngược sáng và chỉnh màu sau chụp.
+
+### [Ăn uống & đặc sản](http://localhost:3000/kinh-nghiem/chu-de/an-uong)
+
+- [Đặc sản Tà Xùa mua về làm quà: 8 món, giá và chỗ mua](http://localhost:3000/kinh-nghiem/qua-ta-xua-mua-gi-lam-qua): Đặc sản Tà Xùa mua về làm quà: 8 món từ trà Shan tuyết 120.000đ/100g đến táo mèo, thịt gác bếp, đồ nhuộm chàm; mua ở đâu, mang lên xe cabin ra sao.
+- [Ăn sáng Tà Xùa: quán mở sớm từ 5h sau buổi săn mây](http://localhost:3000/kinh-nghiem/an-sang-ta-xua-quan-mo-som): Ăn sáng Tà Xùa sau săn mây: Thào Coffee mở từ 5h, quán Đỉnh Gió, Khe Cải mở 6h–7h, phở gà 40.000–50.000đ và 10 homestay có phòng gồm ăn sáng.
+- [Ăn gì ở Tà Xùa? 10 đặc sản nên thử, giá từ 90.000đ](http://localhost:3000/kinh-nghiem/an-gi-o-ta-xua): Ăn gì ở Tà Xùa: 10 đặc sản từ gà đen nướng mắc khén, lẩu gà đen 450.000đ đến trà Shan tuyết; bữa nào ăn món gì, cơm phần từ 90.000đ, mua gì về.
+- [Tà Xùa ăn ở đâu? 10 nhà hàng, quán ăn theo khu, giá từ 90.000đ](http://localhost:3000/kinh-nghiem/quan-an-nha-hang-ta-xua): 10 nhà hàng, quán ăn Tà Xùa theo khu và kiểu bữa: cơm nhà từ 90.000đ, lẩu nướng cho nhóm, bữa tối ngắm hoàng hôn trên mây, quán mở sớm và mở khuya.
+- [Cà phê săn mây Tà Xùa theo từng khu: Đỉnh Gió, Khe Cải, Sống lưng khủng long](http://localhost:3000/kinh-nghiem/quan-ca-phe-san-may-ta-xua-theo-khu): Không cần leo núi vẫn ngắm được biển mây — chỉ cần chọn đúng quán cà phê. Danh sách quán cà phê view mây đẹp ở Tà Xùa, chia theo từng khu để bạn dễ ghé.
+- [Tối ở Tà Xùa ăn gì? BBQ, lẩu nướng tại homestay chuẩn vị](http://localhost:3000/kinh-nghiem/bbq-lau-nuong-toi-homestay-ta-xua): Buổi tối Tà Xùa lạnh là thời điểm vàng cho BBQ than hoa và lẩu: cách đặt mâm với homestay, menu gợi ý theo nhóm 2–10 người, giá tham khảo và mẹo tổ chức lửa trại.
+- [Táo mèo Tà Xùa: mùa quả, rượu táo mèo và cách chọn mua](http://localhost:3000/kinh-nghiem/tao-meo-ta-xua): Táo mèo (sơn tra) là đặc sản gắn liền với Tà Xùa: mùa quả chín tháng 8–10, cách ngâm rượu, ngâm giấm mật ong và mẹo chọn mua táo ngon làm quà.
+- [Trà Shan Tuyết cổ thụ Tà Xùa — đặc sản trăm năm trên mây](http://localhost:3000/kinh-nghiem/tra-shan-tuyet-ta-xua): Tà Xùa nổi tiếng với trà Shan Tuyết hái từ cây chè cổ thụ trăm tuổi mọc trên độ cao 1.800m: vị trà, cách phân biệt, giá bán và mua ở đâu chuẩn gốc.
+
+### [Điểm đến & trải nghiệm](http://localhost:3000/kinh-nghiem/chu-de/diem-den)
+
+- [Trekking Tà Xùa: leo đỉnh 2.865m, rừng rêu, thuê porter](http://localhost:3000/kinh-nghiem/trekking-dinh-ta-xua): Trekking Tà Xùa là leo đỉnh 2.865m qua rừng rêu, thường 2 ngày 1 đêm ngủ lán, cần porter. Khác Sống lưng khủng long cách trung tâm 12–15km.
+- [Mỏm cá heo Tà Xùa, cây cô đơn: đường đi, vé, giờ đẹp](http://localhost:3000/kinh-nghiem/mom-ca-heo-cay-co-don-ta-xua): Mỏm cá heo Tà Xùa và cây cô đơn cách nhau chưa tới 1 km, đẹp nhất 6h đến 9h sáng; Mỏm cá heo vé khoảng 20.000đ, xe ôm từ trung tâm từ 250.000đ một chiều.
+- [Đỉnh Gió Tà Xùa: cách trung tâm 2km, săn mây miễn phí](http://localhost:3000/kinh-nghiem/dinh-gio-ta-xua): Đỉnh Gió Tà Xùa cao khoảng 1.600m, cách trung tâm 2km, không thu vé. Săn mây 5h30–7h30, xe ôm 100.000đ một chiều, 8 homestay từ 200.000đ.
+- [Sống lưng khủng long Tà Xùa: đường đi, giá vé, giờ đẹp](http://localhost:3000/kinh-nghiem/song-lung-khung-long-ta-xua): Sống lưng khủng long Tà Xùa cách trung tâm 12–15km, vé khoảng 20.000đ, mây đẹp 6h–10h. Xe ôm từ 300.000đ một chiều, 1–1,5km cuối phải đi bộ.
+- [Bản đồ du lịch Tà Xùa: 13 điểm check-in và thứ tự nên đi](http://localhost:3000/kinh-nghiem/ban-do-du-lich-ta-xua-diem-check-in): Bản đồ du lịch Tà Xùa chia theo 5 khu: điểm nào sát trung tâm, điểm nào phải đi cả buổi, vé bao nhiêu, giờ nào đẹp và nên gom điểm nào vào cùng một buổi.
+- [Săn mây Tà Xùa nên đi cung nào? Sống lưng khủng long, Đỉnh Gió hay Mỏm cá heo](http://localhost:3000/kinh-nghiem/san-may-ta-xua-cung-nao): Tà Xùa có nhiều điểm săn mây nhưng không phải ai cũng hợp đi hết. So sánh 4 cung phổ biến theo độ khó, thời gian, góc ảnh để bạn chọn đúng điểm cho chuyến của mình.
+- [Mùa hoa Tà Xùa: tớ dày, mận, đào nở tháng mấy?](http://localhost:3000/kinh-nghiem/mua-hoa-ta-xua): Lịch hoa Tà Xùa theo tháng: tớ dày tháng 12 – 1, mận trắng giáp Tết, hoa dại mùa hè, dã quỳ tháng 11 — ngắm ở đâu, chụp giờ nào và những điều nên tránh.
+- [Bồn tắm view biển mây Tà Xùa: trải nghiệm đáng tiền nhất 2026](http://localhost:3000/kinh-nghiem/bon-tam-view-bien-may-ta-xua): Ngâm mình trong bồn tắm nước nóng, trước mặt là cả thung lũng mây trắng — trải nghiệm đang khiến Tà Xùa 'sốt' trở lại. Phòng nào có bồn, giá bao nhiêu, đặt thế nào?
+- [Bay flycam ở Tà Xùa: điểm bay đẹp & những điều cần biết](http://localhost:3000/kinh-nghiem/flycam-ta-xua): Góc flycam biển mây Tà Xùa đẹp mê người nhưng bay ở đâu, lúc nào và cần lưu ý gì về quy định, thời tiết, gió núi? Kinh nghiệm cho người mang drone lên núi.
+- [Ngắm sao đêm ở Tà Xùa: trời sao và dải ngân hà trên núi](http://localhost:3000/kinh-nghiem/ngam-sao-dem-ta-xua): Ở độ cao 1.500m, ít ô nhiễm ánh sáng, Tà Xùa là điểm ngắm sao hiếm có gần Hà Nội: mùa thấy ngân hà, điểm ngắm tốt, mẹo chụp sao bằng điện thoại.
+- [5 điểm ngắm hoàng hôn Tà Xùa đẹp nhất](http://localhost:3000/kinh-nghiem/ngam-hoang-hon-ta-xua): Tà Xùa không chỉ có bình minh: hoàng hôn đổ vàng xuống thung lũng mây cũng đẹp nín thở. Danh sách 5 điểm ngắm hoàng hôn kèm giờ vàng từng mùa.
+- [Đồi chè & rừng chè cổ thụ Tà Xùa: đi thế nào, mùa nào đẹp?](http://localhost:3000/kinh-nghiem/doi-che-rung-che-co-thu-ta-xua): Hướng dẫn tham quan đồi chè xanh mướt và rừng chè Shan Tuyết cổ thụ trăm tuổi ở Tà Xùa: đường đi, mùa đẹp, trải nghiệm hái chè cùng người bản địa.
+- [Bản Háng Đồng: nơi tận cùng mây trắng của Tà Xùa](http://localhost:3000/kinh-nghiem/ban-hang-dong-ta-xua): Háng Đồng không chỉ có sống lưng khủng long: bản người H'Mông giữa biển mây, nếp nhà gỗ, ruộng bậc thang và nhịp sống chậm đáng để ở lại một đêm.
+- [Cắm trại Tà Xùa: ngủ lều trên đồi đón bình minh biển mây](http://localhost:3000/kinh-nghiem/cam-trai-ta-xua-don-binh-minh): Kinh nghiệm cắm trại qua đêm ở Tà Xùa: chọn bãi trại đẹp, thuê lều và đồ tại chỗ, chi phí, an toàn ban đêm và khoảnh khắc mở lều thấy biển mây ngay trước mặt.
+- [Xím Vàng mùa lúa chín: cung đường vàng cạnh Tà Xùa](http://localhost:3000/kinh-nghiem/xim-vang-mua-lua-chin): Tháng 9–10, xã Xím Vàng cách Tà Xùa 15km phủ vàng ruộng bậc thang: đường đi, điểm ngắm đẹp, kết hợp lịch săn mây + ngắm lúa trong một chuyến 2 ngày.
+
+### [Review homestay](http://localhost:3000/kinh-nghiem/chu-de/review-homestay)
+
+- [Review Tà Xùa Hill: nên chọn căn VIP trên cao có bồn tắm](http://localhost:3000/kinh-nghiem/review-ta-xua-hill): Tà Xùa Hill ở trung tâm Tà Xùa có 21 phòng đủ điều hoà và sưởi, 9 căn bồn tắm; căn VIP trên cao có view thoáng nhất, phòng LUX cho nhóm tới 10 người.
+- [Review Pàng Village Tà Xùa: chọn dãy Achu hay Sapu](http://localhost:3000/kinh-nghiem/review-pang-village-ta-xua): Pàng Village Tà Xùa ở Bản Cáo A, ngay khu Đỉnh Gió: 18 phòng gỗ view mây chia hai dãy Achu và Sapu, giá gồm ăn sáng, có sưởi, bếp nhà nấu cả ngày.
+- [Review Nhặt Nắng House Tà Xùa: 3 khu Nắng, Đào, Mận](http://localhost:3000/kinh-nghiem/review-nhat-nang-house-ta-xua): Nhặt Nắng House ở trung tâm Tà Xùa gồm 17 căn chia 3 khu Nắng, Đào, Mận: 3 phòng bồn tắm, căn gác xép cho 4–6 người, có tiệm ăn Xuân Thì và quán cà phê.
+- [Review Nhà của An Tà Xùa: homestay kiêm quán cà phê Đỉnh Gió](http://localhost:3000/kinh-nghiem/review-nha-cua-an-ta-xua): Nhà của An là homestay kiêm quán cà phê ở khu Đỉnh Gió, Tà Xùa: 11 phòng đôi có đệm sưởi trong khuôn viên riêng, sáng ra sân quán là ngắm được biển mây.
+- [Review Mon's House Tà Xùa: phòng family cho 10–12 người](http://localhost:3000/kinh-nghiem/review-mons-house-ta-xua): Mon's House ở trung tâm Tà Xùa có 18 phòng chia khu nhà sàn và bungalow VIP, có điều hoà và đệm sưởi, 2 căn bồn tắm, phòng family cho đoàn 10–12 người.
+- [Review Mây Hạ Retreat Tà Xùa: bungalow kính ở bản Mống Vàng](http://localhost:3000/kinh-nghiem/review-may-ha-retreat-ta-xua): Mây Hạ Retreat ở bản Mống Vàng, Tà Xùa là home của nhà xe Thành Mỹ: 17 phòng có điều hoà, gồm 7 bungalow kính và 2 phòng VIP 4 người, xe đưa tới cửa.
+- [Review Happy Town Tà Xùa: bungalow và lều trại ở Đỉnh Gió](http://localhost:3000/kinh-nghiem/review-happy-town-ta-xua): Happy Town Tà Xùa ở Đỉnh Gió gom bungalow 1–2 người, lều cắm trại 4 người và 7 phòng Táo trong một khuôn viên, ăn uống tại chỗ, hợp nhóm bạn trẻ.
+- [Review Dê Homestay Tà Xùa: home lâu năm giữa trung tâm](http://localhost:3000/kinh-nghiem/review-de-homestay-ta-xua): Dê Homestay nằm ngay mặt đường trung tâm xã Tà Xùa, là một trong những home đầu tiên ở đây: 8 phòng có đệm sưởi, có nhà hàng và cho thuê xe máy tại nhà.
+- [Review Cỏ Lạ Homestay Tà Xùa: nhà mới, khuôn viên đẹp](http://localhost:3000/kinh-nghiem/review-co-la-homestay-ta-xua): Cỏ Lạ Homestay ở trung tâm Tà Xùa là nhà mới, khuôn viên chăm kỹ: 20 phòng chia 3 dãy, giá gồm ăn sáng, 3 phòng bồn tắm, phòng gia đình 4–6 người.
+- [Review Chung Chinh Homestay Tà Xùa: nhà sàn kính, lửa trại](http://localhost:3000/kinh-nghiem/review-chung-chinh-homestay-ta-xua): Chung Chinh Homestay ở bản Chung Trinh, gần Sống lưng khủng long: 15 phòng nhà sàn kính và bungalow, đa phần có đệm sưởi, thứ Bảy có lửa trại.
+- [Review Bếp Nhà Táo Tà Xùa: săn mây, ngắm hoàng hôn Khe Cải](http://localhost:3000/kinh-nghiem/review-bep-nha-tao-ta-xua): Bếp Nhà Táo ở Khe Cải, Tà Xùa có 13 phòng đủ điều hoà và đệm sưởi, 6 phòng có bồn tắm, view thoáng để săn mây, ngắm hoàng hôn; có phòng cho 6 người.
+- [Review A Phủ Home's Tà Xùa: dorm 20 giường và phòng Family](http://localhost:3000/kinh-nghiem/review-a-phu-homes-ta-xua): A Phủ Home's nằm ngay mặt đường trung tâm Tà Xùa, có 9 phòng từ giường dorm đến phòng Family cho 6–9 người, phòng có đệm sưởi, xe trung chuyển đưa tới cửa.
+- [Review Thơ Garden Tà Xùa: phòng mới, ngủ ấm, chủ chu đáo](http://localhost:3000/kinh-nghiem/review-tho-garden-ta-xua): Thơ Garden (Ther) là homestay mới của nhà xe Thành Mỹ ở cuối khu trung tâm Tà Xùa: 10 phòng có đệm sưởi, nhìn ra thung lũng mây, tiện cho khách đi xe nhà.
+- [Review Thác Mây Tà Xùa: căn Lux bồn tắm kính, show acoustic](http://localhost:3000/kinh-nghiem/review-thac-may-ta-xua): Thác Mây Tà Xùa cách điểm săn mây Đỉnh Gió khoảng 0,5km: 13 phòng view mây có bồn tắm, giá gồm ăn sáng, có nhà hàng Tây Bắc và show acoustic hoàng hôn.
+- [Review Tà Xùa Retreat: bungalow view thoáng cho gia đình](http://localhost:3000/kinh-nghiem/review-ta-xua-retreat): Tà Xùa Retreat là khu nghỉ nhỏ gần trung tâm Tà Xùa: 9 phòng gồm bungalow, Vườn Mây và Ban Mai, view thoáng, giá gồm ăn sáng, có nhà hàng, hợp gia đình.
+- [Review Tà Xùa Clouds Homestay: chỗ ở cho đoàn tới 150 khách](http://localhost:3000/kinh-nghiem/review-ta-xua-clouds-homestay): Tà Xùa Clouds Homestay ngay mặt đường chính trung tâm Tà Xùa: 19 phòng từ 2 đến 30 khách, sức chứa tới 150 khách mỗi đêm, có nhà hàng và sân lửa trại.
+- [Review Sunset Clouds Tà Xùa: ô tô tới cửa, 9 phòng view mây](http://localhost:3000/kinh-nghiem/review-sunset-clouds-ta-xua): Sunset Clouds Tà Xùa ở bản Chung Trinh, cách trung tâm khoảng 4km, ô tô vào tận cửa: 9 phòng đều hướng săn mây, có điều hoà, nhà hàng, căn Family 6 người.
+- [Review Sóc Nâu Homestay Tà Xùa: giá mềm ngay trung tâm](http://localhost:3000/kinh-nghiem/review-soc-nau-homestay-ta-xua): Sóc Nâu Homestay ngay trung tâm Tà Xùa có 21 phòng khép kín: phòng đơn, nhà sàn cho nhóm 4–6 người, 9 bungalow điều hoà và 2 phòng VIP có bồn tắm.
+- [Review Rêu Homestay Tà Xùa: 18 phòng khép kín có ăn sáng](http://localhost:3000/kinh-nghiem/review-reu-homestay-ta-xua): Rêu Homestay ở trung tâm Tà Xùa, gần trạm y tế xã: 18 phòng khép kín có điều hoà, giá gồm ăn sáng, có 2 phòng VIP 2 mặt kính và phòng cho nhóm 4–5 người.
+- [Review Phỏng Lài Homestay Tà Xùa: tường đất, cửa vòm](http://localhost:3000/kinh-nghiem/review-phong-lai-homstay-ta-xua): Phỏng Lài Homestay ở trung tâm Tà Xùa có 11 phòng đôi tường đất, cửa vòm, phòng nào cũng có bồn tắm, điều hoà và sưởi, giá gồm bữa sáng, có nhà hàng riêng.
+- [Review Pao Homestay Tà Xùa: cửa kính nhìn núi, gần quán xá](http://localhost:3000/kinh-nghiem/review-pao-homestay-ta-xua): Pao Homestay ở trung tâm Tà Xùa là nhà nhỏ 7 phòng cửa kính lớn nhìn ra núi, đi bộ ra quán ăn, có phòng đơn và phòng đôi, hợp cặp đôi hoặc nhóm 2–3 người.
+- [Review Noong ơi Homestay Tà Xùa: vách kính săn mây từ giường](http://localhost:3000/kinh-nghiem/review-noong-oi-homestay-ta-xua): Noong ơi Homestay ở Khe Cải, Tà Xùa là homestay kiêm quán cà phê với 11 phòng gỗ vách kính nhìn xuống thung lũng, 5 phòng có bồn tắm, phòng 6–8 người.
+- [Review Nhà Mây Si Tà Xùa: home mới mở, phòng đôi nhỏ xinh](http://localhost:3000/kinh-nghiem/review-nha-may-si-ta-xua): Nhà Mây Si là home mới mở từ tháng 10/2026 ở trung tâm Tà Xùa: 8 phòng đôi có sưởi, 5 phòng view mây, gần quán xá, hợp cặp đôi và nhóm bạn 2–4 người.
+- [Review Nhà bên suối Tà Xùa: căn riêng bên suối sát trung tâm](http://localhost:3000/kinh-nghiem/review-nha-ben-suoi-ta-xua): Nhà bên suối ở trung tâm Tà Xùa, xuống dốc khoảng 500m đường bê tông: 16 căn riêng chia 4 dãy nhìn ra suối hoặc mây, có căn Family 4 người, hợp cặp đôi.
+- [Review Mống Vàng Retreat Tà Xùa: nhà gỗ giữa đồi chè](http://localhost:3000/kinh-nghiem/review-mong-vang-retreat-ta-xua): Mống Vàng Retreat cách trung tâm Tà Xùa khoảng 1km, gồm 20 phòng gỗ và phòng kính trên đồi chè, phòng nào cũng view mây, 5 phòng bồn tắm, giá gồm ăn sáng.
+- [Review Mây Bản Tà Xùa: phòng kính nhìn xuống thung lũng](http://localhost:3000/kinh-nghiem/review-may-ban-ta-xua): Mây Bản Tà Xùa ở Mống Vàng là homestay kiêm cà phê với 18 phòng gồm dãy phòng kính nhìn thung lũng và cụm nhà sàn, điều hoà 2 chiều, có xe cabin khứ hồi.
+- [Review Lao Xan Boutique Stay Tà Xùa: cầu gỗ ngắm mây riêng](http://localhost:3000/kinh-nghiem/review-lao-xan-ta-xua): Lao Xan Boutique Stay ở trung tâm Tà Xùa có 7 phòng gỗ mộc Tây Bắc, đủ điều hoà, có quầy bar, cầu gỗ ngắm mây riêng cho khách và căn Duplex 2 phòng ngủ.
+- [Review Lang Thang Homestay Tà Xùa: 10 phòng Mây giống nhau](http://localhost:3000/kinh-nghiem/review-lang-thang-homestay-ta-xua): Lang Thang Homestay ở trung tâm Tà Xùa có 10 phòng đôi Mây giống nhau, phòng nào cũng săn được mây, có điều hoà và ăn sáng, hợp cặp đôi và hội 15–20 người.
+- [Review La Chếu Homestay Tà Xùa: xa trung tâm, view mây đẹp](http://localhost:3000/kinh-nghiem/review-la-cheu-homestay-ta-xua): La Chếu Homestay ở khu Đỉnh Gió, cách trung tâm Tà Xùa khoảng 5km: 20 phòng, giá gồm ăn sáng, 4 căn bồn tắm nhìn biển mây, ô tô đỗ thoải mái.
+- [Review Khèn Coffee House Tà Xùa: ngủ tại điểm ngắm thác mây](http://localhost:3000/kinh-nghiem/review-khen-coffee-house-ta-xua): Khèn Coffee House ở Đỉnh Gió là điểm check-in thác mây quen thuộc của Tà Xùa, có 13 phòng nghỉ, 12 phòng view mây, 1 căn bồn tắm và căn cho nhóm 6–8 người.
+- [Review Dốc Mơ Homestay Tà Xùa: nhà sàn cho đoàn 12 người](http://localhost:3000/kinh-nghiem/review-doc-mo-homestay-ta-xua): Dốc Mơ Homestay ở trung tâm Tà Xùa có 10 căn view mây, có sưởi, chia 4 kiểu: căn Cozy cho cặp đôi, căn Sweet 4–5 người, nhà sàn H'mong cho đoàn 12 khách.
+- [Review Cloud Garden Tà Xùa: bungalow giữa vườn đào, vườn trà](http://localhost:3000/kinh-nghiem/review-cloud-garden-ta-xua): Cloud Garden ở trung tâm Tà Xùa có 10 phòng bungalow nằm giữa vườn đào, vườn trà shan tuyết, phòng nào cũng có điều hoà, có căn family cho 8–10 người.
+- [Review Cloud Forest Tà Xùa: nhà gỗ nghỉ dưỡng có bồn tắm](http://localhost:3000/kinh-nghiem/review-cloud-forest-ta-xua): Cloud Forest Tà Xùa ở Đỉnh Gió là quần thể nhà gỗ nghỉ dưỡng 16 phòng nhìn xuống thung lũng mây: 10 phòng có bồn tắm, giá gồm ăn sáng, có nhà hàng và cafe.
+- [Review Chillout Village Tà Xùa: homestay có bể bơi Khe Cải](http://localhost:3000/kinh-nghiem/review-chillout-village-ta-xua): Chillout Village ở Khe Cải, cách trung tâm Tà Xùa khoảng 3km: 14 phòng chia 4 hạng, khuôn viên rộng có bể bơi ngoài trời, nhà hàng và cafe, hợp nhóm bạn.
+- [Review Chillin House Tà Xùa: 5 phòng vách kính kiểu châu Âu](http://localhost:3000/kinh-nghiem/review-chillin-house-ta-xua): Chillin House ở Đỉnh Gió, Tà Xùa chỉ có 5 phòng vách kính lớn nhìn ra núi theo phong cách châu Âu, có ăn sáng, 1 phòng Suite bồn tắm sát kính, hợp cặp đôi.
+- [Review Chạm Hoàng Hôn Tà Xùa: 7 phòng view trên Đỉnh Gió](http://localhost:3000/kinh-nghiem/review-cham-hoang-hon-ta-xua): Chạm Hoàng Hôn (tên cũ Haus Meej) trên Đỉnh Gió, cách trung tâm Tà Xùa khoảng 1,5km: 7 phòng view hoàng hôn, núi và toàn cảnh, xe trung chuyển tới tận cửa.
+- [Review Bản Mây Tà Xùa Retreat: phòng bồn tắm hướng săn mây](http://localhost:3000/kinh-nghiem/review-ban-may-ta-xua-retreat): Bản Mây Tà Xùa Retreat ngay mặt đường trung tâm có 19 phòng chia 5 hạng, 6 phòng bồn tắm, 13 phòng view mây, đủ điều hoà và sưởi, có phòng cộng đồng.
+- [Review A Phủ Lưng Chừng Tà Xùa: 8 phòng đôi view thoáng](http://localhost:3000/kinh-nghiem/review-a-phu-lung-chung-ta-xua): A Phủ Lưng Chừng là home mới của nhà A Phủ ngay mặt đường trung tâm Tà Xùa: 8 phòng đôi giường 1,8m, ở tối đa 3 người, view thoáng, hợp cặp đôi cần yên.

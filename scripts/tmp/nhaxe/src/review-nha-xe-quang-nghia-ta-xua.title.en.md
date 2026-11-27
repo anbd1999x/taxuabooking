@@ -1,0 +1,1 @@
+Quang Nghĩa bus to Tà Xùa review: fares, timetable, homestay drop-off

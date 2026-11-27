@@ -1,0 +1,1 @@
+Xuân Trường bus to Tà Xùa review: 550.000đ fare, Vĩnh Phúc pickup

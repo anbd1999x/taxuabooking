@@ -1,0 +1,1 @@
+Review of Khánh Châu bus to Tà Xùa: round-trip ticket 500,000đ, departs 9pm from 68 Mạc Thái Tông, route, cabins, pick-up prices for 10 provinces, pros and cons.

@@ -42,6 +42,8 @@ for (const slug of slugs) {
   if (!c.includes("**Tóm tắt nhanh:**")) errs.push('thiếu "**Tóm tắt nhanh:**"');
   if (!c.includes(TODAY)) errs.push("thiếu dòng nguồn + ngày " + TODAY);
   if (imgs.length < 3) errs.push(`ảnh ${imgs.length} < 3`);
+  // Trang bài viết hiện ảnh bìa ở đầu ⇒ ảnh bìa phải là ảnh KHÁC, không nằm trong nội dung (trang sẽ ẩn ảnh trùng, bài mất 1 ảnh).
+  if (imgs.some((im) => im.src === m.coverImage)) errs.push("ảnh bìa trùng ảnh trong bài: " + m.coverImage);
   if (best.r > 0.08) errs.push(`trùng ${(best.r * 100).toFixed(1)}% với ${best.slug}`);
   for (const im of [{ alt: "cover", src: m.coverImage }, ...imgs]) { if (!/^\/uploads\//.test(im.src)) errs.push("ảnh không phải /uploads: " + im.src); else if ((await st(im.src)) !== 200) errs.push("ảnh lỗi " + im.src); if (!im.alt.trim()) errs.push("ảnh thiếu alt " + im.src); }
   for (const l of links) { const s = await st(l); if (s !== 200) errs.push(`link ${s} ${l}`); }

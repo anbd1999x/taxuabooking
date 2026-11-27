@@ -26,6 +26,8 @@ export async function register() {
   let lastRoadWarm = 0;
   const IMG_INDEX_MS = 10 * 60_000;
   let lastImgIndex = 0;
+  const INDEXNOW_MS = 15 * 60_000;
+  let lastIndexNow = 0;
   const tick = async () => {
     // Tự huỷ đơn chờ quá 6 giờ chưa ghi nhận thanh toán (src/lib/booking-auto-cancel.ts).
     try {
@@ -110,6 +112,19 @@ export async function register() {
           await indexImageEmbeddings({ limit: 400, log: (m) => console.log(m) });
         } catch (err) {
           console.error("[img-index] lỗi", err);
+        }
+      })();
+    }
+    // IndexNow: báo Bing / Yahoo / Yandex các trang trong sitemap vừa đổi, 15 phút/lần (mốc SiteSetting `indexNowAt`).
+    if (Date.now() - lastIndexNow >= INDEXNOW_MS) {
+      lastIndexNow = Date.now();
+      void (async () => {
+        try {
+          const { pingChangedUrls } = await import("./lib/indexnow");
+          const n = await pingChangedUrls();
+          if (n) console.log("[indexnow] đã gửi", n, "URL");
+        } catch (err) {
+          console.error("[indexnow] lỗi", err);
         }
       })();
     }

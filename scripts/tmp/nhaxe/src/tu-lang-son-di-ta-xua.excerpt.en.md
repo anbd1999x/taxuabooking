@@ -1,0 +1,1 @@
+No cabin bus picks up in Lạng Sơn: coach about 150km to Hanoi, board a 21:00–22:00 night bus from 500.000đ return, or Bắc Giang pickup from 800.000đ.

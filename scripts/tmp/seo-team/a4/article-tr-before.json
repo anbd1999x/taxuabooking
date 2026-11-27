@@ -1,0 +1,310 @@
+[
+ {
+  "slug": "ta-xua-mua-nao-dep-nhat",
+  "field": "title",
+  "locale": "en",
+  "old": "Best time to visit Tà Xùa: a 12-month guide to clouds and rice",
+  "value": "Ta Xua best time to visit: month-by-month clouds & flowers"
+ },
+ {
+  "slug": "ta-xua-mua-nao-dep-nhat",
+  "field": "excerpt",
+  "locale": "en",
+  "old": "Best time to visit Tà Xùa? Clouds Nov–Mar, plum and peach Jan–Feb, ripe rice in Xím Vàng in Sept. A 12-month table to plan your trip.",
+  "value": "Best time to visit Ta Xua: clouds Nov–Mar, plum and peach blossom Jan–Feb, ripe rice in Xím Vàng in Sep. A 12-month table to plan your trip."
+ },
+ {
+  "slug": "tu-ha-noi-di-ta-xua",
+  "field": "title",
+  "locale": "en",
+  "old": "Hanoi to Tà Xùa: 5 sleeper cabin buses and where to board",
+  "value": "Hanoi to Ta Xua: 5 sleeper cabin buses and where to board"
+ },
+ {
+  "slug": "tu-ha-noi-di-ta-xua",
+  "field": "excerpt",
+  "locale": "en",
+  "old": "Five overnight sleeper cabin buses run from Hanoi to Tà Xùa, boarding in Cầu Giấy or Mỹ Đình at 21:00 to 22:00. Round trip 500.000đ to 650.000đ.",
+  "value": "Hanoi to Ta Xua by bus: 5 overnight sleeper cabin operators, boarding in Cầu Giấy or Mỹ Đình at 9–10pm, arriving 6am. Round trip 500.000đ to 650.000đ."
+ },
+ {
+  "slug": "nha-xe-di-ta-xua",
+  "field": "title",
+  "locale": "en",
+  "old": "Buses to Tà Xùa: 5 cabin bus operators from Hanoi compared",
+  "value": "Hanoi to Ta Xua bus: 5 sleeper cabin operators compared"
+ },
+ {
+  "slug": "nha-xe-di-ta-xua",
+  "field": "title",
+  "locale": "zh",
+  "old": "去塔萨的车公司：河内出发 5 家包厢车对比",
+  "value": "河内到塔萨的巴士：5 家卧铺包厢车公司对比"
+ },
+ {
+  "slug": "nha-xe-di-ta-xua",
+  "field": "title",
+  "locale": "ko",
+  "old": "따쑤아행 버스: 하노이 출발 캐빈 버스 5개 회사 비교",
+  "value": "하노이–따쑤아 버스: 캐빈 버스 5개 회사 비교"
+ },
+ {
+  "slug": "nha-xe-di-ta-xua",
+  "field": "excerpt",
+  "locale": "en",
+  "old": "Comparing 5 bus operators from Hanoi to Tà Xùa: Khánh Châu, Xuân Trường, Thành Mỹ, Tiến Thành, Quang Nghĩa. Round trip 500.000đ to 650.000đ, leaving 21:00 to 22:00.",
+  "value": "Hanoi to Ta Xua bus operators compared: Khánh Châu, Xuân Trường, Thành Mỹ, Tiến Thành, Quang Nghĩa. Round trip 500.000đ to 650.000đ, leaving 9 to 10pm."
+ },
+ {
+  "slug": "kinh-nghiem-du-lich-ta-xua-tu-a-z",
+  "field": "title",
+  "locale": "en",
+  "old": "Tà Xùa travel guide A–Z 2026–2027: a detailed review",
+  "value": "Ta Xua travel guide A–Z: getting there, stay, food, costs"
+ },
+ {
+  "slug": "kinh-nghiem-du-lich-ta-xua-tu-a-z",
+  "field": "excerpt",
+  "locale": "en",
+  "old": "Tà Xùa review from A–Z: which season is best for clouds, how to get there, which area to stay in, what to eat, where to go, how much it costs and the downsides to know before you set off.",
+  "value": "Ta Xua travel guide from A to Z: best season for clouds, how to get there, where to stay, what to eat, where to go, trip costs and the downsides to know."
+ },
+ {
+  "slug": "review-ta-xua-tat-tan-tat",
+  "field": "title",
+  "locale": "en",
+  "old": "The complete Tà Xùa review 2026–2027: getting there, staying, eating, playing, costs",
+  "value": "Ta Xua review: getting there, where to stay, food, costs"
+ },
+ {
+  "slug": "review-ta-xua-tat-tan-tat",
+  "field": "excerpt",
+  "locale": "en",
+  "old": "A complete Tà Xùa review for first-timers: which season has clouds, which bus to take, which area to stay in, 13 check-in spots, what to eat, 2D1N costs and the downsides to know in advance.",
+  "value": "A complete Ta Xua review for first-timers: cloud season, which bus to take, where to stay, 13 viewpoints, what to eat, 2-day costs and the downsides."
+ },
+ {
+  "slug": "ban-do-du-lich-ta-xua-diem-check-in",
+  "field": "title",
+  "locale": "en",
+  "old": "Tà Xùa travel map: 13 check-in spots and the order to visit them",
+  "value": "Ta Xua map: 13 viewpoints and the best order to visit"
+ },
+ {
+  "slug": "ban-do-du-lich-ta-xua-diem-check-in",
+  "field": "excerpt",
+  "locale": "en",
+  "old": "A Tà Xùa travel map divided into 5 areas: which spots are next to the centre, which take half a day, ticket prices, the best times and which spots to group into one outing.",
+  "value": "Ta Xua travel map in 5 areas: spots next to the centre, spots that take half a day, ticket prices, best times and which spots to combine in one outing."
+ },
+ {
+  "slug": "song-lung-khung-long-ta-xua",
+  "field": "title",
+  "locale": "en",
+  "old": "Sống lưng khủng long, Tà Xùa: route, tickets, best times",
+  "value": "Dinosaur Spine Ta Xua: how to get there, tickets, best time"
+ },
+ {
+  "slug": "song-lung-khung-long-ta-xua",
+  "field": "title",
+  "locale": "zh",
+  "old": "塔萨 Sống lưng khủng long（恐龙脊）：路线、门票、最佳时间",
+  "value": "塔萨恐龙脊：怎么去、门票、最佳观景时间"
+ },
+ {
+  "slug": "song-lung-khung-long-ta-xua",
+  "field": "title",
+  "locale": "ko",
+  "old": "따쑤아 Sống lưng khủng long(공룡 등뼈): 가는 길, 입장료, 추천 시간",
+  "value": "따쑤아 공룡 등뼈 능선: 가는 길, 입장료, 좋은 시간"
+ },
+ {
+  "slug": "song-lung-khung-long-ta-xua",
+  "field": "excerpt",
+  "locale": "en",
+  "old": "Tà Xùa's Dinosaur Spine is 12–15km from the centre, ticket about 20.000đ, clouds best 6am–10am. Motorbike taxi from 300.000đ one way, last 1–1.5km on foot.",
+  "value": "Ta Xua Dinosaur Spine is 12–15km from the centre, ticket about 20.000đ, clouds best 6–10am. Motorbike taxi from 300.000đ one way, last 1–1.5km on foot."
+ },
+ {
+  "slug": "song-lung-khung-long-ta-xua",
+  "field": "excerpt",
+  "locale": "zh",
+  "old": "塔萨 Sống lưng khủng long 距中心 12–15km，门票约 20.000đ，云海最美在 6 点至 10 点。摩的单程 300.000đ 起，最后 1–1.5km 需步行。",
+  "value": "塔萨恐龙脊（Sống lưng khủng long）距中心 12–15km，门票约 20.000đ，云海最美在 6 点至 10 点。摩的单程 300.000đ 起，最后 1–1.5km 需步行。"
+ },
+ {
+  "slug": "song-lung-khung-long-ta-xua",
+  "field": "excerpt",
+  "locale": "ko",
+  "old": "따쑤아 Sống lưng khủng long은 중심에서 12~15km, 입장료 약 20.000đ, 운해는 오전 6~10시가 가장 좋습니다. 오토바이 택시 편도 300.000đ부터, 마지막 1~1.5km는 도보.",
+  "value": "따쑤아 공룡 등뼈(Sống lưng khủng long)는 중심에서 12~15km, 입장료 약 20.000đ, 운해는 오전 6~10시가 가장 좋습니다. 오토바이 택시 편도 300.000đ부터, 마지막 1~1.5km는 도보."
+ },
+ {
+  "slug": "mom-ca-heo-cay-co-don-ta-xua",
+  "field": "title",
+  "locale": "en",
+  "old": "Mỏm cá heo & Cây cô đơn, Tà Xùa: route, tickets, best hours",
+  "value": "Dolphin Rock & Lonely Tree Ta Xua: route, tickets, best time"
+ },
+ {
+  "slug": "mom-ca-heo-cay-co-don-ta-xua",
+  "field": "title",
+  "locale": "zh",
+  "old": "塔萨 Mỏm cá heo（海豚石）与 Cây cô đơn（孤独树）：路线、门票、最佳时间",
+  "value": "塔萨海豚石与孤独树：路线、门票、最佳时间"
+ },
+ {
+  "slug": "mom-ca-heo-cay-co-don-ta-xua",
+  "field": "title",
+  "locale": "ko",
+  "old": "따쑤아 Mỏm cá heo(돌고래 바위)·Cây cô đơn(외로운 나무): 가는 길, 입장료, 좋은 시간",
+  "value": "따쑤아 돌고래 바위·외로운 나무: 가는 길, 입장료, 좋은 시간"
+ },
+ {
+  "slug": "mom-ca-heo-cay-co-don-ta-xua",
+  "field": "excerpt",
+  "locale": "en",
+  "old": "Mỏm cá heo and Cây cô đơn in Tà Xùa are under 1 km apart, best from 6am to 9am; Dolphin Rock ticket about 20.000đ, motorbike taxi from 250.000đ one way.",
+  "value": "Dolphin Rock (Mỏm cá heo) and the Lonely Tree in Ta Xua are under 1km apart, best 6–9am. Dolphin Rock ticket about 20.000đ, motorbike taxi from 250.000đ."
+ },
+ {
+  "slug": "mom-ca-heo-cay-co-don-ta-xua",
+  "field": "excerpt",
+  "locale": "zh",
+  "old": "塔萨 Mỏm cá heo 和 Cây cô đơn 相距不到 1 km，早上 6 点到 9 点最美；海豚石门票约 20.000đ，市中心摩的单程 250.000đ 起。",
+  "value": "塔萨海豚石（Mỏm cá heo）和孤独树（Cây cô đơn）相距不到 1 km，早上 6 点到 9 点最美；海豚石门票约 20.000đ，市中心摩的单程 250.000đ 起。"
+ },
+ {
+  "slug": "mom-ca-heo-cay-co-don-ta-xua",
+  "field": "excerpt",
+  "locale": "ko",
+  "old": "따쑤아 Mỏm cá heo와 Cây cô đơn은 1 km도 안 떨어져 있고 오전 6시~9시가 가장 좋습니다. 돌고래 바위 입장료 약 20.000đ, 오토바이 택시 편도 250.000đ부터.",
+  "value": "따쑤아 돌고래 바위(Mỏm cá heo)와 외로운 나무(Cây cô đơn)는 1km도 안 떨어져 있고 오전 6~9시가 가장 좋습니다. 돌고래 바위 입장료 약 20.000đ, 오토바이 택시 편도 250.000đ부터."
+ },
+ {
+  "slug": "kinh-nghiem-san-may-ta-xua",
+  "field": "title",
+  "locale": "en",
+  "old": "Tà Xùa cloud hunting: predicting clouds, wake-up times, 7 spots",
+  "value": "Ta Xua cloud hunting: forecast tips, wake-up time, 7 spots"
+ },
+ {
+  "slug": "kinh-nghiem-san-may-ta-xua",
+  "field": "excerpt",
+  "locale": "en",
+  "old": "Tà Xùa cloud hunting tips: season Nov–Mar, arrive before 6 am, reading the sky the night before, 7 viewpoints compared, motorbike taxi from 100.000đ.",
+  "value": "Ta Xua cloud hunting guide: season Nov–Mar, be there before 6am, how to read the sky the night before, 7 viewpoints compared, motorbike taxi from 100.000đ."
+ },
+ {
+  "slug": "ta-xua-hay-sapa-y-ty",
+  "field": "title",
+  "locale": "en",
+  "old": "Tà Xùa or Sapa: Are They Close, and Which Should You Pick?",
+  "value": "Ta Xua vs Sapa: how far apart and which one to visit?"
+ },
+ {
+  "slug": "ta-xua-hay-sapa-y-ty",
+  "field": "excerpt",
+  "locale": "en",
+  "old": "Tà Xùa or Sapa? Different provinces, far apart, hard to combine. Tà Xùa is about 215km from Hanoi, Sapa 320km. Plus Y Tý: clouds, terraces, costs.",
+  "value": "Ta Xua vs Sapa: different provinces, far apart, hard to combine. Ta Xua is about 215km from Hanoi, Sapa 320km. Y Tý compared too: clouds, terraces, costs."
+ },
+ {
+  "slug": "homestay-ta-xua-gia-re",
+  "field": "title",
+  "locale": "en",
+  "old": "Cheap Tà Xùa homestays 2026: 16 places under 700.000đ/night",
+  "value": "Cheap homestays in Ta Xua: 16 places under 700.000đ/night"
+ },
+ {
+  "slug": "homestay-ta-xua-gia-re",
+  "field": "excerpt",
+  "locale": "en",
+  "old": "Cheap Tà Xùa homestays by price level: dorm 150.000đ, private rooms from 300.000đ, cloud views from 499.000đ, bathtubs from 650.000đ, plus tips for booking cheaply.",
+  "value": "Cheap Ta Xua homestays by budget: dorm beds 150.000đ, private rooms from 300.000đ, cloud views from 499.000đ, bathtubs from 650.000đ, plus booking tips."
+ },
+ {
+  "slug": "chi-phi-du-lich-ta-xua-tu-tuc",
+  "field": "title",
+  "locale": "en",
+  "old": "Self-guided Tà Xùa trip cost: item-by-item prices, 3 levels",
+  "value": "Ta Xua trip cost: item-by-item budget for 3 travel styles"
+ },
+ {
+  "slug": "chi-phi-du-lich-ta-xua-tu-tuc",
+  "field": "excerpt",
+  "locale": "en",
+  "old": "Self-guided Tà Xùa costs from 965.000đ for 2D1N and 1.435.000đ for 3D2N per person: 500.000đ cabin bus, shared room from 100.000đ, bike, tickets.",
+  "value": "Ta Xua budget trip cost: from 965.000đ per person for 2D1N and 1.435.000đ for 3D2N. Cabin bus 500.000đ, shared room from 100.000đ, motorbike, tickets."
+ },
+ {
+  "slug": "ta-xua-o-dau-cach-ha-noi-bao-nhieu-km",
+  "field": "title",
+  "locale": "en",
+  "old": "Where is Tà Xùa? Distance from Hanoi and travel time",
+  "value": "Where is Ta Xua? Distance from Hanoi and travel time"
+ },
+ {
+  "slug": "ta-xua-o-dau-cach-ha-noi-bao-nhieu-km",
+  "field": "excerpt",
+  "locale": "en",
+  "old": "Where is Tà Xùa? In Sơn La province, about 215km from Hanoi, not in Lào Cai. Night cabin bus arrives at 6am, round trip from 500.000đ; 6–7 hours by car.",
+  "value": "Where is Ta Xua? In Sơn La province, about 215km from Hanoi, not Lào Cai. The night cabin bus arrives at 6am, round trip from 500.000đ; 6–7 hours by car."
+ },
+ {
+  "slug": "lich-trinh-ta-xua-2-ngay-1-dem",
+  "field": "title",
+  "locale": "en",
+  "old": "2-Day, 1-Night Tà Xùa Itinerary: Cloud Hunting, Buses and Homestays (2026)",
+  "value": "Ta Xua 2-day itinerary: cloud hunting, buses, homestays"
+ },
+ {
+  "slug": "lich-trinh-ta-xua-2-ngay-1-dem",
+  "field": "excerpt",
+  "locale": "en",
+  "old": "An hour-by-hour 2-day Tà Xùa itinerary from Hanoi: overnight cabin bus, two cloud-hunting mornings, 5 bus companies, homestay tips, 1.3–1.9 million đồng.",
+  "value": "Hour-by-hour 2-day Ta Xua itinerary from Hanoi: night cabin bus, two cloud-hunting mornings, 5 bus operators, homestay tips, 1.3–1.9 million VND each."
+ },
+ {
+  "slug": "xe-giuong-nam-limousine-di-ta-xua",
+  "field": "title",
+  "locale": "en",
+  "old": "Sleeper buses and limousines to Tà Xùa: 8 criteria for choosing a good operator",
+  "value": "Sleeper bus vs limousine to Ta Xua: 8 checks before booking"
+ },
+ {
+  "slug": "xe-giuong-nam-limousine-di-ta-xua",
+  "field": "excerpt",
+  "locale": "en",
+  "old": "How do sleeper buses, cabin buses and limousines to Tà Xùa differ? What a trip includes and 8 criteria for judging a quality operator before you book.",
+  "value": "Sleeper bus, cabin bus or limousine to Ta Xua: how they differ, what a trip includes and 8 criteria for judging a quality operator before you book."
+ },
+ {
+  "slug": "homestay-ta-xua-view-may-dep",
+  "field": "title",
+  "locale": "en",
+  "old": "Which Tà Xùa homestays have the best sea-of-clouds views? 13 places for cloud hunting from your room (2026)",
+  "value": "Ta Xua homestays with sea-of-clouds views: 13 best places"
+ },
+ {
+  "slug": "homestay-ta-xua-view-may-dep",
+  "field": "excerpt",
+  "locale": "en",
+  "old": "Which Tà Xùa homestays have great sea-of-clouds views? 13 places with rooms for cloud hunting right from bed in Đỉnh Gió, Bản Chung Trinh and the town centre: from 499.000đ/night, bathtubs, breakfast.",
+  "value": "Which Ta Xua homestays have great cloud views? 13 places with rooms facing the sea of clouds in Đỉnh Gió, Chung Trinh and the centre, from 499.000đ/night."
+ },
+ {
+  "slug": "review-cloud-forest-ta-xua",
+  "field": "title",
+  "locale": "en",
+  "old": "Cloud Forest Tà Xùa review: wooden resort houses with bathtubs",
+  "value": "Cloud Forest Ta Xua review: wooden lodges with bathtubs"
+ },
+ {
+  "slug": "review-cloud-forest-ta-xua",
+  "field": "excerpt",
+  "locale": "en",
+  "old": "Cloud Forest Tà Xùa in Đỉnh Gió is a 16-room wooden resort complex overlooking the cloud valley: 10 rooms with bathtubs, breakfast included, restaurant, cafe.",
+  "value": "Cloud Forest Ta Xua in Đỉnh Gió: a 16-room wooden resort overlooking the cloud valley. 10 rooms have bathtubs, breakfast included, restaurant and cafe."
+ }
+]

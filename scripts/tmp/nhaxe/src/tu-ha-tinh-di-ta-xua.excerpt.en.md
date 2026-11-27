@@ -1,0 +1,1 @@
+Hà Tĩnh to Tà Xùa: travel about 340km to Hanoi, then take 1 of 5 night cabin buses at 21:00–22:00. Return 500.000đ–650.000đ, arrive around 06:00.

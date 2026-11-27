@@ -1,0 +1,1 @@
+Nhà xe Xuân Trường đi Tà Xùa: vé khứ hồi 550.000đ từ Hà Nội, đi 21h30, tới 6h sáng, đón Vĩnh Phúc, Bắc Ninh, Bắc Giang và cách đặt vé.

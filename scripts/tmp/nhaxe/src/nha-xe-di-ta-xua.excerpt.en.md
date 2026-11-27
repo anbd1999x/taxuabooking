@@ -1,0 +1,1 @@
+Comparing 5 bus operators from Hanoi to Tà Xùa: Khánh Châu, Xuân Trường, Thành Mỹ, Tiến Thành, Quang Nghĩa. Round trip 500.000đ to 650.000đ, leaving 21:00 to 22:00.

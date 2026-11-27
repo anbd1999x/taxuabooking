@@ -1,0 +1,1 @@
+Nhà xe Tiến Thành đi Tà Xùa: vé khứ hồi 600.000đ, xe 24 cabin có massage, limousine chạy thẳng lên Tà Xùa, đón 8 tỉnh, có giường nghỉ chờ nhận phòng.

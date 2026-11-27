@@ -1,0 +1,1 @@
+하노이에서 따쑤아로 가는 버스 회사 5곳 비교: Khánh Châu, Xuân Trường, Thành Mỹ, Tiến Thành, Quang Nghĩa. 왕복 500.000đ ~ 650.000đ, 21시~22시 출발.

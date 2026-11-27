@@ -1,0 +1,1 @@
+Lạng Sơn to Tà Xùa: via Hanoi on a 500.000đ cabin bus

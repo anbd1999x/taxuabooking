@@ -1,0 +1,1 @@
+No cabin bus picks up in Thanh Hóa yet: reach Hanoi (about 160km) by coach or train, then take one of 5 night cabin buses from 21:00, round trip from 500.000đ.

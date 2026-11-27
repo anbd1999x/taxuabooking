@@ -1,0 +1,1 @@
+Thành Mỹ bus to Tà Xùa review: fares, schedule and the free rest room

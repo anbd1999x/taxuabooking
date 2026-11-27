@@ -1,0 +1,370 @@
+
+# kinh-nghiem-dat-phong-homestay-ta-xua — Kinh nghiệm đặt phòng homestay Tà Xùa: cọc bao nhiêu là đủ?
+  0 [2] Nhà sàn một mặt kính tại Chung Chinh Homestay
+  1 [1] Một người đứng ở mỏm đất cuối Sống lưng khủng long Tà Xùa khi sương mù đang phủ kín thung lũng phía trước
+  2 [1] Nhà Của An Homestay & Coffee ở Đỉnh Gió, sân sỏi nhìn ra thung lũng, có bún phở nóng buổi sáng
+
+# ta-xua-mua-nao-dep-nhat — Tà Xùa mùa nào đẹp nhất? Bảng 12 tháng mây, hoa, lúa
+  0 [2] Lối đi rợp hoa tím trong khuôn viên homestay giữa rừng thông Tà Xùa mùa xanh
+  1 [2] Khuôn viên bậc thang xanh mướt của homestay Tà Xùa nhìn xuống thung lũng mùa mưa
+  2 [2] Bàn ghế ngoài hiên một homestay khu Đỉnh Gió nhìn thẳng ra biển mây buổi sáng
+
+# an-gi-o-ta-xua — Ăn gì ở Tà Xùa? 10 đặc sản nên thử, giá từ 90.000đ
+  0 [1] Nhà Của An Homestay & Coffee ở Đỉnh Gió, sân sỏi nhìn ra thung lũng, có bún phở nóng buổi sáng
+  1 [1] Panorama Coffee ở Đỉnh Gió, quán mở 6h sáng ngay khu săn mây
+  2 [1] Sân gỗ của Chillin House nhìn ra biển mây ở Đỉnh Gió
+
+# chuan-bi-gi-khi-di-ta-xua — Đi Tà Xùa cần chuẩn bị gì? Checklist đồ theo 2 mùa
+  0 [1] Lối đi rợp hoa tím trong khuôn viên homestay giữa rừng thông Tà Xùa mùa xanh
+  1 [1] Khuôn viên bậc thang xanh mướt của homestay Tà Xùa nhìn xuống thung lũng mùa mưa
+  2 [1] Bàn tiệc ngoài trời sát lan can nhìn ra biển mây ở một tiệm nướng trung tâm Tà Xùa
+
+# ta-xua-hay-sapa-y-ty — Tà Xùa hay Sapa: có gần nhau không, cách bao nhiêu km?
+  0 [1] Cánh đồng lúa xanh và núi đá vôi gần động Ngườm Ngao, huyện Trùng Khánh cũ, Cao Bằng
+  1 [1] Lối đi có đèn bên trong động Ngườm Ngao, gần thác Bản Giốc, Cao Bằng
+  2 [0] Hai phiến đá phủ rêu của Mỏm cá heo Tà Xùa nhô ra phía trên thung lũng
+
+# xim-vang-mua-lua-chin — Xím Vàng Tà Xùa ở đâu? Đường đi, Trạm Mâm Xôi, mùa lúa
+  0 [6] Chòi gỗ treo ngô phơi ở Trạm Mâm Xôi, xã Xím Vàng, nhìn ra ruộng bậc thang trên đường tới chân núi Sa Mu
+  1 [2] Dù lượn bay trên ruộng bậc thang lúa chín ở thung lũng Lìm Mông, Mù Cang Chải
+  2 [1] Lối đi rợp hoa tím trong khuôn viên homestay giữa rừng thông Tà Xùa mùa xanh
+
+# bon-tam-view-bien-may-ta-xua — Bồn tắm view biển mây Tà Xùa: trải nghiệm đáng tiền nhất 2026
+  0 [3] Bàn tiệc ngoài trời sát lan can nhìn ra biển mây ở một tiệm nướng trung tâm Tà Xùa
+  1 [2] Cây táo mèo cô đơn trên đỉnh đồi ở Tà Xùa, phía sau là các dãy núi xếp lớp và biển mây buổi sáng
+  2 [2] Hai chiếc Honda PG1 cho thuê dựng trước cửa tiệm xe máy ở trung tâm Tà Xùa
+
+# an-sang-ta-xua-quan-mo-som — Ăn sáng Tà Xùa: quán mở sớm từ 5h sau buổi săn mây
+  0 [4] Cây táo mèo cô đơn trên đỉnh đồi ở Tà Xùa, phía sau là các dãy núi xếp lớp và biển mây buổi sáng
+  1 [4] Biển mây nhìn từ sân Mon's House Tà Xùa buổi sáng
+  2 [3] Bàn ghế ngoài hiên một homestay khu Đỉnh Gió nhìn thẳng ra biển mây buổi sáng
+
+# o-ta-xua-nen-chon-khu-nao — Ở Tà Xùa nên chọn khu nào? Trung tâm, Đỉnh Gió, Khe Cải
+  0 [3] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+  1 [3] Đồi cỏ xanh khu Núi đôi thiếu nữ ở Đỉnh Gió Tà Xùa với cây thông đơn và mây phủ thung lũng phía sau
+  2 [3] Panorama Coffee ở Đỉnh Gió, quán mở 6h sáng ngay khu săn mây
+
+# qua-ta-xua-mua-gi-lam-qua — Đặc sản Tà Xùa mua về làm quà: 8 món, giá và chỗ mua
+  0 [2] Biển mây nhìn từ sân Mon's House Tà Xùa buổi sáng
+  1 [1] Nhà Của An Homestay & Coffee ở Đỉnh Gió, sân sỏi nhìn ra thung lũng, có bún phở nóng buổi sáng
+  2 [1] Panorama Coffee ở Đỉnh Gió, quán mở 6h sáng ngay khu săn mây
+
+# trai-nghiem-xe-cabin-di-ta-xua — Một đêm trên xe cabin đi Tà Xùa: chọn cabin đơn hay đôi, nằm tầng nào?
+  0 [4] Lối đi giữa hai dãy buồng nằm hai tầng trên xe cabin Quang Nghĩa tuyến Hà Nội đi Tà Xùa
+  1 [3] Lán Cô Đơn, chiếc lán gỗ nhỏ trên sườn đồi giữa Mỏm cá heo và Cây cô đơn
+  2 [3] Cây táo mèo cô đơn trên đỉnh đồi ở Tà Xùa, phía sau là các dãy núi xếp lớp và biển mây buổi sáng
+
+# mua-hoa-ta-xua — Mùa hoa Tà Xùa: tớ dày, mận, đào nở tháng mấy?
+  0 [2] Cây táo mèo cô đơn trên đỉnh đồi ở Tà Xùa, phía sau là các dãy núi xếp lớp và biển mây buổi sáng
+  1 [2] Nhìn từ trong khoang cabin ra: màn hình giải trí, chân duỗi thẳng và cửa sổ riêng
+  2 [2] Hoàng hôn đỏ rực sau dãy núi nhìn từ vườn hoa homestay Tà Xùa
+
+# xuong-xe-dem-ta-xua-sang-som-lam-gi — Xuống xe đêm ở Tà Xùa lúc 6h sáng, 14h mới nhận phòng: 8 tiếng đó làm gì?
+  0 [2] Sân gỗ phía trước nhìn xuống thung lũng mây lúc hoàng hôn
+  1 [1] Cây táo mèo cô đơn trên đỉnh đồi ở Tà Xùa, phía sau là các dãy núi xếp lớp và biển mây buổi sáng
+  2 [1] Bữa cơm phần ở Tà Xùa nhìn từ trên xuống: canh, thịt rang, trứng rán, bò hầm khoai, rau luộc và nồi cơm trắng
+
+# gia-homestay-ta-xua-ngay-thuong-cuoi-tuan-le — Giá homestay Tà Xùa: ngày thường, thứ 7, lễ chênh bao nhiêu?
+  0 [1] Một người đứng ở mỏm đất cuối Sống lưng khủng long Tà Xùa khi sương mù đang phủ kín thung lũng phía trước
+  1 [1] Nhà Của An Homestay & Coffee ở Đỉnh Gió, sân sỏi nhìn ra thung lũng, có bún phở nóng buổi sáng
+  2 [1] Panorama Coffee ở Đỉnh Gió, quán mở 6h sáng ngay khu săn mây
+
+# 48-gio-o-ta-xua-nhat-ky — 48 giờ ở Tà Xùa: nhật ký chuyến đi 'chữa lành' của dân văn phòng
+  0 [1] Đồi cỏ xanh khu Núi đôi thiếu nữ ở Đỉnh Gió Tà Xùa với cây thông đơn và mây phủ thung lũng phía sau
+  1 [1] Nhà Của An Homestay & Coffee ở Đỉnh Gió, sân sỏi nhìn ra thung lũng, có bún phở nóng buổi sáng
+  2 [1] Panorama Coffee ở Đỉnh Gió, quán mở 6h sáng ngay khu săn mây
+
+# ta-xua-mua-he-thang-5-8 — Tà Xùa mùa hè tháng 5 – 8: mát 20°C, vắng khách, có còn mây không?
+  0 [2] Đồi ruộng bậc thang Mâm Xôi giữa thung lũng xã Xím Vàng, cách trung tâm Tà Xùa khoảng 15km
+  1 [2] Ruộng bậc thang xanh chạy dọc sườn núi thung lũng Xím Vàng, nhìn từ đường tỉnh lộ 112
+  2 [2] Bàn ghế ngoài hiên một homestay khu Đỉnh Gió nhìn thẳng ra biển mây buổi sáng
+
+# kinh-nghiem-du-lich-ta-xua-tu-a-z — Kinh nghiệm du lịch Tà Xùa từ A–Z 2026–2027: review chi tiết
+  0 [1] Góc bàn cạnh cửa kính nhìn ra núi ở Tiệm Mì Cay, trung tâm Tà Xùa
+  1 [1] Nhà sàn một mặt kính tại Chung Chinh Homestay
+  2 [1] Cung đường Sống lưng khủng long Tà Xùa nhìn từ đồi hoa, điểm săn mây bình minh trong mọi lịch trình
+
+# ban-do-du-lich-ta-xua-diem-check-in — Bản đồ du lịch Tà Xùa: 13 điểm check-in và thứ tự nên đi
+  0 [2] Cung đường Sống lưng khủng long Tà Xùa nhìn từ đồi hoa, điểm săn mây bình minh trong mọi lịch trình
+  1 [1] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+  2 [1] Góc bàn cạnh cửa kính nhìn ra núi ở Tiệm Mì Cay, trung tâm Tà Xùa
+
+# so-sanh-nha-xe-di-ta-xua — So sánh nhà xe đi Tà Xùa 2026: bảng giá, giờ chạy, dịch vụ
+  0 [2] Nhà Của An Homestay & Coffee ở Đỉnh Gió, sân sỏi nhìn ra thung lũng, có bún phở nóng buổi sáng
+  1 [1] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+  2 [1] Đồi cỏ xanh khu Núi đôi thiếu nữ ở Đỉnh Gió Tà Xùa với cây thông đơn và mây phủ thung lũng phía sau
+
+# homestay-ta-xua-gia-re — Homestay Tà Xùa giá rẻ 2026: 16 nơi dưới 700.000đ/đêm
+  0 [1] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+  1 [1] Bữa cơm phần ở Tà Xùa nhìn từ trên xuống: canh, thịt rang, trứng rán, bò hầm khoai, rau luộc và nồi cơm trắng
+  2 [1] Lối đi giữa hai dãy buồng nằm hai tầng trên xe cabin Quang Nghĩa tuyến Hà Nội đi Tà Xùa
+
+# bungalow-ta-xua — Bungalow Tà Xùa 2026: 11 nơi view mây, có bồn tắm, từ 200.000đ/đêm
+  0 [2] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+  1 [2] Hai chiếc Honda PG1 cho thuê dựng trước cửa tiệm xe máy ở trung tâm Tà Xùa
+  2 [2] Quán cà phê view mây ở khu Sống lưng khủng long
+
+# xe-cabin-tra-khach-tan-homestay-ta-xua — Xe cabin có trả tận homestay ở Tà Xùa không? Xuống Bắc Yên rồi lên Tà Xùa thế nào
+  0 [3] Hai khách ngồi vẽ sáp ong lên vải tại xưởng Nhuộm Chàm Tà Xùa, xung quanh treo các tấm vải chàm xanh
+  1 [3] Khuôn viên bậc thang xanh mướt của homestay Tà Xùa nhìn xuống thung lũng mùa mưa
+  2 [2] Đoàn khách quây quần quanh lửa trại trên sân Tà Xùa Clouds Homestay
+
+# di-ta-xua-co-nguy-hiem-khong — Đi Tà Xùa có nguy hiểm không? 9 lưu ý an toàn cần biết
+  0 [1] Toàn cảnh biển mây và dãy nhà Sunset Clouds trên sườn núi
+  1 [1] Toàn cảnh Thơ Garden Tà Xùa nhìn từ trên cao
+  2 [1] Bàn tiệc ngoài trời sát lan can nhìn ra biển mây ở một tiệm nướng trung tâm Tà Xùa
+
+# gia-xe-om-taxi-ta-xua — Giá xe ôm, taxi Tà Xùa: bảng giá từng chặng, thuê ngày
+  0 [1] Hai chiếc Honda PG1 cho thuê dựng trước cửa tiệm xe máy ở trung tâm Tà Xùa
+  1 [1] Panorama Coffee ở Đỉnh Gió, quán mở 6h sáng ngay khu săn mây
+  2 [1] Dãy xe máy Honda Wave cho thuê xếp hàng bên đường ở trung tâm Tà Xùa, phía sau là mây phủ thung lũng
+
+# dat-phong-ta-xua-o-dau — Đặt phòng Tà Xùa ở đâu? 4 kênh đặt và kênh nào hợp với bạn (2026)
+  0 [1] Một người đứng ở mỏm đất cuối Sống lưng khủng long Tà Xùa khi sương mù đang phủ kín thung lũng phía trước
+  1 [1] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+  2 [1] Góc bàn cạnh cửa kính nhìn ra núi ở Tiệm Mì Cay, trung tâm Tà Xùa
+
+# dat-xe-di-ta-xua — Đặt xe đi Tà Xùa: giá vé, giờ chạy và cách đặt chỗ từ A–Z
+  0 [1] Đồi ruộng bậc thang Mâm Xôi giữa thung lũng xã Xím Vàng, cách trung tâm Tà Xùa khoảng 15km
+  1 [1] Một người đứng ở mỏm đất cuối Sống lưng khủng long Tà Xùa khi sương mù đang phủ kín thung lũng phía trước
+  2 [1] Đồi cỏ xanh khu Núi đôi thiếu nữ ở Đỉnh Gió Tà Xùa với cây thông đơn và mây phủ thung lũng phía sau
+
+# review-nha-xe-quang-nghia-ta-xua — Review nhà xe Quang Nghĩa đi Tà Xùa: giá vé, giờ chạy, trả tận homestay
+  0 [3] Nhà Của An Homestay & Coffee ở Đỉnh Gió, sân sỏi nhìn ra thung lũng, có bún phở nóng buổi sáng
+  1 [2] Lối đi giữa hai dãy buồng nằm hai tầng trên xe cabin Quang Nghĩa tuyến Hà Nội đi Tà Xùa
+  2 [2] Phở bò buổi sáng ở một homestay khu Đỉnh Gió, Tà Xùa
+
+# review-ta-xua-tat-tan-tat — Review Tà Xùa tất tần tật 2026–2027: đi, ở, ăn, chơi, chi phí
+  0 [1] Chòi gỗ treo ngô phơi ở Trạm Mâm Xôi, xã Xím Vàng, nhìn ra ruộng bậc thang trên đường tới chân núi Sa Mu
+  1 [0] Hai phiến đá phủ rêu của Mỏm cá heo Tà Xùa nhô ra phía trên thung lũng
+  2 [0] Lán Cô Đơn, chiếc lán gỗ nhỏ trên sườn đồi giữa Mỏm cá heo và Cây cô đơn
+
+# nha-xe-di-ta-xua — Nhà xe đi Tà Xùa: so sánh 5 nhà xe cabin từ Hà Nội
+  0 [2] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+  1 [1] Bữa cơm phần ở Tà Xùa nhìn từ trên xuống: canh, thịt rang, trứng rán, bò hầm khoai, rau luộc và nồi cơm trắng
+  2 [1] Nhà Của An Homestay & Coffee ở Đỉnh Gió, sân sỏi nhìn ra thung lũng, có bún phở nóng buổi sáng
+
+# review-nha-xe-khanh-chau-ta-xua — Review nhà xe Khánh Châu đi Tà Xùa: giá vé, giờ chạy, điểm đón
+  0 [2] Đồi cỏ xanh khu Núi đôi thiếu nữ ở Đỉnh Gió Tà Xùa với cây thông đơn và mây phủ thung lũng phía sau
+  1 [2] Nhà Của An Homestay & Coffee ở Đỉnh Gió, sân sỏi nhìn ra thung lũng, có bún phở nóng buổi sáng
+  2 [2] Đồi chè Mộc Châu với cây khô đơn độc trên đỉnh đồi lúc chiều, Sơn La
+
+# xe-giuong-nam-limousine-di-ta-xua — Xe giường nằm, limousine đi Tà Xùa: 8 tiêu chí chọn nhà xe tốt
+  0 [2] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+  1 [1] Lối đi giữa hai dãy buồng nằm hai tầng trên xe cabin Quang Nghĩa tuyến Hà Nội đi Tà Xùa
+  2 [1] Nhà Của An Homestay & Coffee ở Đỉnh Gió, sân sỏi nhìn ra thung lũng, có bún phở nóng buổi sáng
+
+# homestay-ta-xua-view-may-dep — Homestay nào ở Tà Xùa view biển mây đẹp? 13 nơi săn mây tại phòng (2026)
+  0 [4] Sân gỗ Phỏng Lài nhìn ra biển mây và dãy núi Tà Xùa
+  1 [3] Bàn ghế ngoài hiên một homestay khu Đỉnh Gió nhìn thẳng ra biển mây buổi sáng
+  2 [3] Sân gỗ của Chillin House nhìn ra biển mây ở Đỉnh Gió
+
+# lich-trinh-ta-xua-2-ngay-1-dem — Lịch trình Tà Xùa 2 ngày 1 đêm chi tiết: săn mây, chọn xe, chọn home (2026)
+  0 [4] Cung đường Sống lưng khủng long Tà Xùa nhìn từ đồi hoa, điểm săn mây bình minh trong mọi lịch trình
+  1 [3] Panorama Coffee ở Đỉnh Gió, quán mở 6h sáng ngay khu săn mây
+  2 [2] Sân gỗ của Chillin House nhìn ra biển mây ở Đỉnh Gió
+
+# duong-di-ta-xua-tu-ha-noi — Đường lên Tà Xùa từ Hà Nội: 210km qua QL32, QL37, ĐT112
+  0 [1] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+  1 [1] Bữa cơm phần ở Tà Xùa nhìn từ trên xuống: canh, thịt rang, trứng rán, bò hầm khoai, rau luộc và nồi cơm trắng
+  2 [1] Lối đi giữa hai dãy buồng nằm hai tầng trên xe cabin Quang Nghĩa tuyến Hà Nội đi Tà Xùa
+
+# du-lich-ta-xua-nen-dat-dich-vu-o-dau — Du lịch Tà Xùa nên đặt dịch vụ ở đâu? Xe, phòng, xe máy, taxi (2026)
+  0 [2] Sân gỗ Phỏng Lài nhìn ra biển mây và dãy núi Tà Xùa
+  1 [2] Cung đường Sống lưng khủng long Tà Xùa nhìn từ đồi hoa, điểm săn mây bình minh trong mọi lịch trình
+  2 [1] Một người đứng ở mỏm đất cuối Sống lưng khủng long Tà Xùa khi sương mù đang phủ kín thung lũng phía trước
+
+# thue-xe-may-ta-xua — Thuê xe máy ở Tà Xùa ở đâu? 3 điểm thuê, giá từ 180.000đ/ngày (2026)
+  0 [2] Hai chiếc Honda PG1 cho thuê dựng trước cửa tiệm xe máy ở trung tâm Tà Xùa
+  1 [2] Panorama Coffee ở Đỉnh Gió, quán mở 6h sáng ngay khu săn mây
+  2 [2] Dãy xe máy Honda Wave cho thuê xếp hàng bên đường ở trung tâm Tà Xùa, phía sau là mây phủ thung lũng
+
+# review-lao-xan-ta-xua — Review Lao Xan Boutique Stay Tà Xùa: cầu gỗ ngắm mây riêng
+  0 [2] Quán cà phê ngắm hoàng hôn trên biển mây Tà Xùa
+  1 [2] Phòng Superior một mặt kính: ngồi trên giường ngắm biển mây lúc bình minh
+  2 [2] Phòng Sương với giường đôi kê sát cửa kính ngắm mây
+
+# review-nhat-nang-house-ta-xua — Review Nhặt Nắng House Tà Xùa: 3 khu Nắng, Đào, Mận
+  0 [2] Sàn gỗ dưới gốc cây nhìn ra dãy núi tại Khèn Coffee House, khu Đỉnh Gió Tà Xùa, một du khách ngồi đọc sách
+  1 [2] Ban công treo đèn lồng giữa thác mây ở Khèn Coffee House, khu Đỉnh Gió Tà Xùa
+  2 [2] Hoa mận và đào nở trắng hồng quanh dãy nhà gỗ homestay ở Tà Xùa
+
+# review-ta-xua-retreat — Review Tà Xùa Retreat: bungalow view thoáng cho gia đình
+  0 [2] Quán cà phê view rừng mây ở khu Đỉnh Gió Tà Xùa
+  1 [2] Bungalow Vòm hạng Best view, giường sát vách kính nhìn ra biển mây
+  2 [2] Phòng Tớ Dầy Family có hai giường cho gia đình
+
+# review-soc-nau-homestay-ta-xua — Review Sóc Nâu Homestay Tà Xùa: giá mềm ngay trung tâm
+  0 [3] Dãy bungalow mái tôn sẫm màu của Lang Thang Homestay ở trung tâm Tà Xùa, phía sau là biển mây buổi sáng
+  1 [3] Homestay ấm cúng ở trung tâm Tà Xùa
+  2 [3] Phòng ngủ tường đất, trần gỗ cong tại Phỏng Lài Homestay ở trung tâm Tà Xùa
+
+# di-ta-xua-bang-o-to-tu-lai — Đi Tà Xùa bằng ô tô tự lái: đường đi, đèo dốc, chỗ đỗ xe
+  0 [2] Ruộng bậc thang xanh chạy dọc sườn núi thung lũng Xím Vàng, nhìn từ đường tỉnh lộ 112
+  1 [2] Con đường nhỏ uốn quanh sườn núi đá trên đèo Mã Pì Lèng, Hà Giang
+  2 [1] Hành lang hẹp giữa hai dãy khoang cabin, đèn LED xanh mờ chiếu dọc lối đi
+
+# di-ta-xua-dip-tet-2027 — Giá homestay Tà Xùa Tết 2027: phòng đêm lễ, vé xe, đặt khi nào?
+  0 [1] Một người đứng ở mỏm đất cuối Sống lưng khủng long Tà Xùa khi sương mù đang phủ kín thung lũng phía trước
+  1 [1] Nhà Của An Homestay & Coffee ở Đỉnh Gió, sân sỏi nhìn ra thung lũng, có bún phở nóng buổi sáng
+  2 [1] Homestay ấm cúng ở trung tâm Tà Xùa
+
+# homestay-ta-xua-co-dieu-hoa-dem-suoi — Homestay Tà Xùa có điều hoà, đệm sưởi: 21 nơi ngủ ấm mùa đông
+  0 [3] Lối đi rợp hoa tím trong khuôn viên homestay giữa rừng thông Tà Xùa mùa xanh
+  1 [2] Hoàng hôn đỏ rực sau dãy núi nhìn từ vườn hoa homestay Tà Xùa
+  2 [2] Khuôn viên bậc thang xanh mướt của homestay Tà Xùa nhìn xuống thung lũng mùa mưa
+
+# quan-an-nha-hang-ta-xua — Tà Xùa ăn ở đâu? 10 nhà hàng, quán ăn theo khu, giá từ 90.000đ
+  0 [3] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+  1 [2] Panorama Coffee ở Đỉnh Gió, quán mở 6h sáng ngay khu săn mây
+  2 [2] Quán cà phê view mây ở khu Sống lưng khủng long
+
+# review-nha-xe-thanh-my-ta-xua — Review nhà xe Thành Mỹ đi Tà Xùa: giá vé, giờ chạy, phòng nghỉ chờ
+  0 [2] Nhà Của An Homestay & Coffee ở Đỉnh Gió, sân sỏi nhìn ra thung lũng, có bún phở nóng buổi sáng
+  1 [1] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+  2 [1] Đồi cỏ xanh khu Núi đôi thiếu nữ ở Đỉnh Gió Tà Xùa với cây thông đơn và mây phủ thung lũng phía sau
+
+# review-nha-xe-tien-thanh-ta-xua — Review nhà xe Tiến Thành đi Tà Xùa: giá vé, trả tận homestay
+  0 [2] Nhà Của An Homestay & Coffee ở Đỉnh Gió, sân sỏi nhìn ra thung lũng, có bún phở nóng buổi sáng
+  1 [2] Nhà sàn một mặt kính tại Chung Chinh Homestay
+  2 [1] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+
+# review-nha-xe-xuan-truong-ta-xua — Review nhà xe Xuân Trường đi Tà Xùa: vé 550.000đ, đón Vĩnh Phúc
+  0 [1] Lán Cô Đơn, chiếc lán gỗ nhỏ trên sườn đồi giữa Mỏm cá heo và Cây cô đơn
+  1 [1] Cây táo mèo cô đơn trên đỉnh đồi ở Tà Xùa, phía sau là các dãy núi xếp lớp và biển mây buổi sáng
+  2 [1] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+
+# ta-xua-o-dau-cach-ha-noi-bao-nhieu-km — Tà Xùa ở đâu? Cách Hà Nội bao nhiêu km, đi mấy tiếng
+  0 [1] Đồi ruộng bậc thang Mâm Xôi giữa thung lũng xã Xím Vàng, cách trung tâm Tà Xùa khoảng 15km
+  1 [1] Cây táo mèo cô đơn trên đỉnh đồi ở Tà Xùa, phía sau là các dãy núi xếp lớp và biển mây buổi sáng
+  2 [1] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+
+# tu-ha-tinh-di-ta-xua — Từ Hà Tĩnh đi Tà Xùa: ra Hà Nội rồi nối xe cabin đêm
+  0 [2] Lối đi giữa hai dãy buồng nằm hai tầng trên xe cabin Quang Nghĩa tuyến Hà Nội đi Tà Xùa
+  1 [1] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+  2 [1] Bữa cơm phần ở Tà Xùa nhìn từ trên xuống: canh, thịt rang, trứng rán, bò hầm khoai, rau luộc và nồi cơm trắng
+
+# tu-lang-son-di-ta-xua — Từ Lạng Sơn đi Tà Xùa: về Hà Nội nối xe cabin 500.000đ
+  0 [2] Lối đi giữa hai dãy buồng nằm hai tầng trên xe cabin Quang Nghĩa tuyến Hà Nội đi Tà Xùa
+  1 [2] Hành lang hẹp giữa hai dãy khoang cabin, đèn LED xanh mờ chiếu dọc lối đi
+  2 [1] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+
+# tu-bac-giang-di-ta-xua — Xe Bắc Giang đi Tà Xùa: 4 nhà xe đón, vé từ 800.000đ
+  0 [1] Lán Cô Đơn, chiếc lán gỗ nhỏ trên sườn đồi giữa Mỏm cá heo và Cây cô đơn
+  1 [1] Đồi ruộng bậc thang Mâm Xôi giữa thung lũng xã Xím Vàng, cách trung tâm Tà Xùa khoảng 15km
+  2 [1] Cây táo mèo cô đơn trên đỉnh đồi ở Tà Xùa, phía sau là các dãy núi xếp lớp và biển mây buổi sáng
+
+# tu-bac-ninh-di-ta-xua — Từ Bắc Ninh đi Tà Xùa: 4 nhà xe cabin, vé từ 700.000đ
+  0 [1] Đồi ruộng bậc thang Mâm Xôi giữa thung lũng xã Xím Vàng, cách trung tâm Tà Xùa khoảng 15km
+  1 [1] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+  2 [1] Lối đi giữa hai dãy buồng nằm hai tầng trên xe cabin Quang Nghĩa tuyến Hà Nội đi Tà Xùa
+
+# tu-can-tho-di-ta-xua — Từ Cần Thơ đi Tà Xùa: bay ra Nội Bài rồi đi xe cabin đêm
+  0 [2] Lối đi giữa hai dãy buồng nằm hai tầng trên xe cabin Quang Nghĩa tuyến Hà Nội đi Tà Xùa
+  1 [1] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+  2 [1] Bữa cơm phần ở Tà Xùa nhìn từ trên xuống: canh, thịt rang, trứng rán, bò hầm khoai, rau luộc và nồi cơm trắng
+
+# tu-hai-duong-di-ta-xua — Xe Hải Dương đi Tà Xùa: 3 nhà xe đón, vé từ 800.000đ
+  0 [1] Hai phiến đá phủ rêu của Mỏm cá heo Tà Xùa nhô ra phía trên thung lũng
+  1 [1] Lán Cô Đơn, chiếc lán gỗ nhỏ trên sườn đồi giữa Mỏm cá heo và Cây cô đơn
+  2 [1] Cây táo mèo cô đơn trên đỉnh đồi ở Tà Xùa, phía sau là các dãy núi xếp lớp và biển mây buổi sáng
+
+# tu-hai-phong-di-ta-xua — Từ Hải Phòng đi Tà Xùa: 3 nhà xe cabin, vé từ 950.000đ
+  0 [2] Lối đi giữa hai dãy buồng nằm hai tầng trên xe cabin Quang Nghĩa tuyến Hà Nội đi Tà Xùa
+  1 [2] Hành lang hẹp giữa hai dãy khoang cabin, đèn LED xanh mờ chiếu dọc lối đi
+  2 [1] Hai phiến đá phủ rêu của Mỏm cá heo Tà Xùa nhô ra phía trên thung lũng
+
+# tu-hue-di-ta-xua — Từ Huế đi Tà Xùa: bay ra Nội Bài, nối xe cabin đêm
+  0 [1] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+  1 [1] Bữa cơm phần ở Tà Xùa nhìn từ trên xuống: canh, thịt rang, trứng rán, bò hầm khoai, rau luộc và nồi cơm trắng
+  2 [1] Nồi lẩu và đĩa thịt, rau ăn kèm cho bữa tối lạnh ở Tà Xùa
+
+# tu-hung-yen-di-ta-xua — Từ Hưng Yên đi Tà Xùa: 2 nhà xe đón, vé từ 700.000đ
+  0 [1] Lán Cô Đơn, chiếc lán gỗ nhỏ trên sườn đồi giữa Mỏm cá heo và Cây cô đơn
+  1 [1] Cây táo mèo cô đơn trên đỉnh đồi ở Tà Xùa, phía sau là các dãy núi xếp lớp và biển mây buổi sáng
+  2 [1] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+
+# tu-lao-cai-di-ta-xua — Từ Lào Cai, Sa Pa đi Tà Xùa: đường đi, xe cabin, giá vé
+  0 [2] Đỉnh Fansipan 3.143m và quần thể chùa trên biển mây, Sa Pa, Lào Cai
+  1 [1] Lối đi giữa hai dãy buồng nằm hai tầng trên xe cabin Quang Nghĩa tuyến Hà Nội đi Tà Xùa
+  2 [1] Ruộng bậc thang xanh chạy dọc sườn núi thung lũng Xím Vàng, nhìn từ đường tỉnh lộ 112
+
+# tu-ha-noi-di-ta-xua — Từ Hà Nội đi Tà Xùa: 5 nhà xe cabin, lên xe ở đâu?
+  0 [2] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+  1 [2] Lối đi giữa hai dãy buồng nằm hai tầng trên xe cabin Quang Nghĩa tuyến Hà Nội đi Tà Xùa
+  2 [1] Bữa cơm phần ở Tà Xùa nhìn từ trên xuống: canh, thịt rang, trứng rán, bò hầm khoai, rau luộc và nồi cơm trắng
+
+# tu-ninh-binh-di-ta-xua — Xe Ninh Bình đi Tà Xùa: 2 nhà xe cabin, giá từ 850.000đ
+  0 [1] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+  1 [1] Bình minh ửng hồng sau rặng đào đá bên tường rào đá ở Tà Xùa
+  2 [1] Lối đi giữa hai dãy buồng nằm hai tầng trên xe cabin Quang Nghĩa tuyến Hà Nội đi Tà Xùa
+
+# tu-phu-quoc-di-ta-xua — Từ Phú Quốc đi Tà Xùa: đường bay, xe cabin, lịch 4 ngày
+  0 [2] Dãy xe máy Honda Wave cho thuê xếp hàng bên đường ở trung tâm Tà Xùa, phía sau là mây phủ thung lũng
+  1 [2] Cung đường Sống lưng khủng long Tà Xùa nhìn từ đồi hoa, điểm săn mây bình minh trong mọi lịch trình
+  2 [1] Hai phiến đá phủ rêu của Mỏm cá heo Tà Xùa nhô ra phía trên thung lũng
+
+# tu-phu-tho-di-ta-xua — Từ Phú Thọ đi Tà Xùa: xe cabin có đón dọc đường không?
+  0 [2] Đồi cỏ xanh khu Núi đôi thiếu nữ ở Đỉnh Gió Tà Xùa với cây thông đơn và mây phủ thung lũng phía sau
+  1 [2] Ruộng bậc thang xanh chạy dọc sườn núi thung lũng Xím Vàng, nhìn từ đường tỉnh lộ 112
+  2 [2] Hành lang hẹp giữa hai dãy khoang cabin, đèn LED xanh mờ chiếu dọc lối đi
+
+# tu-quang-ninh-di-ta-xua — Từ Quảng Ninh đi Tà Xùa: xe đón tận tỉnh giá 950.000đ
+  0 [1] Lán Cô Đơn, chiếc lán gỗ nhỏ trên sườn đồi giữa Mỏm cá heo và Cây cô đơn
+  1 [1] Cây táo mèo cô đơn trên đỉnh đồi ở Tà Xùa, phía sau là các dãy núi xếp lớp và biển mây buổi sáng
+  2 [1] Lối đi giữa hai dãy buồng nằm hai tầng trên xe cabin Quang Nghĩa tuyến Hà Nội đi Tà Xùa
+
+# tu-sai-gon-di-ta-xua — Từ Sài Gòn (TP.HCM) đi Tà Xùa: bay Nội Bài, nối xe cabin
+  0 [2] Lối đi giữa hai dãy buồng nằm hai tầng trên xe cabin Quang Nghĩa tuyến Hà Nội đi Tà Xùa
+  1 [1] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+  2 [1] Bữa cơm phần ở Tà Xùa nhìn từ trên xuống: canh, thịt rang, trứng rán, bò hầm khoai, rau luộc và nồi cơm trắng
+
+# tu-thai-nguyen-di-ta-xua — Xe Thái Nguyên đi Tà Xùa: vé khứ hồi 700.000đ, đi thế nào?
+  0 [2] Đồi cỏ thảo nguyên Tà Xùa với cột cờ trên đỉnh, vé vào 79.000đ một người
+  1 [1] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+  2 [1] Đồi cỏ xanh khu Núi đôi thiếu nữ ở Đỉnh Gió Tà Xùa với cây thông đơn và mây phủ thung lũng phía sau
+
+# tu-vinh-phuc-di-ta-xua — Từ Vĩnh Phúc đi Tà Xùa: xe cabin 600.000đ khứ hồi
+  0 [1] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+  1 [1] Lối đi giữa hai dãy buồng nằm hai tầng trên xe cabin Quang Nghĩa tuyến Hà Nội đi Tà Xùa
+  2 [1] Đồi cỏ xanh khu Núi đôi thiếu nữ ở Đỉnh Gió Tà Xùa với cây thông đơn và mây phủ thung lũng phía sau
+
+# mu-cang-chai-hay-ta-xua — Mù Cang Chải hay Tà Xùa: nên đi đâu, tháng nào, mấy ngày?
+  0 [2] Panorama Coffee ở Đỉnh Gió, quán mở 6h sáng ngay khu săn mây
+  1 [2] Bàn ghế ngoài hiên một homestay khu Đỉnh Gió nhìn thẳng ra biển mây buổi sáng
+  2 [1] Đồi ruộng bậc thang Mâm Xôi giữa thung lũng xã Xím Vàng, cách trung tâm Tà Xùa khoảng 15km
+
+# tay-bac-nen-di-dau-so-sanh-ta-xua — Tây Bắc nên đi đâu? So sánh Tà Xùa với 7 nơi
+  0 [1] Đồi ruộng bậc thang Mâm Xôi giữa thung lũng xã Xím Vàng, cách trung tâm Tà Xùa khoảng 15km
+  1 [1] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+  2 [1] Bữa cơm phần ở Tà Xùa nhìn từ trên xuống: canh, thịt rang, trứng rán, bò hầm khoai, rau luộc và nồi cơm trắng
+
+# van-hoa-nguoi-hmong-ta-xua — Văn hoá người H'Mông ở Tà Xùa: Tết, nhà gỗ, ứng xử
+  0 [1] Một người đứng ở mỏm đất cuối Sống lưng khủng long Tà Xùa khi sương mù đang phủ kín thung lũng phía trước
+  1 [1] Nồi lẩu nóng cùng rổ rau, nấm và đĩa nhúng trên bàn một nhà hàng ở khu trung tâm Tà Xùa
+  2 [1] Bình minh ửng hồng sau rặng đào đá bên tường rào đá ở Tà Xùa
+
+# trekking-sa-mu-u-bo-ta-xua — Trekking Sa Mu gần Tà Xùa: đỉnh 2.756m, lán nghỉ, đi từ đâu
+  0 [1] Lán Cô Đơn, chiếc lán gỗ nhỏ trên sườn đồi giữa Mỏm cá heo và Cây cô đơn
+  1 [1] Cây táo mèo cô đơn trên đỉnh đồi ở Tà Xùa, phía sau là các dãy núi xếp lớp và biển mây buổi sáng
+  2 [1] Đồi cỏ xanh khu Núi đôi thiếu nữ ở Đỉnh Gió Tà Xùa với cây thông đơn và mây phủ thung lũng phía sau
+
+# ta-xua-hay-moc-chau — Tà Xùa hay Mộc Châu: nên đi đâu, khác nhau thế nào?
+  0 [2] Đồi chè Mộc Châu với cây khô đơn độc trên đỉnh đồi lúc chiều, Sơn La
+  1 [0] Hai phiến đá phủ rêu của Mỏm cá heo Tà Xùa nhô ra phía trên thung lũng
+  2 [0] Lán Cô Đơn, chiếc lán gỗ nhỏ trên sườn đồi giữa Mỏm cá heo và Cây cô đơn
+
+# ha-giang-hay-ta-xua — Hà Giang hay Tà Xùa: nên đi đâu, mấy ngày, tốn bao nhiêu?
+  0 [2] Panorama Coffee ở Đỉnh Gió, quán mở 6h sáng ngay khu săn mây
+  1 [1] Cây táo mèo cô đơn trên đỉnh đồi ở Tà Xùa, phía sau là các dãy núi xếp lớp và biển mây buổi sáng
+  2 [1] Hai chiếc Honda PG1 cho thuê dựng trước cửa tiệm xe máy ở trung tâm Tà Xùa
+
+# cao-bang-hay-ta-xua — Cao Bằng hay Tà Xùa: nên đi đâu, mấy ngày, mùa nào?
+  0 [2] Panorama Coffee ở Đỉnh Gió, quán mở 6h sáng ngay khu săn mây
+  1 [2] Xe Toyota Fortuner 7 chỗ gầm cao của taxi Tà Xùa đỗ ở bãi sỏi trong ngày nhiều sương
+  2 [1] Cây táo mèo cô đơn trên đỉnh đồi ở Tà Xùa, phía sau là các dãy núi xếp lớp và biển mây buổi sáng
+
+# tu-sapa-di-ta-xua — Từ Sapa đi Tà Xùa bao nhiêu km? 3 cung đường, mấy tiếng
+  0 [3] Cung đường Sống lưng khủng long Tà Xùa nhìn từ đồi hoa, điểm săn mây bình minh trong mọi lịch trình
+  1 [2] Dãy xe máy Honda Wave cho thuê xếp hàng bên đường ở trung tâm Tà Xùa, phía sau là mây phủ thung lũng
+  2 [1] Cây táo mèo cô đơn trên đỉnh đồi ở Tà Xùa, phía sau là các dãy núi xếp lớp và biển mây buổi sáng

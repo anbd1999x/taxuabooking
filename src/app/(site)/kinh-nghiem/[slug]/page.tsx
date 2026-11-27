@@ -8,7 +8,7 @@ import { getArticle } from "@/lib/queries";
 import { prisma } from "@/lib/prisma";
 import { formatDate } from "@/lib/format";
 import { ORG_ID, SITE, WEBSITE_ID } from "@/lib/site";
-import { renderMarkdown } from "@/lib/markdown";
+import { renderMarkdown, stripCoverImage } from "@/lib/markdown";
 import { articleTopicLabel } from "@/lib/constants";
 import { articleHubPath, isArticleTopic } from "@/lib/article-hubs";
 import { getLocale, getT, lp, tLong } from "@/lib/i18n/server";
@@ -119,7 +119,8 @@ export default async function ArticlePage({
   // JSON-LD phải khớp nội dung ĐANG HIỂN THỊ: bản en/zh/ko dùng tiêu đề + thân bài đã dịch.
   const locale = await getLocale();
   const title = tr(a.title);
-  const content = await tLong(a.content);
+  // Ảnh bìa đã hiện ở đầu trang ⇒ bỏ ảnh trùng bìa trong nội dung (không thì 2 ảnh đầu giống hệt nhau).
+  const content = stripCoverImage(await tLong(a.content), a.coverImage);
   // Thân bài chưa có bản dịch ⇒ trang vẫn hiện tiếng Việt ⇒ khai inLanguage "vi" (không khai lệch "en").
   const shownLang = locale === "vi" || content !== a.content ? LOCALE_META[locale].htmlLang : LOCALE_META.vi.htmlLang;
 

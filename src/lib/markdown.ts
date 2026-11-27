@@ -36,6 +36,16 @@ function imgTag(src: string, alt: string): string {
   return `<img src="${esc(small)}" srcset="${set}" sizes="(max-width: 800px) 100vw, 760px" alt="${alt}" loading="lazy" decoding="async" />`;
 }
 
+/** Bỏ các dòng ảnh `![…](cover)` khỏi nội dung — trang đã hiện ảnh bìa ở đầu, để lại thì ảnh lặp 2 lần. */
+export function stripCoverImage(src: string, cover: string | null | undefined): string {
+  if (!cover) return src;
+  return src
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .filter((l) => { const m = l.trim().match(/^!\[[^\]]*\]\(([^)\s]+)[^)]*\)$/); return !m || m[1] !== cover; })
+    .join("\n");
+}
+
 export function renderMarkdown(src: string): string {
   const lines = esc(src.replace(/\r\n?/g, "\n")).split("\n");
   const out: string[] = [];

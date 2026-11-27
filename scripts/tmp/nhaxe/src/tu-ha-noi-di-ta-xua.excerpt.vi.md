@@ -1,0 +1,1 @@
+Từ Hà Nội đi Tà Xùa có 5 nhà xe cabin chạy đêm, đón ở Cầu Giấy, Mỹ Đình lúc 21h đến 22h, tới nơi 6h sáng. Vé khứ hồi 500.000đ đến 650.000đ.

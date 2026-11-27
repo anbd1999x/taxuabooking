@@ -1,0 +1,1 @@
+Từ Hà Tĩnh đi Tà Xùa: ra Hà Nội khoảng 340km rồi lên 1 trong 5 xe cabin đêm 21h00–22h00, vé khứ hồi 500.000đ–650.000đ, khoảng 6h00 sáng tới nơi.

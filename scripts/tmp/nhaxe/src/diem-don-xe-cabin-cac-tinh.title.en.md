@@ -1,0 +1,1 @@
+Cabin bus to Tà Xùa: pickup points in Hanoi and 12 provinces

@@ -1,0 +1,1 @@
+Nhà xe Thành Mỹ đi Tà Xùa: vé khứ hồi 600.000đ, đi 22h từ 24 Đinh Núp, có limousine ban ngày, đón Nội Bài, phòng nghỉ có giường miễn phí tới 12h.

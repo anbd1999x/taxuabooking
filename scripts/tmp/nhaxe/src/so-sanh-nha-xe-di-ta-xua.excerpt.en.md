@@ -1,0 +1,1 @@
+Side-by-side table of the 4 Hanoi – Tà Xùa bus operators (Khánh Châu, Thành Mỹ, Tiến Thành, Quang Nghĩa): fares, departure times, rest rooms with beds, homestay drop-off. Updated 11/2026.

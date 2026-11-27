@@ -1021,7 +1021,8 @@ export function HomestayBooking({
                 <article key={v.r.id} className="overflow-hidden rounded-[20px] border-2 bg-white transition sm:rounded-[18px]" style={{ borderColor: isSel ? G : "oklch(0.92 0.01 160)" }}>
                   {/* ĐIỆN THOẠI: thẻ dọc — ảnh 16:9, thông tin, bảng giá theo ngày, giá + nút */}
                   <div data-card="m" className="flex flex-col sm:hidden">
-                    <div className="relative" style={{ opacity: unavailable ? 0.6 : 1 }}>
+                    {/* Phòng không còn trống: KHÔNG làm mờ ảnh (trông như ảnh xấu) — đã có nhãn tình trạng trên ảnh + nút xám. */}
+                    <div className="relative">
                       {media("block aspect-video w-full", "100vw")}
                       <span className={`pointer-events-none absolute left-2.5 top-2.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-extrabold ${chip}`}>{tr(v.status)}</span>
                       {v.r.media.length > 0 && !slideOn && (
@@ -1076,9 +1077,9 @@ export function HomestayBooking({
                   </div>
 
                   {/* MÁY TÍNH / MÀN RỘNG: thẻ hàng ngang — ảnh · thông tin · giá + nút */}
-                  <div data-card="d" className="hidden grid-cols-[150px_minmax(0,1fr)_auto] items-center gap-x-3.5 p-2.5 sm:grid" style={{ opacity: unavailable ? 0.62 : 1 }}>
+                  <div data-card="d" className={`hidden grid-cols-[150px_minmax(0,1fr)_auto] items-center gap-x-3.5 p-2.5 sm:grid ${unavailable ? "[&>*:not(:first-child)]:opacity-60" : ""}`}>
                     <div className="relative h-full min-h-[112px] self-stretch">
-                      {media("absolute inset-0 h-full w-full rounded-xl", "150px", true)}
+                      {media("absolute inset-0 h-full w-full rounded-xl", "300px", true)}
                       {v.r.media.length > 1 && !slideOn && (
                         <span className="pointer-events-none absolute bottom-1 right-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white">
                           {v.r.media.some((m) => m.type === "video") ? "▶ " : "🖼 "}

@@ -1,0 +1,1 @@
+Xe cabin đi Tà Xùa đón ở 68 Mạc Thái Tông, 24 Đinh Núp, Mễ Trì (Hà Nội) lúc 21h đến 22h, 12 tỉnh. Vé khứ hồi từ 500.000đ, từ tỉnh 600.000đ đến 1.050.000đ.

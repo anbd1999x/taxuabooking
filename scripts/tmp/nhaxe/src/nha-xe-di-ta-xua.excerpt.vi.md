@@ -1,0 +1,1 @@
+So sánh 5 nhà xe đi Tà Xùa từ Hà Nội: Khánh Châu, Xuân Trường, Thành Mỹ, Tiến Thành, Quang Nghĩa. Vé khứ hồi 500.000đ đến 650.000đ, đi 21h đến 22h.

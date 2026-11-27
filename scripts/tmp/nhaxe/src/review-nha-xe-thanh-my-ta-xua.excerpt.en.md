@@ -1,0 +1,1 @@
+Thành Mỹ bus to Tà Xùa: 600.000đ return, leaves 24 Đinh Núp at 22:00, daytime limousine, Nội Bài pickup, free rest room with beds until 12:00.

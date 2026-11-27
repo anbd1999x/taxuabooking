@@ -1,0 +1,1 @@
+Từ Thanh Hóa đi Tà Xùa chưa có xe cabin đón: ra Hà Nội khoảng 160km bằng xe khách hoặc tàu, nối 1 trong 5 xe cabin 21h00, vé khứ hồi từ 500.000đ.

@@ -1,0 +1,55 @@
+{
+ "tu-moc-chau-son-la-sang-ta-xua": [
+  {"vi": [["→ thị trấn Bắc Yên → đèo 15km lên Tà Xùa.", "→ thị trấn Bắc Yên → đèo 14km lên Tà Xùa."], ["cảnh đẹp; 15km cuối vẫn là", "cảnh đẹp; 14km cuối vẫn là"], ["- Lộ trình phổ biến: Mộc Châu → QL43 qua phà/cầu vượt sông Đà hướng Phù Yên → Bắc Yên → Tà Xùa. Khoảng **90–110km, 3 – 4 tiếng** tuỳ đường.", "- Lộ trình không qua phà: Mộc Châu → QL6 tới Cò Nòi → QL37 qua cầu Tạ Khoa → Bắc Yên → đèo 14km lên Tà Xùa. Khoảng **135km, 3,5 – 4,5 tiếng** tuỳ đường. Lối QL43 qua phà Vạn Yên sang Phù Yên ngắn hơn nhưng phụ thuộc giờ phà."]],
+   "en": [["→ Bắc Yên town → 15 km pass up to Tà Xùa.", "→ Bắc Yên town → 14 km pass up to Tà Xùa."], ["the last 15 km are", "the last 14 km are"], ["- The usual route: Mộc Châu → QL43 via the ferry/bridge across the Đà River towards Phù Yên → Bắc Yên → Tà Xùa. About **90–110 km, 3 – 4 hours** depending on the road.", "- Ferry-free route: Mộc Châu → QL6 to Cò Nòi → QL37 across Tạ Khoa bridge → Bắc Yên → 14 km pass up to Tà Xùa. About **135 km, 3.5 – 4.5 hours** depending on the road. The QL43 route via the Vạn Yên ferry to Phù Yên is shorter but depends on ferry times."]],
+   "zh": [["→ 北安镇 → 15 公里山路上塔萨。", "→ 北安镇 → 14 公里山路上塔萨。"], ["最后 15 公里仍是", "最后 14 公里仍是"], ["- 常见路线：木州 → QL43 经渡轮/大桥过沱江往扶安 → 北安 → 塔萨。约 **90–110 公里，3 – 4 小时**，视路况而定。", "- 不走渡轮的路线：木州 → QL6 到 Cò Nòi → QL37 经 Tạ Khoa 桥 → 北安 → 14 公里山路上塔萨。约 **135 公里，3.5 – 4.5 小时**，视路况而定。走 QL43 经 Vạn Yên 渡口去扶安更近，但要看渡轮时间。"]],
+   "ko": [["→ 박옌 읍내 → 15km 고갯길 따쑤아.", "→ 박옌 읍내 → 14km 고갯길 따쑤아."], ["마지막 15km는", "마지막 14km는"], ["- 일반적인 경로: 목쩌우 → QL43, 다강 페리/다리를 건너 푸옌 방향 → 박옌 → 따쑤아. 도로 상황에 따라 약 **90–110km, 3 – 4시간**.", "- 페리 없는 경로: 목쩌우 → QL6으로 Cò Nòi → QL37 Tạ Khoa 다리 → 박옌 → 14km 고갯길 따쑤아. 도로 상황에 따라 약 **135km, 3.5 – 4.5시간**. QL43으로 Vạn Yên 페리를 타고 푸옌으로 가는 길은 더 짧지만 페리 시간에 따라 달라집니다."]]}
+ ],
+ "trekking-dinh-ta-xua": [
+  {"para": "Nên hỏi lại porter trước khi đặt xe.", "add": {
+   "vi": "Từ Xím Vàng còn có cung [trekking Sa Mu](/kinh-nghiem/trekking-sa-mu-u-bo-ta-xua), đỉnh 2.756m, các đoàn thường đi 2 ngày 1 đêm.",
+   "en": "Xím Vàng is also the start of the [Sa Mu trek](/kinh-nghiem/trekking-sa-mu-u-bo-ta-xua), a 2,756m peak that groups usually do in 2 days and 1 night.",
+   "zh": "Xím Vàng 也是 [Sa Mu 徒步](/kinh-nghiem/trekking-sa-mu-u-bo-ta-xua)的出发点，峰顶海拔 2.756m，团队通常走两天一夜。",
+   "ko": "Xím Vàng은 [Sa Mu 트레킹](/kinh-nghiem/trekking-sa-mu-u-bo-ta-xua)의 출발점이기도 하며, 해발 2.756m 정상으로 보통 1박 2일 일정으로 다녀옵니다."}}
+ ],
+ "ban-hang-dong-ta-xua": [
+  {"para": "Lọc homestay theo khu vực tại [trang homestay](/homestay).", "add": {
+   "vi": "Trước khi vào bản, đọc bài [văn hoá người H'Mông ở Tà Xùa](/kinh-nghiem/van-hoa-nguoi-hmong-ta-xua) để biết Tết, trang phục và cách ứng xử của người Mông.",
+   "en": "Before visiting the village, read our guide to [Hmong culture in Tà Xùa](/kinh-nghiem/van-hoa-nguoi-hmong-ta-xua) on the Hmong New Year, dress and etiquette.",
+   "zh": "进村之前，可以先读[塔萨赫蒙族文化](/kinh-nghiem/van-hoa-nguoi-hmong-ta-xua)一文，了解赫蒙族的新年、服饰和礼仪。",
+   "ko": "마을에 들어가기 전에 [따쑤아 흐몽족 문화](/kinh-nghiem/van-hoa-nguoi-hmong-ta-xua) 글을 읽고 흐몽 설, 전통 의상, 예절을 알아 두세요."}}
+ ],
+ "xim-vang-mua-lua-chin": [
+  {"para": "xã mới giữ tên Xím Vàng.", "add": {
+   "vi": "Chân núi phía Xím Vàng cũng là nơi xuất phát phổ biến của cung [trekking Sa Mu](/kinh-nghiem/trekking-sa-mu-u-bo-ta-xua), đỉnh 2.756m.",
+   "en": "The foot of the mountain on the Xím Vàng side is also the usual start of the [Sa Mu trek](/kinh-nghiem/trekking-sa-mu-u-bo-ta-xua), a 2,756m peak.",
+   "zh": "Xím Vàng 一侧的山脚也是 [Sa Mu 徒步](/kinh-nghiem/trekking-sa-mu-u-bo-ta-xua)最常用的出发点，峰顶海拔 2.756m。",
+   "ko": "Xím Vàng 쪽 산기슭은 해발 2.756m [Sa Mu 트레킹](/kinh-nghiem/trekking-sa-mu-u-bo-ta-xua)이 가장 많이 출발하는 곳이기도 합니다."}}
+ ],
+ "phuot-ta-xua-bang-xe-may-tu-ha-noi": [
+  {"para": "Từ Sapa thì xa hơn nhiều, khoảng 287km", "add": {
+   "vi": "Lịch đi từ Sapa có ở bài [từ Sapa đi Tà Xùa](/kinh-nghiem/tu-sapa-di-ta-xua).",
+   "en": "The Sapa leg is covered in our guide [from Sapa to Tà Xùa](/kinh-nghiem/tu-sapa-di-ta-xua).",
+   "zh": "从沙坝出发的行程见[从沙坝去塔萨](/kinh-nghiem/tu-sapa-di-ta-xua)一文。",
+   "ko": "사파에서 출발하는 일정은 [사파에서 따쑤아까지](/kinh-nghiem/tu-sapa-di-ta-xua) 글을 참고하세요."}}
+ ],
+ "tu-sapa-di-ta-xua": [
+  {"para": "so sánh các điểm thuê ở bài [thuê xe máy ở Tà Xùa]", "add": {
+   "vi": "Kỹ năng chạy đèo, đổ xăng, gửi xe có ở bài [phượt Tà Xùa bằng xe máy từ Hà Nội](/kinh-nghiem/phuot-ta-xua-bang-xe-may-tu-ha-noi).",
+   "en": "Tips on riding mountain passes, refuelling and parking are in our guide to [riding a motorbike from Hanoi to Tà Xùa](/kinh-nghiem/phuot-ta-xua-bang-xe-may-tu-ha-noi).",
+   "zh": "山路骑行、加油和停车的经验见[从河内骑摩托车去塔萨](/kinh-nghiem/phuot-ta-xua-bang-xe-may-tu-ha-noi)一文。",
+   "ko": "고갯길 주행, 주유, 주차 요령은 [하노이에서 따쑤아 오토바이 여행](/kinh-nghiem/phuot-ta-xua-bang-xe-may-tu-ha-noi) 글에 있습니다."}}
+ ],
+ "ta-xua-hay-moc-chau": [
+  {"para": "Người tự lái ô tô đọc bài [đi Tà Xùa bằng ô tô tự lái]", "add": {
+   "vi": "Đi xe máy thì xem bài [phượt Tà Xùa bằng xe máy từ Hà Nội](/kinh-nghiem/phuot-ta-xua-bang-xe-may-tu-ha-noi).",
+   "en": "Riding a motorbike? See our guide to [riding from Hanoi to Tà Xùa](/kinh-nghiem/phuot-ta-xua-bang-xe-may-tu-ha-noi).",
+   "zh": "骑摩托车的话，请看[从河内骑摩托车去塔萨](/kinh-nghiem/phuot-ta-xua-bang-xe-may-tu-ha-noi)一文。",
+   "ko": "오토바이로 간다면 [하노이에서 따쑤아 오토바이 여행](/kinh-nghiem/phuot-ta-xua-bang-xe-may-tu-ha-noi) 글을 보세요."}},
+  {"para": "bài [bản Háng Đồng](/kinh-nghiem/ban-hang-dong-ta-xua) kể nhịp sống", "add": {
+   "vi": "Tết, trang phục và cách ứng xử khi vào bản có ở bài [văn hoá người H'Mông ở Tà Xùa](/kinh-nghiem/van-hoa-nguoi-hmong-ta-xua).",
+   "en": "New Year customs, dress and village etiquette are covered in [Hmong culture in Tà Xùa](/kinh-nghiem/van-hoa-nguoi-hmong-ta-xua).",
+   "zh": "新年习俗、服饰和进村礼仪见[塔萨赫蒙族文化](/kinh-nghiem/van-hoa-nguoi-hmong-ta-xua)一文。",
+   "ko": "설 풍습, 전통 의상, 마을 방문 예절은 [따쑤아 흐몽족 문화](/kinh-nghiem/van-hoa-nguoi-hmong-ta-xua) 글에 정리했습니다."}}
+ ]
+}

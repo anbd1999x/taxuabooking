@@ -1,0 +1,1 @@
+Xuân Trường bus to Tà Xùa: 550.000đ return from Hanoi, leaves 21:30, arrives 6:00, pickups in Vĩnh Phúc, Bắc Ninh, Bắc Giang, and what to ask first.
