@@ -92,7 +92,7 @@ export async function getNearbyData(homeIds: string[]): Promise<{ homes: NearbyH
       hours: p.hours ?? "",
       price: p.price ?? "",
       cover: p.coverImage,
-      href: p.slug && kind === "RESTAURANT" ? `/nha-hang/${p.slug}` : p.slug && kind === "CAFE" ? `/cafe/${p.slug}` : null,
+      href: p.slug && kind === "RESTAURANT" ? `/nha-hang/${p.slug}` : p.slug && kind === "CAFE" ? `/cafe/${p.slug}` : p.slug && kind === "CHECKIN" ? `/diem-den/${p.slug}` : null,
       mapUrl: p.mapUrl,
     };
   });

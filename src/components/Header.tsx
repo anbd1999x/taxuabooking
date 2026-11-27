@@ -98,6 +98,8 @@ export function Header({ customerName = null, showCommitment = true, showTickets
   const GUIDE_LINKS = [
     { href: "/lich-trinh", label: t("Lịch trình & chi phí") },
     { href: "/ban-do", label: t("Bản đồ check-in") },
+    { href: "/diem-den", label: t("Điểm tham quan Tà Xùa") },
+    { href: "/thoi-tiet-ta-xua", label: t("Thời tiết Tà Xùa") },
     { href: "/kinh-nghiem", label: t("Kinh nghiệm Tà Xùa") },
     { href: "/nha-hang", label: t("Nhà hàng Tà Xùa") },
     { href: "/cafe", label: t("Cafe Tà Xùa") },

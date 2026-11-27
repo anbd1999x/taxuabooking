@@ -1,5 +1,6 @@
 import "server-only";
 import { prisma } from "./prisma";
+import { MAP_CENTER } from "./checkin-map";
 
 /**
  * QUÃNG ĐƯỜNG XE CHẠY THẬT từ homestay tới các điểm xung quanh (popup "Xung quanh có gì?").
@@ -203,9 +204,52 @@ export async function warmRoadCache(opts: { routes?: number; log?: (s: string) =
         await sleep(1100);
       }
     }
+    matrices += await warmCheckinRoads(opts.log).catch(() => 0);
     opts.log?.(`[road-cache] ma trận ${matrices} home · đường đi ${routes}`);
     return { matrices, routes };
   } finally {
     warming = false;
   }
+}
+
+/**
+ * CHỈ ĐỌC cache (không gọi dịch vụ ngoài): quãng đường đã tính từ `from` tới các điểm `to`, bỏ dòng lệch toạ độ.
+ * Dùng khi dựng trang: trang không chờ máy chủ dẫn đường công cộng.
+ */
+export async function cachedRoads(from: Pt, to: Pt[]): Promise<Record<string, Road>> {
+  const out: Record<string, Road> = {};
+  if (!to.length) return out;
+  const rows = await prisma.roadDistance.findMany({ where: { serviceId: from.id, placeId: { in: to.map((p) => p.id) } }, select: { placeId: true, sig: true, km: true, minutes: true } });
+  const byId = new Map(to.map((p) => [p.id, p]));
+  for (const r of rows) {
+    const p = byId.get(r.placeId);
+    if (p && r.sig === sigOf(from, p)) out[r.placeId] = { km: r.km, min: r.minutes };
+  }
+  return out;
+}
+
+/** Mốc "trung tâm Tà Xùa" trong bảng RoadDistance (cột serviceId): gốc tính "cách trung tâm bao xa" của trang điểm đến. */
+export const CENTER_ROAD_ID = "center:ta-xua";
+export const centerPt = (): Pt => ({ id: CENTER_ROAD_ID, ...MAP_CENTER });
+
+/**
+ * Trang điểm tham quan (/diem-den/<slug>): quãng đường xe chạy từ TRUNG TÂM và giữa các điểm check-in với nhau
+ * (cột serviceId = CENTER_ROAD_ID hoặc id Place). Chỉ gọi dịch vụ ngoài cho cặp còn thiếu / đổi toạ độ.
+ * Chạy cuối `warmRoadCache` (30 phút/lần) và bằng script `scripts/warm-road-cache.ts`.
+ */
+export async function warmCheckinRoads(log?: (s: string) => void): Promise<number> {
+  const spots = (
+    await prisma.place.findMany({ where: { published: true, kind: "CHECKIN", lat: { not: null }, lng: { not: null } }, select: { id: true, lat: true, lng: true } })
+  ).map((p) => ({ id: p.id, lat: p.lat!, lng: p.lng! }));
+  let calls = 0;
+  for (const from of [centerPt(), ...spots]) {
+    const to = spots.filter((s) => s.id !== from.id);
+    const have = await cachedRoads(from, to);
+    if (Object.keys(have).length >= to.length) continue;
+    await roadDistances(from, to);
+    calls++;
+    await sleep(1100);
+  }
+  log?.(`[road-cache] điểm check-in: ${calls} ma trận mới`);
+  return calls;
 }

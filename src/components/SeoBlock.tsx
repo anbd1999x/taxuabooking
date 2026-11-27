@@ -8,7 +8,7 @@ import { formatPrice } from "@/lib/format";
  * liên kết sang bài hướng dẫn, và mục Câu hỏi thường gặp kèm dữ liệu có cấu trúc FAQPage cho Google.
  * Nội dung tĩnh, dựng phía server ⇒ Google đọc được ngay trong HTML.
  */
-type Kind = "CABIN" | "HOMESTAY" | "COMBO" | "MOTORBIKE" | "XEOM" | "TAXI";
+type Kind = "CABIN" | "HOMESTAY" | "COMBO" | "MOTORBIKE" | "XEOM" | "TAXI" | "DIEM_DEN";
 
 /**
  * Số liệu THẬT của trang (đếm / thấp nhất / cao nhất từ dữ liệu trang đã nạp), do `[category]/page.tsx` truyền vào.
@@ -197,6 +197,30 @@ const BLOCKS: Record<Kind, Block> = {
       ["Có taxi đưa đón Hà Nội – Tà Xùa không?", "Có. Một số tài xế nhận đưa đón Hà Nội và các tỉnh miền Bắc; hỏi giá khi đặt."],
       ["Taxi hay xe ôm thì hợp hơn?", "Đi 4 người trở lên, có người lớn tuổi hoặc trẻ nhỏ thì taxi thoải mái hơn và chia đầu người không đắt hơn nhiều. Đi 1 đến 2 người tới điểm đường đất thì xe ôm tiện hơn."],
       ["Đặt taxi Tà Xùa thế nào?", "Chọn xe và ngày đi trên Tà Xùa Booking rồi gửi yêu cầu; bạn được liên hệ xác nhận, không cần thanh toán online."],
+    ],
+  },
+  // Trang /diem-den: số liệu (số điểm, gần / xa nhất theo quãng đường xe chạy, điểm miễn phí) do trang truyền vào.
+  DIEM_DEN: {
+    heading: "Chọn điểm tham quan Tà Xùa theo quãng đường",
+    intro: [
+      [
+        { k: "Trang này liệt kê {0} điểm check-in ở Tà Xùa đang có trên Tà Xùa Booking.", need: ["n"] },
+        { k: "Gần trung tâm xã nhất là {0}, cách {1} km đường xe chạy; xa nhất là {2}, cách {3} km.", need: ["near", "nearKm", "far", "farKm"] },
+      ],
+      "Mỗi điểm có trang riêng với ảnh thật, toạ độ, khung giờ đẹp, chi phí tham khảo, homestay gần nhất và các điểm lân cận. Quãng đường tính theo bản đồ OpenStreetMap, thời gian là ước tính cho xe máy.",
+    ],
+    links: [
+      ["/ban-do", "Bản đồ check-in Tà Xùa"],
+      ["/thoi-tiet-ta-xua", "Thời tiết Tà Xùa 7 ngày"],
+      ["/kinh-nghiem/ban-do-du-lich-ta-xua-diem-check-in", "Thứ tự nên đi các điểm"],
+      ["/kinh-nghiem/kinh-nghiem-san-may-ta-xua", "Kinh nghiệm săn mây"],
+    ],
+    faq: [
+      ["Điểm check-in nào gần trung tâm Tà Xùa nhất?", { k: "{0}, cách trung tâm xã {1} km đường xe chạy.", need: ["near", "nearKm"], alt: "Xem bảng khoảng cách phía trên, các điểm xếp từ gần tới xa." }],
+      ["Điểm tham quan nào xa trung tâm Tà Xùa nhất?", { k: "{0}, cách trung tâm xã {1} km đường xe chạy. Chưa quen đường đèo thì nên thuê xe ôm bản địa.", need: ["far", "farKm"], alt: "Xem bảng khoảng cách phía trên, các điểm xếp từ gần tới xa." }],
+      ["Điểm nào ở Tà Xùa không mất vé?", { k: "Theo dữ liệu đang có, các điểm không thu vé vào: {0}. Mức thu có thể thay đổi, nên hỏi lại tại chỗ.", need: ["free"], alt: "Chi phí từng điểm ghi ở bảng phía trên; mức thu có thể thay đổi, nên hỏi lại tại chỗ." }],
+      ["Có điểm nào gần trung tâm, không phải đi xa?", { k: "Có {0} điểm nằm trong bán kính 5 km đường xe chạy từ trung tâm xã, xem cột khoảng cách ở bảng phía trên.", need: ["within5"], alt: "Xem cột khoảng cách ở bảng phía trên, các điểm xếp từ gần tới xa." }],
+      ["Làm sao biết sáng mai có biển mây không?", "Trang thời tiết Tà Xùa có dự báo 7 ngày và ước tính khả năng có biển mây cho từng sáng, dựa trên độ ẩm, mây tầng thấp và gió. Đây chỉ là ước tính, mây là hiện tượng thời tiết nên không chắc chắn."],
     ],
   },
 };

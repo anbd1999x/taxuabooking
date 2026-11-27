@@ -10,6 +10,7 @@ import { formatDate } from "@/lib/format";
 import { ORG_ID, SITE, WEBSITE_ID } from "@/lib/site";
 import { renderMarkdown } from "@/lib/markdown";
 import { articleTopicLabel } from "@/lib/constants";
+import { articleHubPath, isArticleTopic } from "@/lib/article-hubs";
 import { getLocale, getT, lp, tLong } from "@/lib/i18n/server";
 import { i18nAlternates } from "@/lib/i18n/meta";
 import { LOCALE_META, localePath } from "@/lib/i18n/config";
@@ -143,7 +144,11 @@ export default async function ArticlePage({
       itemListElement: [
         { "@type": "ListItem", position: 1, name: tr("Trang chủ"), item: homeUrl },
         { "@type": "ListItem", position: 2, name: tr("Kinh nghiệm Tà Xùa"), item: `${SITE.url}${localePath("/kinh-nghiem", locale)}` },
-        { "@type": "ListItem", position: 3, name: title, item: pageUrl },
+        // Tầng chủ đề = trang hub /kinh-nghiem/chu-de/<topic> (gom sức cho cụm bài).
+        ...(isArticleTopic(a.topic)
+          ? [{ "@type": "ListItem", position: 3, name: tr(articleTopicLabel(a.topic)), item: `${SITE.url}${localePath(articleHubPath(a.topic), locale)}` }]
+          : []),
+        { "@type": "ListItem", position: isArticleTopic(a.topic) ? 4 : 3, name: title, item: pageUrl },
       ],
     },
     ...(faqs.length >= 2
@@ -190,6 +195,12 @@ export default async function ArticlePage({
       <nav className="mb-4 text-sm text-gray-500">
         <Link href="/kinh-nghiem" className="hover:text-forest-700">{tr("Kinh nghiệm")}</Link>
         <span className="mx-2">/</span>
+        {isArticleTopic(a.topic) && (
+          <>
+            <Link href={articleHubPath(a.topic)} className="hover:text-forest-700">{tr(articleTopicLabel(a.topic))}</Link>
+            <span className="mx-2">/</span>
+          </>
+        )}
         <span className="text-gray-700">{tr(a.title)}</span>
       </nav>
       <p className="text-xs text-gray-400">
@@ -235,7 +246,7 @@ export default async function ArticlePage({
               {isReview ? tr("Review homestay khác ở Tà Xùa") : a.topic ? tr("Bài viết cùng chủ đề") : tr("Bài viết khác")}
             </h2>
             <Link
-              href={a.topic ? `/kinh-nghiem?topic=${a.topic}` : "/kinh-nghiem"}
+              href={isArticleTopic(a.topic) ? articleHubPath(a.topic) : "/kinh-nghiem"}
               className="text-sm font-bold text-forest-700 hover:text-sunset-600"
             >
               {tr("Xem tất cả →")}

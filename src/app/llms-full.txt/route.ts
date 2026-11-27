@@ -1,25 +1,101 @@
 import { SITE } from "@/lib/site";
-import { formatPrice } from "@/lib/format";
+import { prisma } from "@/lib/prisma";
+import { formatPrice, formatDate } from "@/lib/format";
+import { ARTICLE_TOPICS } from "@/lib/constants";
+import { ARTICLE_HUBS, articleHubPath } from "@/lib/article-hubs";
 import { getCabinCompare, getHomestayTable, getRentalBikes, getTaxiRoutes, getTransportPoints, getXeomRoutes, type HomestayTableRoom } from "@/lib/queries";
 import { legFareFor, roundTripFareFor } from "@/lib/combo";
 import { buildFareLegs, rangeOf, rangeText, vnToday } from "@/components/data/fares";
 
 export const dynamic = "force-dynamic";
 
+/** Bài nguồn của lịch mùa (bảng 12 tháng) — trích nguyên văn từ nội dung bài đang đăng, không viết số tay ở đây. */
+const SEASON_SLUG = "ta-xua-mua-nao-dep-nhat";
+/** Số điểm check-in làm cột ở bảng homestay × điểm: ưu tiên các điểm săn mây chính (khớp tên), thiếu thì điểm có nhiều số liệu nhất. */
+const ROAD_COLS = 5;
+const ROAD_MAIN = [/sống lưng khủng long/i, /mỏm cá heo/i, /cây cô đơn/i, /thác mây/i, /thảo nguyên/i];
+
+/**
+ * QUÃNG ĐƯỜNG XE CHẠY THẬT homestay → điểm check-in: đọc bảng RoadDistance (cache của popup "Xung quanh có gì?"),
+ * CHỈ lấy cặp có chữ ký toạ độ khớp toạ độ hiện tại (đổi toạ độ ⇒ số cũ bị bỏ). Không gọi dịch vụ ngoài ở đây.
+ */
+async function roadData() {
+  const [homes, spots] = await Promise.all([
+    prisma.service.findMany({
+      where: { published: true, category: { in: ["HOMESTAY", "BUNGALOW"] }, lat: { not: null }, lng: { not: null } },
+      orderBy: { title: "asc" },
+      select: { id: true, slug: true, title: true, lat: true, lng: true, distanceKm: true },
+    }),
+    prisma.place.findMany({
+      where: { published: true, kind: "CHECKIN", lat: { not: null }, lng: { not: null } },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      select: { id: true, name: true, lat: true, lng: true },
+    }),
+  ]);
+  const rows = homes.length && spots.length
+    ? await prisma.roadDistance.findMany({
+        where: { serviceId: { in: homes.map((h) => h.id) }, placeId: { in: spots.map((s) => s.id) } },
+        select: { serviceId: true, placeId: true, sig: true, km: true, minutes: true, source: true },
+      })
+    : [];
+  const homeById = new Map(homes.map((h) => [h.id, h]));
+  const spotById = new Map(spots.map((s) => [s.id, s]));
+  const valid = rows.filter((r) => {
+    const h = homeById.get(r.serviceId);
+    const s = spotById.get(r.placeId);
+    return h && s && r.sig === `${h.lat},${h.lng}>${s.lat},${s.lng}` && r.km > 0;
+  });
+  return { homes, spots, valid };
+}
+
+/** Lịch mùa: phần "Tóm tắt nhanh" + bảng 12 tháng của bài mùa đẹp, và tóm tắt từng bài "Tà Xùa tháng N" (đều lấy từ DB). */
+async function seasonData() {
+  const [main, months] = await Promise.all([
+    prisma.article.findFirst({ where: { slug: SEASON_SLUG, published: true }, select: { slug: true, title: true, content: true, updatedAt: true } }),
+    prisma.article.findMany({ where: { published: true, slug: { startsWith: "ta-xua-thang-" } }, select: { slug: true, title: true, excerpt: true, updatedAt: true } }),
+  ]);
+  const plain = (s: string) => s.replace(/\*\*/g, "").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1").trim();
+  let bullets: string[] = [];
+  let table: string[] = [];
+  if (main) {
+    const lines = main.content.replace(/\r\n/g, "\n").split("\n");
+    const i = lines.findIndex((l) => /^\*\*Tóm tắt nhanh:?\*\*/i.test(l.trim()));
+    if (i >= 0) {
+      for (let j = i + 1; j < lines.length; j++) {
+        const l = lines[j].trim();
+        if (!l) { if (bullets.length) break; continue; }
+        if (!l.startsWith("- ")) break;
+        bullets.push(`- ${plain(l.slice(2))}`);
+      }
+    }
+    const t = lines.findIndex((l) => /^\|\s*Tháng\s*\|/.test(l.trim()));
+    if (t >= 0) {
+      for (let j = t; j < lines.length && lines[j].trim().startsWith("|"); j++) table.push(plain(lines[j].trim()));
+      if (table.length < 3) table = [];
+    }
+  }
+  const monthNo = (slug: string) => Number(slug.replace("ta-xua-thang-", "")) || 99;
+  months.sort((a, b) => monthNo(a.slug) - monthNo(b.slug));
+  return { main, bullets, table, months: months.filter((m) => monthNo(m.slug) <= 12) };
+}
+
 /**
  * /llms-full.txt — DỮ LIỆU ĐẦY ĐỦ dạng bảng markdown cho công cụ AI trích dẫn: giá từng phòng của từng homestay,
- * bảng giá chặng từng nhà xe cabin, giá chặng xe ôm / taxi, loại xe máy cho thuê. Bản tóm tắt ở /llms.txt.
+ * bảng giá chặng từng nhà xe cabin, giá chặng xe ôm / taxi, loại xe máy cho thuê, quãng đường xe chạy homestay ↔ điểm check-in
+ * (RoadDistance, dẫn đường OpenStreetMap), lịch mùa trích từ bài đang đăng và link trang hub chủ đề. Bản tóm tắt ở /llms.txt.
  * Mọi con số đọc từ DB lúc tạo tệp; ô "—" = chủ cơ sở chưa khai. Tiếng Việt (ngôn ngữ gốc của dữ liệu).
  */
 export async function GET() {
   const base = SITE.url.replace(/\/$/, "");
-  const [homes, cabins, xeom, taxi, points, bikes] = await Promise.all([
+  const [homes, cabins, xeom, taxi, points, bikes, road, season] = await Promise.all([
     getHomestayTable().catch(() => []),
     getCabinCompare().catch(() => []),
     getXeomRoutes().catch(() => []),
     getTaxiRoutes().catch(() => []),
     getTransportPoints().catch(() => []),
     getRentalBikes(null, null).catch(() => []),
+    roadData().catch(() => null),
+    seasonData().catch(() => null),
   ]);
   const today = vnToday();
   /** Ô bảng markdown: gọn 1 dòng, không để "|" phá cột. */
@@ -89,6 +165,64 @@ export async function GET() {
     bikes.map((b) => [b.shopTitle, `${base}/thue-xe-may/${b.serviceSlug}`, b.name, money(b.pricePerDay), money(b.originalPrice), b.totalUnits, money(b.deliveryFee)]),
   );
 
+  // ----- Quãng đường xe chạy thật homestay ↔ điểm check-in (cache RoadDistance, dẫn đường trên OpenStreetMap) -----
+  const kmTxt = (km: number) => (km < 0.05 ? "dưới 0,1 km" : `${km.toLocaleString("vi-VN", { maximumFractionDigits: 1 })} km`);
+  const spotName = (n: string) => n.replace(/\(\s+/g, "(").replace(/\s+\)/g, ")").replace(/\s+/g, " ").trim();
+  let roadSection = "";
+  if (road && road.valid.length) {
+    const { homes: rh, spots, valid } = road;
+    const pair = new Map(valid.map((r) => [`${r.serviceId}|${r.placeId}`, r]));
+    const homeById = new Map(rh.map((h) => [h.id, h]));
+    const bySpot = spots
+      .map((s) => ({ s, list: valid.filter((r) => r.placeId === s.id).sort((a, b) => a.km - b.km) }))
+      .filter((x) => x.list.length);
+    const spotTable = table(
+      ["Điểm check-in", "Homestay gần nhất", "Quãng đường", "Thời gian xe máy", "Số homestay trong 5 km đường xe"],
+      bySpot.map(({ s, list }) => [spotName(s.name), homeById.get(list[0].serviceId)?.title, kmTxt(list[0].km), `${list[0].minutes} phút`, list.filter((x) => x.km <= 5).length]),
+    );
+    const rank = (n: string) => { const i = ROAD_MAIN.findIndex((re) => re.test(n)); return i < 0 ? ROAD_MAIN.length : i; };
+    const cols = [...bySpot].sort((a, b) => rank(a.s.name) - rank(b.s.name) || b.list.length - a.list.length).slice(0, ROAD_COLS).map((x) => x.s);
+    const homeRows = rh.filter((h) => cols.some((c) => pair.has(`${h.id}|${c.id}`)));
+    const homeTable = table(
+      ["Homestay", "Cách trung tâm (chủ nhà khai)", ...cols.map((c) => spotName(c.name))],
+      homeRows.map((h) => [
+        `[${h.title}](${base}/homestay/${h.slug})`,
+        h.distanceKm == null ? null : h.distanceKm === 0 ? "ở trung tâm" : kmTxt(h.distanceKm),
+        ...cols.map((c) => {
+          const r = pair.get(`${h.id}|${c.id}`);
+          return r ? `${kmTxt(r.km)}, ${r.minutes} phút` : null;
+        }),
+      ]),
+    );
+    const usesOsrm = valid.some((r) => r.source === "osrm");
+    roadSection = `## Quãng đường xe chạy giữa homestay và điểm check-in
+
+Quãng đường ĐƯỜNG BỘ (không phải đường chim bay) từ toạ độ từng homestay tới toạ độ từng điểm check-in đang đăng trên ${base}, tính bằng dịch vụ dẫn đường trên dữ liệu OpenStreetMap: Valhalla (máy chủ FOSSGIS, chế độ xe máy)${usesOsrm ? "; một số cặp dùng OSRM (chế độ ô tô, thời gian nhân 1,5 cho xe máy đường núi)" : ""}. Thời gian là ước tính của dịch vụ dẫn đường; đoạn đi bộ cuối tới điểm ngắm không tính. ${valid.length} cặp homestay × điểm có số liệu hợp lệ (${rh.length} homestay có toạ độ, ${spots.length} điểm check-in). Ô "—" = chưa có số liệu. Cột "Cách trung tâm" do chủ nhà tự khai, không phải số dẫn đường. Bản đồ: ${base}/ban-do, trang từng điểm đến: ${base}/diem-den
+
+### Mỗi điểm check-in: homestay gần nhất theo đường xe
+
+${spotTable}
+
+### Từ từng homestay tới ${cols.length} điểm săn mây, check-in chính (quãng đường, thời gian xe máy)
+
+${homeTable}`;
+  }
+
+  // ----- Lịch mùa: trích nguyên văn bảng 12 tháng của bài đang đăng + tóm tắt từng bài theo tháng -----
+  let seasonSection = "";
+  if (season && (season.table.length || season.months.length)) {
+    const src = season.main ? `[${season.main.title}](${base}/kinh-nghiem/${season.main.slug}), cập nhật ${formatDate(season.main.updatedAt)}` : null;
+    seasonSection = `## Lịch mùa Tà Xùa: mây, lúa chín, hoa, sương muối
+
+Trích từ bài cẩm nang đang đăng trên ${base}${src ? ` (${src})` : ""}. Cột "Mây" là mức thường gặp theo mùa; thời tiết từng năm xê dịch, không phải cam kết cho một ngày cụ thể. Thời tiết theo tháng: ${base}/thoi-tiet-ta-xua
+
+${season.bullets.join("\n")}
+
+${season.table.join("\n")}
+
+${season.months.length ? `### Bài riêng từng tháng\n\n${season.months.map((m) => `- [${m.title}](${base}/kinh-nghiem/${m.slug})${m.excerpt ? `: ${m.excerpt.replace(/\s+/g, " ").trim()}` : ""}`).join("\n")}` : ""}`;
+  }
+
   const body = `# ${SITE.name}: dữ liệu giá đầy đủ
 
 > ${SITE.about}
@@ -128,6 +262,14 @@ ${taxi.length ? taxiDrivers : ""}
 ${bikeRange ? `Giá thuê hiện ở mức ${rangeText(bikeRange)} một ngày. ` : ""}Đặt xe: ${base}/thue-xe-may
 
 ${bikes.length ? bikeTable : "Chưa có loại xe nào được đăng."}
+
+${roadSection}
+
+${seasonSection}
+
+## Cẩm nang theo chủ đề
+
+${ARTICLE_TOPICS.map((t) => `- [${ARTICLE_HUBS[t.key].h1}](${base}${articleHubPath(t.key)})`).join("\n")}
 `;
 
   return new Response(body.replace(/\n{3,}/g, "\n\n"), {

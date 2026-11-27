@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
-import { pageMeta } from "@/lib/og";
+import { permanentRedirect } from "next/navigation";
 import { articleShareImage } from "@/lib/og-source";
-import Link from "@/components/Link";
-import Image from "next/image";
 import { prisma } from "@/lib/prisma";
-import { formatDate } from "@/lib/format";
-import { ARTICLE_TOPICS, articleTopicLabel } from "@/lib/constants";
-import { getT } from "@/lib/i18n/server";
-import { i18nAlternates, i18nMeta, i18nOg } from "@/lib/i18n/meta";
+import { articleHubPath, isArticleTopic } from "@/lib/article-hubs";
+import { getT, lp } from "@/lib/i18n/server";
+import { i18nMeta } from "@/lib/i18n/meta";
 import { ItemListLd } from "@/components/ItemListLd";
 import { BreadcrumbLd } from "@/components/BreadcrumbLd";
+import { ArticleTopicTabs } from "@/components/ArticleTopicTabs";
+import { ArticleCards } from "@/components/ArticleCards";
 
 export const dynamic = "force-dynamic";
 
@@ -20,44 +19,24 @@ const META = {
   path: "/kinh-nghiem",
 };
 
-// Ảnh chia sẻ = ảnh bìa bài viết mới nhất (thiếu thì ảnh biển mây mặc định).
-// Đang lọc một chủ đề ⇒ tiêu đề + canonical RIÊNG (vd /kinh-nghiem?topic=review-homestay là trang danh mục "Review homestay Tà Xùa").
-const TOPIC_META: Record<string, { title: string; description: string }> = {
-  "review-homestay": {
-    title: "Review homestay Tà Xùa: đánh giá chi tiết từng nhà",
-    description: "Review từng homestay, bungalow ở Tà Xùa: vị trí, hạng phòng, giá ngày thường và cuối tuần, view mây, ưu nhược điểm. Dựa trên bảng giá đang mở bán.",
-  },
-};
-const topicOf = (v: string | string[] | undefined) => (typeof v === "string" && ARTICLE_TOPICS.some((t) => t.key === v) ? v : "");
+type SP = Promise<Record<string, string | string[] | undefined>>;
 
-export async function generateMetadata({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }): Promise<Metadata> {
-  const topic = topicOf((await searchParams).topic);
-  const image = await articleShareImage();
-  if (!topic) return i18nMeta({ ...META, image });
-  const path = `/kinh-nghiem?topic=${topic}`;
-  const tm = TOPIC_META[topic];
-  if (tm) return i18nMeta({ ...tm, path, image });
-  const tr = await getT();
-  const title = tr("{0}: kinh nghiệm du lịch Tà Xùa", [tr(articleTopicLabel(topic) ?? "")]);
-  const description = tr(META.description);
-  return { title, description, alternates: await i18nAlternates(path), openGraph: await i18nOg({ title, description, path, image }) };
+// Ảnh chia sẻ = ảnh bìa bài viết mới nhất (thiếu thì ảnh biển mây mặc định).
+// Lọc chủ đề nay là trang hub tĩnh /kinh-nghiem/chu-de/<topic>; link cũ ?topic=… chuyển 308 sang đó (xem trang dưới).
+export async function generateMetadata(): Promise<Metadata> {
+  return i18nMeta({ ...META, image: await articleShareImage() });
 }
 
-export default async function ArticlesPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
-  const tr = await getT();
-  const sp = await searchParams;
-  const topic = topicOf(sp.topic);
-  const heading = topic === "review-homestay" ? tr("Review homestay Tà Xùa") : topic ? tr(articleTopicLabel(topic) ?? "") : tr("Kinh nghiệm du lịch Tà Xùa");
+export default async function ArticlesPage({ searchParams }: { searchParams: SP }) {
+  const topic = (await searchParams).topic;
+  if (isArticleTopic(topic)) permanentRedirect(await lp(articleHubPath(topic)));
 
+  const tr = await getT();
+  const heading = tr("Kinh nghiệm du lịch Tà Xùa");
   const articles = await prisma.article.findMany({
-    where: { published: true, ...(topic ? { topic } : {}) },
+    where: { published: true },
     // Bài nổi bật (STT > 0) lên đầu theo STT to → bé, còn lại theo ngày đăng.
-    // Đang lọc một chủ đề ⇒ "thứ tự trong chủ đề" (topicOrder) xếp trước — VD tab Review homestay đưa home đối tác lên đầu.
-    orderBy: topic ? [{ topicOrder: "desc" }, { featuredOrder: "desc" }, { createdAt: "desc" }] : [{ featuredOrder: "desc" }, { createdAt: "desc" }],
+    orderBy: [{ featuredOrder: "desc" }, { createdAt: "desc" }],
     // Chỉ lấy cột thẻ cần: không kéo `content` (cả thân bài) của 100+ bài về mỗi lần mở trang danh sách.
     select: { id: true, slug: true, title: true, excerpt: true, coverImage: true, topic: true, featuredOrder: true, createdAt: true },
   });
@@ -68,77 +47,14 @@ export default async function ArticlesPage({
         items={[
           { name: tr("Trang chủ"), path: "/" },
           { name: tr("Kinh nghiệm Tà Xùa"), path: "/kinh-nghiem" },
-          ...(topic ? [{ name: heading, path: `/kinh-nghiem?topic=${topic}` }] : []),
         ]}
       />
       <ItemListLd name={heading} items={articles.map((a) => ({ name: tr(a.title), path: `/kinh-nghiem/${a.slug}`, image: a.coverImage }))} />
-      <h1 className="text-2xl font-bold text-ink sm:text-3xl">
-        {heading}
-      </h1>
+      <h1 className="text-2xl font-bold text-ink sm:text-3xl">{heading}</h1>
       <p className="mt-1 text-gray-500">{tr("Mẹo và lịch trình cho chuyến săn mây trọn vẹn.")}</p>
 
-      {/* Bộ lọc chủ đề */}
-      <div className="mt-5 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <Link
-          href="/kinh-nghiem"
-          className={`flex-none whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition ${
-            !topic ? "bg-forest-700 text-white" : "bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-forest-50"
-          }`}
-        >
-          {tr("Tất cả")}
-        </Link>
-        {ARTICLE_TOPICS.map((t) => (
-          <Link
-            key={t.key}
-            href={`/kinh-nghiem?topic=${t.key}`}
-            className={`flex-none whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold transition ${
-              topic === t.key ? "bg-forest-700 text-white" : "bg-white text-gray-600 ring-1 ring-gray-200 hover:bg-forest-50"
-            }`}
-          >
-            {tr(t.label)}
-          </Link>
-        ))}
-      </div>
-
-      {articles.length === 0 ? (
-        <p className="mt-8 rounded-2xl border border-dashed border-gray-300 bg-white py-16 text-center text-gray-500">
-          {tr("Chưa có bài viết nào trong chủ đề này.")}
-        </p>
-      ) : (
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {articles.map((a) => (
-            <Link
-              key={a.id}
-              href={`/kinh-nghiem/${a.slug}`}
-              className="group overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 transition hover:shadow-md"
-            >
-              {a.coverImage && (
-                <div className="relative aspect-[16/9]">
-                  <Image src={a.coverImage} alt={tr(a.title)} fill sizes="(max-width:640px) 100vw, 360px" className="object-cover transition duration-500 group-hover:scale-105" />
-                  {articleTopicLabel(a.topic) && (
-                    <span className="absolute left-2.5 top-2.5 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-forest-700">
-                      {tr(articleTopicLabel(a.topic))}
-                    </span>
-                  )}
-                  {a.featuredOrder > 0 && (
-                    <span className="absolute right-2.5 top-2.5 rounded-full bg-sunset-500 px-2.5 py-1 text-[11px] font-bold text-white shadow-sm">
-                      ★ {tr("Nổi bật")}
-                    </span>
-                  )}
-                </div>
-              )}
-              <div className="p-4">
-                <p className="text-xs text-gray-400">
-                  {!a.coverImage && a.featuredOrder > 0 && <span className="mr-1.5 font-bold text-sunset-600">★ {tr("Nổi bật")}</span>}
-                  {formatDate(a.createdAt)}
-                </p>
-                <h2 className="mt-1 line-clamp-2 font-semibold text-ink group-hover:text-forest-700">{tr(a.title)}</h2>
-                {a.excerpt && <p className="mt-1 line-clamp-2 text-sm text-gray-600">{tr(a.excerpt)}</p>}
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
+      <ArticleTopicTabs active={null} />
+      <ArticleCards articles={articles} />
     </div>
   );
 }

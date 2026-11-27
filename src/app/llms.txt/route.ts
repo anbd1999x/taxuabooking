@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { SITE } from "@/lib/site";
 import { toNumber } from "@/lib/format";
-import { articleTopicLabel } from "@/lib/constants";
+import { ARTICLE_TOPICS, articleTopicLabel } from "@/lib/constants";
+import { ARTICLE_HUBS, articleHubPath, isArticleTopic } from "@/lib/article-hubs";
 import { getSettings, getHomestayCards, getHomestayTable, getXeomRoutes, getTaxiRoutes, getTransportPoints } from "@/lib/queries";
 import { PUBLIC_VENUE } from "@/lib/ticket-core";
 import { formatPhone, parseTrustPopup, TRUST_POPUP_KEY, visibleLegalNames } from "@/lib/trust-popup";
@@ -148,7 +149,8 @@ export async function GET() {
 
   const byTopic = new Map<string, typeof articles>();
   for (const a of articles) {
-    const k = articleTopicLabel(a.topic) || "Khác";
+    // Tiêu đề nhóm = link trang hub chủ đề (/kinh-nghiem/chu-de/<topic>).
+    const k = isArticleTopic(a.topic) ? `[${articleTopicLabel(a.topic)}](${base}${articleHubPath(a.topic)})` : "Khác";
     byTopic.set(k, [...(byTopic.get(k) ?? []), a]);
   }
 
@@ -158,7 +160,7 @@ export async function GET() {
 >
 > ${SITE.name} (${base}) là website đặt dịch vụ du lịch Tà Xùa (xã Tà Xùa, tỉnh Sơn La, Việt Nam; cách Hà Nội khoảng 215–220 km): xe cabin giường nằm Hà Nội – Tà Xùa, homestay/bungalow săn mây, thuê xe máy, xe ôm, taxi và combo xe + homestay. Khách xem giá và tình trạng còn chỗ theo ngày rồi gửi yêu cầu đặt; không thanh toán online, Tà Xùa Booking gọi lại xác nhận. Hỗ trợ ${SITE.supportHours} hằng ngày, điện thoại/Zalo ${phone}.
 
-Giá trong file này lấy trực tiếp từ dữ liệu đang bán, cập nhật ngày ${today}. Giá thay đổi theo ngày trong tuần, mùa và dịp lễ; giá chính xác hiện trên trang khi chọn ngày. Dữ liệu đầy đủ dạng bảng (giá từng phòng, bảng giá chặng từng nhà xe, xe ôm, taxi, xe máy): ${base}/llms-full.txt
+Giá trong file này lấy trực tiếp từ dữ liệu đang bán, cập nhật ngày ${today}. Giá thay đổi theo ngày trong tuần, mùa và dịp lễ; giá chính xác hiện trên trang khi chọn ngày. Dữ liệu đầy đủ dạng bảng (giá từng phòng, bảng giá chặng từng nhà xe, xe ôm, taxi, xe máy, quãng đường xe chạy từ từng homestay tới các điểm check-in theo dẫn đường OpenStreetMap, lịch mùa mây, lúa chín, hoa, sương muối): ${base}/llms-full.txt
 
 Ngôn ngữ: tiếng Việt (gốc), English (/en), 中文 (/zh), 한국어 (/ko). Tiếng Trung gọi Tà Xùa là 塔萨, tiếng Hàn là 따쑤아.
 
@@ -174,9 +176,11 @@ ${aboutLines.join("\n")}
 - [Thuê xe máy Tà Xùa](${base}/thue-xe-may), [Xe ôm](${base}/xe-om), [Taxi](${base}/taxi)
 - [Lịch trình & chi phí đi Tà Xùa](${base}/lich-trinh): lịch trình theo giờ 2 ngày 1 đêm, 3 ngày 2 đêm, tự tính chi phí theo số người.
 - [Bản đồ Tà Xùa](${base}/ban-do): bản đồ vệ tinh các điểm check-in và cung đường từng ngày.
+- [Điểm đến Tà Xùa](${base}/diem-den): từng điểm check-in, săn mây (vị trí, đường đi, giờ đẹp).
+- [Thời tiết Tà Xùa](${base}/thoi-tiet-ta-xua): thời tiết, mùa mây theo tháng.
 - [Nhà hàng, quán ăn](${base}/nha-hang) và [quán cafe](${base}/cafe) ở Tà Xùa theo khu vực, kèm giá tham khảo và giờ mở cửa.${venues.length ? `
 - [Vé & đặt bàn](${base}/ve): mua vé điểm check-in, show và đặt bàn nhà hàng online (${venues.map((v) => v.name).join(", ")}).` : ""}
-- [Kinh nghiệm du lịch Tà Xùa](${base}/kinh-nghiem): cẩm nang, lịch trình, di chuyển, ăn uống.
+- [Kinh nghiệm du lịch Tà Xùa](${base}/kinh-nghiem): cẩm nang, lịch trình, di chuyển, ăn uống. Trang theo chủ đề: ${ARTICLE_TOPICS.map((t) => `[${ARTICLE_HUBS[t.key].h1}](${base}${articleHubPath(t.key)})`).join(", ")}.
 - [Hướng dẫn đặt dịch vụ](${base}/huong-dan), [Cam kết](${base}/cam-ket), [Giới thiệu](${base}/gioi-thieu), [Liên hệ](${base}/lien-he)
 - [Phần mềm quản lý tiệm cho thuê xe máy](${base}/hop-tac/xe-may): dành cho chủ tiệm (đối tác).
 

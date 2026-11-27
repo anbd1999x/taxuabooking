@@ -57,6 +57,8 @@ export async function Footer({ settings }: { settings: Record<string, string> })
             <li><Link href="/tra-cuu" className="hover:text-white">{t("Tra cứu đơn đặt")}</Link></li>
             <li><Link href="/lich-trinh" className="hover:text-white">{t("Lịch trình & chi phí")}</Link></li>
             <li><Link href="/ban-do" className="hover:text-white">{t("Bản đồ check-in")}</Link></li>
+            <li><Link href="/diem-den" className="hover:text-white">{t("Điểm tham quan Tà Xùa")}</Link></li>
+            <li><Link href="/thoi-tiet-ta-xua" className="hover:text-white">{t("Thời tiết Tà Xùa")}</Link></li>
             <li><Link href="/kinh-nghiem" className="hover:text-white">{t("Kinh nghiệm du lịch")}</Link></li>
             <li><Link href="/gioi-thieu" className="hover:text-white">{t("Giới thiệu")}</Link></li>
             <li><Link href="/lien-he"className="hover:text-white">{t("Thông tin liên hệ")}</Link></li>

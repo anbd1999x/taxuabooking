@@ -21,11 +21,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const p = await getPlace(slug);
   if (!p) return {};
-  // Tiêu đề "<tên> Tà Xùa: <loại> khu <khu>" + mô tả có khu / giờ mở / giá (xem placeMeta).
+  // Tiêu đề "<tên> Tà Xùa: menu / view / giá / giờ mở cửa" theo dữ liệu trang đang hiện + mô tả (xem placeMeta).
   const { title, description } = placeMeta(p, t);
+  const metaTitle = title.length > 44 ? { absolute: title } : title;
   const path = `/cafe/${p.slug}`;
   return {
-    title,
+    title: metaTitle,
     description,
     alternates: await i18nAlternates(path),
     openGraph: await i18nOg({ title, description, path, image: p.coverImage, alt: t(p.name) }),

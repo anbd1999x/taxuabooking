@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { prisma } from "@/lib/prisma";
 import { PUBLIC_VENUE } from "@/lib/ticket-core";
-import { CATEGORIES, CATEGORY_LIST, serviceCatSlug } from "@/lib/constants";
+import { ARTICLE_TOPICS, CATEGORIES, CATEGORY_LIST, serviceCatSlug } from "@/lib/constants";
 import { SITE } from "@/lib/site";
 import { LOCALE_META, TARGET_LOCALES, VI_ONLY_PATHS, localePath } from "@/lib/i18n/config";
 
@@ -21,7 +21,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       select: { slug: true, updatedAt: true },
     }),
     prisma.place.findMany({
-      where: { published: true, slug: { not: null }, kind: { in: ["RESTAURANT", "CAFE"] } },
+      where: { published: true, slug: { not: null }, kind: { in: ["RESTAURANT", "CAFE", "CHECKIN"] } },
       select: { slug: true, kind: true, updatedAt: true },
     }),
     // Địa điểm bán vé / đặt bàn đang mở bán (/ve/<slug>).
@@ -32,8 +32,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/`, changeFrequency: "daily", priority: 1 },
     { url: `${base}/lich-trinh`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${base}/ban-do`, changeFrequency: "weekly", priority: 0.6 },
+    { url: `${base}/diem-den`, changeFrequency: "weekly", priority: 0.7 },
+    { url: `${base}/thoi-tiet-ta-xua`, changeFrequency: "daily", priority: 0.6 },
     { url: `${base}/kinh-nghiem`, changeFrequency: "weekly", priority: 0.6 },
-    { url: `${base}/kinh-nghiem?topic=review-homestay`, changeFrequency: "weekly", priority: 0.6 },
+    // Trang hub chủ đề bài kinh nghiệm (/kinh-nghiem/chu-de/<topic>); link cũ ?topic=… đã 308 sang đây.
+    ...ARTICLE_TOPICS.map((t) => ({ url: `${base}/kinh-nghiem/chu-de/${t.key}`, changeFrequency: "weekly" as const, priority: 0.6 })),
     { url: `${base}/huong-dan`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/nha-hang`, changeFrequency: "weekly", priority: 0.6 },
     ...(venues.length ? [{ url: `${base}/ve`, changeFrequency: "daily" as const, priority: 0.7 }] : []),
@@ -70,9 +73,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }));
 
-  // Trang chi tiết nhà hàng / cafe.
+  // Trang chi tiết nhà hàng / cafe / điểm tham quan (/diem-den/<slug>).
   const placeRoutes: MetadataRoute.Sitemap = places.map((p) => ({
-    url: `${base}/${p.kind === "CAFE" ? "cafe" : "nha-hang"}/${p.slug}`,
+    url: `${base}/${p.kind === "CHECKIN" ? "diem-den" : p.kind === "CAFE" ? "cafe" : "nha-hang"}/${p.slug}`,
     lastModified: p.updatedAt,
     changeFrequency: "weekly",
     priority: 0.5,

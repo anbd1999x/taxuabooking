@@ -288,7 +288,7 @@ async function ServiceDetailBody({
 
     // Điểm xung quanh gần nhất theo QUÃNG ĐƯỜNG XE CHẠY đã tính sẵn (bảng RoadDistance) — chưa có cache thì ẩn danh sách.
     const NEAR_KIND: Record<string, [string, string, string | null]> = {
-      CHECKIN: [tr("Điểm check-in"), "oklch(0.55 0.13 155)", null],
+      CHECKIN: [tr("Điểm check-in"), "oklch(0.55 0.13 155)", "diem-den"],
       CAFE: [tr("Cafe"), "oklch(0.6 0.12 60)", "cafe"],
       RESTAURANT: [tr("Nhà hàng"), "oklch(0.68 0.18 45)", "nha-hang"],
     };
