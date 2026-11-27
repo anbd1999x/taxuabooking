@@ -2500,10 +2500,10 @@
  "Cập nhật {0}": "Updated {0}",
  "Dữ liệu mẫu · {0}": "Sample data · {0}",
  "Đang tải dự báo…": "Loading forecast…",
- "Dự báo thời tiết Tà Xùa": "Tà Xùa weather forecast",
+ "Dự báo thời tiết Tà Xùa": "Ta Xua weather forecast",
  "DỰ BÁO MÂY & THỜI TIẾT · ĐỘ CAO ~1.600M": "CLOUD & WEATHER FORECAST · ALTITUDE ~1,600M",
- "Tà Xùa mấy ngày tới thế nào?": "What will Tà Xùa be like in the coming days?",
- "Bây giờ · Trung tâm Tà Xùa": "Now · Tà Xùa centre",
+ "Tà Xùa mấy ngày tới thế nào?": "Ta Xua weather: what are the next few days like?",
+ "Bây giờ · Trung tâm Tà Xùa": "Now · Ta Xua centre",
  "Đêm": "Night",
  "Cảm giác {0}°": "Feels like {0}°",
  "Cao {0}° · Thấp {1}°": "High {0}° · Low {1}°",
@@ -2526,7 +2526,7 @@
  "Áo khoác mỏng buổi sáng": "Light jacket for the morning",
  "Đường trơn, hạn chế tự chạy xe": "Slippery roads — avoid riding yourself",
  "Có thể mưa rào, mang áo mưa": "Showers possible — bring a raincoat",
- "Khô ráo, đi xe máy ổn": "Dry — fine for motorbikes",
+ "Khô ráo, đi xe máy ổn": "Dry, fine for motorbikes",
  "Có mặt trước {0}": "Be there before {0}",
  "Không cần dậy quá sớm": "No need to get up too early",
  "Mây {0}%": "Clouds {0}%",
@@ -3097,5 +3097,6 @@
  "{0}, {1}, Sơn La": "{0}, {1}, Sơn La",
  "xã Xím Vàng": "Xím Vàng commune",
  "mẹo mua trà": "tea-buying tips",
- "trải nghiệm": "experiences"
+ "trải nghiệm": "experiences",
+ "Chưa tải được dự báo": "Forecast unavailable"
 }
