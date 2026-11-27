@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { getVisitStats, geoForIps, type GeoInfo } from "@/lib/visits";
 import { actionTone, describeView, deviceLabel, regionLabel, type TrackNames } from "@/lib/track-labels";
 import { VisitStatsCards } from "@/components/admin/VisitStatsCards";
+import { TrafficSources } from "@/components/admin/TrafficSources";
+import { aggregateTraffic, getTrafficStats, vnDay } from "@/lib/traffic-stats";
+import { SOURCES, type SourceKey } from "@/lib/traffic-source";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +79,18 @@ export default async function AdminVisitsPage({
   const now = Date.now();
   const rangeMs = RANGES[rangeKey].ms;
   const since = rangeMs ? new Date(now - rangeMs) : undefined;
+  const srcRaw = str(sp.src);
+  const src: SourceKey | null = srcRaw && srcRaw in SOURCES ? (srcRaw as SourceKey) : null;
+
+  // Nguồn truy cập: cộng nốt nhật ký mới (tối đa 2 lô — phần còn lại do bộ hẹn giờ 5 phút) rồi đọc bộ đếm cộng dồn.
+  await aggregateTraffic({ maxBatches: 2 }).catch((e) => console.error("[traffic] lỗi cộng dồn", e));
+  const DAY = 24 * 3600_000;
+  const sinceDay = rangeKey === "all" ? null : vnDay(now - (rangeKey === "24h" ? DAY : rangeKey === "7d" ? 6 * DAY : 29 * DAY));
+  const traffic = await getTrafficStats(sinceDay);
+  // Lọc theo nguồn = khách có nguồn ĐẦU TIÊN là nguồn đó.
+  const srcIds = src
+    ? (await prisma.visitor.findMany({ where: { trafficFirst: src }, orderBy: { lastSeen: "desc" }, select: { id: true }, take: 5000 })).map((v) => v.id)
+    : null;
 
   // Lọc "Có vị trí GPS": khách đã cho phép chia sẻ vị trí.
   const gpsIds =
@@ -87,7 +102,9 @@ export default async function AdminVisitsPage({
     ...(since ? { createdAt: { gte: since } } : {}),
     ...(q ? { path: { contains: q, mode: "insensitive" } } : {}),
     ...(who === "user" ? { customerId: { not: null } } : {}),
-    ...(gpsIds ? { visitorId: { in: gpsIds } } : {}),
+    ...(gpsIds || srcIds
+      ? { visitorId: { in: gpsIds && srcIds ? gpsIds.filter((id) => srcIds.includes(id)) : (gpsIds ?? srcIds)! } }
+      : {}),
   };
 
   const [stats, views, viewsRange, visitorsGrouped] = await Promise.all([
@@ -122,13 +139,15 @@ export default async function AdminVisitsPage({
   }
   const list = [...groups.values()].slice(0, 120);
 
-  const [geo, locRows] = await Promise.all([
+  const [geo, locRows, srcRows] = await Promise.all([
     geoForIps(list.map((g) => g.ip).filter((x): x is string => Boolean(x))),
     prisma.visitor.findMany({
       where: { id: { in: list.map((g) => g.visitorId) }, lat: { not: null } },
       select: { id: true, lat: true, lng: true, locAccuracy: true, locAddress: true, locAt: true },
     }),
+    prisma.visitor.findMany({ where: { id: { in: list.map((g) => g.visitorId) }, trafficFirst: { not: null } }, select: { id: true, trafficFirst: true } }),
   ]);
+  const firstSrc = new Map(srcRows.map((r) => [r.id, r.trafficFirst as SourceKey]));
   const locs = new Map(locRows.map((l) => [l.id, l]));
 
   // Tên thật cho slug trên đường dẫn (homestay, nhà xe, quán, bài viết, địa điểm vé) ⇒ câu dễ đọc.
@@ -167,11 +186,13 @@ export default async function AdminVisitsPage({
 
   const rangeTabs = Object.entries(RANGES);
 
-  function buildHref(next: { range?: string; who?: string }): string {
+  function buildHref(next: { range?: string; who?: string; src?: SourceKey | null }): string {
     const p = new URLSearchParams();
     p.set("range", next.range ?? rangeKey);
     const w = next.who ?? who;
     if (w !== "all") p.set("who", w);
+    const sk = next.src === undefined ? src : next.src;
+    if (sk) p.set("src", sk);
     if (q) p.set("q", q);
     return `/admin/visits?${p.toString()}`;
   }
@@ -180,13 +201,11 @@ export default async function AdminVisitsPage({
     <div className="flex flex-col gap-4">
       <header>
         <h1 className="text-xl font-bold text-ink sm:text-2xl">Lượt truy cập</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Hành trình từng khách trên website, kể bằng câu: xem trang nào, tìm ngày nào / mấy người, bấm nút gì, gọi điện / nhắn Zalo, gửi đơn. Không ghi nội dung khách gõ. Số liệu cập nhật khi tải lại trang.
-          Khu vực là nơi đăng ký của nhà mạng (thường ghi Hà Nội / TP.HCM), không phải vị trí thật của khách.
-        </p>
       </header>
 
       <VisitStatsCards initial={stats} />
+
+      <TrafficSources stats={traffic} active={src} hrefFor={(key) => buildHref({ src: key })} rangeLabel={RANGES[rangeKey].label} />
 
       {/* Bộ lọc */}
       <div className="flex flex-col gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5">
@@ -227,6 +246,7 @@ export default async function AdminVisitsPage({
         <form method="get" className="flex flex-wrap gap-2">
           <input type="hidden" name="range" value={rangeKey} />
           {who !== "all" && <input type="hidden" name="who" value={who} />}
+          {src && <input type="hidden" name="src" value={src} />}
           <input
             name="q"
             defaultValue={q}
@@ -245,7 +265,8 @@ export default async function AdminVisitsPage({
       <p className="text-sm text-gray-500">
         <b className="text-ink">{viewsRange.toLocaleString("vi-VN")}</b> lượt xem từ{" "}
         <b className="text-ink">{visitorsGrouped.length.toLocaleString("vi-VN")}</b> khách trong khoảng đã chọn
-        {list.length < visitorsGrouped.length ? ` · hiển thị ${list.length} khách gần nhất` : ""}.
+        {list.length < visitorsGrouped.length ? ` · hiển thị ${list.length} khách gần nhất` : ""}
+        {src ? <> · chỉ khách đến lần đầu từ <b className="text-ink">{SOURCES[src].label}</b> (<a href={buildHref({ src: null })} className="font-semibold text-forest-700 underline">bỏ lọc</a>)</> : ""}.
       </p>
 
       {list.length === 0 ? (
@@ -278,6 +299,16 @@ export default async function AdminVisitsPage({
                       {g.items.some((x) => x.action && actionTone(x.action).tone === "booking") && (
                         <span className="rounded-full bg-forest-600 px-2 py-0.5 text-xs font-bold text-white">Đã gửi đơn</span>
                       )}
+                      {(() => {
+                        const fk = firstSrc.get(g.visitorId);
+                        const so = fk ? SOURCES[fk] : null;
+                        if (!so) return null;
+                        return (
+                          <span className="rounded-full px-2 py-0.5 text-xs font-semibold text-white" style={{ background: so.color }} title="Nguồn đầu tiên đưa khách tới">
+                            {so.label.replace(/ \(.*\)$/, "")}
+                          </span>
+                        );
+                      })()}
                       {g.items.some((x) => x.action && actionTone(x.action).tone === "contact") && (
                         <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-700">Đã liên hệ</span>
                       )}

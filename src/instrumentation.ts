@@ -113,6 +113,14 @@ export async function register() {
         }
       })();
     }
+    // Nguồn truy cập: cộng dồn nhật ký PageView mới vào TrafficDaily (con trỏ + khoá ⇒ mỗi dòng cộng đúng 1 lần).
+    try {
+      const { aggregateTraffic } = await import("./lib/traffic-stats");
+      const n = await aggregateTraffic();
+      if (n > 5000) console.log("[traffic] cộng dồn:", n, "lượt");
+    } catch (err) {
+      console.error("[traffic] lỗi cộng dồn", err);
+    }
     try {
       const res = await runBookingRemindersLocked();
       if (res && res.length) {

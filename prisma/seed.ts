@@ -109,7 +109,7 @@ async function main() {
     data: [
       { key: "contactPhone", value: "0357452952" },
       { key: "contactZalo", value: "0357452952" },
-      { key: "contactEmail", value: "anbd.dev@gmail.com" },
+      { key: "contactEmail", value: "lienhe@taxuabooking.com" },
       { key: "contactFacebook", value: "https://www.facebook.com/an.danh.bui.2025/" },
       { key: "contactAddress", value: "Tà Xùa, Bắc Yên, Sơn La" },
       { key: "heroTitle", value: "Lên Tà Xùa săn mây, mọi thứ có ở đây." },

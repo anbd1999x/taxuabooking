@@ -845,18 +845,25 @@ model SiteCounter {
 
 /// Khách truy cập website (định danh bằng cookie ẩn danh) — đếm khách duy nhất & số người đang online (lastSeen gần đây).
 model Visitor {
-  id          String    @id // uuid trong cookie tx_vid
-  views       Int       @default(1) // số trang đã xem
-  firstSeen   DateTime  @default(now())
-  lastSeen    DateTime  @default(now())
+  id               String    @id // uuid trong cookie tx_vid
+  views            Int       @default(1) // số trang đã xem
+  firstSeen        DateTime  @default(now())
+  lastSeen         DateTime  @default(now())
   // Vị trí THẬT (GPS trình duyệt) — chỉ có khi khách bấm cho phép chia sẻ vị trí.
-  lat         Float?
-  lng         Float?
-  locAccuracy Float? // sai số (mét)
-  locAddress  String? // địa chỉ dịch ngược từ toạ độ (OpenStreetMap)
-  locAt       DateTime? // lúc ghi nhận vị trí
+  lat              Float?
+  lng              Float?
+  locAccuracy      Float? // sai số (mét)
+  locAddress       String? // địa chỉ dịch ngược từ toạ độ (OpenStreetMap)
+  locAt            DateTime? // lúc ghi nhận vị trí
+  // Nguồn truy cập (bộ đếm cộng dồn — src/lib/traffic-stats.ts xử lý PageView theo con trỏ):
+  trafficFirst     String? // nguồn của phiên ĐẦU TIÊN (SourceKey: google / threads / facebook / …)
+  trafficCur       String? // nguồn của phiên đang diễn ra
+  trafficLastAt    DateTime? // lượt cuối đã xử lý (cách > 30 phút ⇒ phiên mới)
+  trafficBooked    Boolean   @default(false) // đã tính "khách gửi đơn" cho nguồn đầu tiên
+  trafficContacted Boolean   @default(false) // đã tính "khách liên hệ"
 
   @@index([lastSeen])
+  @@index([trafficFirst])
 }
 
 /// Nhật ký từng lượt xem trang (lịch sử truy cập): trang nào, lúc nào, IP, khách
@@ -877,6 +884,31 @@ model PageView {
   @@index([createdAt])
   @@index([customerId])
   @@index([ip])
+}
+
+/// Nguồn truy cập CỘNG DỒN theo ngày (giờ VN) × nguồn — chỉ tăng, không bao giờ tính lại từ đầu.
+/// Ghi bởi aggregateTraffic() (src/lib/traffic-stats.ts) đọc PageView theo con trỏ SiteSetting `trafficCursor`.
+model TrafficDaily {
+  day         DateTime @db.Date
+  source      String // SourceKey (src/lib/traffic-source.ts)
+  sessions    Int      @default(0) // số phiên bắt đầu từ nguồn này trong ngày
+  newVisitors Int      @default(0) // khách lần đầu tới (nguồn đầu tiên)
+  views       Int      @default(0) // lượt xem trang trong các phiên đó
+  booked      Int      @default(0) // khách gửi đơn trong ngày — gán cho nguồn ĐẦU TIÊN của khách (mỗi khách 1 lần)
+  contacted   Int      @default(0) // khách gọi / Zalo / Messenger — như trên
+
+  @@id([day, source])
+}
+
+/// Tên miền dẫn khách tới (link giới thiệu / spam) — cộng dồn từ trước tới nay.
+model TrafficRefHost {
+  source   String // "referral" | "spam"
+  host     String
+  sessions Int      @default(0)
+  ips      String[] // tối đa 10 IP gần nhất (chặn spam)
+  lastAt   DateTime
+
+  @@id([source, host])
 }
 
 /// Bộ nhớ đệm tra cứu khu vực theo IP (gọi dịch vụ geo-IP 1 lần / IP rồi lưu lại).

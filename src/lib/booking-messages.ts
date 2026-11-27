@@ -376,6 +376,20 @@ export async function buildBookingMessages(
   const stayAtLines = stayInfo
     ? [`- Khách ở: ${stayInfo.name}`, ...(stayInfo.luggage || stayInfo.note ? [`- Hành lý: ${stayInfo.text}`] : [])]
     : [];
+  // Xe đã xếp trong đội xe (Quản lý xe máy) cho đơn này — biển số + nhà xe (combo: bên cho thuê xe kèm).
+  const fleetRides =
+    b.category === "MOTORBIKE" || bike
+      ? await prisma.fleetRental
+          .findMany({
+            where: { bookingId: b.id, state: { notIn: ["cancel", "reject"] } },
+            select: { vehicle: { select: { name: true, plate: true, service: { select: { title: true } } } } },
+            orderBy: { createdAt: "asc" },
+          })
+          .catch(() => [])
+      : [];
+  const platesLine = fleetRides.length
+    ? [`- Xe đã xếp: ${fleetRides.map((r) => `${r.vehicle.name} ${r.vehicle.plate}`).join(", ")}`]
+    : [];
   const providerMsgs: ProviderMsg[] = [];
   const hasBusSide = !!outTrip && (b.category === "COMBO" || b.category === "CABIN");
   if (hasBusSide && outTrip) {
@@ -420,7 +434,7 @@ export async function buildBookingMessages(
               `- Số khách: ${partyLabelStr}`,
             ]
           : isRental
-            ? [...rentLines.map((l) => `- ${l}`), `- Số xe: ${partyLabelStr}`]
+            ? [...rentLines.map((l) => `- ${l}`), `- Số xe: ${partyLabelStr}`, ...platesLine, ...(stayInfo ? [`- Khách ở: ${stayInfo.name}`] : [])]
             : [
                 `- Ngày: ${formatDate(b.useDate)}${b.endDate ? ` → ${formatDate(b.endDate)}` : ""}`,
                 ...(b.selectionLabel ? [`- Dịch vụ: ${b.selectionLabel}`] : []),
@@ -428,13 +442,32 @@ export async function buildBookingMessages(
                 // Taxi / xe ôm: tài xế cần biết khách về home nào.
                 ...(b.category === "TAXI" || b.category === "XEOM" ? stayAtLines : []),
               ]),
-        ...moneyLines("room", stayish ? "Tiền phòng" : "Tiền dịch vụ"),
+        ...moneyLines("room", stayish ? "Tiền phòng" : isRental ? "Tiền thuê xe" : "Tiền dịch vụ"),
         ...noteLine,
-        stayish ? "Nhờ home giữ phòng giúp. Cảm ơn!" : "Nhờ anh/chị xác nhận giúp. Cảm ơn!",
+        stayish ? "Nhờ home giữ phòng giúp. Cảm ơn!" : isRental ? "Nhờ anh/chị chuẩn bị xe giúp. Cảm ơn!" : "Nhờ anh/chị xác nhận giúp. Cảm ơn!",
       ].join("\n"),
     });
   }
 
+  // Combo có thuê xe máy kèm ⇒ tin riêng cho bên cho thuê xe (giá tham khảo, khách trả thẳng khi giao xe — không qua bill combo).
+  if (bike) {
+    const shop = fleetRides[0]?.vehicle.service.title ?? null;
+    providerMsgs.push({
+      key: "bike",
+      label: "Chép tin cho bên thuê xe máy",
+      text: [
+        `Tà Xùa Booking gửi ${shop ?? "nhà xe máy"} đơn ${b.code} (khách combo thuê xe máy kèm):`,
+        guestLine,
+        `- Xe: ${bike.count} × ${bike.name}`,
+        `- Nhận xe: ${(bike.pickup ?? "").replace(/^(\d\d:\d\d) /, "$1 ngày ")}`,
+        `- Trả xe: ${(bike.ret ?? "").replace(/^(\d\d:\d\d) /, "$1 ngày ")} (${rentalDaysLabel(bike.days)})`,
+        ...platesLine,
+        ...(stayInfo ? [`- Khách ở: ${stayInfo.name} (giao / nhận xe tại home)`] : []),
+        ...(bike.amount != null ? [`- Giá tham khảo: ${formatPrice(bike.amount)} — khách thanh toán trực tiếp khi nhận xe (không nằm trong bill combo)`] : [`- Khách thanh toán trực tiếp khi nhận xe (không nằm trong bill combo)`]),
+        "Nhờ anh/chị chuẩn bị xe giúp. Cảm ơn!",
+      ].join("\n"),
+    });
+  }
   const stayCat = b.category === "COMBO" || b.category === "HOMESTAY" || b.category === "BUNGALOW";
   const quickPayouts: QuickPayout[] = payouts.map((p) => ({
     ...p,
@@ -566,7 +599,7 @@ export async function buildBookingMessages(
   };
 
   const guestStay =
-    b.category === "CABIN" || b.category === "TAXI" || b.category === "XEOM"
+    b.category === "CABIN" || b.category === "TAXI" || b.category === "XEOM" || b.category === "MOTORBIKE"
       ? {
           value: b.guestStay,
           homes: (await prisma.service.findMany({ where: { category: { in: ["HOMESTAY", "BUNGALOW"] }, published: true }, select: { title: true }, orderBy: { title: "asc" } }).catch(() => [])).map((h) => h.title),

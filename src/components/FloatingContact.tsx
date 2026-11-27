@@ -12,7 +12,8 @@ import { BoyChibi, CHIBI_CSS, GirlChibi } from "@/components/contact/ContactChib
  * Nút liên hệ nổi góc phải màn hình (mọi trang khách): Zalo · Facebook (Messenger) · Gọi điện · Chat — theo
  * claude.ai/design `Nut Lien he.dc.html`: cột nút tròn, cô gái thổ cẩm ngồi trên mây trên nút Zalo, chàng trai
  * phất cờ / chụp ảnh cạnh nút Gọi (src/components/contact/ContactChibi.tsx).
- * Chỉ hiện ở màn hình rộng (≥1024px) — điện thoại ẩn hẳn (đã có Gọi/Zalo trong menu và thanh dính đáy từng trang).
+ * Màn hình rộng (≥1024px): đủ cột nút. Điện thoại: chỉ nút "Chat" (Gọi/Zalo đã có trong menu và thanh dính đáy từng
+ * trang), đặt cao hơn các thanh dính đáy; khung chat mở toàn màn hình.
  *
  * "Chat ngay" mở khung CHAT TRỰC TIẾP với admin (lưu ở ChatThread/ChatMessage, admin trả lời ở /admin/chat):
  * khách nhắn không cần đăng nhập (cookie httpOnly tx_chat), tin trả lời tự hiện — hỏi /api/chat 3 giây/lần khi
@@ -21,6 +22,10 @@ import { BoyChibi, CHIBI_CSS, GirlChibi } from "@/components/contact/ContactChib
 
 type Msg = { id: string; from: "guest" | "admin"; body: string; at: string; pending?: boolean };
 const HAS_CHAT = "tx_chat_on"; // localStorage: đã từng nhắn (mới cần hỏi tin trả lời khi khung đóng)
+const POS_KEY = "tx_chat_pos"; // localStorage: vị trí nút Chat trên điện thoại {side: "l"|"r", yr: tỉ lệ chiều cao}
+const BTN = 60; // cỡ nút Chat
+const EDGE = 12; // cách mép màn hình khi hít vào cạnh
+type Dock = { side: "l" | "r"; yr: number };
 
 function lsGet(k: string): string | null {
   try {
@@ -67,6 +72,67 @@ export function FloatingContact({ facebook }: { facebook: string }) {
   const openRef = useRef(false);
   const sendingRef = useRef(false);
   const tmpSeq = useRef(0); // id tạm cho tin đang gửi
+
+  // ── Điện thoại: kéo nút Chat đi khắp màn hình như AssistiveTouch, thả ra tự hít vào mép trái/phải gần nhất ──
+  const [mobile, setMobile] = useState(false);
+  const [dock, setDock] = useState<Dock | null>(null); // null = vị trí mặc định (góc phải dưới)
+  const [drag, setDrag] = useState<{ x: number; y: number } | null>(null); // toạ độ đang kéo (trái/trên của nút)
+  const [vp, setVp] = useState({ w: 0, h: 0 });
+  const dragRef = useRef<{ id: number; sx: number; sy: number; ox: number; oy: number; moved: boolean } | null>(null);
+  const skipClick = useRef(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1023.98px)");
+    const sync = () => {
+      setMobile(mq.matches);
+      setVp({ w: window.innerWidth, h: window.innerHeight });
+    };
+    sync();
+    try {
+      const d = JSON.parse(lsGet(POS_KEY) || "null") as Dock | null;
+      if (d && (d.side === "l" || d.side === "r") && typeof d.yr === "number") setDock(d);
+    } catch {
+      /* dữ liệu hỏng */
+    }
+    mq.addEventListener("change", sync);
+    window.addEventListener("resize", sync);
+    return () => {
+      mq.removeEventListener("change", sync);
+      window.removeEventListener("resize", sync);
+    };
+  }, []);
+
+  const clampY = (y: number) => Math.min(Math.max(y, 72), Math.max(72, vp.h - BTN - 84));
+  const dockXY = (d: Dock) => ({ x: d.side === "l" ? EDGE : vp.w - BTN - EDGE, y: clampY(d.yr * vp.h) });
+
+  function onDown(e: React.PointerEvent<HTMLButtonElement>) {
+    if (!mobile || open) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    dragRef.current = { id: e.pointerId, sx: e.clientX, sy: e.clientY, ox: e.clientX - r.left, oy: e.clientY - r.top, moved: false };
+  }
+  function onMove(e: React.PointerEvent<HTMLButtonElement>) {
+    const d = dragRef.current;
+    if (!d || d.id !== e.pointerId) return;
+    if (!d.moved) {
+      if (Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 8) return;
+      d.moved = true;
+      e.currentTarget.setPointerCapture(e.pointerId);
+    }
+    const x = Math.min(Math.max(e.clientX - d.ox, 0), vp.w - BTN);
+    const y = Math.min(Math.max(e.clientY - d.oy, 0), vp.h - BTN);
+    setDrag({ x, y });
+  }
+  function onUp(e: React.PointerEvent<HTMLButtonElement>) {
+    const d = dragRef.current;
+    dragRef.current = null;
+    if (!d || d.id !== e.pointerId || !d.moved || !drag) return;
+    skipClick.current = true; // thả sau khi kéo không tính là bấm mở chat
+    const next: Dock = { side: drag.x + BTN / 2 < vp.w / 2 ? "l" : "r", yr: clampY(drag.y) / vp.h };
+    setDock(next);
+    setDrag(null);
+    lsSet(POS_KEY, JSON.stringify(next));
+  }
+  const place = mobile && !open && (drag || dock) ? (drag ?? dockXY(dock!)) : null;
 
   const checkOff = () => {
     const h = (new Date().getUTCHours() + 7) % 24; // giờ VN
@@ -130,7 +196,8 @@ export function FloatingContact({ facebook }: { facebook: string }) {
         void poll();
         void fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ op: "seen" }) });
       }
-      setTimeout(() => boxRef.current?.focus(), 60);
+      // Điện thoại: không tự focus (bật bàn phím che khung ngay khi mở).
+      if (window.matchMedia("(min-width: 1024px)").matches) setTimeout(() => boxRef.current?.focus(), 60);
     }
   }
 
@@ -145,6 +212,20 @@ export function FloatingContact({ facebook }: { facebook: string }) {
   useEffect(() => {
     if (open) endRef.current?.scrollIntoView({ block: "end" });
   }, [open, msgs.length]);
+
+  // Điện thoại: khung chat toàn màn hình ⇒ khoá cuộn trang phía sau. iOS Safari bỏ qua overflow:hidden trên body,
+  // nên ghim body bằng position:fixed tại vị trí đang cuộn, đóng khung thì trả lại đúng chỗ cũ.
+  useEffect(() => {
+    if (!open || !mobile) return;
+    const y = window.scrollY;
+    const b = document.body.style;
+    const prev = { position: b.position, top: b.top, left: b.left, right: b.right, width: b.width, overflow: b.overflow };
+    Object.assign(b, { position: "fixed", top: `-${y}px`, left: "0", right: "0", width: "100%", overflow: "hidden" });
+    return () => {
+      Object.assign(b, prev);
+      window.scrollTo(0, y);
+    };
+  }, [open, mobile]);
 
   async function send(body?: string) {
     const b = (body ?? text).trim();
@@ -198,16 +279,18 @@ export function FloatingContact({ facebook }: { facebook: string }) {
   const guestCount = msgs.filter((m) => m.from === "guest").length;
   const adminReplied = msgs.some((m) => m.from === "admin");
 
-  const round = "relative flex h-[54px] w-[54px] items-center justify-center rounded-full text-[13px] font-extrabold text-white transition-transform duration-200 hover:scale-[1.08]";
+  const round = "relative hidden h-[54px] w-[54px] lg:flex items-center justify-center rounded-full text-[13px] font-extrabold text-white transition-transform duration-200 hover:scale-[1.08]";
   const pop = (delay: string) => ({ animation: `chPop .35s cubic-bezier(.3,1.5,.5,1) ${delay} both` });
 
   return (
-    <div data-track-ignore className="fc-stack fixed bottom-5 right-5 z-[44] hidden flex-col items-center gap-3 lg:flex">
+    <div data-track-ignore className={`fc-stack fixed bottom-[calc(84px+env(safe-area-inset-bottom))] right-3 flex flex-col items-center gap-3 lg:bottom-5 lg:right-5 ${open ? "z-[80] lg:z-[44]" : "z-[44]"}`}
+      style={place ? { left: place.x, top: place.y, right: "auto", bottom: "auto", transition: drag ? "none" : "left .28s cubic-bezier(.2,.9,.3,1.2), top .28s ease" } : undefined}
+    >
       {open && (
         <div
           role="dialog"
           aria-label={t("Chat với Tà Xùa Booking")}
-          className="absolute bottom-0 right-0 z-10 flex h-[560px] max-h-[calc(100vh-48px)] w-[370px] flex-col overflow-hidden rounded-2xl bg-white shadow-[0_24px_60px_-18px_rgba(10,40,25,.55)] ring-1 ring-black/10"
+          className="fixed inset-0 z-10 flex h-[100dvh] w-full flex-col overflow-hidden lg:absolute lg:inset-auto lg:bottom-0 lg:right-0 lg:h-[560px] lg:max-h-[calc(100vh-48px)] lg:w-[370px] lg:rounded-2xl bg-white shadow-[0_24px_60px_-18px_rgba(10,40,25,.55)] ring-1 ring-black/10"
           style={{ animation: "fcRise .22s ease both" }}
         >
           <div className="flex flex-none items-center gap-3 bg-forest-700 px-4 py-3 text-white">
@@ -226,7 +309,7 @@ export function FloatingContact({ facebook }: { facebook: string }) {
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto bg-forest-50/60 px-4 py-4">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-forest-50/60 px-4 py-4">
             <div className="flex flex-col gap-2">
               <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-white px-3.5 py-2.5 text-sm leading-relaxed text-ink shadow-sm ring-1 ring-black/5">
                 {voice(t("Chào bạn 👋 Tụi mình có thể giúp gì cho chuyến đi Tà Xùa của bạn?"))}
@@ -265,8 +348,8 @@ export function FloatingContact({ facebook }: { facebook: string }) {
                 <div className="rounded-xl bg-white p-3 text-xs shadow-sm ring-1 ring-black/5">
                   <div className="mb-2 font-semibold text-gray-600">{t("Để lại tên & SĐT để tụi mình gọi lại nếu bạn rời trang:")}</div>
                   <div className="flex gap-1.5">
-                    <input value={profile.name} onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))} maxLength={60} placeholder={t("Tên")} className="w-[38%] min-w-0 rounded-lg border border-gray-200 px-2 py-1.5 text-[13px] outline-none focus:border-forest-500" />
-                    <input value={profile.phone} onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))} maxLength={20} inputMode="tel" placeholder={t("Số điện thoại")} className="min-w-0 flex-1 rounded-lg border border-gray-200 px-2 py-1.5 text-[13px] outline-none focus:border-forest-500" />
+                    <input value={profile.name} onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))} maxLength={60} placeholder={t("Tên")} className="w-[38%] min-w-0 rounded-lg border border-gray-200 px-2 py-1.5 text-base lg:text-[13px] outline-none focus:border-forest-500" />
+                    <input value={profile.phone} onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))} maxLength={20} inputMode="tel" placeholder={t("Số điện thoại")} className="min-w-0 flex-1 rounded-lg border border-gray-200 px-2 py-1.5 text-base lg:text-[13px] outline-none focus:border-forest-500" />
                     <button type="button" onClick={() => void saveProfile()} disabled={!profile.phone.trim() && !profile.name.trim()} className="rounded-lg bg-forest-700 px-2.5 text-[12px] font-bold text-white disabled:opacity-40">
                       {t("Lưu")}
                     </button>
@@ -277,7 +360,7 @@ export function FloatingContact({ facebook }: { facebook: string }) {
             </div>
           </div>
 
-          <div className="flex-none border-t border-gray-100 px-3 pb-3 pt-2.5">
+          <div className="flex-none border-t border-gray-100 px-3 pb-[calc(12px+env(safe-area-inset-bottom))] pt-2.5 lg:pb-3">
             <div className="flex items-end gap-2">
               <textarea
                 ref={boxRef}
@@ -292,7 +375,7 @@ export function FloatingContact({ facebook }: { facebook: string }) {
                 rows={2}
                 maxLength={1000}
                 placeholder={t("Nhập câu hỏi: ngày đi, số người, dịch vụ cần đặt…")}
-                className="min-h-[44px] flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-forest-500"
+                className="min-h-[44px] flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2 text-base outline-none lg:text-sm focus:border-forest-500"
               />
               <button type="button" onClick={() => void send()} disabled={!text.trim()} aria-label={t("Gửi")} className="flex h-11 w-11 flex-none items-center justify-center rounded-xl bg-forest-700 text-white hover:bg-forest-800 disabled:opacity-40">
                 <SendIcon className="h-5 w-5" />
@@ -351,10 +434,20 @@ export function FloatingContact({ facebook }: { facebook: string }) {
       {/* Nút chính: mở / đóng khung chat trực tiếp */}
       <button
         type="button"
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          if (skipClick.current) {
+            skipClick.current = false;
+            return;
+          }
+          setOpen(!open);
+        }}
+        onPointerDown={onDown}
+        onPointerMove={onMove}
+        onPointerUp={onUp}
+        onPointerCancel={() => { dragRef.current = null; setDrag(null); }}
         aria-label={open ? t("Đóng chat") : t("Chat với chúng tôi")}
         aria-expanded={open}
-        className="relative flex h-[60px] w-[60px] items-center justify-center rounded-full bg-[oklch(0.34_0.07_158)] font-extrabold text-white transition-colors hover:bg-[oklch(0.38_0.08_158)]"
+        className="relative flex h-[60px] w-[60px] touch-none select-none items-center justify-center rounded-full bg-[oklch(0.34_0.07_158)] font-extrabold text-white transition-colors lg:touch-auto hover:bg-[oklch(0.38_0.08_158)]"
         style={{ boxShadow: "0 12px 24px -10px oklch(0.2 0.06 160 / .7)", fontSize: open ? 26 : 14 }}
       >
         {open ? "×" : "Chat"}
