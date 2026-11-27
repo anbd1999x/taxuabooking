@@ -520,6 +520,35 @@ export const getHomestayCards = (fromKey?: string | null, toKey?: string | null)
 
 /** File video (mp4/webm/mov...) không dùng được làm ảnh thẻ (next/image sẽ lỗi). */
 const VIDEO_URL_RE = /\.(mp4|webm|mov|m4v|ogg)(\?|$)/i;
+/** Số ảnh tối đa mỗi thẻ ở trang danh sách homestay (slide trên thẻ) — khớp /api/homestay/pics. */
+export const CARD_PICS = 8;
+
+/**
+ * Danh sách URL ảnh slide của MỘT thẻ (nạp lười khi khách chạm thẻ — không nhét ~400 thẻ × 8 URL vào trang).
+ * Phòng: ảnh riêng của phòng, thiếu thì ảnh hạng — CÙNG quy tắc với `pics` trong getHomestayRoomCards.
+ * Nhà: ảnh homestay.
+ */
+export async function getCardPics(opts: { roomId?: string; slug?: string }): Promise<string[]> {
+  const order = [{ isCover: "desc" as const }, { sortOrder: "asc" as const }];
+  const ok = (l: { url: string }[]) => l.map((i) => i.url).filter((u) => !VIDEO_URL_RE.test(u));
+  if (opts.roomId) {
+    const r = await prisma.room.findFirst({
+      where: { id: opts.roomId, roomType: { service: { category: "HOMESTAY", published: true } } },
+      select: { images: { orderBy: order, take: 12, select: { url: true } }, roomType: { select: { images: { orderBy: order, take: 12, select: { url: true } } } } },
+    });
+    if (!r) return [];
+    const own = ok(r.images);
+    return (own.length ? own : ok(r.roomType.images)).slice(0, CARD_PICS);
+  }
+  if (opts.slug) {
+    const s = await prisma.service.findFirst({
+      where: { slug: opts.slug, category: "HOMESTAY", published: true },
+      select: { images: { orderBy: order, take: CARD_PICS, select: { url: true } } },
+    });
+    return s ? ok(s.images) : [];
+  }
+  return [];
+}
 const firstImageUrl = (items: { url: string }[]): string | null =>
   items.find((i) => !VIDEO_URL_RE.test(i.url))?.url ?? null;
 
@@ -534,7 +563,8 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
     where: { category: "HOMESTAY", published: true },
     orderBy: [{ featured: "desc" }, { priorityOrder: "desc" }, { title: "asc" }],
     include: {
-      images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: 1 },
+      // 8 ảnh: ảnh bìa nhà + đếm số ảnh cho slide thẻ "Theo nhà" (URL ảnh nạp lười qua /api/homestay/pics).
+      images: { orderBy: [{ isCover: "desc" }, { sortOrder: "asc" }], take: CARD_PICS },
       roomTypes: {
         orderBy: { sortOrder: "asc" },
         include: {
@@ -595,13 +625,15 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
           // "Chỉ liên hệ" có nối sheet lịch ⇒ vẫn xét phòng đã kín (chỉ home không có lịch mới coi luôn trống).
           free: !policyBlocked && !soldOut && ((s.contactOnly && !s.sheetUrl) || !occupied.has(r.id)),
           featured: r.featured, // phòng nổi bật → lên đầu trang tìm
+          // Số ảnh slide của thẻ (ảnh riêng của phòng, thiếu thì ảnh hạng) — URL nạp lười khi khách chạm thẻ.
+          pics: Math.min(CARD_PICS, (r.images.some((i) => !VIDEO_URL_RE.test(i.url)) ? r.images : rt.images).filter((i) => !VIDEO_URL_RE.test(i.url)).length),
         };
       });
 
       // Gom các phòng GIỐNG NHAU (cùng hạng + giá + sức chứa + ảnh + cờ nổi bật) thành 1 thẻ.
       const groups = new Map<string, typeof raw>();
       for (const c of raw) {
-        const key = `${c.price}|${c.priceOld ?? ""}|${c.capacity}|${c.cover ?? ""}|${c.featured ? 1 : 0}`;
+        const key = `${c.price}|${c.priceOld ?? ""}|${c.capacity}|${c.cover ?? ""}|${c.featured ? 1 : 0}|${c.pics}`;
         const g = groups.get(key);
         if (g) g.push(c);
         else groups.set(key, [c]);
@@ -623,6 +655,7 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
           // Ảnh bìa + tóm tắt của HOMESTAY — cho chế độ xem "Homestay" (gom thẻ theo nhà).
           homeCover: s.images[0]?.url && !VIDEO_URL_RE.test(s.images[0].url) ? s.images[0].url : null,
           homeDesc: s.summary,
+          homePics: s.images.filter((i) => !VIDEO_URL_RE.test(i.url)).length,
           area: s.area ?? "Tà Xùa",
           distanceKm: s.distanceKm ?? null,
           // Tiện ích để lọc ở trang danh sách (hạng phòng + dịch vụ).
@@ -642,6 +675,7 @@ async function getHomestayRoomCardsImpl(fromKey?: string | null, toKey?: string 
           price: first.price,
           priceOld: first.priceOld,
           cover: first.cover,
+          pics: first.pics,
           featured: s.featured,
           priorityOrder: s.priorityOrder,
           roomFeatured: first.featured,

@@ -10,6 +10,7 @@ import { areaZone, isFilterZone, zoneLabel } from "@/lib/constants";
 import { COMBO_FILTER_OPTIONS, ROOM_KIND_OPTIONS } from "@/components/combo/ComboSearch";
 import Link from "@/components/Link";
 import Image from "next/image";
+import { CardSlides, type Slide } from "@/components/combo/CardSlides";
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type {
@@ -520,7 +521,27 @@ function ComboPlanCard({
   // Dịch TỪNG tên hạng phòng trước khi ghép (tr() cả chuỗi ghép không khớp khoá nào ⇒ trước đây luôn hiện tiếng Việt).
   const title = plan.groups.map((g) => `${g.count}× ${tr(g.room.typeName)}`).join(" + ");
   const cover = hitCover(imgHit, plan.groups[0]?.room.cover ?? home.cover);
-  const totalPics = plan.groups.reduce((n, g) => n + (g.room.images.length || (g.room.cover ? 1 : 0)), 0);
+  // Ảnh slide trên thẻ: nối ảnh căn ĐANG CHỌN của từng nhóm (nhãn tên hạng khi ghép nhiều hạng);
+  // tìm theo ảnh ⇒ ảnh khớp đứng đầu. Dữ liệu ảnh đã có sẵn trong kết quả — không truy vấn thêm.
+  const slides = useMemo(() => {
+    const out: (Slide & { gi: number })[] = [];
+    const seen = new Set<string>();
+    const multi = plan.groups.length > 1;
+    const add = (url: string | null | undefined, gi: number, label?: string) => {
+      if (!url || seen.has(url)) return;
+      seen.add(url);
+      out.push({ url, gi, label });
+    };
+    if (cover) add(cover, 0, multi ? tr(plan.groups[0].room.typeName) : undefined);
+    plan.groups.forEach((g, gi) => {
+      const firstId = pickedFor(gi, g)[0];
+      const room = g.options.find((o) => o.roomId === firstId)?.room ?? g.room;
+      const imgs = room.images.length ? room.images : room.cover ? [room.cover] : [];
+      for (const u of imgs) add(u, gi, multi ? tr(g.room.typeName) : undefined);
+    });
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plan, pick, cover, tr]);
 
   const amenities = useMemo(() => {
     const out: string[] = [];
@@ -651,13 +672,15 @@ function ComboPlanCard({
       style={{ border: best ? `2px solid ${O}` : "1px solid oklch(0.92 0.01 160)" }}
     >
       <div className="grid grid-cols-1 @[480px]:grid-cols-[200px_minmax(0,1fr)] @[760px]:grid-cols-[230px_minmax(0,1fr)_230px]">
-        {/* Ảnh — bấm mở gallery nhóm đầu */}
-        <button type="button" onClick={() => openRoom(0)} className="group relative block min-h-[190px] cursor-zoom-in text-left @[480px]:min-h-full">
-          {cover ? (
-            <Image src={cover} alt={tr(title)} fill sizes="(max-width: 640px) 100vw, 240px" className="object-cover" />
-          ) : (
-            <div className="flex h-full min-h-[190px] items-center justify-center bg-gray-100 text-4xl">🛏️</div>
-          )}
+        {/* Ảnh — lướt xem ảnh phòng ngay trên thẻ; chạm ảnh mở gallery đúng nhóm của ảnh đó */}
+        <div className="relative min-h-[190px] overflow-hidden text-left @[480px]:min-h-full">
+          <CardSlides
+            slides={slides}
+            alt={tr(title)}
+            sizes="(max-width: 640px) 100vw, 240px"
+            onOpen={(i) => openRoom(slides[i]?.gi ?? 0)}
+            empty={<div className="flex h-full min-h-[190px] items-center justify-center bg-gray-100 text-4xl">🛏️</div>}
+          />
           {imgHit && <SimBadge s={imgHit.s} className="right-2.5 top-2.5" />}
           <div className="pointer-events-none absolute left-2.5 top-2.5 flex flex-wrap gap-1.5">
             {home.area && (
@@ -672,13 +695,12 @@ function ComboPlanCard({
               </span>
             )}
           </div>
-          <div className="pointer-events-none absolute bottom-2.5 left-2.5 right-2.5 flex items-center justify-between gap-2">
+          <div className={`pointer-events-none absolute bottom-2.5 left-2.5 ${slides.length > 1 ? "right-14" : "right-2.5"} flex items-center justify-between gap-2`}>
             <span className="rounded-full bg-forest-700 px-2.5 py-1 text-xs font-bold text-white">
               {plan.roomCount > 1 ? tr("Ghép {0} {1}", [plan.roomCount, plan.communal ? tr("giường") : tr("phòng")]) : tr("1 phòng")}{" "}{tr("· đủ")}{" "}{plan.capacity}{" "}{tr("chỗ")}
             </span>
-            {totalPics > 0 && <span className="rounded-full bg-black/55 px-2.5 py-1 text-xs font-bold text-white">{tr("{0} ảnh", [totalPics])}</span>}
           </div>
-        </button>
+        </div>
 
         {/* Thân: thông tin phòng + chọn căn + chọn nhà xe */}
         <div className="flex min-w-0 flex-col gap-2.5 px-[18px] py-4">

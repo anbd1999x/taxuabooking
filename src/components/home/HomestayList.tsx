@@ -3,7 +3,7 @@
 import { urlHasDates } from "@/lib/search-prefs";
 import { SitePhone, We } from "@/components/SiteContact";
 import Link from "@/components/Link";
-import Image from "next/image";
+import { CardSlides, type Slide } from "@/components/combo/CardSlides";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { dmy, wdShort } from "@/lib/date-format";
 import { DateField } from "@/components/DateField";
@@ -41,6 +41,8 @@ export interface HomestayCard {
   stayTotal: number | null; // tổng cả kỳ (chỉ khi có ngày) — dùng thay price × số đêm
   stayOld: number | null; // tổng giá gạch cả kỳ (null = không giảm)
   cover: string | null;
+  /** Số ảnh slide của thẻ (URL nạp lười qua /api/homestay/pics khi khách chạm thẻ). */
+  pics?: number;
   featured: boolean;
   priorityOrder: number;
   roomFeatured?: boolean; // phòng được tick "Phòng nổi bật" → lên đầu danh sách
@@ -104,7 +106,7 @@ export function HomestayList({
   homeInfo,
 }: {
   /** Ảnh bìa + tóm tắt từng homestay (theo slug) cho chế độ "Theo nhà" — gửi 1 lần/nhà, không lặp trên từng thẻ phòng. */
-  homeInfo?: Record<string, { cover: string | null; desc: string }>;
+  homeInfo?: Record<string, { cover: string | null; desc: string; pics?: number }>;
   /** Chế độ kết quả: "room" = từng loại phòng (mặc định), "home" = gom theo homestay (?view=home). */
   initialView?: "room" | "home";
   items: HomestayCard[];
@@ -150,6 +152,30 @@ export function HomestayList({
   });
   /** Điểm giống của 1 thẻ phòng (server đã tính: ảnh phòng / hạng phòng, thiếu thì ảnh của nhà). */
   const roomHit = (x: { id: string }): ImgHit | null => (imgOn && img ? (img.rooms[x.id] ?? null) : null);
+
+  // Ảnh SLIDE trên thẻ: trang chỉ có số ảnh mỗi thẻ; khách rê / chạm thẻ mới nạp URL (key "r:<roomId>" | "h:<slug>").
+  // Chưa nạp xong ⇒ các ô sau ảnh bìa là ô chờ (vẫn vuốt được ngay).
+  const [picMap, setPicMap] = useState<Record<string, string[]>>({});
+  const picReq = useRef(new Set<string>());
+  const loadPics = (key: string, qs: string) => {
+    if (picReq.current.has(key)) return;
+    picReq.current.add(key);
+    fetch(`/api/homestay/pics?${qs}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { urls?: string[] } | null) => {
+        if (d?.urls) setPicMap((m) => ({ ...m, [key]: d.urls! }));
+        else picReq.current.delete(key);
+      })
+      .catch(() => picReq.current.delete(key));
+  };
+  const slidesFor = (key: string, cover: string | null, pics = 0): Slide[] => {
+    if (!cover) return [];
+    const out = [cover];
+    const loaded = picMap[key];
+    if (loaded) for (const u of loaded) { if (!out.includes(u)) out.push(u); }
+    else for (let i = 1; i < pics; i++) out.push("");
+    return out.map((url) => ({ url }));
+  };
 
   const sunRef = useRef<HTMLDivElement>(null);
   const glowRef = useRef<HTMLDivElement>(null);
@@ -487,7 +513,7 @@ export function HomestayList({
   // Nhà chỉ hiện khi còn ít nhất 1 loại phòng khớp bộ lọc; giá "từ" = phòng khớp rẻ nhất.
   const homes = (() => {
     const m = new Map<string, {
-      slug: string; name: string; area: string; distanceKm: number | null; cover: string | null; desc: string;
+      slug: string; name: string; area: string; distanceKm: number | null; cover: string | null; desc: string; pics: number;
       hot: boolean; types: number; freeRooms: number; maxCap: number; amen: Set<AmenKey>; price: number; old: number | null;
     }>();
     for (const x of items) {
@@ -495,7 +521,7 @@ export function HomestayList({
       if (!g) {
         g = {
           slug: x.slug, name: x.homeName, area: x.area, distanceKm: x.distanceKm, cover: homeInfo?.[x.slug]?.cover ?? x.homeCover ?? x.cover,
-          desc: homeInfo?.[x.slug]?.desc ?? x.homeDesc ?? x.desc, hot: x.featured, types: 0, freeRooms: 0, maxCap: 0, amen: new Set(), price: 0, old: null,
+          desc: homeInfo?.[x.slug]?.desc ?? x.homeDesc ?? x.desc, pics: homeInfo?.[x.slug]?.pics ?? 0, hot: x.featured, types: 0, freeRooms: 0, maxCap: 0, amen: new Set(), price: 0, old: null,
         };
         m.set(x.slug, g);
       }
@@ -965,7 +991,14 @@ export function HomestayList({
               style={{ transform: "translateY(24px)", transitionProperty: "opacity, transform, box-shadow", transitionDuration: ".6s", transitionDelay: `${(i % 3) * 0.08}s` }}
             >
               <div className="relative aspect-[16/10] overflow-hidden bg-gray-100 sm:aspect-[4/3]">
-                {cover ? <Image src={cover} alt={tr(h.name)} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" /> : <div className="flex h-full items-center justify-center text-4xl">🏠</div>}
+                <CardSlides
+                  slides={slidesFor(`h:${h.slug}`, cover, h.pics)}
+                  alt={tr(h.name)}
+                  sizes="(max-width:640px) 50vw, 360px"
+                  dotsClass="bottom-2"
+                  onWarm={() => h.pics > 1 && loadPics(`h:${h.slug}`, `home=${encodeURIComponent(h.slug)}`)}
+                  empty={<div className="flex h-full items-center justify-center text-4xl">🏠</div>}
+                />
                 {h.hot && (
                   <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-sunset-500 px-2 py-0.5 text-[11px] font-extrabold tracking-wide text-white shadow-sm sm:left-3 sm:top-3 sm:px-2.5 sm:py-1 sm:text-xs">🔥 HOT</span>
                 )}
@@ -1030,7 +1063,14 @@ export function HomestayList({
               style={{ transform: "translateY(24px)", transitionProperty: "opacity, transform, box-shadow", transitionDuration: ".6s", transitionDelay: `${(i % 3) * 0.08}s` }}
             >
               <div className="relative aspect-[16/10] overflow-hidden bg-gray-100 sm:aspect-[4/3]">
-                {cover ? <Image src={cover}alt={s.typeName ? `${tr(s.typeName)}${s.roomName ? ` · ${tr(s.roomName)}` : ""}` : tr(s.name)} fill sizes="(max-width:640px) 50vw, 360px" className="object-cover transition duration-700 group-hover:scale-[1.04]" /> : <div className="flex h-full items-center justify-center text-4xl">🏠</div>}
+                <CardSlides
+                  slides={slidesFor(`r:${s.id}`, cover, s.pics)}
+                  alt={s.typeName ? `${tr(s.typeName)}${s.roomName ? ` · ${tr(s.roomName)}` : ""}` : tr(s.name)}
+                  sizes="(max-width:640px) 50vw, 360px"
+                  dotsClass="bottom-2"
+                  onWarm={() => (s.pics ?? 0) > 1 && loadPics(`r:${s.id}`, `room=${encodeURIComponent(s.id)}`)}
+                  empty={<div className="flex h-full items-center justify-center text-4xl">🏠</div>}
+                />
                 {/* Trên ảnh chỉ hiện badge HOT khi được tick Nổi bật (nhiều chip dễ chồng nhau trên mobile). */}
                 {(s.roomFeatured || s.featured) && (
                   <span className="pointer-events-none absolute left-2 top-2 rounded-full bg-sunset-500 px-2 py-0.5 text-[11px] font-extrabold tracking-wide text-white shadow-sm sm:left-3 sm:top-3 sm:px-2.5 sm:py-1 sm:text-xs">🔥 HOT</span>

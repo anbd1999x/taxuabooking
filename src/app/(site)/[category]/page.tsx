@@ -397,8 +397,8 @@ async function CategoryBody({
       dormMin: dormLow ? formatPrice(dormLow[0]) : null,
     };
     // Ảnh bìa + tóm tắt của nhà: gửi xuống client 1 lần/nhà (tách khỏi ~400 thẻ phòng để payload không phình).
-    const homeInfo = Object.fromEntries(homestays.map((h) => [h.slug, { cover: h.homeCover ?? null, desc: h.homeDesc ?? "" }]));
-    const roomCards = homestays.map(({ homeCover: _c, homeDesc: _d, ...r }) => r);
+    const homeInfo = Object.fromEntries(homestays.map((h) => [h.slug, { cover: h.homeCover ?? null, desc: h.homeDesc ?? "", pics: h.homePics ?? 0 }]));
+    const roomCards = homestays.map(({ homeCover: _c, homeDesc: _d, homePics: _p, ...r }) => r);
     const homeList = [...new Map(homestays.map((h) => [h.slug, h])).values()];
     return (
       <>

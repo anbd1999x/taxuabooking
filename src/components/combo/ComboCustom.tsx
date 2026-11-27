@@ -4,6 +4,7 @@ import { dmy } from "@/lib/date-format";
 import { trackLeadConversion } from "@/lib/ads";
 import Link from "@/components/Link";
 import Image from "next/image";
+import { CardSlides, type Slide } from "@/components/combo/CardSlides";
 import { Children, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { ComboBusOption, ComboHomeOption, ComboRoomOption, ComboSearchResult } from "@/lib/combo";
 import { ensureSheetFresh } from "@/components/ensureSheet";
@@ -321,6 +322,19 @@ export function ComboCustom({
   const perUnit = (communal: boolean) =>
     communal ? (nights > 1 ? t("/ người / {0} đêm", [nights]) : t("/ người / đêm")) : nights > 1 ? t("/ phòng / {0} đêm", [nights]) : t("/ phòng / đêm");
   const plain = (r: ComboRoomOption) => (r.roomName.startsWith(`${r.typeName} · `) ? r.roomName.slice(r.typeName.length + 3) : r.roomName);
+  // Ảnh slide của một dòng phòng: nối ảnh từng căn trong nhóm (nhãn tên căn khi nhóm có nhiều căn), bỏ trùng.
+  const slidesOf = (rooms: ComboRoomOption[], label: boolean): Slide[] => {
+    const seen = new Set<string>();
+    const out: Slide[] = [];
+    for (const x of rooms) {
+      for (const u of x.images.length ? x.images : x.cover ? [x.cover] : []) {
+        if (seen.has(u)) continue;
+        seen.add(u);
+        out.push({ url: u, label: label ? t(plain(x)) : undefined });
+      }
+    }
+    return out;
+  };
   const capPct = Math.min(100, Math.round((capStd / Math.max(1, billable)) * 100));
   const capWarn = short;
   const capText = !nRooms
@@ -540,9 +554,8 @@ export function ComboCustom({
                   const avail = g.rooms.length;
                   const left = avail - q;
                   const r = g.rep;
-                  const img = r.images[0] ?? r.cover;
+                  const sl = slidesOf(g.rooms, avail > 1);
                   const title = avail === 1 ? r.roomName : r.typeName;
-                  const photoCount = g.rooms.reduce((n, x) => n + (x.images.length || (x.cover ? 1 : 0)), 0);
                   const tags = [
                     t("{0} người", [g.cap]),
                     ...(g.capMax > g.cap ? [t("Ở ghép tối đa {0}", [g.capMax])] : []),
@@ -559,10 +572,19 @@ export function ComboCustom({
                       style={{ border: `2px solid ${on ? G : LINE}`, background: on ? "oklch(0.975 0.015 155)" : "white" }}
                     >
                       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-[oklch(0.95_0.01_160)]">
-                        {img && <Image src={img} alt={t(title)} fill sizes="120px" className="object-cover" />}
-                        <button type="button" onClick={() => setViewRoom({ homeId: home.serviceId, key: g.key })} aria-label={t("Xem phòng")} className="absolute inset-0" />
-                        {photoCount > 0 && (
-                          <span className="pointer-events-none absolute bottom-1.5 left-1.5 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-extrabold text-white" style={{ background: "oklch(0.15 0.02 160 / .7)" }}>{t("{0} ảnh", [photoCount])}</span>
+                        {/* Ảnh slide (mũi tên — dòng phòng đã nằm trong băng trượt ngang nên không vuốt lồng); chạm ảnh = Xem phòng */}
+                        <CardSlides
+                          slides={sl}
+                          alt={t(title)}
+                          sizes="120px"
+                          swipe={false}
+                          small
+                          counterClass="bottom-1.5 left-1.5 px-2 py-0.5 text-[11px]"
+                          onOpen={() => setViewRoom({ homeId: home.serviceId, key: g.key })}
+                          empty={<button type="button" onClick={() => setViewRoom({ homeId: home.serviceId, key: g.key })} aria-label={t("Xem phòng")} className="absolute inset-0" />}
+                        />
+                        {sl.length === 1 && (
+                          <span className="pointer-events-none absolute bottom-1.5 left-1.5 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-extrabold text-white" style={{ background: "oklch(0.15 0.02 160 / .7)" }}>{t("{0} ảnh", [sl.length])}</span>
                         )}
                       </div>
                       <div className="flex min-w-0 flex-col gap-1">

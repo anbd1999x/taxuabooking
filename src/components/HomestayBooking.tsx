@@ -8,6 +8,7 @@ import { ItineraryLink } from "@/components/itinerary/ItineraryLink";
 import { VoiceText } from "@/components/SiteContact";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Image from "next/image";
+import { CardSlides } from "@/components/combo/CardSlides";
 import { billableOccupants, stayRoomsQuote, isCommunalRoom } from "@/lib/occupancy";
 import { CommitmentLink } from "@/components/trust/parts";
 import { vnPhoneError } from "@/lib/phone";
@@ -952,7 +953,24 @@ export function HomestayBooking({
                     [tr("Cuối tuần"), v.weP > 0 ? tr(fmt(v.weP)) : tr(IB)],
                     ...(v.r.holiday != null && v.r.holiday > 0 && holidayKeys.length > 0 ? ([[tr("Ngày lễ"), tr(fmt(v.r.holiday))]] as [string, string][]) : []),
                   ];
-              const media = (cls: string, sizes: string) => (
+              // Ảnh phòng dạng SLIDE (≥2 ảnh): lướt xem ngay trên thẻ, chạm ảnh mở lightbox đúng ảnh đó (video vẫn xem trong lightbox).
+              const pics = v.r.media.map((m, i) => ({ m, i })).filter((x) => x.m.type !== "video");
+              const slideOn = pics.length > 1;
+              const media = (cls: string, sizes: string, small = false) => slideOn ? (
+                <div className={`relative overflow-hidden bg-[oklch(0.95_0.01_155)] ${cls}`}>
+                  <CardSlides
+                    slides={pics.map((x) => ({ url: x.m.url }))}
+                    alt={tr(v.r.name)}
+                    sizes={sizes}
+                    small={small}
+                    dotsClass={small ? "bottom-1" : "bottom-2.5"}
+                    onOpen={(i) => openLb(v.r.media, pics[i]?.i ?? 0)}
+                  />
+                  {v.r.media.length > pics.length && (
+                    <span className={`pointer-events-none absolute rounded-full bg-black/55 font-extrabold text-white ${small ? "bottom-1.5 left-1.5 px-1.5 py-0.5 text-[10px]" : "bottom-2.5 left-2.5 px-2 py-1 text-[11px]"}`}>▶ video</span>
+                  )}
+                </div>
+              ) : (
                 <button
                   type="button"
                   onClick={() => v.r.media.length && openLb(v.r.media, 0)}
@@ -1006,7 +1024,7 @@ export function HomestayBooking({
                     <div className="relative" style={{ opacity: unavailable ? 0.6 : 1 }}>
                       {media("block aspect-video w-full", "100vw")}
                       <span className={`pointer-events-none absolute left-2.5 top-2.5 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-extrabold ${chip}`}>{tr(v.status)}</span>
-                      {v.r.media.length > 0 && (
+                      {v.r.media.length > 0 && !slideOn && (
                         <span className="pointer-events-none absolute bottom-2.5 right-2.5 rounded-full bg-[oklch(0.2_0.02_160/.7)] px-[9px] py-1 text-[11px] font-extrabold text-white">
                           {v.r.media.some((m) => m.type === "video") ? "▶ " : ""}
                           {tr("{0} ảnh", [v.r.media.length])}
@@ -1060,8 +1078,8 @@ export function HomestayBooking({
                   {/* MÁY TÍNH / MÀN RỘNG: thẻ hàng ngang — ảnh · thông tin · giá + nút */}
                   <div data-card="d" className="hidden grid-cols-[150px_minmax(0,1fr)_auto] items-center gap-x-3.5 p-2.5 sm:grid" style={{ opacity: unavailable ? 0.62 : 1 }}>
                     <div className="relative h-full min-h-[112px] self-stretch">
-                      {media("absolute inset-0 h-full w-full rounded-xl", "150px")}
-                      {v.r.media.length > 1 && (
+                      {media("absolute inset-0 h-full w-full rounded-xl", "150px", true)}
+                      {v.r.media.length > 1 && !slideOn && (
                         <span className="pointer-events-none absolute bottom-1 right-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[10px] font-semibold text-white">
                           {v.r.media.some((m) => m.type === "video") ? "▶ " : "🖼 "}
                           {v.r.media.length}
