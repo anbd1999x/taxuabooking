@@ -1,3 +1,5 @@
+import { addWeekdays } from "@/lib/date-format";
+
 /** Một dòng gạch đầu dòng trong mục "Chi tiết" của đơn (label có thể rỗng = chỉ hiện nội dung). */
 export interface DetailLine {
   label: string;
@@ -11,6 +13,11 @@ export interface DetailLine {
  * Nhãn không đúng mẫu ⇒ chỉ tách theo " · " thành các dòng không nhãn.
  */
 export function bookingDetailLines(chips: string[]): DetailLine[] {
+  // Ngày trong nhãn đơn hiện kèm thứ: "01/01/2027 (Thứ 6)".
+  return parseDetailLines(chips).map((l) => ({ label: l.label, value: addWeekdays(l.value) }));
+}
+
+function parseDetailLines(chips: string[]): DetailLine[] {
   const plain = (list: string[]): DetailLine[] =>
     list
       .flatMap((c) => c.split(" · "))
@@ -50,7 +57,9 @@ export function bookingDetailLines(chips: string[]): DetailLine[] {
       if (groups.length > 1) groups.forEach((g, i) => out.push({ label: i === 0 ? `Phòng (${groups.length} hạng)` : "", value: g }));
       else out.push({ label: "Phòng", value: roomsText });
       if (ghep) out.push({ label: "Ở ghép", value: ghep[2] });
-      out.push({ label: "Lưu trú", value: stay[2] });
+      // "1 đêm (01/01/2027 → 02/01/2027)" ⇒ "01/01/2027 → 02/01/2027 · 1 đêm" (khỏi lồng ngoặc khi chèn thứ).
+      const sm = /^(\d+ đêm) \((.+)\)$/.exec(stay[2]);
+      out.push({ label: "Lưu trú", value: sm ? `${sm[2]} · ${sm[1]}` : stay[2] });
     } else if (custom) out.push({ label: "Combo tự chọn", value: custom[1] });
     else if (berth) out.push({ label: "Chỗ nằm trên xe", value: berth[1] });
     else if (motoSeparate) out.push({ label: "Xe máy (tính riêng, ngoài bill)", value: motoSeparate[1] });

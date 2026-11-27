@@ -49,3 +49,22 @@ export function vnDateTime(v: Date | string): string {
   const parts = Object.fromEntries(VN_DT.formatToParts(typeof v === "string" ? new Date(v) : v).map((p) => [p.type, p.value]));
   return `${parts.hour}:${parts.minute} ${parts.day}/${parts.month}/${parts.year}`;
 }
+
+/** Tên thứ đầy đủ trong ngoặc: "Thứ 7" / "Chủ nhật". */
+export function wdLong(v: string | Date): string {
+  const wd = wdShort(v);
+  return wd === "CN" ? "Chủ nhật" : `Thứ ${wd.slice(1)}`;
+}
+
+/**
+ * Chèn thứ sau mọi ngày "dd/mm/yyyy" trong một đoạn chữ (nhãn đơn đã lưu dạng text):
+ * "nhận 05:00 01/01/2027" → "nhận 05:00 01/01/2027 (Thứ 6)". Ngày đã có thứ phía sau thì giữ nguyên.
+ */
+export function addWeekdays(text: string): string {
+  return text.replace(/\b(\d{2})\/(\d{2})\/(\d{4})\b(?!\s*\((?:Thứ|Chủ nhật|T\d|CN))/g, (m, d, mo, y) => {
+    const k = `${y}-${mo}-${d}`;
+    const dt = new Date(`${k}T00:00:00Z`);
+    if (Number.isNaN(dt.getTime()) || dt.toISOString().slice(0, 10) !== k) return m;
+    return `${m} (${wdLong(k)})`;
+  });
+}
