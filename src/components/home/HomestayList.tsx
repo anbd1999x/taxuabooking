@@ -4,6 +4,7 @@ import { urlHasDates } from "@/lib/search-prefs";
 import { SitePhone, We } from "@/components/SiteContact";
 import Link from "@/components/Link";
 import { CardSlides, type Slide } from "@/components/combo/CardSlides";
+import { AmenityIcon } from "@/components/AmenityIcon";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { dmy, wdShort } from "@/lib/date-format";
 import { DateField } from "@/components/DateField";
@@ -56,14 +57,15 @@ export interface HomestayCard {
 export type AmenKey = "cloudView" | "bathtub" | "breakfast" | "airCon" | "heating" | "pool" | "easyRoad";
 
 /** Tiện ích lọc được ở trang danh sách (đồng bộ nhãn với trang combo). */
-const AMENITIES: { key: AmenKey; label: string; icon: string }[] = [
-  { key: "cloudView", label: "View mây", icon: "⛅" },
-  { key: "bathtub", label: "Bồn tắm", icon: "🛁" },
-  { key: "breakfast", label: "Ăn sáng", icon: "🍳" },
-  { key: "airCon", label: "Điều hòa", icon: "❄️" },
-  { key: "heating", label: "Đêm sưởi", icon: "🔥" },
-  { key: "pool", label: "Hồ bơi", icon: "🏊" },
-  { key: "easyRoad", label: "Đường dễ đi", icon: "🛣️" },
+// Icon nét mảnh theo thiết kế "Icon Tien ich" (AmenityIcon, cùng khoá) — không dùng emoji.
+const AMENITIES: { key: AmenKey; label: string }[] = [
+  { key: "cloudView", label: "View mây" },
+  { key: "bathtub", label: "Bồn tắm" },
+  { key: "breakfast", label: "Ăn sáng" },
+  { key: "airCon", label: "Điều hòa" },
+  { key: "heating", label: "Đêm sưởi" },
+  { key: "pool", label: "Hồ bơi" },
+  { key: "easyRoad", label: "Đường dễ đi" },
 ];
 
 const STATUS: Record<HomestayCard["status"], { bg: string; fg: string; text: (n: number, t: TFunc) => string }> = {
@@ -929,7 +931,7 @@ export function HomestayList({
               <span className={groupTitle}>{tr("TIỆN ÍCH")}</span>
               <div className="flex flex-wrap gap-1.5">
                 {AMENITIES.map((a) => (
-                  <button key={a.key} type="button" onClick={() => toggleAmen(a.key)} className={chipCls(amen.has(a.key))}>{tr(a.icon)} {tr(a.label)}</button>
+                  <button key={a.key} type="button" onClick={() => toggleAmen(a.key)} className={`${chipCls(amen.has(a.key))} inline-flex items-center gap-1.5`}><AmenityIcon name={a.key} size={15} />{tr(a.label)}</button>
                 ))}
               </div>
             </div>
@@ -1017,12 +1019,7 @@ export function HomestayList({
                 {h.amen.size > 0 && (() => {
                   const tags = AMENITIES.filter((a) => h.amen.has(a.key));
                   return (
-                    <div className="flex flex-wrap gap-1">
-                      {tags.slice(0, 4).map((a) => (
-                        <span key={a.key} className="rounded-full bg-[oklch(0.96_0.02_155)] px-2 py-0.5 text-[10px] font-semibold text-[oklch(0.36_0.08_155)] sm:text-[11px]">{tr(a.icon)} {tr(a.label)}</span>
-                      ))}
-                      {tags.length > 4 && <span className="rounded-full bg-[oklch(0.96_0.005_230)] px-2 py-0.5 text-[10px] font-semibold text-gray-500 sm:text-[11px]">+{tags.length - 4}</span>}
-                    </div>
+                    <AmenityChips tags={tags} tr={tr} />
                   );
                 })()}
                 <div className="line-clamp-2 text-[13px] leading-[1.5] text-gray-500 sm:line-clamp-3 sm:text-sm sm:leading-[1.55]">{tr(h.desc)}</div>
@@ -1091,12 +1088,7 @@ export function HomestayList({
                   const tags = AMENITIES.filter((a) => s.amen?.[a.key]);
                   if (tags.length === 0) return null;
                   return (
-                    <div className="flex flex-wrap gap-1">
-                      {tags.slice(0, 4).map((a) => (
-                        <span key={a.key} className="rounded-full bg-[oklch(0.96_0.02_155)] px-2 py-0.5 text-[10px] font-semibold text-[oklch(0.36_0.08_155)] sm:text-[11px]">{tr(a.icon)} {tr(a.label)}</span>
-                      ))}
-                      {tags.length > 4 && <span className="rounded-full bg-[oklch(0.96_0.005_230)] px-2 py-0.5 text-[10px] font-semibold text-gray-500 sm:text-[11px]">+{tags.length - 4}</span>}
-                    </div>
+                    <AmenityChips tags={tags} tr={tr} />
                   );
                 })()}
                 <div className="line-clamp-2 text-[13px] leading-[1.5] text-gray-500 sm:line-clamp-3 sm:text-sm sm:leading-[1.55]">{tr(s.desc || homeInfo?.[s.slug]?.desc || s.homeDesc || "")}</div>
@@ -1163,6 +1155,27 @@ function SearchGroup({ n, title, children }: { n: number; title: string; childre
         {title}
       </div>
       {children}
+    </div>
+  );
+}
+
+/**
+ * Tiện ích trên thẻ — bố cục A của thiết kế "Icon Tien ich": icon + chữ ngắn, hiện vài tiện ích đầu, còn lại gom "+N".
+ * Điện thoại (thẻ 2 cột hẹp) hiện 2, máy tính 4 — tránh mỗi chip một dòng làm thẻ dài.
+ */
+function AmenityChips({ tags, tr }: { tags: { key: AmenKey; label: string }[]; tr: TFunc }) {
+  const chip = "items-center gap-1 whitespace-nowrap rounded-lg bg-[oklch(0.965_0.008_155)] py-1 pl-1.5 pr-2 text-[11px] font-semibold text-[oklch(0.33_0.05_158)]";
+  const more = "whitespace-nowrap rounded-lg bg-[oklch(0.965_0.008_155)] px-2 py-1 text-[11px] font-bold text-[oklch(0.45_0.02_160)]";
+  return (
+    <div className="flex flex-wrap gap-1">
+      {tags.slice(0, 4).map((a, i) => (
+        <span key={a.key} className={`${chip} ${i < 2 ? "flex" : "hidden sm:flex"}`}>
+          <AmenityIcon name={a.key} size={14} />
+          {tr(a.label)}
+        </span>
+      ))}
+      {tags.length > 2 && <span className={`${more} sm:hidden`} title={tags.slice(2).map((a) => tr(a.label)).join(", ")}>+{tags.length - 2}</span>}
+      {tags.length > 4 && <span className={`${more} hidden sm:inline`} title={tags.slice(4).map((a) => tr(a.label)).join(", ")}>+{tags.length - 4}</span>}
     </div>
   );
 }
