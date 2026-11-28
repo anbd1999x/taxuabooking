@@ -3,6 +3,33 @@ import { CATEGORY_LIST } from "@/lib/constants";
 import { SITE } from "@/lib/site";
 import { formatPhone } from "@/lib/trust-popup";
 import { getT } from "@/lib/i18n/server";
+import { unstable_cache } from "next/cache";
+import { prisma } from "@/lib/prisma";
+
+/**
+ * Link chân trang tới homestay MỚI nhất + mọi điểm tham quan: trang nào đã được Google lập chỉ mục
+ * cũng trỏ tới trang mới ⇒ Google phát hiện nhanh hơn (site mới, Google thu thập chậm).
+ */
+const footerLinks = unstable_cache(
+  async () => {
+    const [homes, places] = await Promise.all([
+      prisma.service.findMany({
+        where: { published: true, category: { in: ["HOMESTAY", "BUNGALOW"] } },
+        select: { slug: true, title: true },
+        orderBy: { createdAt: "desc" },
+        take: 12,
+      }),
+      prisma.place.findMany({
+        where: { published: true, kind: "CHECKIN", slug: { not: null } },
+        select: { slug: true, name: true },
+        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      }),
+    ]);
+    return { homes, places };
+  },
+  ["footer-links"],
+  { revalidate: 1800 },
+);
 
 export async function Footer({ settings }: { settings: Record<string, string> }) {
   const t = await getT();
@@ -13,6 +40,10 @@ export async function Footer({ settings }: { settings: Record<string, string> })
   const taxCode = settings.taxCode || SITE.taxCode;
   const legalAddress = settings.legalAddress || SITE.legalAddress;
   const address = t(settings.contactAddress || "Tà Xùa, Bắc Yên, Sơn La");
+  const links = await footerLinks().catch((e) => {
+    console.error("footer links", e);
+    return { homes: [], places: [] };
+  });
 
   return (
     <footer className="mt-16 bg-forest-900 text-forest-100">
@@ -67,6 +98,31 @@ export async function Footer({ settings }: { settings: Record<string, string> })
           </ul>
         </div>
       </div>
+
+      {(links.homes.length > 0 || links.places.length > 0) && (
+        <div className="container-page grid gap-6 border-t border-white/10 py-8 text-sm lg:grid-cols-2">
+          {links.homes.length > 0 && (
+            <div>
+              <h4 className="font-semibold text-white">{t("Homestay mới tại Tà Xùa")}</h4>
+              <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-forest-200">
+                {links.homes.map((h) => (
+                  <li key={h.slug}><Link href={`/homestay/${h.slug}`} className="hover:text-white">{t(h.title)}</Link></li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {links.places.length > 0 && (
+            <div>
+              <h4 className="font-semibold text-white">{t("Điểm tham quan Tà Xùa")}</h4>
+              <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-forest-200">
+                {links.places.map((pl) => (
+                  <li key={pl.slug}><Link href={`/diem-den/${pl.slug}`} className="hover:text-white">{t(pl.name)}</Link></li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="border-t border-white/10 py-5 text-center text-xs leading-relaxed text-forest-300">
         <div className="container-page">
