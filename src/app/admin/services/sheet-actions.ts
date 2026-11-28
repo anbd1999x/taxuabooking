@@ -30,7 +30,7 @@ export async function saveSheetUrl(_prev: SheetActionState, formData: FormData):
   }
   await prisma.service.update({
     where: { id: serviceId },
-    data: { sheetUrl: url || null, ...(url ? {} : { sheetSyncedAt: null, sheetSyncResult: null }) },
+    data: { sheetUrl: url || null, sheetCheckoutFree: formData.get("sheetCheckoutFree") === "on", ...(url ? {} : { sheetSyncedAt: null, sheetSyncResult: null }) },
   });
   revalidatePath(`/admin/services/${serviceId}`);
   return { ok: true, message: url ? "Đã lưu link. Bấm “Đồng bộ ngay” để kéo lịch về." : "Đã gỡ link Google Sheet." };

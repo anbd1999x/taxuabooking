@@ -1299,6 +1299,7 @@ export async function syncServiceSheet(
     where: { id: serviceId },
     select: {
       sheetUrl: true,
+      sheetCheckoutFree: true,
       roomTypes: {
         select: {
           id: true,
@@ -1578,7 +1579,8 @@ export async function syncServiceSheet(
     }
 
     // Sheet ghi "Check out" cho cả các đêm khách đã ở ⇒ quá khứ + hôm nay tính là đã đặt.
-    applyCheckoutAsStay(entries, ref);
+    // Homestay bật `sheetCheckoutFree` (vd Omely): "Check out" luôn là ngày trả phòng ⇒ trống.
+    if (!service.sheetCheckoutFree) applyCheckoutAsStay(entries, ref);
 
     // Khử trùng lặp (tab trùng tháng): mỗi (phòng, ngày) lấy giá trị ở tab xuất hiện trước.
     const dedupedByKey = new Map<string, SheetEntry>();

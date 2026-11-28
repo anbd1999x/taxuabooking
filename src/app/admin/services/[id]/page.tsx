@@ -779,6 +779,10 @@ export default async function EditServicePage({
                     />
                   </label>
                   <button className="rounded-lg bg-sky-600 px-3 py-2 text-[13px] font-semibold text-white hover:bg-sky-700">Lưu link</button>
+                  <label className="flex w-full items-center gap-2 text-[12px] text-gray-600">
+                    <input type="checkbox" name="sheetCheckoutFree" defaultChecked={service.sheetCheckoutFree} />
+                    Ô “Check out” luôn là ngày khách trả phòng (đêm đó trống) — tick khi sheet KHÔNG đổi các đêm khách đã ở thành “Check out”
+                  </label>
                 </ActionForm>
 
                 {service.sheetUrl && (

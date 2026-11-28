@@ -1,0 +1,1 @@
+ALTER TABLE "Service" ADD COLUMN "sheetCheckoutFree" BOOLEAN NOT NULL DEFAULT false;
